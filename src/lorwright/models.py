@@ -35,6 +35,7 @@ class ActionType(StrEnum):
     PLAY_CARD = "play_card"
     ATTACK = "attack"
     END_TURN = "end_turn"
+    NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
 
 
@@ -99,7 +100,13 @@ class Layout:
 
 @dataclass(frozen=True)
 class ClickPlan:
-    """一次动作需要执行的点击序列。"""
+    """一次动作需要执行的操作序列。
+
+    drag=False：依次点击每个点（结束回合、选目标）
+    drag=True ：从 points[0] 拖到 points[1]（出牌）
+    """
 
     points: list[tuple[int, int]]
     wait_ms: int = 400
+    drag: bool = False
+    drag_ms: int = 600

@@ -34,7 +34,7 @@ def test_first_non_none_wins() -> None:
 
 def test_fallback_when_all_abstain() -> None:
     router = Router([_Abstain(), _Abstain()])
-    r = router.decide(GameState())
+    r = router.decide(GameState(ui_state=UIState.MY_TURN_IDLE))
     assert r.layer == "fallback"
     assert r.action.type is ActionType.END_TURN
 
@@ -51,3 +51,20 @@ def test_coverage_counts() -> None:
     router.decide(GameState())
     assert router.stats["play"] == 2
     assert router.coverage()["play"] == 1.0
+def test_fallback_no_op_when_unknown() -> None:
+    router = Router([])
+    r = router.decide(GameState(ui_state=UIState.UNKNOWN))
+    assert r.action.type is ActionType.NO_OP
+    assert r.layer == "fallback"
+
+
+def test_fallback_no_op_when_enemy_turn() -> None:
+    router = Router([])
+    r = router.decide(GameState(ui_state=UIState.ENEMY_TURN))
+    assert r.action.type is ActionType.NO_OP
+
+
+def test_fallback_end_turn_when_my_turn() -> None:
+    router = Router([])
+    r = router.decide(GameState(ui_state=UIState.MY_TURN_IDLE))
+    assert r.action.type is ActionType.END_TURN

@@ -60,7 +60,10 @@ def probe(device: str = typer.Option("adb", help="adb | desktop")) -> None:
 
     settings = load_settings()
     dev = _make_device(device)
-    det = UIStateDetector(threshold=settings.perception.match_threshold)
+    det = UIStateDetector(
+        threshold=settings.perception.match_threshold,
+        action_button=settings.layout.to_layout().end_turn,
+    )
     det.load()
 
     frame = dev.screencap()

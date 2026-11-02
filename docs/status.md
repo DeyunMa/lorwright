@@ -36,7 +36,13 @@
 
 **30 个单测，ruff 全绿，CI 在 push 时自动跑。**
 
-**已在真机验证**：小米 2510DRK44C（1156×2510），`adb screencap` + LoR 启动正常。
+**已在真机验证**（小米 2510DRK44C，横屏 2510×1156）：
+
+- `adb screencap` 正常
+- LoR 启动、进对局正常
+- 颜色探针识别 `my_turn_idle` 正常（蓝色占比 77%）
+- Layout 四矩形已按真机实测填入 `config/settings.yaml`
+- **未验证**：拖拽出牌（`input swipe`）、卡牌识别、战斗结算
 
 ## Stub（需要真实画面才能做）
 

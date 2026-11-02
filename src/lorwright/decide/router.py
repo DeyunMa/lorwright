@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from lorwright.models import Action, ActionType, GameState
+from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.util.logger import logger
 
 
@@ -41,10 +41,11 @@ class Router:
                 return RouteResult(action=action, layer=name)
 
         self.stats["fallback"] = self.stats.get("fallback", 0) + 1
-        return RouteResult(
-            action=Action(type=ActionType.END_TURN),
-            layer="fallback",
-        )
+        # 只在确认「轮到我方」时才盲目点结束回合；
+        # 状态不明时宁可不动——否则会像 2026-11-02 那样点进设定菜单。
+        if state.ui_state is UIState.MY_TURN_IDLE:
+            return RouteResult(action=Action(type=ActionType.END_TURN), layer="fallback")
+        return RouteResult(action=Action(type=ActionType.NO_OP), layer="fallback")
 
     def coverage(self) -> dict[str, float]:
         total = sum(self.stats.values()) or 1

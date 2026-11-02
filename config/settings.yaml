@@ -28,12 +28,12 @@ logging:
 # 界面坐标（1080p 全屏，格式 [x, y, w, h]）
 # 用 lorwright probe 截一张图，量出来填这里
 layout:
-  end_turn:      # 例: [1700, 900, 100, 60]
-  enemy_nexus:   # 例: [880, 180, 140, 140]
-  play_area:     # 例: [760, 380, 400, 300]
-  hand_region:   # 例: [400, 900, 1120, 180]
+  # 小米 2510DRK44C 横屏实测（2510x1156）
+  end_turn:     [2035, 487, 138, 138]   # 右侧蓝色动作按钮（略過/結束回合）
+  enemy_nexus:  [329, 372, 80, 80]      # 左上红色水晶
+  play_area:    [900, 750, 700, 200]    # 我方出牌落点
+  hand_region:  [1750, 940, 740, 210]   # 右下扇形手牌
 
-# ADB 设备（手机 / 模拟器）
 adb:
   enabled: true
   serial:            # 留空自动选第一个；多开时填 emulator-5554 / emulator-5556

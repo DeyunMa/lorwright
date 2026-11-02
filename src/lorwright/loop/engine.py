@@ -32,7 +32,8 @@ class Engine:
         self.device = device
         self.layout = layout or settings.layout.to_layout()
         self.ui_detector = ui_detector or UIStateDetector(
-            threshold=settings.perception.match_threshold
+            threshold=settings.perception.match_threshold,
+            action_button=self.layout.end_turn,
         )
         self.cards = cards or CardLibrary()
         self.translator = ActionTranslator(self.layout)
@@ -72,9 +73,13 @@ class Engine:
 
                 clicks = 0
                 if plan is not None:
-                    for x, y in plan.points:
-                        self.device.tap(x, y)
-                        time.sleep(plan.wait_ms / 1000)
+                    if plan.drag and len(plan.points) == 2:
+                        (x1, y1), (x2, y2) = plan.points
+                        self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+                    else:
+                        for x, y in plan.points:
+                            self.device.tap(x, y)
+                            time.sleep(plan.wait_ms / 1000)
                     clicks = len(plan.points)
 
                 elapsed_ms = round((time.time() - t0) * 1000)

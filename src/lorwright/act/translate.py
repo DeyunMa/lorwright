@@ -16,6 +16,9 @@ class ActionTranslator:
         self.layout = layout
 
     def translate(self, action: Action, state: GameState) -> ClickPlan | None:
+        if action.type is ActionType.NO_OP:
+            return None
+
         if action.type is ActionType.END_TURN:
             if not self.layout.end_turn:
                 return None
@@ -25,9 +28,11 @@ class ActionTranslator:
             card = next((c for c in state.hand if c.index == action.card_index), None)
             if card is None or self.layout.play_area is None:
                 return None
+            # 手机版只支持拖拽出牌，用一次 swipe 完成
             return ClickPlan(
                 points=[card.rect.center, self.layout.play_area.center],
                 wait_ms=500,
+                drag=True,
             )
 
         if action.type is ActionType.ATTACK:

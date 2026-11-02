@@ -78,15 +78,16 @@ class AdbDevice:
         )
 
     def size(self) -> tuple[int, int]:
+        """当前方向下的截图尺寸（不是 wm size 的物理尺寸）。
+
+        横屏游戏截图是 2510x1156，而 wm size 永远报竖屏 1156x2510，
+        用后者会把所有坐标算错。
+        """
         if self._size:
             return self._size
-        out = self._run("shell", "wm", "size")
-        for line in out.splitlines():
-            if "Physical size" in line:
-                w, h = line.split(":")[1].strip().split("x")
-                self._size = (int(w), int(h))
-                return self._size
-        raise RuntimeError(f"无法解析屏幕尺寸：{out}")
+        frame = self.screencap()
+        self._size = (frame.width, frame.height)
+        return self._size
 
     def close(self) -> None:
         pass

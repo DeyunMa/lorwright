@@ -85,6 +85,7 @@ def probe(device: str = typer.Option("adb", help="adb | desktop")) -> None:
 def shot(
     out: str = "logs/shot.png",
     device: str = typer.Option("adb", help="adb | desktop"),
+    grid: int = typer.Option(0, help="叠加坐标网格（像素间距，0=不叠）"),
 ) -> None:
     """截一张图保存（用于量坐标、采模板）。"""
     import cv2
@@ -93,10 +94,67 @@ def shot(
     frame = dev.screencap()
     dev.close()
 
+    img = frame.image
+    if grid > 0:
+        img = _draw_grid(img, grid)
+
     path = Path(out)
     path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(path), frame.image)
+    cv2.imwrite(str(path), img)
     console.print(f"[green]已保存[/green] {path}  ({frame.width}x{frame.height})")
+    if grid > 0:
+        console.print(f"网格间距 {grid}px，直接读坐标填 layout")
+
+
+def _draw_grid(img, step: int):
+    """在图上画坐标网格，方便量 layout。"""
+    import cv2
+
+    out = img.copy()
+    h, w = out.shape[:2]
+    color = (0, 255, 0)
+    for x in range(0, w, step):
+        cv2.line(out, (x, 0), (x, h), color, 1)
+        cv2.putText(out, str(x), (x + 3, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+    for y in range(0, h, step):
+        cv2.line(out, (0, y), (w, y), color, 1)
+        cv2.putText(out, str(y), (3, y + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+    return out
+
+
+@app.command()
+def crop(
+    rect: str = typer.Option(..., help="x,y,w,h（左上角坐标 + 宽高）"),
+    name: str = typer.Option(..., help="模板名，如 end_turn"),
+    src: str = typer.Option("logs/shot.png", help="源图"),
+    out: str = typer.Option("assets/buttons", help="输出目录"),
+    device: str = typer.Option("", help="留空=用已有 src；填 adb=先截一张再裁"),
+) -> None:
+    """从截图裁出一块存成模板。"""
+    import cv2
+
+    if device:
+        dev = _make_device(device)
+        img = dev.screencap().image
+        dev.close()
+        Path(src).parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(src, img)
+
+    img = cv2.imread(src)
+    if img is None:
+        console.print(f"[red]读不到图：{src}[/red]")
+        raise typer.Exit(1)
+
+    x, y, w, h = (int(v) for v in rect.split(","))
+    patch = img[y : y + h, x : x + w]
+    if patch.size == 0:
+        console.print("[red]裁剪区域超出图像范围[/red]")
+        raise typer.Exit(1)
+
+    dest = Path(out) / f"{name}.png"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(dest), patch)
+    console.print(f"[green]已保存[/green] {dest}  ({w}x{h})")
 
 
 @app.command()

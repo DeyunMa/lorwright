@@ -17,14 +17,15 @@
 | 模块 | 说明 |
 |---|---|
 | `models.py` | GameState / Action / Layout / ClickPlan |
-| `perceive/capture.py` | mss 截屏 |
+| `device/base.py` | Device 协议 + Frame |
+| `device/adb.py` | ADB 截图/点击/滑动/启动应用 |
+| `device/desktop.py` | mss + pynput（调试回退） |
 | `perceive/locate.py` | 模板匹配 + NMS（合成图像测试通过） |
 | `perceive/ui_state.py` | 5 状态检测（待模板） |
 | `decide/rules.py` | 蜘蛛快攻规则（斩杀/出牌/结束/弃权） |
 | `decide/candidates.py` | 局面 → 候选动作 |
 | `decide/jev.py` / `llm.py` | HTTP 客户端，未配置自动降级 |
 | `decide/router.py` | 分层路由 + 覆盖率统计 |
-| `act/mouse.py` | 点击 / 拖拽 |
 | `act/translate.py` | 语义动作 → 点击序列 |
 | `loop/engine.py` | 主循环（含事件发射） |
 | `loop/watchdog.py` | 卡住检测 |
@@ -33,7 +34,9 @@
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**28 个单测，ruff 全绿，CI 在 push 时自动跑。**
+**30 个单测，ruff 全绿，CI 在 push 时自动跑。**
+
+**已在真机验证**：小米 2510DRK44C（1156×2510），`adb screencap` + LoR 启动正常。
 
 ## Stub（需要真实画面才能做）
 

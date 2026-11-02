@@ -10,8 +10,11 @@
 
 1. **英雄之路没有官方 API。** `localhost:21337` 只覆盖收藏/构筑/PvP，
    PoC 至今无 API（见 `docs/adr/0002`）。**不要尝试接 API 做 PoC 状态。**
-2. **必须 1920×1080 全屏 + 显示缩放 100%。** 模板与坐标按此采集，改分辨率就全错。
+2. **主路径是 ADB（手机/模拟器），不是 Windows 窗口。** 见 `docs/adr/0003`。
+   桌面模式（mss+pynput）只作为调试回退。
 3. **出牌用「点击出牌」模式**（游戏设置里开），不要实现拖拽为主路径。
+4. **模板按目标设备分辨率采集。** 手机 1156×2510、模拟器可自定义；
+   换分辨率就要重采，否则坐标全错。
 
 ## 命令
 
@@ -20,20 +23,22 @@ pip install -e ".[dev]"     # 安装
 pytest                      # 28 个单测（不需要游戏）
 ruff check src tests tools  # 静态检查
 lorwright doctor            # 环境自检
-lorwright probe             # 截一帧 + 识别 UI 状态
-lorwright capture --out x.png
-lorwright run --max-ticks 50
+lorwright devices           # 列出 ADB 设备
+lorwright probe             # 设备信息 + UI 状态
+lorwright shot --out x.png  # 截图（量坐标/采模板）
+lorwright run --max-ticks 50 --device adb
 ```
 
 ## 架构
 
 ```
-perceive（截图/模板匹配/OCR） → decide（规则→JEV→LLM） → act（点击） → loop（主循环+看门狗）
+device（adb / desktop）→ perceive（模板匹配/OCR） → decide（规则→JEV→LLM） → act（坐标翻译） → loop
 ```
 
 | 目录 | 职责 | 关键约定 |
 |---|---|---|
 | `models.py` | 数据契约 | `GameState` / `Action` / `Layout`，**决策层不碰坐标** |
+| `device/` | 设备抽象 | `AdbDevice`（adb 截图/点击）/ `DesktopDevice`（mss+pynput） |
 | `perceive/` | 感知 | 只读截图，不产生动作 |
 | `decide/` | 决策 | 每层实现 `decide(state) -> Action | None`，**None = 弃权** |
 | `act/` | 执行 | 语义动作 → 点击序列 |

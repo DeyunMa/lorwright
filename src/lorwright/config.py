@@ -35,6 +35,15 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
+class AdbConfig(BaseModel):
+    """ADB 设备配置。"""
+
+    enabled: bool = True
+    serial: str | None = None      # 留空 = 自动选第一个
+    adb_path: str = "adb"
+    package: str = "com.riotgames.legendsofruneterra"
+
+
 class LayoutConfig(BaseModel):
     """界面坐标，格式：[x, y, w, h]。留空表示未标定。"""
 
@@ -64,6 +73,7 @@ class Settings(BaseModel):
     loop: LoopConfig = Field(default_factory=LoopConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     layout: LayoutConfig = Field(default_factory=LayoutConfig)
+    adb: AdbConfig = Field(default_factory=AdbConfig)
 
     # 可选外部服务（来自环境变量）
     vlm_base_url: str | None = None

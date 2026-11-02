@@ -32,3 +32,10 @@ layout:
   enemy_nexus:   # 例: [880, 180, 140, 140]
   play_area:     # 例: [760, 380, 400, 300]
   hand_region:   # 例: [400, 900, 1120, 180]
+
+# ADB 设备（手机 / 模拟器）
+adb:
+  enabled: true
+  serial:            # 留空自动选第一个；多开时填 emulator-5554 / emulator-5556
+  adb_path: adb
+  package: com.riotgames.legendsofruneterra

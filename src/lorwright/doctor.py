@@ -1,11 +1,8 @@
-"""环境自检：在跑 bot 之前，先确认环境是否就绪。
-
-设计目标：每条检查都给出「怎么办」，而不是只说失败。
-"""
+"""环境自检：跑 bot 之前先确认环境就绪。"""
 
 from __future__ import annotations
 
-import platform
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,95 +29,61 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
     r = Path(root)
     checks: list[Check] = []
 
-    # 1. Python 版本
     v = sys.version_info
     checks.append(
-        Check(
-            "Python >= 3.11",
-            v >= (3, 11),
-            f"{v.major}.{v.minor}.{v.micro}",
-            "升级 Python：https://www.python.org/downloads/",
-        )
+        Check("Python >= 3.11", v >= (3, 11), f"{v.major}.{v.minor}.{v.micro}",
+              "升级 Python：https://www.python.org/downloads/")
     )
 
-    # 2. 平台
+    # ADB
+    adb_ok = shutil.which(settings.adb.adb_path) is not None
     checks.append(
-        Check(
-            "Windows 平台",
-            platform.system() == "Windows",
-            platform.system(),
-            "本项目在 Windows 上运行（macOS 只能跑单测）",
-            optional=True,
-        )
+        Check("adb 可用", adb_ok, settings.adb.adb_path if adb_ok else "未找到",
+              "brew install android-platform-tools / winget install Google.PlatformTools")
     )
 
-    # 3. 依赖
-    for mod, pkg in [
-        ("cv2", "opencv-python"),
-        ("mss", "mss"),
-        ("pynput", "pynput"),
-        ("loguru", "loguru"),
-        ("pydantic", "pydantic"),
-    ]:
+    if adb_ok:
+        from lorwright.device.adb import AdbDevice
+
+        serials = AdbDevice.list_devices(settings.adb.adb_path)
         checks.append(
-            Check(
-                f"依赖 {pkg}",
-                _has_module(mod),
-                "已安装" if _has_module(mod) else "缺失",
-                f"pip install {pkg}",
-            )
+            Check("ADB 设备", bool(serials), f"{len(serials)} 台: {', '.join(serials[:3])}" if serials else "未连接",
+                  "手机开 USB 调试并允许；模拟器先启动")
         )
 
-    # 4. 素材
+    # 依赖（核心）
+    for mod, pkg in [("cv2", "opencv-python"), ("numpy", "numpy"),
+                     ("loguru", "loguru"), ("pydantic", "pydantic")]:
+        ok = _has_module(mod)
+        checks.append(Check(f"依赖 {pkg}", ok, "已安装" if ok else "缺失", f"pip install {pkg}"))
+
+    # 依赖（桌面模式，可选）
+    for mod, pkg in [("mss", "mss"), ("pynput", "pynput")]:
+        ok = _has_module(mod)
+        checks.append(
+            Check(f"依赖 {pkg}（桌面模式）", ok, "已安装" if ok else "缺失",
+                  f"pip install {pkg}（只在 --device desktop 时需要）", optional=True)
+        )
+
+    # 素材
     buttons = list((r / "assets" / "buttons").glob("*.png"))
     cards = list((r / "assets" / "cards").glob("*.png"))
-    checks.append(
-        Check(
-            "按钮模板",
-            len(buttons) >= 2,
-            f"{len(buttons)} 张",
-            "至少需要 end_turn.png + victory.png，见 issue #2",
-        )
-    )
-    checks.append(
-        Check(
-            "卡牌图库",
-            len(cards) >= 10,
-            f"{len(cards)} 张",
-            "用 tools/collect_cards.py 采集，见 issue #3",
-        )
-    )
+    checks.append(Check("按钮模板", len(buttons) >= 2, f"{len(buttons)} 张",
+                        "至少 end_turn.png + victory.png，见 issue #2"))
+    checks.append(Check("卡牌图库", len(cards) >= 10, f"{len(cards)} 张",
+                        "用 tools/collect_cards.py 采集，见 issue #3"))
 
-    # 5. Layout
+    # Layout
     lay = settings.layout.to_layout()
-    checks.append(
-        Check(
-            "Layout 已标定",
-            bool(lay.end_turn and lay.play_area),
-            "就绪" if (lay.end_turn and lay.play_area) else "未标定",
-            "在 config/settings.yaml 的 layout 段填 \\[x,y,w,h\\]，见 issue #2",
-        )
-    )
+    ready = bool(lay.end_turn and lay.play_area)
+    checks.append(Check("Layout 已标定", ready, "就绪" if ready else "未标定",
+                        "在 config/settings.yaml 的 layout 段填 [x,y,w,h]，见 issue #2"))
 
-    # 6. 可选服务
-    checks.append(
-        Check(
-            "JEV 已配置",
-            bool(settings.jev_base_url),
-            settings.jev_base_url or "未配置",
-            "可选；不配就只用规则层",
-            optional=True,
-        )
-    )
-    checks.append(
-        Check(
-            "LLM 已配置",
-            bool(settings.vlm_base_url and settings.vlm_model),
-            settings.vlm_model or "未配置",
-            "可选；不配就只用规则层",
-            optional=True,
-        )
-    )
+    # 可选服务
+    checks.append(Check("JEV 已配置", bool(settings.jev_base_url),
+                        settings.jev_base_url or "未配置", "可选；不配就只用规则层", optional=True))
+    checks.append(Check("LLM 已配置", bool(settings.vlm_base_url and settings.vlm_model),
+                        settings.vlm_model or "未配置", "可选；不配就只用规则层", optional=True))
 
     return checks
 
@@ -128,12 +91,7 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
 def format_checks(checks: list[Check]) -> str:
     lines = []
     for c in checks:
-        if c.ok:
-            mark = "✅"
-        elif c.optional:
-            mark = "⚠️ "
-        else:
-            mark = "❌"
+        mark = "✅" if c.ok else ("⚠️ " if c.optional else "❌")
         line = f"{mark} {c.name}: {c.detail}"
         if not c.ok and c.hint:
             line += f"\n   → {c.hint}"
@@ -142,5 +100,4 @@ def format_checks(checks: list[Check]) -> str:
 
 
 def blockers(checks: list[Check]) -> list[Check]:
-    """必须修复的项（排除 optional）。"""
     return [c for c in checks if not c.ok and not c.optional]

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import time
 
-from lorwright.act.mouse import Mouse
 from lorwright.act.translate import ActionTranslator
 from lorwright.config import Settings
 from lorwright.decide.router import Router
+from lorwright.device.base import Device
 from lorwright.loop.watchdog import Watchdog
 from lorwright.models import GameState, Layout
-from lorwright.perceive.capture import ScreenCapture
 from lorwright.perceive.cards import CardLibrary
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.events import emit
@@ -23,35 +22,36 @@ class Engine:
         self,
         settings: Settings,
         router: Router,
+        device: Device,
         layout: Layout | None = None,
-        capture: ScreenCapture | None = None,
         ui_detector: UIStateDetector | None = None,
         cards: CardLibrary | None = None,
-        mouse: Mouse | None = None,
     ) -> None:
         self.settings = settings
         self.router = router
+        self.device = device
         self.layout = layout or settings.layout.to_layout()
-        self.capture = capture or ScreenCapture(settings.screen.width, settings.screen.height)
         self.ui_detector = ui_detector or UIStateDetector(
             threshold=settings.perception.match_threshold
         )
         self.cards = cards or CardLibrary()
-        self.mouse = mouse or Mouse()
         self.translator = ActionTranslator(self.layout)
         self.watchdog = Watchdog(threshold=settings.loop.stuck_threshold)
 
     def run(self, max_ticks: int | None = None) -> None:
         self.ui_detector.load()
         self.cards.load()
+
+        w, h = self.device.size()
         logger.info(
-            "engine start: layers={} cards={} layout={}",
+            "engine start: device={} size={}x{} layers={} cards={} layout={}",
+            self.device.name, w, h,
             [getattr(p, "name", type(p).__name__) for p in self.router.layers],
             len(self.cards),
             "ready" if self.layout.end_turn else "NOT CALIBRATED",
         )
         if not self.layout.end_turn:
-            logger.warning("layout 未标定，动作会被跳过。先跑 `lorwright probe` 量坐标。")
+            logger.warning("layout 未标定，动作会被跳过。先跑 `lorwright shot` 量坐标。")
 
         ticks = 0
         try:
@@ -59,23 +59,23 @@ class Engine:
                 ticks += 1
                 t0 = time.time()
 
-                shot = self.capture.grab()
-                state = self._build_state(shot.frame)
+                frame = self.device.screencap()
+                state = self._build_state(frame.image)
 
                 stuck = self.watchdog.observe(state)
                 if stuck:
                     logger.warning("stuck: {}", state.summary())
-                    save_snapshot(shot.frame, self.settings.perception.snapshot_dir, tag="stuck")
+                    save_snapshot(frame.image, self.settings.perception.snapshot_dir, tag="stuck")
 
                 result = self.router.decide(state)
                 plan = self.translator.translate(result.action, state)
 
-                executed = 0
+                clicks = 0
                 if plan is not None:
                     for x, y in plan.points:
-                        self.mouse.click(x, y)
+                        self.device.tap(x, y)
                         time.sleep(plan.wait_ms / 1000)
-                    executed = len(plan.points)
+                    clicks = len(plan.points)
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(
@@ -83,15 +83,14 @@ class Engine:
                     ui=state.ui_state.value,
                     layer=result.layer,
                     action=result.action.type.value,
-                    clicks=executed,
+                    clicks=clicks,
                     stuck=stuck,
                     ms=elapsed_ms,
                 )
 
-                sleep_s = max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000)
-                time.sleep(sleep_s)
+                time.sleep(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))
         finally:
-            self.capture.close()
+            self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
 
     def _build_state(self, frame) -> GameState:

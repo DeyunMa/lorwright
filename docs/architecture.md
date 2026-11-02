@@ -27,7 +27,8 @@ Riot 的本地 API（`localhost:21337`）只覆盖**收藏、构筑器、PvP 对
 
 | 层 | 模块 | 职责 |
 |---|---|---|
-| 感知 | `perceive/` | 截屏、模板匹配、卡牌识别、UI 状态 |
+| 设备 | `device/` | 截图 + 输入（ADB / 桌面），上层不关心设备类型 |
+| 感知 | `perceive/` | 模板匹配、卡牌识别、UI 状态 |
 | 决策 | `decide/` | 规则 / JEV / LLM 分层路由 |
 | 执行 | `act/` | 语义动作 → 点击坐标 |
 | 异常 | `loop/` | 主循环、看门狗、截图存档 |
@@ -60,6 +61,10 @@ Action(type, card_index, target)   # 语义动作，不含坐标
 ```
 src/lorwright/
 ├── models.py           # GameState / Action / UIState / Rect
+├── device/
+│   ├── base.py         # Device 协议 + Frame
+│   ├── adb.py          # adb exec-out screencap / input tap
+│   └── desktop.py      # mss + pynput（调试用）
 ├── config.py           # YAML 配置
 ├── main.py             # CLI: probe / capture / run
 ├── perceive/
@@ -87,10 +92,10 @@ src/lorwright/
 
 | 约束 | 原因 |
 |---|---|
-| **1920×1080 全屏** | 模板和坐标按此分辨率采集 |
-| **显示缩放 100%** | 否则截图尺寸与坐标不符 |
+| **模板分辨率 = 目标设备分辨率** | 手机 1156×2510 / 模拟器自定义，换了就重采 |
 | **点击出牌模式** | 游戏设置里开启，避免拖拽模拟 |
 | 游戏语言一致 | 模板图按语言截取 |
+| 加速器用 TUN 模式 | 模拟器不认 Windows 系统代理 |
 
 ## 八、里程碑
 

@@ -23,6 +23,7 @@
 | `perceive/locate.py` | 模板匹配 + NMS（合成图像测试通过） |
 | `perceive/ui_state.py` | 5 状态检测（待模板） |
 | `decide/rules.py` | 蜘蛛快攻规则（斩杀/出牌/结束/弃权） |
+| `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
 | `decide/candidates.py` | 局面 → 候选动作 |
 | `decide/jev.py` / `llm.py` | HTTP 客户端，未配置自动降级 |
 | `decide/router.py` | 分层路由 + 覆盖率统计 |
@@ -34,7 +35,7 @@
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**30 个单测，ruff 全绿，CI 在 push 时自动跑。**
+**48 个单测，ruff 全绿，CI 在 push 时自动跑。**
 
 **已在真机验证**（小米 2510DRK44C，横屏 2510×1156）：
 
@@ -42,7 +43,25 @@
 - LoR 启动、进对局正常
 - 颜色探针识别 `my_turn_idle` 正常（蓝色占比 77%）
 - Layout 四矩形已按真机实测填入 `config/settings.yaml`
-- **未验证**：拖拽出牌（`input swipe`）、卡牌识别、战斗结算
+- **拖拽出牌可行**：`input swipe` 从手牌拖到 `(1250, 850)` 实际打出了牌（场面出现单位、法力被扣）
+- **未验证**：卡牌识别、战斗结算
+
+### 一个容易误判的现象
+
+手机端对局中 LoR 曾进入**游戏自身卡死 / 掉线重连**状态（卡图模糊、动作按钮变空白）。
+期间所有 adb 输入「看起来无效」——点按钮、点齿轮、甚至下拉通知栏都没反应，
+但 `input keyevent 3`（HOME）能正常回到桌面。
+
+**结论：这不是 adb 输入通道的问题，是游戏进程无响应。**
+以后遇到「输入全无效」先做这个判别：
+
+```bash
+adb shell input keyevent 3                       # HOME 能否生效
+adb shell dumpsys window | grep mCurrentFocus    # 前台是否已切到桌面
+adb shell dumpsys power | grep mState            # 屏幕是否 ON
+```
+
+HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ... 1`），别怀疑坐标。
 
 ## Stub（需要真实画面才能做）
 
@@ -93,5 +112,6 @@
 |---|---|
 | 卡牌变体 | 闪卡/皮肤会导致模板不匹配 → 记录失败样本 |
 | 手牌重叠 | 切分困难 → 可用固定卡位 |
+| 游戏自身卡死 | 表现为「输入全无效」，实为进程无响应 → 见上文判别步骤 |
 | 游戏更新 | UI 变化要重采模板 |
 | 封号 | 自动化违反 ToS，用小号试错 |

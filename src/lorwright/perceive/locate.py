@@ -23,7 +23,14 @@ def find_all(
     threshold: float = 0.85,
 ) -> list[tuple[Rect, float]]:
     """返回所有匹配位置及置信度，按置信度降序。"""
+    # 常数模板（零方差）在 TM_CCOEFF_NORMED 下是除零，结果依平台而异：
+    # Apple Silicon 上出 NaN，x86 上出 1.0。这种模板本身没有可定位的特征，
+    # 直接判为「没找到」，否则同一份代码在 Mac 和 Windows 上结论相反。
+    if float(template.std()) < 1e-6:
+        return []
+
     res = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
+    res = np.nan_to_num(res, nan=-1.0, posinf=-1.0, neginf=-1.0)
     ys, xs = np.where(res >= threshold)
     th, tw = template.shape[:2]
 

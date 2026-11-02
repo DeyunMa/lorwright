@@ -22,8 +22,10 @@
 | `device/desktop.py` | mss + pynput（调试回退） |
 | `perceive/locate.py` | 模板匹配 + NMS（合成图像测试通过） |
 | `perceive/ui_state.py` | 5 状态检测（待模板） |
-| `decide/rules.py` | 蜘蛛快攻规则（斩杀/出牌/结束/弃权） |
+| `champions/elise/` | 伊莉絲英雄包：牌表 + 蜘蛛快攻规则 |
 | `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
+| `decide/card.py` | 卡牌通用词汇（CardKind / CardDef） |
+| `champions/` | 英雄包注册表（加英雄 = 加目录，不改核心） |
 | `decide/candidates.py` | 局面 → 候选动作 |
 | `decide/jev.py` / `llm.py` | HTTP 客户端，未配置自动降级 |
 | `decide/router.py` | 分层路由 + 覆盖率统计 |
@@ -35,7 +37,7 @@
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**48 个单测，ruff 全绿，CI 在 push 时自动跑。**
+**90 个单测，ruff 全绿，CI 在 push 时自动跑。**
 
 **已在真机验证**（小米 2510DRK44C，横屏 2510×1156）：
 

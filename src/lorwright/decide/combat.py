@@ -280,3 +280,20 @@ def is_lethal(
 ) -> bool:
     """这一波能不能直接打死对手水晶。"""
     return max_nexus_damage(attackers, blockers, **kwargs) >= enemy_nexus_hp
+
+
+def to_combatant(unit, *, challenger: bool = False) -> Combatant:
+    """把感知层的 `Unit` 转成求解器的 `Combatant`。
+
+    感知层可能返回任意字符串当关键词，未知的一律忽略，不抛异常。
+    """
+    keywords = {Keyword(k) for k in unit.keywords if k in set(Keyword)}
+    if challenger:
+        keywords.add(Keyword.CHALLENGER)
+    return Combatant(
+        attack=unit.attack,
+        health=unit.health,
+        keywords=frozenset(keywords),
+        name=unit.name,
+        stunned=unit.stunned,
+    )

@@ -68,6 +68,8 @@ class LayoutConfig(BaseModel):
 
 
 class Settings(BaseModel):
+    #: 英雄包名，对应 `champions/<name>/` 目录
+    champion: str = "elise"
     screen: ScreenConfig = Field(default_factory=ScreenConfig)
     perception: PerceptionConfig = Field(default_factory=PerceptionConfig)
     loop: LoopConfig = Field(default_factory=LoopConfig)

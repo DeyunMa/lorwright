@@ -180,16 +180,18 @@ def run(
     device: str = typer.Option("adb", help="adb | desktop"),
 ) -> None:
     """运行主循环。"""
+    from lorwright.champions import load as load_champion
     from lorwright.decide.jev import JevClient
     from lorwright.decide.jev_policy import JevPolicy, LlmPolicy
     from lorwright.decide.llm import LlmClient
     from lorwright.decide.router import Router
-    from lorwright.decide.rules import SpiderAggroPolicy
     from lorwright.loop.engine import Engine
 
     settings = load_settings()
+    pack = load_champion(settings.champion)
+    console.print(f"英雄包：[bold]{pack.name}[/bold]（{pack.display_name}，{len(pack.deck)} 张牌）")
 
-    layers: list = [SpiderAggroPolicy()]
+    layers: list = [pack.make_policy()]
     if settings.jev_base_url:
         layers.append(JevPolicy(JevClient(settings.jev_base_url, settings.jev_api_key)))
     if settings.vlm_base_url and settings.vlm_model:

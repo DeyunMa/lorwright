@@ -80,7 +80,7 @@ lorwright run --max-ticks 50
 |---|---|
 | `perceive/cards.py` | 手牌切分 + 匹配 |
 | `loop/engine.py:_build_state` | 解析法力/血量/场面 |
-| `decide/rules.py` | 按蜘蛛卡组补规则 |
+| `champions/elise/policy.py` | 按伊莉絲卡组补规则 |
 
 ## 8. 日志位置
 

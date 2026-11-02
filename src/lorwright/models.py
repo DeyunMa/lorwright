@@ -91,15 +91,6 @@ class GameState:
             f"enemy={len(self.enemy_units)} hp={self.nexus_hp}/{self.enemy_nexus_hp}"
         )
 
-    @property
-    def spider_count(self) -> int:
-        """场上蜘蛛数 —— buff 牌评分的关键变量。
-
-        伊莉丝这套牌场上单位全是蜘蛛（含小蜘蛛 token），所以直接取单位数。
-        将来换其他牌组时这里要改成按名字过滤。
-        """
-        return len(self.my_units)
-
 
 @dataclass
 class Layout:

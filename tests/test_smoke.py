@@ -2,7 +2,7 @@
 
 import pytest
 
-from lorwright.decide.rules import SpiderAggroPolicy
+from lorwright.champions import load
 from lorwright.models import CardInHand, GameState, Rect, UIState, Unit
 
 
@@ -26,5 +26,5 @@ def test_policy_never_crashes_and_never_returns_none(ui_state: UIState) -> None:
         my_units=[Unit("spider", attack=2, health=2, rect=Rect(0, 0, 1, 1))],
         has_attack_token=True,
     )
-    action = SpiderAggroPolicy().decide(state)
+    action = load().make_policy().decide(state)
     assert action is not None

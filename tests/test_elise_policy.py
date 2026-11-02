@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from lorwright.decide.rules import SpiderAggroPolicy
+from lorwright.champions.elise import SpiderAggroPolicy
 from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 RECT = Rect(0, 0, 10, 10)

@@ -1,3 +1,6 @@
+# 当前使用的英雄包（对应 src/lorwright/champions/<name>/）
+champion: elise
+
 screen:
   width: 1920
   height: 1080

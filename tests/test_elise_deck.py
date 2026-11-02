@@ -4,15 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from lorwright.decide.deck import (
-    BY_NAME,
-    SPIDER_AGGRO,
-    Effect,
-    lookup,
-    rank_playable,
-    score,
-    to_combatant,
-)
+from lorwright.champions.elise.deck import BY_NAME, SPIDER_AGGRO, Effect, lookup
+from lorwright.champions.elise.policy import rank_playable, score
+from lorwright.decide.combat import to_combatant
 from lorwright.models import CardInHand, GameState, Rect, Unit
 
 RECT = Rect(0, 0, 10, 10)

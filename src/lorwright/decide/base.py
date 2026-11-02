@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from lorwright.models import Action, GameState
 
 
+@runtime_checkable
 class Policy(Protocol):
     """策略接口。
 

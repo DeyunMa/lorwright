@@ -84,3 +84,22 @@ class GameState:
             f"hand={len(self.hand)} my={len(self.my_units)} "
             f"enemy={len(self.enemy_units)} hp={self.nexus_hp}/{self.enemy_nexus_hp}"
         )
+
+
+@dataclass
+class Layout:
+    """界面上各区域的坐标（由配置或感知层提供）。"""
+
+    end_turn: Rect | None = None
+    enemy_nexus: Rect | None = None
+    play_area: Rect | None = None
+    hand_region: Rect | None = None
+    extras: dict[str, Rect] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ClickPlan:
+    """一次动作需要执行的点击序列。"""
+
+    points: list[tuple[int, int]]
+    wait_ms: int = 400

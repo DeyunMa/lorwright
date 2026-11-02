@@ -6,28 +6,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from lorwright.models import Action, ActionType, ClickPlan, GameState, Layout
 
-from lorwright.models import Action, ActionType, GameState, Rect
-
-
-@dataclass
-class Layout:
-    """当前界面上各区域的坐标（由感知层提供）。"""
-
-    end_turn: Rect | None = None
-    enemy_nexus: Rect | None = None
-    play_area: Rect | None = None      # 出牌落点（棋盘中央）
-    hand_region: Rect | None = None
-    extras: dict[str, Rect] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class ClickPlan:
-    """一次动作需要执行的点击序列。"""
-
-    points: list[tuple[int, int]]
-    wait_ms: int = 400
+__all__ = ["ActionTranslator", "ClickPlan", "Layout"]
 
 
 class ActionTranslator:

@@ -24,3 +24,11 @@ logging:
   # 按日期分目录
   by_date: true
   level: "INFO"
+
+# 界面坐标（1080p 全屏，格式 [x, y, w, h]）
+# 用 lorwright probe 截一张图，量出来填这里
+layout:
+  end_turn:      # 例: [1700, 900, 100, 60]
+  enemy_nexus:   # 例: [880, 180, 140, 140]
+  play_area:     # 例: [760, 380, 400, 300]
+  hand_region:   # 例: [400, 900, 1120, 180]

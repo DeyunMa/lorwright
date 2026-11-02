@@ -42,7 +42,10 @@ def probe() -> None:
     table.add_row("分辨率", f"{shot.frame.shape[1]}x{shot.frame.shape[0]}")
     table.add_row("UI 状态", state.value)
     table.add_row("按钮模板数", str(len(det._tpl)))  # noqa: SLF001
-    table.add_row("配置", f"{settings.screen.width}x{settings.screen.height}")
+    table.add_row("配置分辨率", f"{settings.screen.width}x{settings.screen.height}")
+    table.add_row("Layout 标定", "✅ 就绪" if settings.layout_ready else "❌ 未标定")
+    table.add_row("决策层", "rules" + ("" if not settings.jev_base_url else " → jev")
+                  + ("" if not settings.vlm_base_url else " → llm"))
     console.print(table)
 
     if not det._tpl:  # noqa: SLF001
@@ -70,11 +73,25 @@ def capture(out: str = "logs/probe.png") -> None:
 @app.command()
 def run(max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限")) -> None:
     """运行主循环（默认无限，Ctrl+C 停止）。"""
+    from lorwright.decide.jev import JevClient
+    from lorwright.decide.jev_policy import JevPolicy, LlmPolicy
+    from lorwright.decide.llm import LlmClient
+    from lorwright.decide.router import Router
     from lorwright.decide.rules import SpiderAggroPolicy
     from lorwright.loop.engine import Engine
 
     settings = load_settings()
-    engine = Engine(settings, SpiderAggroPolicy())
+
+    layers: list = [SpiderAggroPolicy()]
+    if settings.jev_base_url:
+        layers.append(JevPolicy(JevClient(settings.jev_base_url, settings.jev_api_key)))
+    if settings.vlm_base_url and settings.vlm_model:
+        layers.append(
+            LlmPolicy(LlmClient(settings.vlm_base_url, settings.vlm_api_key, settings.vlm_model))
+        )
+
+    router = Router(layers)
+    engine = Engine(settings, router)
     try:
         engine.run(max_ticks=max_ticks or None)
     except KeyboardInterrupt:

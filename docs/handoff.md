@@ -18,6 +18,20 @@
 分数分不清的交给 JEV，连界面都不认识的交给 LLM 做**分类**——
 但任何一层都不允许「自由文本 → 直接点屏幕」。
 
+### 先花 5 分钟确认环境
+
+```bash
+git clone git@github.com:DeyunMa/lorwright.git   # 分支 main
+cd lorwright
+pip install -e ".[dev]"
+pytest                    # 必须看到 90 passed
+ruff check src tests tools  # 必须 All checks passed
+```
+
+跑不到 90 passed 就是环境不对（不是代码不对），先修环境再往下读。
+
+> 本仓库主分支 `main`。工作目录：F1（Windows）。
+
 ---
 
 ## 1. 现在的真实状态

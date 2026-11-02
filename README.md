@@ -1,56 +1,77 @@
 # LoRwright
 
-> 名字致敬 Microsoft 的 Playwright（*wright* = 工匠）。本项目**不依赖** Playwright——它通过 Riot 官方本地 API 与图像识别驱动游戏。
+> 名字致敬 Microsoft 的 Playwright（*wright* = 工匠）。本项目**不依赖** Playwright。
 
-一个跑在 Windows 上的《符文大地传说》（Legends of Runeterra）自动化工具，目标是**自动完成周本、月本与日常任务**。
+基于**纯视觉**的《符文大地传说》英雄之路（Path of Champions）自动化工具。
+截图 → 决策 → ADB 输入，不碰游戏内存、不接游戏 API。
+
+---
+
+## 👉 接手开发从这里开始
+
+**[`docs/handoff.md`](docs/handoff.md)** —— 现在卡在哪、按什么顺序做、有哪些踩过的坑。
 
 ---
 
 ## 它是什么
 
-- 读取 Riot 客户端内置的**本地 API**（`localhost:21337`）获取对局状态：手牌、场面、法力、回合
-- 用**模板匹配 / OCR** 处理 API 覆盖不到的界面元素（"结束回合"、结算弹窗、"继续"）
-- 用**规则引擎**做决策，可选接入快速决策模型（如 JEV）或大模型处理复杂局面
-- 用**鼠标模拟**执行动作
+- 用 **ADB** 从手机/模拟器截图，用**模板匹配 / 颜色探针**识别界面
+- 用**穷举**解决战斗决策（格挡分配、攻击声明、斩杀判定），用**规则 + 评分**解决出牌
+- 可选接入 **JEV**（有界选择）处理需要读懂卡牌效果的场合
+- 用 `adb input` 点击 / 拖拽执行动作
+
+**当前目标牌组**：伊莉絲（Elise）蜘蛛快攻，18 张。牌表已核实，见
+[`docs/champions/elise.md`](docs/champions/elise.md)。
 
 ## 它不是什么
 
-- ❌ 不是通用 GUI Agent（不处理浏览器、办公软件）
+- ❌ **不用游戏 API。** 英雄之路没有 API —— `localhost:21337` 只覆盖收藏/构筑/PvP，
+  证据：`RiotGames/developer-relations#773`（2023-05 提出，至今 open）。
+  这是项目早期最大的弯路，别再走一遍。
+- ❌ 不是通用 GUI Agent
 - ❌ 不读写游戏内存、不修改游戏文件、不绕过反作弊
-- ❌ 不保证胜率——目标是"把局打完"，不是"打上大师"
+- ❌ 不保证胜率 —— 目标是「把局打完」
 
 ---
 
 ## 架构
 
+**两条正交的链**，把它们混成一条是最容易犯的错。
+
 ```
-┌─ 感知层 ─────────────────────────────┐
-│ 21337 API   → 手牌 / 场面 / 法力 / 回合 │
-│ 截图        → mss（约 5ms 一帧）        │
-│ 模板匹配    → OpenCV，定位按钮           │
-│ OCR         → RapidOCR，读文字提示       │
-└────────────────┬─────────────────────┘
-                 ↓
-┌─ 归一化 ─────────────────────────────┐
-│ pydantic 校验，统一成 state 对象        │
-└────────────────┬─────────────────────┘
-                 ↓
-┌─ 决策层 ─────────────────────────────┐
-│ L1 规则（if-else）      ~80% 场景      │
-│ L2 快速决策（JEV 等）    ~15% 场景      │
-│ L3 大模型（可选）        ~5% 场景       │
-└────────────────┬─────────────────────┘
-                 ↓
-┌─ 执行层 ─────────────────────────────┐
-│ 点击 / 拖拽 / 按键（pynput）            │
-│ 幂等保护：动作后等待状态变化，防重复     │
-└────────────────┬─────────────────────┘
-                 ↓
-┌─ 异常处理 ───────────────────────────┐
-│ 卡住检测（30s 无状态变化 → 恢复）       │
-│ 超时、重试、失败截图存档                 │
-└──────────────────────────────────────┘
+A. 决策链 —— 现在该做什么
+   L1 穷举/规则  →  L2 JEV 有界选择  →  L3 LLM 有界分类  →  NO_OP
+   空间小、规则已知   选项已知、需读文本   连界面都不认识     不点屏幕
+
+B. 监督器 —— 是不是卡住了（不经过决策层）
+   Watchdog（画面/摘要不变） → RecoveryPolicy（重试→重开→重启→停）
 ```
+
+**每一层的输出都必须是受约束的**：L1 输出 `Action` 枚举、L2 输出 `choice ∈ options`、
+L3 输出 `label ∈ 已知界面标签`。任何一层都不允许「自由文本 → 直接执行」。
+
+「卡住」由程序判定（像素 hash 不变），不调模型 —— 画面不动是像素问题，不是语义问题。
+
+详见 [`docs/architecture.md`](docs/architecture.md)。
+
+---
+
+## 快速开始
+
+```bash
+git clone git@github.com:DeyunMa/lorwright.git
+cd lorwright
+pip install -e ".[dev]"
+
+pytest                      # 90 个单测，不需要游戏
+ruff check src tests tools
+
+lorwright devices           # 列出 ADB 设备
+lorwright shot --grid --out logs/probe.png   # 截图 + 坐标网格
+lorwright run --max-ticks 50
+```
+
+配置在 `config/settings.yaml`（`champion` / `layout` / `adb` / `loop`）。
 
 ---
 
@@ -58,75 +79,79 @@
 
 | 层 | 选型 | 理由 |
 |---|---|---|
-| 读取 API | `httpx` | 21337 是 HTTP/JSON |
-| 截屏 | `mss` | 比 PIL 快约 10 倍 |
-| 图像匹配 | `opencv-python` | 模板匹配定位按钮 |
-| OCR | `RapidOCR` | 轻量、中文准、纯 CPU 可跑 |
-| 输入 | `pynput` | 延迟低于 pyautogui |
-| 窗口 | `pywin32` | 前台窗口、DPI 感知 |
-| 状态校验 | `pydantic` | 防 API 字段异常 |
-| 日志 | `loguru` | 排查问题 |
-| 打包 | `PyInstaller` | 单文件 exe |
+| 设备 | **ADB**（`adb screencap` / `input`） | 坐标即屏幕坐标、可后台、多开靠 `-s`、快照可回滚 |
+| 图像 | `opencv-python` | 模板匹配 + 颜色探针 |
+| 状态校验 | `pydantic` | 配置与数据契约 |
+| 日志 | `loguru` | 按日期分目录 + JSONL 事件流 |
+| CLI | `typer` + `rich` | 轻量 |
+
+桌面模式（`mss` + `pynput`）保留为**调试回退**，不是主路径（见 `docs/adr/0003`）。
 
 ---
 
-## 前置条件
+## 目录结构
 
-| 项目 | 要求 |
-|---|---|
-| 系统 | Windows 10 / 11 |
-| 分辨率 | **1920×1080 全屏** |
-| 显示缩放 | **100%**（否则 API 坐标错位） |
-| 游戏画质 | 中等及以上 |
-| 本地 API | 游戏设置中开启「第三方端点」，端口 **21337** |
-| 游戏设置 | 开启「自动跳过」 |
+```
+src/lorwright/
+├── models.py         # 数据契约：GameState / Action / Layout
+├── device/           # ADB / 桌面设备抽象
+├── perceive/         # 截图 → UI 状态、卡牌、场面
+├── decide/           # 决策机制（不认识任何英雄）
+│   ├── card.py       #   卡牌通用词汇
+│   ├── combat.py     #   战斗求解器（穷举）
+│   └── router.py     #   分层路由
+├── champions/        # 英雄包：一个英雄 = 一个目录
+│   └── elise/        #   牌表 + 策略
+├── act/              # 语义动作 → 坐标
+└── loop/             # 主循环、看门狗、恢复
+```
 
-> API 返回的是**像素坐标**，所以分辨率和缩放必须固定。
+**加英雄 = 加 `champions/<name>/` 目录，不改核心层。**
 
 ---
 
-## 开发路线
+## 现状
 
-| 阶段 | 目标 | 验收标准 |
+| 阶段 | 目标 | 状态 |
 |---|---|---|
-| D1 | 读通 21337 | 能打印完整对局状态 |
-| D2 | 点「结束回合」 | 模板匹配命中并点击成功 |
-| D3 | 出牌 | 按 API 坐标点击，牌能打出 |
-| D4 | 规则引擎 | 能按优先级出牌、管理法力 |
-| D5 | 异常处理 | 卡住能自恢复，不重复点击 |
-| D6 | 跑周本 | 连续完成 3 局无需人工干预 |
+| M0 | 骨架 + 规则 + 单测 + CI | ✅ 完成 |
+| **M1** | 自动打完一场 PoC 战斗 | 🚧 进行中 |
+| M2 | 自动选奖励（三选一） | 待做 |
+| M3 | 自动走地图 | 待做 |
+| M4 | 跑完一个完整副本 | 待做 |
+
+**当前阻塞**：`Engine._build_state()` 只填了 `ui_state`，手牌恒为空，
+策略永远只会「结束回合」。状态解析没做完之前不要接 JEV / LLM。
+
+细节见 [`docs/status.md`](docs/status.md)。
 
 ---
 
-## 目录结构（规划）
+## 文档
 
-```
-lorwright/
-├── lorwright/
-│   ├── perception/      # 21337 客户端、截屏、模板匹配、OCR
-│   ├── state/           # 状态模型与归一化
-│   ├── decision/        # 规则、JEV 适配、LLM 适配
-│   ├── execution/       # 鼠标键盘、幂等控制
-│   ├── recovery/        # 卡住检测、重试
-│   └── cli.py           # 入口
-├── assets/templates/    # 按钮模板图
-├── docs/                # 架构与踩坑记录
-├── tests/
-└── pyproject.toml
-```
+| 文档 | 内容 |
+|---|---|
+| [`docs/handoff.md`](docs/handoff.md) | **交接入口** |
+| [`docs/architecture.md`](docs/architecture.md) | 核心设计 |
+| [`docs/status.md`](docs/status.md) | 当前状态 |
+| [`docs/decision-l1-rules.md`](docs/decision-l1-rules.md) | 决策层分层、精确解边界、加英雄检查清单 |
+| [`docs/decision-l2-jev.md`](docs/decision-l2-jev.md) | JEV 契约与验证 |
+| [`docs/champions/elise.md`](docs/champions/elise.md) | 伊莉絲牌组与专属规则 |
+| [`docs/reference-prior-art.md`](docs/reference-prior-art.md) | MAA / ALAS 参考 |
+| [`docs/adr/`](docs/adr/) | 架构决策记录 |
+| [`AGENTS.md`](AGENTS.md) | 给 AI agent 的硬约束 |
 
 ---
 
 ## 风险与免责
 
 - **可能违反 Riot 的用户协议**，存在封号风险。请使用小号，风险自担。
-- `localhost:21337` 属于 Riot 的第三方端点，**可能随版本更新移除**——使用前先确认可用。
 - 本项目仅供学习与研究自动化技术，不提供任何形式的游戏代练服务。
+- **只学 MAA / ALAS 的设计，不抄代码** —— 它们是 AGPL-3.0 / GPL-3.0，
+  会传染，与本项目的分发方式冲突。
 
 ---
 
 ## 命名
 
-`LoRwright` = `LoR` + `wright`（工匠）。
-
-仓库名全小写 `lorwright`，展示名 `LoRwright`。
+`LoRwright` = `LoR` + `wright`（工匠）。仓库名全小写 `lorwright`，展示名 `LoRwright`。

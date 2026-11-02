@@ -1,6 +1,8 @@
 # 项目状态
 
 > 更新：2026-11-02
+>
+> **要接手开发，先读 [`docs/handoff.md`](handoff.md)。** 这份只记状态，不记行动计划。
 
 ## 里程碑
 
@@ -73,14 +75,16 @@ HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ..
 | `loop/engine.py:_build_state` | 法力/血量/场面解析 | #4 |
 | `perceive/ui_state.py` | 真实按钮模板 | #2 |
 | `config/settings.yaml:layout` | 四个矩形坐标 | #2 |
-| `loop/engine.py` 恢复动作 | 真正执行重开/重启 | #6 |
+| `loop/engine.py` | `RecoveryPolicy` 未接入主循环；`NO_OP` 会计入卡死 | #6 |
 
 ## 素材清单
 
 | 素材 | 数量 | 位置 | 状态 |
 |---|---|---|---|
-| 按钮模板 | 3–5 | `assets/buttons/` | ❌ 空 |
-| 卡牌图库 | 20–30 | `assets/cards/` | ❌ 空 |
+| 按钮模板 | 3–5 | `assets/buttons/` | 🚧 有 `action_button.png`（手机版） |
+| 卡牌图库 | **9**（伊莉絲牌组只有 9 种） | `assets/cards/` | ❌ 空 |
+| 起手换牌「確定」 | 1 | `assets/buttons/` | ❌ 空（**P0**） |
+| 挑战者 / 击晕图标 | 2 | `assets/buttons/` | ❌ 空 |
 
 ## 打开的 Issue
 
@@ -94,19 +98,21 @@ HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ..
 | 6 | P1 | 异常恢复：分级策略 |
 | 8 | P2 | JEV / LLM 接入验证 |
 
-## 下一步（按依赖顺序）
+## 下一步
+
+**见 [`docs/handoff.md`](handoff.md) §2。** 关键路径是：
 
 ```
-#1 环境验证（人）
-  ├→ #2 按钮模板 + 坐标（人，3 张图）
-  └→ #3 卡牌图库（人，20+ 张图）
-        ↓
-      #4 状态解析（agent，对着截图写）
-        ↓
-      #5 端到端（agent + 人一起验证）
-        ↓
-      #6 恢复动作（agent，对着 UI 写）
+起手换牌模板（半天）
+  ↓
+_build_state 解析：法力 / 血量 / 手牌费用   ← 卡在这
+  ↓
+9 张卡牌模板
+  ↓
+端到端打一局
 ```
+
+⚠️ **状态解析没做完之前不要接 JEV / LLM** —— 候选生成依赖 state，接了也是空转。
 
 ## 已知风险
 

@@ -6,6 +6,9 @@
 
 基于视觉的《符文大地传说》**英雄之路（Path of Champions）**自动化工具，Windows 上运行。
 
+**接手开发先读 [`docs/handoff.md`](docs/handoff.md)** —— 里面写了现在卡在哪、
+按什么顺序做、有哪些踩过的坑。
+
 ## 三条硬约束（先读这个，否则会走错方向）
 
 1. **英雄之路没有官方 API。** `localhost:21337` 只覆盖收藏/构筑/PvP，
@@ -93,3 +96,7 @@ champions/elise/
 ## 当前状态
 
 见 `docs/status.md`。打开的 issue 在 GitHub Issues，标签 `p0/p1/p2`。
+
+**关键路径**：`Engine._build_state()` 只填了 `ui_state`，手牌恒为空，
+所以策略永远只会「结束回合」。**不修这个，下游全部无法验证。**
+详见 `docs/handoff.md` §2。

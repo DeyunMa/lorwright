@@ -64,6 +64,8 @@ class Unit:
     health: int
     rect: Rect
     can_attack: bool = True
+    keywords: frozenset[str] = frozenset()
+    stunned: bool = False
 
 
 @dataclass
@@ -77,6 +79,9 @@ class GameState:
     enemy_units: list[Unit] = field(default_factory=list)
     nexus_hp: int = 20
     enemy_nexus_hp: int = 20
+    has_attack_token: bool = False
+    # 伊莉丝升级后我方全体蜘蛛获得挑战者，攻击声明由攻方指定格挡者
+    my_units_have_challenger: bool = False
 
     def summary(self) -> str:
         return (
@@ -85,6 +90,15 @@ class GameState:
             f"hand={len(self.hand)} my={len(self.my_units)} "
             f"enemy={len(self.enemy_units)} hp={self.nexus_hp}/{self.enemy_nexus_hp}"
         )
+
+    @property
+    def spider_count(self) -> int:
+        """场上蜘蛛数 —— buff 牌评分的关键变量。
+
+        伊莉丝这套牌场上单位全是蜘蛛（含小蜘蛛 token），所以直接取单位数。
+        将来换其他牌组时这里要改成按名字过滤。
+        """
+        return len(self.my_units)
 
 
 @dataclass
@@ -104,9 +118,11 @@ class ClickPlan:
 
     drag=False：依次点击每个点（结束回合、选目标）
     drag=True ：从 points[0] 拖到 points[1]（出牌）
+    drags      ：多段拖拽，每对 (起点, 终点) 依次执行（多个单位一起攻击）
     """
 
     points: list[tuple[int, int]]
     wait_ms: int = 400
     drag: bool = False
     drag_ms: int = 600
+    drags: tuple[tuple[tuple[int, int], tuple[int, int]], ...] = ()

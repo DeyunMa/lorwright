@@ -33,11 +33,21 @@ class Combatant:
     health: int
     keywords: frozenset[Keyword] = frozenset()
     name: str = ""
+    stunned: bool = False
 
     @property
     def value(self) -> int:
         """单位价值代理指标：攻 + 血。用来比较交换的亏赚。"""
         return self.attack + self.health
+
+    @property
+    def can_attack(self) -> bool:
+        """击晕的单位本回合不能攻击。"""
+        return not self.stunned
+
+    @property
+    def has_challenger(self) -> bool:
+        return Keyword.CHALLENGER in self.keywords
 
 
 @dataclass(frozen=True)
@@ -81,6 +91,8 @@ class AttackPlan:
 
 def can_block(blocker: Combatant, attacker: Combatant) -> bool:
     """格挡者能否挡住这个攻击者。"""
+    if blocker.stunned:
+        return False
     if Keyword.ELUSIVE in attacker.keywords and Keyword.ELUSIVE not in blocker.keywords:
         return False
     if Keyword.FEARSOME in attacker.keywords and blocker.attack < 3:
@@ -119,14 +131,21 @@ def best_blocking(
     attackers: list[Combatant],
     blockers: list[Combatant],
     *,
+    chooser: str = "defender",
+    nexus_weight: float = 3.0,
     limit: int = 200_000,
 ) -> BlockPlan:
-    """守方的最优格挡分配。
+    """最优的「攻击者 → 格挡者」分配。
 
-    守方偏好（字典序）：先最小化自己水晶受到的伤害，再最小化「我方损失 − 对方损失」。
+    chooser="defender"（默认）：守方选，偏好先最小化自己水晶受到的伤害，
+    再最小化「我方损失 − 对方损失」。
+
+    chooser="attacker"：攻方选（全体带**挑战者**的情形，伊莉丝升级后就是这样）。
+    偏好最大化 `脸伤 * nexus_weight − 我方损失 + 对方损失`。
+
     超出搜索上限时返回已找到的最优解（任意时刻算法）。
     """
-    best: tuple[tuple[int, int], BlockPlan] | None = None
+    best: tuple[tuple, BlockPlan] | None = None
     used = [False] * len(attackers)
     pairs: list[tuple[int, int]] = []
     nodes = 0
@@ -148,7 +167,10 @@ def best_blocking(
                 attacker_loss += atk.value
             if blk_dies:
                 blocker_loss += blk.value
-        key = (nexus, blocker_loss - attacker_loss)
+        if chooser == "attacker":
+            key: tuple = (-(nexus * nexus_weight - attacker_loss + blocker_loss),)
+        else:
+            key = (nexus, blocker_loss - attacker_loss)
         if best is None or key < best[0]:
             best = (key, BlockPlan(tuple(pairs), nexus, attacker_loss, blocker_loss))
 
@@ -198,6 +220,7 @@ def best_attack(
     blockers: list[Combatant],
     *,
     nexus_weight: float = 3.0,
+    challenger: bool = False,
     exact_limit: int = 4,
     limit: int = 200_000,
 ) -> AttackPlan:
@@ -205,14 +228,20 @@ def best_attack(
 
     评分：`脸伤 * nexus_weight − 我方阵亡价值 + 对方阵亡价值`。
     nexus_weight 越大越激进（快攻调高）。
+
+    challenger=True 表示全体攻击者都带**挑战者**（伊莉丝升级后所有蜘蛛都是），
+    此时由攻方而不是守方决定「谁挡谁」。
     """
     if not attackers:
         return AttackPlan()
 
+    chooser = "attacker" if challenger else "defender"
     best: tuple[float, AttackPlan] | None = None
     for idx in _attacker_subsets(attackers, exact_limit):
         chosen = [attackers[i] for i in idx]
-        block = best_blocking(chosen, blockers, limit=limit)
+        block = best_blocking(
+            chosen, blockers, chooser=chooser, nexus_weight=nexus_weight, limit=limit
+        )
         score = block.nexus_damage * nexus_weight - block.attacker_loss + block.blocker_loss
         if best is None or score > best[0]:
             best = (score, AttackPlan(attackers=idx, block=block, score=score))
@@ -223,6 +252,8 @@ def max_nexus_damage(
     attackers: list[Combatant],
     blockers: list[Combatant],
     *,
+    challenger: bool = False,
+    nexus_weight: float = 3.0,
     exact_limit: int = 4,
     limit: int = 200_000,
 ) -> int:
@@ -230,10 +261,14 @@ def max_nexus_damage(
     if not attackers:
         return 0
 
+    chooser = "attacker" if challenger else "defender"
     best = 0
     for idx in _attacker_subsets(attackers, exact_limit):
         chosen = [attackers[i] for i in idx]
-        best = max(best, best_blocking(chosen, blockers, limit=limit).nexus_damage)
+        plan = best_blocking(
+            chosen, blockers, chooser=chooser, nexus_weight=nexus_weight, limit=limit
+        )
+        best = max(best, plan.nexus_damage)
     return best
 
 

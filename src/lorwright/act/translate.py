@@ -39,9 +39,21 @@ class ActionTranslator:
             target = self.layout.enemy_nexus
             if target is None:
                 return None
-            attacker = next((u for u in state.my_units if u.can_attack), None)
-            if attacker is None:
+            wanted = action.raw.get("attackers") if action.raw else None
+            if wanted:
+                attackers = [state.my_units[i] for i in wanted if i < len(state.my_units)]
+            else:
+                attackers = [u for u in state.my_units if u.can_attack][:1]
+            if not attackers:
                 return None
-            return ClickPlan(points=[attacker.rect.center, target.center], wait_ms=500)
+            # LoR 手机版：把每个单位拖到敌方水晶就是声明攻击
+            drags = tuple((u.rect.center, target.center) for u in attackers)
+            return ClickPlan(
+                points=[drags[0][0], drags[0][1]],
+                wait_ms=500,
+                drag=True,
+                drag_ms=600,
+                drags=drags,
+            )
 
         return None

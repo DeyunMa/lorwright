@@ -19,11 +19,17 @@
 4. **模板按目标设备分辨率采集。** 手机横屏 2510×1156、模拟器可自定义；
    换分辨率就要重采，否则坐标全错。
 
+## 目标牌组
+
+PoC 目前只跑**一个**牌组：伊莉絲（Elise）英雄之路起始牌组，18 张。
+完整牌表、每张牌的效果、星力、以及「哪些规则因为这套牌而删掉」
+全在 `docs/decks/spider-aggro.md`。改决策逻辑前先看那份。
+
 ## 命令
 
 ```bash
 pip install -e ".[dev]"     # 安装
-pytest                      # 28 个单测（不需要游戏）
+pytest                      # 84 个单测（不需要游戏）
 ruff check src tests tools  # 静态检查
 lorwright doctor            # 环境自检
 lorwright devices           # 列出 ADB 设备

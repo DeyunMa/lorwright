@@ -73,14 +73,20 @@ class Engine:
 
                 clicks = 0
                 if plan is not None:
-                    if plan.drag and len(plan.points) == 2:
+                    if plan.drags:
+                        for (x1, y1), (x2, y2) in plan.drags:
+                            self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+                            clicks += 1
+                            time.sleep(plan.wait_ms / 1000)
+                    elif plan.drag and len(plan.points) == 2:
                         (x1, y1), (x2, y2) = plan.points
                         self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+                        clicks = len(plan.points)
                     else:
                         for x, y in plan.points:
                             self.device.tap(x, y)
                             time.sleep(plan.wait_ms / 1000)
-                    clicks = len(plan.points)
+                        clicks = len(plan.points)
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(

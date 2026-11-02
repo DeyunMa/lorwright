@@ -16,8 +16,14 @@ from lorwright.decide.combat import (
 )
 
 
-def unit(attack: int, health: int, *keywords: Keyword, name: str = "") -> Combatant:
-    return Combatant(attack=attack, health=health, keywords=frozenset(keywords), name=name)
+def unit(attack: int, health: int, *keywords: Keyword, name: str = "", stunned: bool = False) -> Combatant:
+    return Combatant(
+        attack=attack,
+        health=health,
+        keywords=frozenset(keywords),
+        name=name,
+        stunned=stunned,
+    )
 
 
 # ---------- 单次交锋 ----------
@@ -119,6 +125,39 @@ def test_attack_plan_sends_everyone_when_board_is_empty():
     plan = best_attack([unit(2, 1), unit(3, 2), unit(1, 1)], [])
     assert plan.attackers == (0, 1, 2)
     assert plan.nexus_damage == 6
+
+
+# ---------- 击晕 ----------
+
+
+def test_stunned_unit_cannot_block():
+    """蜘術士/蜘蛛哨兵击晕的敌人本回合不能格挡，可以直接打脸。"""
+    plan = best_blocking([unit(3, 2)], [unit(5, 5, stunned=True)])
+    assert plan.nexus_damage == 3
+    assert plan.pairs == ()
+
+
+def test_stunned_unit_cannot_attack():
+    assert not unit(5, 5, stunned=True).can_attack
+    assert unit(5, 5).can_attack
+
+
+# ---------- 挑战者 ----------
+
+
+def test_challenger_lets_attacker_choose_the_trade():
+    """伊莉丝升级后所有蜘蛛带挑战者：由攻方而不是守方决定谁挡谁。"""
+    atk = unit(2, 2, Keyword.CHALLENGER)
+    blockers = [unit(1, 1), unit(3, 3)]
+
+    # 守方选：拿 3/3 换掉我的 2/2
+    defender = best_blocking([atk], blockers, chooser="defender")
+    assert defender.attacker_loss == 4
+
+    # 攻方选（看重场面）：挑 1/1 打，自己活下来
+    attacker = best_blocking([atk], blockers, chooser="attacker", nexus_weight=0.5)
+    assert attacker.attacker_loss == 0
+    assert attacker.blocker_loss == 2
 
 
 # ---------- 规模 ----------

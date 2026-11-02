@@ -1,48 +1,80 @@
-"""L1 规则层：蜘蛛快攻。
+"""L1 规则层：伊莉絲蜘蛛快攻。
 
-设计原则：优先做「确定性判断」，覆盖 70-80% 的回合。
-规则按优先级从高到低执行，第一条命中的直接返回。
+设计见 `docs/decision-l1-rules.md`，牌表见 `docs/decks/spider-aggro.md`。
+
+结构按**决策点**分派，不是扁平优先级列表：
+
+    P0 守卫  → P4 出牌 → P2 攻击声明 → 收尾
+
+顺序不能反：LoR 里新出的单位**当回合就能攻击**（没有召唤失调），
+所以先出牌再攻击永远比反过来强。
 """
 
 from __future__ import annotations
 
 from lorwright.decide.base import Policy
+from lorwright.decide.combat import best_attack
+from lorwright.decide.deck import rank_playable, to_combatant
 from lorwright.models import Action, ActionType, GameState, UIState
 
 
 class SpiderAggroPolicy(Policy):
     name = "spider_aggro"
-    version = "0.1.0"
+    version = "0.2.0"
+
+    #: 快攻 + 恐惧穿透：脸伤比换血值钱。默认 3.0，这套牌调高。
+    nexus_weight: float = 4.0
 
     def decide(self, state: GameState) -> Action | None:
-        # 不是我的回合 → 不做决策
-        if state.ui_state != UIState.MY_TURN_IDLE:
+        # P0 守卫：没有优先权时，唯一合法的动作就是不动。
+        # 返回 NO_OP 而不是 None —— 弃权会把请求送去 JEV，
+        # 对手回合每一帧都白烧一次网络调用。
+        if state.ui_state is not UIState.MY_TURN_IDLE:
+            return Action(type=ActionType.NO_OP)
+
+        # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
+        ranked = rank_playable(state)
+        if ranked:
+            card, _definition, _score = ranked[0]
+            return Action(type=ActionType.PLAY_CARD, card_index=card.index)
+
+        # P2 攻击声明：求解器说值得打才打
+        attack = self._attack(state)
+        if attack is not None:
+            return attack
+
+        # P4-d 收尾
+        return Action(type=ActionType.END_TURN)
+
+    def _attack(self, state: GameState) -> Action | None:
+        if not state.has_attack_token:
             return None
 
-        # R1：能斩杀 → 全力打脸
-        if self._can_lethal(state):
-            return Action(type=ActionType.ATTACK, target="nexus")
-
-        # R2：手牌有 0-1 费牌且法力够 → 优先打出
-        cheap = self._cheapest_playable(state)
-        if cheap is not None:
-            return Action(type=ActionType.PLAY_CARD, card_index=cheap)
-
-        # R3：没牌可出 → 结束回合
-        if not state.hand:
-            return Action(type=ActionType.END_TURN)
-
-        # 其余情况弃权，交给 JEV / LLM
-        return None
-
-    def _can_lethal(self, state: GameState) -> bool:
-        total = sum(u.attack for u in state.my_units if u.can_attack)
-        return total >= state.enemy_nexus_hp
-
-    def _cheapest_playable(self, state: GameState) -> int | None:
-        candidates = [
-            c for c in state.hand if 0 <= c.cost <= state.mana
+        challenger = state.my_units_have_challenger
+        attackers = [
+            to_combatant(u, challenger=challenger) for u in state.my_units if u.can_attack
         ]
-        if not candidates:
+        if not attackers:
             return None
-        return min(candidates, key=lambda c: c.cost).index
+
+        blockers = [to_combatant(u) for u in state.enemy_units]
+        plan = best_attack(
+            attackers,
+            blockers,
+            nexus_weight=self.nexus_weight,
+            challenger=challenger,
+        )
+
+        # 求解器算出所有声明都不划算（比如拿 1/1 白喂 5/5）→ 不打
+        if not plan.attackers or plan.score <= 0:
+            return None
+
+        return Action(
+            type=ActionType.ATTACK,
+            target="nexus",
+            raw={
+                "attackers": list(plan.attackers),
+                "nexus_damage": plan.nexus_damage,
+                "score": plan.score,
+            },
+        )

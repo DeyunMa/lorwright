@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class Rect:
         return self.w * self.h
 
 
-class UIState(str, Enum):
+class UIState(StrEnum):
     UNKNOWN = "unknown"
     MY_TURN_IDLE = "my_turn_idle"      # 可以出牌
     TARGETING = "targeting"            # 已选牌，等待选目标
@@ -31,7 +31,7 @@ class UIState(str, Enum):
     BATTLE_END = "battle_end"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     PLAY_CARD = "play_card"
     ATTACK = "attack"
     END_TURN = "end_turn"

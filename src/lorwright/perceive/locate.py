@@ -28,7 +28,7 @@ def find_all(
     th, tw = template.shape[:2]
 
     hits: list[tuple[Rect, float]] = []
-    for x, y in zip(xs, ys):
+    for x, y in zip(xs, ys, strict=False):
         hits.append((Rect(int(x), int(y), tw, th), float(res[y, x])))
 
     # 非极大值抑制（简单版：按置信度排序后去掉重叠）

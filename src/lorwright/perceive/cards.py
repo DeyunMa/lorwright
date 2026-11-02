@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 
 from lorwright.models import CardInHand, Rect
-from lorwright.perceive.locate import find_all, load_template
+from lorwright.perceive.locate import load_template
 
 
 @dataclass

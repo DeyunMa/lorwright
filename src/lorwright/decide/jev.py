@@ -9,8 +9,6 @@ JEV 是「类型安全的决策引擎」，输出 Choice / Score / Noul，
 
 from __future__ import annotations
 
-import json
-
 import httpx
 
 from lorwright.util.logger import logger

@@ -98,5 +98,20 @@ def run(max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限")
         console.print("[yellow]已停止[/yellow]")
 
 
+@app.command()
+def doctor() -> None:
+    """环境自检：依赖、素材、坐标、可选服务。"""
+    from lorwright.doctor import blockers, format_checks, run_checks
+
+    settings = load_settings()
+    checks = run_checks(settings)
+    console.print(format_checks(checks), markup=False)
+    bad = blockers(checks)
+    if bad:
+        console.print(f"\n[yellow]{len(bad)} 项阻塞，先修这些[/yellow]")
+    else:
+        console.print("\n[green]必需项全部就绪[/green]")
+
+
 if __name__ == "__main__":
     app()

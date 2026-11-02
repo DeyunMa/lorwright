@@ -1,5 +1,5 @@
 from lorwright.decide.candidates import describe, generate
-from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.models import ActionType, CardInHand, GameState, Rect, Unit
 
 
 def _card(i, cost, name="c"):

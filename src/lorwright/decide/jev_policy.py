@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from lorwright.decide.candidates import describe, generate
 from lorwright.decide.jev import JevClient
-from lorwright.models import Action, ActionType, GameState
+from lorwright.models import Action, GameState
 
 
 class JevPolicy:

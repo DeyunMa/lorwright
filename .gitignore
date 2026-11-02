@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+# 卡牌图库体积大，按需入库
+assets/cards/*.png
+!assets/cards/.gitkeep

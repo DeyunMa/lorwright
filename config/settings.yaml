@@ -1,0 +1,26 @@
+screen:
+  width: 1920
+  height: 1080
+  dpi_scale: 100
+  # 游戏窗口标题关键字（用于定位窗口）
+  window_title: "Legends of Runeterra"
+
+perception:
+  # 模板匹配阈值（0-1，越高越严格）
+  match_threshold: 0.85
+  # 截图保存目录
+  snapshot_dir: "logs/snapshots"
+
+loop:
+  # 每轮循环间隔（毫秒）
+  tick_ms: 200
+  # 连续多少次动作后状态不变 → 判定卡住
+  stuck_threshold: 3
+  # 单次动作后等待状态变化的最长时间（秒）
+  action_timeout_s: 8
+
+logging:
+  dir: "logs"
+  # 按日期分目录
+  by_date: true
+  level: "INFO"

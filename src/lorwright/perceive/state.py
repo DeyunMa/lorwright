@@ -60,9 +60,9 @@ class StateParser:
         state.nexus_hp = self._my_hp
 
         if lay.hand_region is not None:
-            state.hand = hand_perceive.recognize(
-                image, lay.hand_region, self.digits, threshold=self.threshold
-            )
+            # 徽章阈值是 hand 模块自己的常量，不要传 perception.match_threshold：
+            # 0.85 是卡面模板的阈值，用在这里会把上百个圆形装饰都当成徽章
+            state.hand = hand_perceive.recognize(image, lay.hand_region, self.digits)
 
         if state.ui_state is not UIState.MULLIGAN and mana is None:
             logger.debug("法力读不出来（区域 {}），本帧按 0 处理", lay.mana)

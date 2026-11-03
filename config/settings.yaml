@@ -2,8 +2,10 @@
 champion: elise
 
 screen:
-  width: 1920
-  height: 1080
+  # 当前目标：BlueStacks 的 Pie64 实例（Android 9）
+  # 手机旧值 2510x1156 已不适用；换分辨率后 layout 必须重标定
+  width: 1280
+  height: 720
   dpi_scale: 100
   # 游戏窗口标题关键字（用于定位窗口）
   window_title: "Legends of Runeterra"
@@ -28,10 +30,11 @@ logging:
   by_date: true
   level: "INFO"
 
-# 界面坐标（1080p 全屏，格式 [x, y, w, h]）
-# 用 lorwright probe 截一张图，量出来填这里
+# 界面坐标（格式 [x, y, w, h]）
+# ⚠️ 下面四个矩形全部是**手机 2510x1156** 实测值，在 Pie64 1280x720 下**全部作废**。
+# 用 lorwright shot --grid 截图量出来后替换。详见 docs/handoff.md §3.4
 layout:
-  # 小米 2510DRK44C 横屏实测（2510x1156）
+  # 小米 2510DRK44C 横屏实测（2510x1156）—— 仅供对照，不要直接用
   end_turn:     [2035, 487, 138, 138]   # 右侧蓝色动作按钮（略過/結束回合）
   enemy_nexus:  [329, 372, 80, 80]      # 左上红色水晶
   play_area:    [900, 750, 700, 200]    # 我方出牌落点
@@ -39,6 +42,7 @@ layout:
 
 adb:
   enabled: true
-  serial:            # 留空自动选第一个；多开时填 emulator-5554 / emulator-5556
+  # BlueStacks Pie64 的端口；emulator-5554 是同一个实例的别名
+  serial: 127.0.0.1:5555
   adb_path: adb
   package: com.riotgames.legendsofruneterra

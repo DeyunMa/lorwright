@@ -114,19 +114,32 @@ def _build_state(self, frame) -> GameState:
 
 ## 3. F1 上的环境准备
 
-### 3.1 模拟器
+> **环境细节全在 [`environment.md`](environment.md)。** 下面只写要点。
 
-- MuMu / 雷电，设 **1920×1080 横屏**
-- 装 LoR、登录（**登录必须手动做，程序不碰账号密码**）
-- 加速器设 **TUN 模式**（系统代理模式模拟器不认）
+### 3.1 模拟器：BlueStacks 5 的 `Pie64`（Android 9）
+
+**只有 `Pie64` 能跑 LoR。** 已实测：Android 11 的实例（`Rvc64` / `Rvc64_2`，
+包括 ABI 选 `ARM` 的那个）启动 LoR 都会在 0.6 秒内 `SIGSEGV`；
+Android 9 的 `Pie64` 正常。**换 ABI 不解决问题，变量是 Android 版本。**
+
+- 分辨率 **1280×720**，density 240
+- 登录**必须手动做**，程序不碰账号密码
+- 首次进入要下载约 3.2 GB 资源
+- 实例**必须由人在多开管理器里启动**，从 SSH 命令行拉起会自己退出
 
 ### 3.2 ADB
 
-```bash
-# 模拟器内开 ADB 调试，或
-adb connect 127.0.0.1:7555        # MuMu 默认端口
-adb devices                       # 确认能看到设备
+```powershell
+$a = (Get-Command adb.exe).Source
+Get-Process adb -ErrorAction SilentlyContinue | Stop-Process -Force
+& $a start-server
+& $a connect 127.0.0.1:5555
+& $a -s 127.0.0.1:5555 shell getprop ro.build.version.release   # 应该是 9
 ```
+
+⚠️ **adb daemon 会随 SSH 会话消失。** `start-server` / `connect` 必须和
+后续命令写在**同一次调用**里，否则会报 `device not found`。
+`emulator-5554` 和 `127.0.0.1:5555` 是同一个实例，统一用后者。
 
 ### 3.3 装项目
 
@@ -140,16 +153,16 @@ ruff check src tests tools
 
 ### 3.4 重标定（必须做）
 
-**所有坐标和模板都是按手机 2510×1156 采的，1920×1080 下全部作废。**
+**所有坐标和模板都是按手机 2510×1156 采的，1280×720 下全部作废。**
 
 ```bash
 lorwright devices
-lorwright shot --grid --out logs/1080p.png    # 带坐标网格，方便量
+lorwright shot --grid --out logs/720p.png     # 带坐标网格，方便量
 ```
 
 然后改 `config/settings.yaml` 的 `layout` 段四个矩形，重裁 `assets/buttons/action_button.png`。
 
-| 项 | 手机（现有值） | F1（待标定） |
+| 项 | 手机（现有值） | Pie64 1280×720（待标定） |
 |---|---|---|
 | 动作按钮 | `[2035, 487, 138, 138]` | ? |
 | 敌方水晶 | `[329, 372, 80, 80]` | ? |
@@ -235,6 +248,7 @@ HOME 生效但游戏不响应 → **重启游戏，别怀疑坐标**。
 | `AGENTS.md` | 硬约束、命令、目录约定 |
 | `docs/architecture.md` | 核心设计：决策链 + 监督器、为什么 LLM 不能直接点屏幕 |
 | `docs/status.md` | 当前状态、真机验证结果、已知问题 |
+| `docs/environment.md` | **F1 + BlueStacks 环境**：哪个实例能用、Android 11 崩溃的排查结论、ADB 的坑 |
 | `docs/decision-l1-rules.md` | 决策层怎么分层、精确解边界、**加英雄的检查清单** |
 
 **按需深入**：

@@ -40,7 +40,12 @@ class Engine:
             action_button=self.layout.end_turn,
         )
         self.cards = cards or CardLibrary()
-        self.translator = ActionTranslator(self.layout)
+        self.translator = ActionTranslator(
+            self.layout,
+            drag_ms=settings.act.drag_ms,
+            drag_wait_ms=settings.act.drag_wait_ms,
+            tap_wait_ms=settings.act.tap_wait_ms,
+        )
         self.watchdog = Watchdog(threshold=settings.loop.stuck_threshold)
         self.recovery = recovery or RecoveryPolicy()
         self.parser = StateParser(

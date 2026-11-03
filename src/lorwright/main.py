@@ -177,6 +177,26 @@ def tap(
 
 
 @app.command()
+def swipe(
+    x1: int = typer.Argument(..., help="起点 x"),
+    y1: int = typer.Argument(..., help="起点 y"),
+    x2: int = typer.Argument(..., help="终点 x"),
+    y2: int = typer.Argument(..., help="终点 y"),
+    ms: int = typer.Option(0, help="时长毫秒，0 = 用配置里的 act.drag_ms"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+) -> None:
+    """手动拖一下（出牌、攻击）。LoR 只认慢拖，默认用配置的 2000ms。"""
+    settings = load_settings()
+    duration = ms or settings.act.drag_ms
+    dev = _make_device(device)
+    try:
+        dev.swipe(x1, y1, x2, y2, duration)
+    finally:
+        dev.close()
+    console.print(f"[green]swipe[/green] ({x1}, {y1}) -> ({x2}, {y2})  {duration}ms")
+
+
+@app.command()
 def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     """解析当前画面，打印识别到的状态（调感知层用）。"""
     from lorwright.perceive.cards import CardLibrary

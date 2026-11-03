@@ -3,10 +3,11 @@ champion: elise
 
 screen:
   # 当前目标：BlueStacks 的 Pie64 实例（Android 9）
-  # 手机旧值 2510x1156 已不适用；换分辨率后 layout 必须重标定
-  width: 1280
-  height: 720
-  dpi_scale: 100
+  # 逻辑分辨率用 `adb shell wm size 1920x1080` 抬高（模拟器原生 1280x720 时
+  # 手牌费用数字只有 ~10px，读不出来）。换分辨率后 layout 必须重标定。
+  width: 1920
+  height: 1080
+  dpi_scale: 150
   # 游戏窗口标题关键字（用于定位窗口）
   window_title: "Legends of Runeterra"
 
@@ -15,6 +16,14 @@ perception:
   match_threshold: 0.85
   # 截图保存目录
   snapshot_dir: "logs/snapshots"
+
+act:
+  # LoR 手机版只认「慢拖」：700~900ms 的 swipe 会被当成滑动取消，
+  # 2000ms 才稳定触发出牌（2026-11-03 在 Pie64 实测）。
+  drag_ms: 2000
+  # 拖拽结束到画面稳定的等待
+  drag_wait_ms: 600
+  tap_wait_ms: 400
 
 loop:
   # 每轮循环间隔（毫秒）
@@ -31,17 +40,18 @@ logging:
   level: "INFO"
 
 # 界面坐标（格式 [x, y, w, h]）
-# 已按 Pie64 1280x720 实测标定（2026-11-03，截图 tests/fixtures/screens/720p_*.png）
+# 已按 Pie64 1920x1080 实测标定（2026-11-03，截图 tests/fixtures/screens/1080p_*.png）
 # 换分辨率就要重标定，详见 docs/handoff.md §3.4
 layout:
-  end_turn:     [1120, 315, 88, 88]    # 右侧圆形动作按钮（略過/結束回合），蓝色占比 0.88 vs 暗态 0.00
-  enemy_nexus:  [60, 230, 95, 90]      # 左上红色水晶（拖到这里 = 声明攻击）
-  play_area:    [520, 330, 240, 160]   # 我方出牌落点（棋盘中部）
-  hand_region:  [940, 580, 340, 140]   # 右下扇形手牌
+  end_turn:     [1680, 470, 132, 132]   # 右侧圆形动作按钮（略過/跳過/結束回合）
+  enemy_nexus:  [91, 353, 128, 114]     # 左上红色水晶（拖到这里 = 声明攻击）
+  my_nexus:     [74, 626, 123, 100]     # 左下蓝色水晶
+  play_area:    [860, 555, 200, 170]    # 我方出牌落点（分隔线以下）
+  hand_region:  [1440, 880, 480, 200]   # 右下扇形手牌（收起态）
   # 数字区域（perceive/digits.py 字形匹配）
-  enemy_hp:     [145, 262, 45, 23]     # 敌方水晶旁数字
-  my_hp:        [147, 433, 45, 23]     # 我方水晶旁数字
-  mana:         [1112, 259, 22, 24]    # 动作按钮上方的当前法力
+  enemy_hp:     [215, 390, 56, 40]      # 敌方水晶旁数字
+  my_hp:        [216, 646, 56, 40]      # 我方水晶旁数字
+  mana:         [1668, 388, 33, 36]     # 动作按钮上方的当前法力
 
 adb:
   enabled: true

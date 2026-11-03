@@ -12,8 +12,18 @@ __all__ = ["ActionTranslator", "ClickPlan", "Layout"]
 
 
 class ActionTranslator:
-    def __init__(self, layout: Layout) -> None:
+    def __init__(
+        self,
+        layout: Layout,
+        drag_ms: int = 2000,
+        drag_wait_ms: int = 600,
+        tap_wait_ms: int = 400,
+    ) -> None:
         self.layout = layout
+        #: LoR 手机版只认慢拖，快 swipe 会被当成滑动取消
+        self.drag_ms = drag_ms
+        self.drag_wait_ms = drag_wait_ms
+        self.tap_wait_ms = tap_wait_ms
 
     def translate(self, action: Action, state: GameState) -> ClickPlan | None:
         if action.type is ActionType.NO_OP:
@@ -22,17 +32,20 @@ class ActionTranslator:
         if action.type is ActionType.END_TURN:
             if not self.layout.end_turn:
                 return None
-            return ClickPlan(points=[self.layout.end_turn.center], wait_ms=600)
+            return ClickPlan(
+                points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms
+            )
 
         if action.type is ActionType.PLAY_CARD and action.card_index is not None:
             card = next((c for c in state.hand if c.index == action.card_index), None)
             if card is None or self.layout.play_area is None:
                 return None
-            # 手机版只支持拖拽出牌，用一次 swipe 完成
+            # 手机版只支持拖拽出牌，用一次慢拖完成
             return ClickPlan(
                 points=[card.rect.center, self.layout.play_area.center],
-                wait_ms=500,
+                wait_ms=self.drag_wait_ms,
                 drag=True,
+                drag_ms=self.drag_ms,
             )
 
         if action.type is ActionType.ATTACK:
@@ -50,9 +63,9 @@ class ActionTranslator:
             drags = tuple((u.rect.center, target.center) for u in attackers)
             return ClickPlan(
                 points=[drags[0][0], drags[0][1]],
-                wait_ms=500,
+                wait_ms=self.drag_wait_ms,
                 drag=True,
-                drag_ms=600,
+                drag_ms=self.drag_ms,
                 drags=drags,
             )
 

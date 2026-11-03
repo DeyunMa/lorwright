@@ -1,6 +1,10 @@
-"""感知层回归：用真实截图（tests/fixtures/screens/720p_*.png）验证解析结果。
+"""感知层回归：用真实截图验证解析结果。
 
-这批图是 Pie64 1280×720 实测截图。改感知逻辑后跑它，不用每次都开游戏。
+fixtures 分两代：
+- `1080p_*.png`：当前目标分辨率（Pie64 + `wm size 1920x1080`），跟 config 一致
+- `720p_*.png`：模拟器原生分辨率时代的旧图，只用来做字形泛化回归，
+  跑它们必须配 `LEGACY_720P` 坐标（下面写死），不能用当前 config
+
 换分辨率时：重采 fixtures + 重标 config/settings.yaml，这个文件跟着改。
 """
 
@@ -12,17 +16,28 @@ import cv2
 import pytest
 
 from lorwright.config import load_settings
-from lorwright.models import Rect, UIState
+from lorwright.models import Layout, Rect, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.state import StateParser
 from lorwright.perceive.ui_state import UIStateDetector
 
 SCREENS = Path("tests/fixtures/screens")
 
+#: 1280×720 时代的标定值。只服务于 `720p_*.png` 这批旧 fixture。
+LEGACY_720P = Layout(
+    end_turn=Rect(1120, 315, 88, 88),
+    enemy_nexus=Rect(60, 230, 95, 90),
+    play_area=Rect(520, 330, 240, 160),
+    hand_region=Rect(940, 580, 340, 140),
+    enemy_hp=Rect(145, 262, 45, 23),
+    my_hp=Rect(147, 433, 45, 23),
+    mana=Rect(1112, 259, 22, 24),
+)
 
-def _parser() -> StateParser:
+
+def _parser(layout: Layout | None = None) -> StateParser:
     settings = load_settings()
-    layout = settings.layout.to_layout()
+    layout = layout or settings.layout.to_layout()
     parser = StateParser(
         layout=layout,
         ui=UIStateDetector(
@@ -54,12 +69,13 @@ def test_assets_exist() -> None:
 
 def test_mulligan_is_not_my_turn() -> None:
     """起手换牌的「確定」和动作按钮同位置同颜色，必须先判掉。"""
-    state = _parser().parse(_load("720p_mulligan.png"))
+    # TODO(T6): 还没采到 1080p 的起手界面，先拿 720p 旧图 + 旧坐标守住这条规则
+    state = _parser(LEGACY_720P).parse(_load("720p_mulligan.png"))
     assert state.ui_state is UIState.MULLIGAN
 
 
 def test_battle_turn2() -> None:
-    state = _parser().parse(_load("720p_battle_turn2.png"))
+    state = _parser().parse(_load("1080p_battle_turn2.png"))
     assert state.ui_state is UIState.MY_TURN_IDLE
     assert state.mana == 2
     assert state.nexus_hp == 50
@@ -67,13 +83,16 @@ def test_battle_turn2() -> None:
 
 
 def test_main_menu_is_not_a_battle() -> None:
-    state = _parser().parse(_load("720p_main_menu.png"))
+    state = _parser(LEGACY_720P).parse(_load("720p_main_menu.png"))
     assert state.ui_state is UIState.UNKNOWN
 
 
 @pytest.mark.parametrize(
     ("name", "rect", "expected"),
     [
+        ("1080p_battle_turn2.png", Rect(215, 390, 56, 40), 30),
+        ("1080p_battle_turn2.png", Rect(216, 646, 56, 40), 50),
+        ("1080p_battle_turn2.png", Rect(1668, 388, 33, 36), 2),
         ("720p_battle_turn2.png", Rect(145, 262, 45, 23), 30),
         ("720p_battle_turn2.png", Rect(147, 433, 45, 23), 50),
         ("720p_battle_turn2.png", Rect(1112, 259, 22, 24), 2),

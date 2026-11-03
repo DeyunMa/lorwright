@@ -44,11 +44,23 @@ class AdbConfig(BaseModel):
     package: str = "com.riotgames.legendsofruneterra"
 
 
+class ActConfig(BaseModel):
+    """动作参数。LoR 手机版对手势时长很挑，所以时长进配置而不是硬编码。"""
+
+    #: 拖拽时长（毫秒）。<1200 会被游戏当成滑动取消，不出牌。
+    drag_ms: int = 2000
+    #: 拖拽后等画面稳定
+    drag_wait_ms: int = 600
+    #: 单次点击后等待
+    tap_wait_ms: int = 400
+
+
 class LayoutConfig(BaseModel):
     """界面坐标，格式：[x, y, w, h]。留空表示未标定。"""
 
     end_turn: list[int] | None = None
     enemy_nexus: list[int] | None = None
+    my_nexus: list[int] | None = None
     play_area: list[int] | None = None
     hand_region: list[int] | None = None
     # 数字区域：水晶血量、法力
@@ -66,6 +78,7 @@ class LayoutConfig(BaseModel):
         return Layout(
             end_turn=self._rect(self.end_turn),
             enemy_nexus=self._rect(self.enemy_nexus),
+            my_nexus=self._rect(self.my_nexus),
             play_area=self._rect(self.play_area),
             hand_region=self._rect(self.hand_region),
             enemy_hp=self._rect(self.enemy_hp),
@@ -80,6 +93,7 @@ class Settings(BaseModel):
     screen: ScreenConfig = Field(default_factory=ScreenConfig)
     perception: PerceptionConfig = Field(default_factory=PerceptionConfig)
     loop: LoopConfig = Field(default_factory=LoopConfig)
+    act: ActConfig = Field(default_factory=ActConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     layout: LayoutConfig = Field(default_factory=LayoutConfig)
     adb: AdbConfig = Field(default_factory=AdbConfig)

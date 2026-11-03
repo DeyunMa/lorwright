@@ -99,6 +99,7 @@ class Layout:
 
     end_turn: Rect | None = None
     enemy_nexus: Rect | None = None
+    my_nexus: Rect | None = None
     play_area: Rect | None = None
     hand_region: Rect | None = None
     enemy_hp: Rect | None = None

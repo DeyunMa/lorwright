@@ -20,6 +20,7 @@ GLYPH_SIZE = (16, 24)
 
 #: 白色文字 → 二值图。Otsu 在「深色底 + 白字」上很稳，不用手调阈值。
 _MIN_AREA = 12
+_MIN_WIDTH = 4        # ROI 边界上常粘连一两条 2px 宽的水晶描边，不是字形
 _MIN_HEIGHT_RATIO = 0.45
 _MAX_ASPECT = 1.6
 
@@ -64,7 +65,7 @@ def segment_glyphs(img: np.ndarray, rect: Rect, threshold: int | None = None) ->
     boxes = [
         (int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]), int(stats[i, 4]))
         for i in range(1, count)
-        if stats[i, 4] >= _MIN_AREA
+        if stats[i, 4] >= _MIN_AREA and stats[i, 2] >= _MIN_WIDTH
     ]
     if not boxes:
         return []

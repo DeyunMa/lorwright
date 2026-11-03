@@ -69,8 +69,7 @@ def test_assets_exist() -> None:
 
 def test_mulligan_is_not_my_turn() -> None:
     """起手换牌的「確定」和动作按钮同位置同颜色，必须先判掉。"""
-    # TODO(T6): 还没采到 1080p 的起手界面，先拿 720p 旧图 + 旧坐标守住这条规则
-    state = _parser(LEGACY_720P).parse(_load("720p_mulligan.png"))
+    state = _parser().parse(_load("1080p_mulligan.png"))
     assert state.ui_state is UIState.MULLIGAN
 
 

@@ -105,6 +105,10 @@ class Settings(BaseModel):
     jev_base_url: str | None = None
     jev_api_key: str | None = None
 
+    # 游戏账号（来自环境变量，仅用于自动登录；不入库）
+    lor_username: str | None = None
+    lor_password: str | None = None
+
     @property
     def layout_ready(self) -> bool:
         lay = self.layout.to_layout()
@@ -145,5 +149,7 @@ def load_settings(path: str | Path = "config/settings.yaml") -> Settings:
     data.setdefault("vlm_model", _env("VLM_MODEL"))
     data.setdefault("jev_base_url", _env("JEV_BASE_URL"))
     data.setdefault("jev_api_key", _env("JEV_API_KEY"))
+    data.setdefault("lor_username", _env("LOR_USERNAME"))
+    data.setdefault("lor_password", _env("LOR_PASSWORD"))
 
     return Settings(**data)

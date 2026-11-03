@@ -39,7 +39,10 @@
 | `device/adb.py` | ADB 截图/点击/滑动/启动应用 |
 | `device/desktop.py` | mss + pynput（调试回退） |
 | `perceive/locate.py` | 模板匹配 + NMS（合成图像测试通过） |
-| `perceive/ui_state.py` | 5 状态检测（待模板） |
+| `perceive/ui_state.py` | UI 状态检测（起手换牌优先于颜色探针） |
+| `perceive/digits.py` | 字形模板读数（多原型 + 旋转搜索），读不出返回 `None` |
+| `perceive/hand.py` | 手牌费用：环形掩码匹配徽章 + 倾斜字形识别 |
+| `perceive/state.py` | 截图 → `GameState`（法力 / 血量 / 手牌 / UI 状态） |
 | `champions/elise/` | 伊莉絲英雄包：牌表 + 蜘蛛快攻规则 |
 | `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
 | `decide/card.py` | 卡牌通用词汇（CardKind / CardDef） |
@@ -55,16 +58,17 @@
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**90 个单测，ruff 全绿，CI 在 push 时自动跑。**
+**118 个单测，ruff 全绿。**
 
-**已在真机验证**（小米 2510DRK44C，横屏 2510×1156）：
+**已在真机验证**（BlueStacks `Pie64`，Android 9，横屏 1920×1080）：
 
-- `adb screencap` 正常
-- LoR 启动、进对局正常
-- 颜色探针识别 `my_turn_idle` 正常（蓝色占比 77%）
-- Layout 四矩形已按真机实测填入 `config/settings.yaml`
-- **拖拽出牌可行**：`input swipe` 从手牌拖到 `(1250, 850)` 实际打出了牌（场面出现单位、法力被扣）
-- **未验证**：卡牌识别、战斗结算
+- `adb screencap` 正常，`input tap` 正常
+- LoR 启动、登录、进对局、打完整一局都正常
+- `lorwright state` 读出 `my_turn_idle / mana 2/2 / hp 50/30`，手牌 6 张费用 `0,0,2,2,5,5`
+- 起手换牌识别正常（`assets/buttons/mulligan.png`，1080p）
+- 动作按钮文字可判：`略過` / `結算`
+- 账号密码从 `.env`（`LOR_USERNAME` / `LOR_PASSWORD`）读取
+- **未跑通**：出牌手势（牌抓得起来、松手不落地，见 `handoff.md` §4.6）、场面识别
 
 ### 一个容易误判的现象
 
@@ -116,19 +120,20 @@ HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ..
 
 ## 下一步
 
-**见 [`docs/handoff.md`](handoff.md) §2。** 关键路径是：
+**见 [`docs/handoff.md`](handoff.md) §2。** 2026-11-03 定的顺序：接口 → 底层最小集 → 英雄规则。
 
 ```
-起手换牌模板（半天）
+出牌手势（按住 → 停 → 拖 → 松手）   ← 卡在这，唯一 P0 阻塞
   ↓
-_build_state 解析：法力 / 血量 / 手牌费用   ← 卡在这
+END_TURN（已可用）
   ↓
-9 张卡牌模板
+伊莉絲英雄规则（有攻击 token 才出伊莉絲、先遣先打）
   ↓
-端到端打一局
+场面识别 → 攻击声明 / 格挡
 ```
 
-⚠️ **状态解析没做完之前不要接 JEV / LLM** —— 候选生成依赖 state，接了也是空转。
+⚠️ **出牌手势没跑通之前不要写英雄规则** —— 规则产出的动作无法在真机验证，
+「策略对不对」会退化成「手势有没有生效」。
 
 ## 已知风险
 

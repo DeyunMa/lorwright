@@ -22,13 +22,29 @@ class AdbDevice:
         self.adb = adb
         self.timeout = timeout
         self._size: tuple[int, int] | None = None
+        self._connected = False
 
     # ---- 进程调用 ----
 
     def _base(self) -> list[str]:
         return [self.adb] + (["-s", self.serial] if self.serial else [])
 
+    def _ensure_connected(self) -> None:
+        """serial 形如 host:port 时先 `adb connect`。
+
+        adb daemon 会随发起它的会话一起消失，模拟器实例因此掉线；
+        每个进程自己重连一次，`lorwright probe` 之类才不用前置命令。
+        """
+        if self._connected or not self.serial or ":" not in self.serial:
+            return
+        self._connected = True
+        subprocess.run(
+            [self.adb, "connect", self.serial],
+            capture_output=True, timeout=self.timeout, check=False,
+        )
+
     def _run(self, *args: str, binary: bool = False):
+        self._ensure_connected()
         cmd = self._base() + list(args)
         try:
             p = subprocess.run(
@@ -109,6 +125,12 @@ class AdbDevice:
             "-c", "android.intent.category.LAUNCHER", "1",
         )
         time.sleep(0.5)
+
+    def restart_app(self, package: str) -> None:
+        """强制结束再拉起：游戏进程无响应时用（docs/handoff.md §4.1）。"""
+        self._run("shell", "am", "force-stop", package)
+        time.sleep(1.0)
+        self.launch(package)
 
     def current_focus(self) -> str:
         out = self._run("shell", "dumpsys", "window")

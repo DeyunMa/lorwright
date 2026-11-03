@@ -31,6 +31,10 @@ class RecoveryPolicy:
     def total_limit(self) -> int:
         return self.retry_limit + self.battle_limit + self.client_limit
 
+    @property
+    def attempts(self) -> int:
+        return self._attempts
+
     def next_action(self) -> RecoveryAction:
         """按累计尝试次数返回下一步动作。"""
         self._attempts += 1

@@ -50,6 +50,12 @@ class DesktopDevice:
     def size(self) -> tuple[int, int]:
         return self._size
 
+    def restart_app(self, package: str) -> None:
+        # 桌面模式没有应用句柄，重启只能人工做
+        from lorwright.util.logger import logger
+
+        logger.warning("desktop 模式不支持重启客户端（{}），跳过", package)
+
     def close(self) -> None:
         try:
             self._sct.close()

@@ -8,8 +8,9 @@ from lorwright.act.translate import ActionTranslator
 from lorwright.config import Settings
 from lorwright.decide.router import Router
 from lorwright.device.base import Device
+from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
-from lorwright.models import GameState, Layout
+from lorwright.models import ClickPlan, GameState, Layout
 from lorwright.perceive.cards import CardLibrary
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.events import emit
@@ -26,6 +27,7 @@ class Engine:
         layout: Layout | None = None,
         ui_detector: UIStateDetector | None = None,
         cards: CardLibrary | None = None,
+        recovery: RecoveryPolicy | None = None,
     ) -> None:
         self.settings = settings
         self.router = router
@@ -38,6 +40,8 @@ class Engine:
         self.cards = cards or CardLibrary()
         self.translator = ActionTranslator(self.layout)
         self.watchdog = Watchdog(threshold=settings.loop.stuck_threshold)
+        self.recovery = recovery or RecoveryPolicy()
+        self._last_plan: ClickPlan | None = None
 
     def run(self, max_ticks: int | None = None) -> None:
         self.ui_detector.load()
@@ -63,30 +67,22 @@ class Engine:
                 frame = self.device.screencap()
                 state = self._build_state(frame.image)
 
-                stuck = self.watchdog.observe(state)
-                if stuck:
-                    logger.warning("stuck: {}", state.summary())
-                    save_snapshot(frame.image, self.settings.perception.snapshot_dir, tag="stuck")
-
                 result = self.router.decide(state)
-                plan = self.translator.translate(result.action, state)
+                # NO_OP 不计入卡死：对手回合状态本来就不变
+                stuck = self.watchdog.observe(state, result.action.type)
+                if self.watchdog.progressed:
+                    self.recovery.reset()
 
                 clicks = 0
-                if plan is not None:
-                    if plan.drags:
-                        for (x1, y1), (x2, y2) in plan.drags:
-                            self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
-                            clicks += 1
-                            time.sleep(plan.wait_ms / 1000)
-                    elif plan.drag and len(plan.points) == 2:
-                        (x1, y1), (x2, y2) = plan.points
-                        self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
-                        clicks = len(plan.points)
-                    else:
-                        for x, y in plan.points:
-                            self.device.tap(x, y)
-                            time.sleep(plan.wait_ms / 1000)
-                        clicks = len(plan.points)
+                if stuck:
+                    logger.warning("stuck: {}", state.summary())
+                    save_snapshot(
+                        frame.image, self.settings.perception.snapshot_dir, tag="stuck"
+                    )
+                    if not self._recover(state):
+                        break
+                else:
+                    clicks = self._execute(self.translator.translate(result.action, state))
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(
@@ -103,6 +99,57 @@ class Engine:
         finally:
             self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
+
+    def _execute(self, plan: ClickPlan | None) -> int:
+        """执行点击计划，返回实际操作次数。"""
+        if plan is None:
+            return 0
+        self._last_plan = plan
+
+        if plan.drags:
+            for (x1, y1), (x2, y2) in plan.drags:
+                self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+                time.sleep(plan.wait_ms / 1000)
+            return len(plan.drags)
+
+        if plan.drag and len(plan.points) == 2:
+            (x1, y1), (x2, y2) = plan.points
+            self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+            return 2
+
+        for x, y in plan.points:
+            self.device.tap(x, y)
+            time.sleep(plan.wait_ms / 1000)
+        return len(plan.points)
+
+    def _recover(self, state: GameState) -> bool:
+        """按分级策略处理卡住。返回 False 表示应当停下。"""
+        action = self.recovery.next_action()
+        logger.warning(
+            "recovery: {} (累计 {}/{})",
+            action.value, self.recovery.attempts, self.recovery.total_limit,
+        )
+
+        if action is RecoveryAction.RETRY:
+            self._execute(self._last_plan)
+        elif action is RecoveryAction.RESTART_BATTLE:
+            # 退出对局要「投降 / 离开」界面的模板，现在还没有（issue #2）。
+            # 状态不明不点击 → 直接升级成重启客户端。
+            logger.warning("recovery: restart_battle 缺界面模板，升级为重启客户端")
+            self._restart_client()
+        elif action is RecoveryAction.RESTART_CLIENT:
+            self._restart_client()
+        else:
+            logger.error("recovery: 已耗尽，停止主循环（{}）", state.summary())
+            return False
+
+        self.watchdog.reset()
+        return True
+
+    def _restart_client(self) -> None:
+        package = self.settings.adb.package
+        logger.warning("recovery: 重启客户端 {}", package)
+        self.device.restart_app(package)
 
     def _build_state(self, frame) -> GameState:
         ui = self.ui_detector.detect(frame)

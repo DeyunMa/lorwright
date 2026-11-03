@@ -199,7 +199,6 @@ def swipe(
 @app.command()
 def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     """解析当前画面，打印识别到的状态（调感知层用）。"""
-    from lorwright.perceive.cards import CardLibrary
     from lorwright.perceive.digits import DigitReader
     from lorwright.perceive.state import StateParser
     from lorwright.perceive.ui_state import UIStateDetector
@@ -213,7 +212,6 @@ def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
             action_button=layout.end_turn,
         ),
         digits=DigitReader(),
-        cards=CardLibrary(),
         threshold=settings.perception.match_threshold,
     )
     parser.load()
@@ -233,6 +231,8 @@ def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     table.add_row("我方水晶", str(st.nexus_hp))
     table.add_row("敌方水晶", str(st.enemy_nexus_hp))
     table.add_row("手牌", str(len(st.hand)))
+    if st.hand:
+        table.add_row("手牌费用", ", ".join(str(c.cost) for c in st.hand))
     table.add_row("字形库", f"{sorted(parser.digits.digits)}")
     console.print(table)
     console.print(f"summary: {st.summary()}", markup=False)

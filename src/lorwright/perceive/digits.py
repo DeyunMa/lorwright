@@ -89,6 +89,13 @@ def segment_glyphs(img: np.ndarray, rect: Rect, threshold: int | None = None) ->
     return glyphs
 
 
+def rotate_glyph(image: np.ndarray, angle: float) -> np.ndarray:
+    """绕中心旋转字形（正 = 逆时针）。用于手牌徽章里倾斜的数字。"""
+    h, w = image.shape
+    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+    return cv2.warpAffine(image, m, (w, h), flags=cv2.INTER_LINEAR, borderValue=0)
+
+
 @dataclass
 class DigitTemplate:
     digit: int
@@ -137,14 +144,19 @@ class DigitReader:
     def digits(self) -> set[int]:
         return {t.digit for t in self._templates}
 
-    def classify(self, glyph: Glyph) -> tuple[int, float] | None:
+    def classify(
+        self, image: np.ndarray, rotations: tuple[int, ...] = (0,)
+    ) -> tuple[int, float] | None:
+        """识别一个归一化字形。`rotations` 给出要试的角度（手牌徽章里的数字会斜）。"""
         if not self._templates:
             return None
         best: tuple[int, float] | None = None
-        for tpl in self._templates:
-            score = _similarity(glyph.image, tpl.image)
-            if best is None or score > best[1]:
-                best = (tpl.digit, score)
+        for angle in rotations:
+            rotated = image if angle == 0 else rotate_glyph(image, angle)
+            for tpl in self._templates:
+                score = _similarity(rotated, tpl.image)
+                if best is None or score > best[1]:
+                    best = (tpl.digit, score)
         if best is None or best[1] < self.min_score:
             return None
         return best
@@ -156,7 +168,7 @@ class DigitReader:
             return None
         out = ""
         for glyph in glyphs:
-            hit = self.classify(glyph)
+            hit = self.classify(glyph.image)
             if hit is None:
                 return None
             out += str(hit[0])

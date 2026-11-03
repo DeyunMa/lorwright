@@ -13,7 +13,6 @@ from lorwright.device.base import Frame
 from lorwright.loop.engine import Engine
 from lorwright.loop.recovery import RecoveryPolicy
 from lorwright.models import Action, ActionType, Layout, Rect, UIState
-from lorwright.perceive.cards import CardLibrary
 from lorwright.perceive.ui_state import UIStateDetector
 
 
@@ -69,7 +68,6 @@ def _engine(device: FakeDevice, action: Action, recovery: RecoveryPolicy) -> Eng
         device,
         layout=layout,
         ui_detector=UIStateDetector(root="__missing__", action_button=layout.end_turn),
-        cards=CardLibrary(root="__missing__"),
         recovery=recovery,
     )
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 from lorwright.models import GameState, Layout, UIState
-from lorwright.perceive.cards import CardLibrary
+from lorwright.perceive import hand as hand_perceive
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.logger import logger
@@ -24,13 +24,11 @@ class StateParser:
         layout: Layout,
         ui: UIStateDetector,
         digits: DigitReader | None = None,
-        cards: CardLibrary | None = None,
         threshold: float = 0.85,
     ) -> None:
         self.layout = layout
         self.ui = ui
         self.digits = digits or DigitReader()
-        self.cards = cards or CardLibrary()
         self.threshold = threshold
         #: 上次读成功的血量。数字被特效遮住时沿用旧值，比跳回默认值安全。
         self._my_hp = DEFAULT_NEXUS_HP
@@ -39,7 +37,6 @@ class StateParser:
     def load(self) -> None:
         self.ui.load()
         self.digits.load()
-        self.cards.load()
 
     def parse(self, image: np.ndarray) -> GameState:
         lay = self.layout
@@ -63,8 +60,8 @@ class StateParser:
         state.nexus_hp = self._my_hp
 
         if lay.hand_region is not None:
-            state.hand = self.cards.recognize_hand(
-                image, lay.hand_region, threshold=self.threshold
+            state.hand = hand_perceive.recognize(
+                image, lay.hand_region, self.digits, threshold=self.threshold
             )
 
         if state.ui_state is not UIState.MULLIGAN and mana is None:

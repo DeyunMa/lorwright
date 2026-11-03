@@ -11,7 +11,6 @@ from lorwright.device.base import Device
 from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
 from lorwright.models import ClickPlan, GameState, Layout
-from lorwright.perceive.cards import CardLibrary
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.state import StateParser
 from lorwright.perceive.ui_state import UIStateDetector
@@ -28,7 +27,6 @@ class Engine:
         device: Device,
         layout: Layout | None = None,
         ui_detector: UIStateDetector | None = None,
-        cards: CardLibrary | None = None,
         recovery: RecoveryPolicy | None = None,
     ) -> None:
         self.settings = settings
@@ -39,7 +37,6 @@ class Engine:
             threshold=settings.perception.match_threshold,
             action_button=self.layout.end_turn,
         )
-        self.cards = cards or CardLibrary()
         self.translator = ActionTranslator(
             self.layout,
             drag_ms=settings.act.drag_ms,
@@ -52,7 +49,6 @@ class Engine:
             layout=self.layout,
             ui=self.ui_detector,
             digits=DigitReader(),
-            cards=self.cards,
             threshold=settings.perception.match_threshold,
         )
         self._last_plan: ClickPlan | None = None
@@ -62,10 +58,9 @@ class Engine:
 
         w, h = self.device.size()
         logger.info(
-            "engine start: device={} size={}x{} layers={} cards={} layout={}",
+            "engine start: device={} size={}x{} layers={} layout={}",
             self.device.name, w, h,
             [getattr(p, "name", type(p).__name__) for p in self.router.layers],
-            len(self.cards),
             "ready" if self.layout.end_turn else "NOT CALIBRATED",
         )
         if not self.layout.end_turn:

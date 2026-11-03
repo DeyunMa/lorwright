@@ -91,7 +91,8 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
 def format_checks(checks: list[Check]) -> str:
     lines = []
     for c in checks:
-        mark = "✅" if c.ok else ("⚠️ " if c.optional else "❌")
+        # Windows 控制台是 GBK，emoji 会直接抛 UnicodeEncodeError
+        mark = "[ok]" if c.ok else ("[--]" if c.optional else "[!!]")
         line = f"{mark} {c.name}: {c.detail}"
         if not c.ok and c.hint:
             line += f"\n   → {c.hint}"

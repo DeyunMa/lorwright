@@ -77,7 +77,8 @@ def probe(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     table.add_row("截图尺寸", f"{frame.width}x{frame.height}")
     table.add_row("UI 状态", state.value)
     table.add_row("按钮模板", str(len(det._tpl)))  # noqa: SLF001
-    table.add_row("Layout 标定", "✅" if settings.layout_ready else "❌ 未标定")
+    # Windows 控制台是 GBK，不能用 emoji
+    table.add_row("Layout 标定", "已标定" if settings.layout_ready else "未标定")
     if hasattr(dev, "current_focus"):
         table.add_row("前台应用", dev.current_focus()[:80])
     console.print(table)
@@ -158,6 +159,21 @@ def crop(
     dest.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(dest), patch)
     console.print(f"[green]已保存[/green] {dest}  ({w}x{h})")
+
+
+@app.command()
+def tap(
+    x: int = typer.Argument(..., help="屏幕 x 坐标"),
+    y: int = typer.Argument(..., help="屏幕 y 坐标"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+) -> None:
+    """手动点一下（标定、走界面、采模板时用）。"""
+    dev = _make_device(device)
+    try:
+        dev.tap(x, y)
+    finally:
+        dev.close()
+    console.print(f"[green]tap[/green] ({x}, {y})")
 
 
 @app.command()

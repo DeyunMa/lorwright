@@ -12,6 +12,8 @@ from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
 from lorwright.models import ClickPlan, GameState, Layout
 from lorwright.perceive.cards import CardLibrary
+from lorwright.perceive.digits import DigitReader
+from lorwright.perceive.state import StateParser
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.events import emit
 from lorwright.util.logger import logger
@@ -41,11 +43,17 @@ class Engine:
         self.translator = ActionTranslator(self.layout)
         self.watchdog = Watchdog(threshold=settings.loop.stuck_threshold)
         self.recovery = recovery or RecoveryPolicy()
+        self.parser = StateParser(
+            layout=self.layout,
+            ui=self.ui_detector,
+            digits=DigitReader(),
+            cards=self.cards,
+            threshold=settings.perception.match_threshold,
+        )
         self._last_plan: ClickPlan | None = None
 
     def run(self, max_ticks: int | None = None) -> None:
-        self.ui_detector.load()
-        self.cards.load()
+        self.parser.load()
 
         w, h = self.device.size()
         logger.info(
@@ -151,7 +159,5 @@ class Engine:
         logger.warning("recovery: 重启客户端 {}", package)
         self.device.restart_app(package)
 
-    def _build_state(self, frame) -> GameState:
-        ui = self.ui_detector.detect(frame)
-        # TODO(#4): 从截图解析手牌、场面、法力、血量
-        return GameState(ui_state=ui)
+    def _build_state(self, image) -> GameState:
+        return self.parser.parse(image)

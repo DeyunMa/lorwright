@@ -29,10 +29,16 @@ def find_all(
     if float(template.std()) < 1e-6:
         return []
 
+    # 模板比画面还大：matchTemplate 会直接抛断言错误。
+    # 分辨率变了、或模板采错时会出现，按「没找到」处理。
+    fh, fw = frame.shape[:2]
+    th, tw = template.shape[:2]
+    if th > fh or tw > fw:
+        return []
+
     res = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
     res = np.nan_to_num(res, nan=-1.0, posinf=-1.0, neginf=-1.0)
     ys, xs = np.where(res >= threshold)
-    th, tw = template.shape[:2]
 
     hits: list[tuple[Rect, float]] = []
     for x, y in zip(xs, ys, strict=False):

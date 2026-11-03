@@ -34,13 +34,11 @@ class UIStateDetector:
     """判断当前处于哪个界面。
 
     优先级：
-      1. 动作按钮蓝色占比 → MY_TURN_IDLE
+      1. 模板匹配 mulligan → MULLIGAN（必须最先：它和动作按钮同位置同颜色）
       2. 模板匹配 victory/defeat → BATTLE_END
-      3. 模板匹配 enemy_turn → ENEMY_TURN
-      4. 都没有 → UNKNOWN
-
-    已知局限：起手换牌界面的「確定」按钮和动作按钮位置重叠，
-    会被误判成 MY_TURN_IDLE。等 #2 补上 mulligan 模板再区分。
+      3. 动作按钮蓝色占比 → MY_TURN_IDLE
+      4. 模板匹配 enemy_turn → ENEMY_TURN
+      5. 都没有 → UNKNOWN
     """
 
     def __init__(
@@ -62,16 +60,24 @@ class UIStateDetector:
             self._tpl[png.stem] = load_template(png)
 
     def detect(self, frame: np.ndarray) -> UIState:
-        # 1. 颜色探针
-        if self.action_button and blue_ratio(frame, self.action_button) >= MIN_BLUE_RATIO:
-            return UIState.MY_TURN_IDLE
+        # 1. 起手换牌。它的「確定」按钮和动作按钮**同位置同颜色**
+        #    （实测蓝色占比 0.89 vs 0.88），必须先判掉，
+        #    否则开局第一帧就被当成「我方优先权」去点牌。
+        if "mulligan" in self._tpl and exists(frame, self._tpl["mulligan"], self.threshold):
+            return UIState.MULLIGAN
 
-        # 2. 模板
+        # 2. 对局结束
         t = self._tpl
         if "victory" in t and exists(frame, t["victory"], self.threshold):
             return UIState.BATTLE_END
         if "defeat" in t and exists(frame, t["defeat"], self.threshold):
             return UIState.BATTLE_END
+
+        # 3. 颜色探针
+        if self.action_button and blue_ratio(frame, self.action_button) >= MIN_BLUE_RATIO:
+            return UIState.MY_TURN_IDLE
+
+        # 4. 对手回合
         if "enemy_turn" in t and exists(frame, t["enemy_turn"], self.threshold):
             return UIState.ENEMY_TURN
 

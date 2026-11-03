@@ -24,6 +24,7 @@ class Rect:
 
 class UIState(StrEnum):
     UNKNOWN = "unknown"
+    MULLIGAN = "mulligan"            # 起手换牌：有「確定」按钮，还没进对局
     MY_TURN_IDLE = "my_turn_idle"      # 可以出牌
     TARGETING = "targeting"            # 已选牌，等待选目标
     ENEMY_TURN = "enemy_turn"          # 对手行动中
@@ -100,6 +101,9 @@ class Layout:
     enemy_nexus: Rect | None = None
     play_area: Rect | None = None
     hand_region: Rect | None = None
+    enemy_hp: Rect | None = None
+    my_hp: Rect | None = None
+    mana: Rect | None = None
     extras: dict[str, Rect] = field(default_factory=dict)
 
 

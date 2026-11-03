@@ -51,6 +51,10 @@ class LayoutConfig(BaseModel):
     enemy_nexus: list[int] | None = None
     play_area: list[int] | None = None
     hand_region: list[int] | None = None
+    # 数字区域：水晶血量、法力
+    enemy_hp: list[int] | None = None
+    my_hp: list[int] | None = None
+    mana: list[int] | None = None
 
     @staticmethod
     def _rect(v: list[int] | None) -> Rect | None:
@@ -64,6 +68,9 @@ class LayoutConfig(BaseModel):
             enemy_nexus=self._rect(self.enemy_nexus),
             play_area=self._rect(self.play_area),
             hand_region=self._rect(self.hand_region),
+            enemy_hp=self._rect(self.enemy_hp),
+            my_hp=self._rect(self.my_hp),
+            mana=self._rect(self.mana),
         )
 
 

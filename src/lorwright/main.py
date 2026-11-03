@@ -177,6 +177,48 @@ def tap(
 
 
 @app.command()
+def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
+    """解析当前画面，打印识别到的状态（调感知层用）。"""
+    from lorwright.perceive.cards import CardLibrary
+    from lorwright.perceive.digits import DigitReader
+    from lorwright.perceive.state import StateParser
+    from lorwright.perceive.ui_state import UIStateDetector
+
+    settings = load_settings()
+    layout = settings.layout.to_layout()
+    parser = StateParser(
+        layout=layout,
+        ui=UIStateDetector(
+            threshold=settings.perception.match_threshold,
+            action_button=layout.end_turn,
+        ),
+        digits=DigitReader(),
+        cards=CardLibrary(),
+        threshold=settings.perception.match_threshold,
+    )
+    parser.load()
+
+    dev = _make_device(device)
+    try:
+        frame = dev.screencap()
+    finally:
+        dev.close()
+
+    st = parser.parse(frame.image)
+    table = Table(title="状态解析")
+    table.add_column("字段")
+    table.add_column("值")
+    table.add_row("UI 状态", st.ui_state.value)
+    table.add_row("法力", f"{st.mana}/{st.max_mana}")
+    table.add_row("我方水晶", str(st.nexus_hp))
+    table.add_row("敌方水晶", str(st.enemy_nexus_hp))
+    table.add_row("手牌", str(len(st.hand)))
+    table.add_row("字形库", f"{sorted(parser.digits.digits)}")
+    console.print(table)
+    console.print(f"summary: {st.summary()}", markup=False)
+
+
+@app.command()
 def doctor() -> None:
     """环境自检。"""
     from lorwright.doctor import blockers, format_checks, run_checks

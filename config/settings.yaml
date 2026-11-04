@@ -18,9 +18,10 @@ perception:
   snapshot_dir: "logs/snapshots"
 
 act:
-  # LoR 手机版只认「慢拖」：700~900ms 的 swipe 会被当成滑动取消，
-  # 2000ms 才稳定触发出牌（2026-11-03 在 Pie64 实测）。
-  drag_ms: 2000
+  # 出牌手势 = 按住 drag_hold_ms → 移动 drag_ms → 松手。
+  # 不停顿会被 LoR 当成点击 / 长按预览（docs/handoff.md §4.6）。
+  drag_ms: 800
+  drag_hold_ms: 300
   # 拖拽结束到画面稳定的等待
   drag_wait_ms: 600
   tap_wait_ms: 400

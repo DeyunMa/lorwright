@@ -177,23 +177,27 @@ def tap(
 
 
 @app.command()
-def swipe(
+def drag(
     x1: int = typer.Argument(..., help="起点 x"),
     y1: int = typer.Argument(..., help="起点 y"),
     x2: int = typer.Argument(..., help="终点 x"),
     y2: int = typer.Argument(..., help="终点 y"),
-    ms: int = typer.Option(0, help="时长毫秒，0 = 用配置里的 act.drag_ms"),
+    hold: int = typer.Option(0, help="按下后停顿毫秒，0 = 用配置的 act.drag_hold_ms"),
+    ms: int = typer.Option(0, help="移动时长毫秒，0 = 用配置的 act.drag_ms"),
     device: str = typer.Option("adb", help="adb | desktop"),
 ) -> None:
-    """手动拖一下（出牌、攻击）。LoR 只认慢拖，默认用配置的 2000ms。"""
+    """按住 → 停顿 → 拖 → 松手（出牌、攻击）。LoR 出牌必须停顿，见 handoff §4.6。"""
     settings = load_settings()
+    hold_ms = hold or settings.act.drag_hold_ms
     duration = ms or settings.act.drag_ms
     dev = _make_device(device)
     try:
-        dev.swipe(x1, y1, x2, y2, duration)
+        dev.drag(x1, y1, x2, y2, hold_ms, duration)
     finally:
         dev.close()
-    console.print(f"[green]swipe[/green] ({x1}, {y1}) -> ({x2}, {y2})  {duration}ms")
+    console.print(
+        f"[green]drag[/green] ({x1}, {y1}) -> ({x2}, {y2})  hold={hold_ms}ms move={duration}ms"
+    )
 
 
 @app.command()

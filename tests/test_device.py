@@ -22,7 +22,7 @@ class FakeDevice:
     def tap(self, x: int, y: int) -> None:
         self.taps.append((x, y))
 
-    def swipe(self, x1, y1, x2, y2, ms=300) -> None:
+    def drag(self, x1, y1, x2, y2, hold_ms, drag_ms) -> None:
         pass
 
     def size(self) -> tuple[int, int]:

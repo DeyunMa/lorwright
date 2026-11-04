@@ -59,7 +59,10 @@ class ActConfig(BaseModel):
     """动作参数。LoR 手机版对手势时长很挑，所以时长进配置而不是硬编码。"""
 
     #: 拖拽时长（毫秒）。<1200 会被游戏当成滑动取消，不出牌。
-    drag_ms: int = 2000
+    drag_ms: int = 800
+    #: 按下到开始移动之间的停顿。LoR 出牌必须是「按住 → 停一下 → 拖」，
+    #: 不停顿会被当成点击/长按预览（docs/handoff.md §4.6）。
+    drag_hold_ms: int = 300
     #: 拖拽后等画面稳定
     drag_wait_ms: int = 600
     #: 单次点击后等待

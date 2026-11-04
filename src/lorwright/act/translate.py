@@ -15,13 +15,15 @@ class ActionTranslator:
     def __init__(
         self,
         layout: Layout,
-        drag_ms: int = 2000,
+        drag_ms: int = 800,
+        drag_hold_ms: int = 300,
         drag_wait_ms: int = 600,
         tap_wait_ms: int = 400,
     ) -> None:
         self.layout = layout
         #: LoR 手机版只认慢拖，快 swipe 会被当成滑动取消
         self.drag_ms = drag_ms
+        self.drag_hold_ms = drag_hold_ms
         self.drag_wait_ms = drag_wait_ms
         self.tap_wait_ms = tap_wait_ms
 
@@ -46,6 +48,7 @@ class ActionTranslator:
                 wait_ms=self.drag_wait_ms,
                 drag=True,
                 drag_ms=self.drag_ms,
+                drag_hold_ms=self.drag_hold_ms,
             )
 
         if action.type is ActionType.ATTACK:
@@ -66,6 +69,7 @@ class ActionTranslator:
                 wait_ms=self.drag_wait_ms,
                 drag=True,
                 drag_ms=self.drag_ms,
+                drag_hold_ms=self.drag_hold_ms,
                 drags=drags,
             )
 

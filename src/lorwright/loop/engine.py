@@ -40,6 +40,7 @@ class Engine:
         self.translator = ActionTranslator(
             self.layout,
             drag_ms=settings.act.drag_ms,
+            drag_hold_ms=settings.act.drag_hold_ms,
             drag_wait_ms=settings.act.drag_wait_ms,
             tap_wait_ms=settings.act.tap_wait_ms,
         )
@@ -116,13 +117,13 @@ class Engine:
 
         if plan.drags:
             for (x1, y1), (x2, y2) in plan.drags:
-                self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+                self.device.drag(x1, y1, x2, y2, plan.drag_hold_ms, plan.drag_ms)
                 time.sleep(plan.wait_ms / 1000)
             return len(plan.drags)
 
         if plan.drag and len(plan.points) == 2:
             (x1, y1), (x2, y2) = plan.points
-            self.device.swipe(x1, y1, x2, y2, plan.drag_ms)
+            self.device.drag(x1, y1, x2, y2, plan.drag_hold_ms, plan.drag_ms)
             return 2
 
         for x, y in plan.points:

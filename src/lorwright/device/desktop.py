@@ -34,17 +34,21 @@ class DesktopDevice:
         time.sleep(0.05)
         m.release(Button.left)
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, ms: int = 300) -> None:
+    def drag(
+        self, x1: int, y1: int, x2: int, y2: int, hold_ms: int, drag_ms: int
+    ) -> None:
+        """鼠标按下 → 停顿 → 移动 → 松开。桌面模式能直接表达停顿。"""
         from pynput.mouse import Button, Controller
 
         m = Controller()
         steps = 20
         m.position = (x1, y1)
         m.press(Button.left)
+        time.sleep(hold_ms / 1000)
         for i in range(1, steps + 1):
             t = i / steps
             m.position = (int(x1 + (x2 - x1) * t), int(y1 + (y2 - y1) * t))
-            time.sleep(ms / 1000 / steps)
+            time.sleep(drag_ms / 1000 / steps)
         m.release(Button.left)
 
     def size(self) -> tuple[int, int]:

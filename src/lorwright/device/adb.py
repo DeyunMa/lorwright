@@ -12,6 +12,12 @@ import cv2
 import numpy as np
 
 from lorwright.device.base import Frame
+from lorwright.device.touch import (
+    AdbInputSurface,
+    EvdevSurface,
+    TouchSurface,
+    discover_touch_device,
+)
 
 
 class AdbDevice:
@@ -23,6 +29,7 @@ class AdbDevice:
         self.timeout = timeout
         self._size: tuple[int, int] | None = None
         self._connected = False
+        self._surface: TouchSurface | None = None
 
     # ---- 进程调用 ----
 
@@ -84,13 +91,30 @@ class AdbDevice:
             raise RuntimeError("截图解码失败（可能是 adb 输出被污染）")
         return Frame(image=img)
 
-    def tap(self, x: int, y: int) -> None:
-        self._run("shell", "input", "tap", str(int(x)), str(int(y)))
+    # ---- 输入 ----
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, ms: int = 300) -> None:
-        self._run(
-            "shell", "input", "swipe",
-            str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(ms)),
+    def surface(self) -> TouchSurface:
+        """输入后端。优先事件级（能表达「按住再拖」），不行退回 `input`。
+
+        事件级要能写 `/dev/input/eventN`（shell 在 input 组里才行）。
+        """
+        if self._surface is not None:
+            return self._surface
+        dev = discover_touch_device(self.serial, self.adb, self.timeout)
+        if dev is not None:
+            self._surface = EvdevSurface(dev, self.size(), self.serial, self.adb)
+        else:
+            self._surface = AdbInputSurface(self.serial, self.adb, self.timeout)
+        return self._surface
+
+    def tap(self, x: int, y: int) -> None:
+        self.surface().tap(int(x), int(y))
+
+    def drag(
+        self, x1: int, y1: int, x2: int, y2: int, hold_ms: int, drag_ms: int
+    ) -> None:
+        self.surface().drag(
+            int(x1), int(y1), int(x2), int(y2), int(hold_ms), int(drag_ms)
         )
 
     def size(self) -> tuple[int, int]:

@@ -121,4 +121,5 @@ class ClickPlan:
     wait_ms: int = 400
     drag: bool = False
     drag_ms: int = 600
+    drag_hold_ms: int = 0
     drags: tuple[tuple[tuple[int, int], tuple[int, int]], ...] = ()

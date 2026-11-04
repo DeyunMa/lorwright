@@ -24,6 +24,7 @@ def _reset_policy() -> None:
     POLICY._pending_hand = -1
     POLICY._unplayable.clear()
     POLICY._needs_target.clear()
+    POLICY._target_attempt = 0
 
 
 def hand(index: int, name: str, cost: int) -> CardInHand:

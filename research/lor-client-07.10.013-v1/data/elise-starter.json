@@ -1,0 +1,400 @@
+{
+  "data_dragon_version": "7_10_0",
+  "scope": "nine base starter cards; excludes PoC buffs and equipment",
+  "starter_deck_card_count": 18,
+  "cards": [
+    {
+      "card_code": "01SI002",
+      "copies_in_starter_deck": 2,
+      "cost": 1,
+      "attack": 1,
+      "health": 1,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [],
+      "spell_speed_ref": "",
+      "associated_card_refs": [],
+      "locales": {
+        "en_us": {
+          "name": "Spiderling",
+          "description_raw": "",
+          "description_markup": "",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01SI002.png"
+        },
+        "zh_tw": {
+          "name": "小蜘蛛",
+          "description_raw": "",
+          "description_markup": "",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI002.png"
+        }
+      }
+    },
+    {
+      "card_code": "06SI037",
+      "copies_in_starter_deck": 2,
+      "cost": 1,
+      "attack": 0,
+      "health": 0,
+      "type": "Spell",
+      "supertype": "",
+      "subtypes": [],
+      "keyword_refs": [
+        "Burst"
+      ],
+      "spell_speed_ref": "Burst",
+      "associated_card_refs": [
+        "01SI022",
+        "04SI002",
+        "03SI008"
+      ],
+      "locales": {
+        "en_us": {
+          "name": "Shadow Isles Tellstones",
+          "description_raw": "Create a Fleeting Mark of the Isles, Spirit Journey, or Crumble in hand.",
+          "description_markup": "Create a <link=keyword.Fleeting><sprite name=Fleeting><style=Keyword>Fleeting</style></link> <nobr><link=card.create1><style=AssociatedCard>Mark of the Isles</style></link></nobr>, <link=card.create2><style=AssociatedCard>Spirit Journey</style></link>, or <link=card.create3><style=AssociatedCard>Crumble</style></link> in hand.",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "Burst"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set6/en_us/data/set6-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set6/en_us/img/cards/06SI037.png"
+        },
+        "zh_tw": {
+          "name": "闇影島泰爾石",
+          "description_raw": "在手牌生成1張飛逝同命、靈魂之旅或闇影島印記。",
+          "description_markup": "在手牌生成1張<link=keyword.Fleeting><sprite name=Fleeting><style=Keyword>飛逝</style></link><link=card.create3><style=AssociatedCard>同命</style></link>、<br><link=card.create2><style=AssociatedCard>靈魂之旅</style></link>或<link=card.create1><style=AssociatedCard>闇影島印記</style></link>。",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "疾速"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set6/zh_tw/data/set6-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06SI037.png"
+        }
+      }
+    },
+    {
+      "card_code": "01SI053",
+      "copies_in_starter_deck": 2,
+      "cost": 2,
+      "attack": 2,
+      "health": 3,
+      "type": "Unit",
+      "supertype": "Champion",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [
+        "Fearsome"
+      ],
+      "spell_speed_ref": "",
+      "associated_card_refs": [
+        "01SI053T2",
+        "01SI053T1",
+        "01SI002"
+      ],
+      "locales": {
+        "en_us": {
+          "name": "Elise",
+          "description_raw": "Attack: Summon an attacking Spiderling.",
+          "description_markup": "<link=vocab.Attack><style=Vocab>Attack</style></link>: Summon an attacking <link=card.summon><style=AssociatedCard>Spiderling</style></link>.",
+          "levelup_description_raw": "Round Start: You have 3+ other Spiders.",
+          "keyword_names": [
+            "Fearsome"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01SI053.png"
+        },
+        "zh_tw": {
+          "name": "伊莉絲",
+          "description_raw": "攻擊：召喚1隻攻擊中的小蜘蛛。",
+          "description_markup": "<link=vocab.Attack><style=Vocab>攻擊</style></link>：召喚1隻攻擊中的<link=card.summon><style=AssociatedCard>小蜘蛛</style></link>。",
+          "levelup_description_raw": "回合開始：我方場上有3隻以上其他蜘蛛單位。",
+          "keyword_names": [
+            "威嚇"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI053.png"
+        }
+      }
+    },
+    {
+      "card_code": "06NX013",
+      "copies_in_starter_deck": 2,
+      "cost": 2,
+      "attack": 1,
+      "health": 1,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [
+        "Fearsome"
+      ],
+      "spell_speed_ref": "",
+      "associated_card_refs": [
+        "06NX013T1"
+      ],
+      "locales": {
+        "en_us": {
+          "name": "Spell Slinger",
+          "description_raw": "Play: Stun an enemy or if it's already Stunned deal 2 to it instead.",
+          "description_markup": "<link=keyword.PlaySkillMark><sprite name=SkillMark><style=Keyword>Play</style></link>: <link=keyword.Stun><sprite name=Stunned><style=Keyword>Stun</style></link> an enemy or if it's already <link=keyword.Stun><sprite name=Stunned><style=Keyword>Stunned</style></link> deal 2 to it instead.",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "Fearsome"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set6/en_us/data/set6-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set6/en_us/img/cards/06NX013.png"
+        },
+        "zh_tw": {
+          "name": "蜘術士",
+          "description_raw": "出牌：擊暈1個敵軍單位，若其已遭到擊暈，則改為造成2點傷害。",
+          "description_markup": "<link=keyword.PlaySkillMark><sprite name=SkillMark><style=Keyword>出牌</style></link>：<link=keyword.Stun><sprite name=Stunned><style=Keyword>擊暈</style></link>1個敵軍單位，若其已遭到<link=keyword.Stun><sprite name=Stunned><style=Keyword>擊暈</style></link>，則改為造成<nobr>2點傷害。</nobr>",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "威嚇"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set6/zh_tw/data/set6-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06NX013.png"
+        }
+      }
+    },
+    {
+      "card_code": "01NX046",
+      "copies_in_starter_deck": 2,
+      "cost": 3,
+      "attack": 3,
+      "health": 2,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [],
+      "spell_speed_ref": "",
+      "associated_card_refs": [
+        "01NX046T1"
+      ],
+      "locales": {
+        "en_us": {
+          "name": "Arachnoid Sentry",
+          "description_raw": "Play: Stun an enemy.",
+          "description_markup": "<link=keyword.PlaySkillMark><sprite name=SkillMark><style=Keyword>Play</style></link>: <link=keyword.Stun><sprite name=Stunned><style=Keyword>Stun</style></link> an enemy.",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01NX046.png"
+        },
+        "zh_tw": {
+          "name": "蜘蛛哨兵",
+          "description_raw": "出牌：擊暈1個敵軍單位。",
+          "description_markup": "<link=keyword.PlaySkillMark><sprite name=SkillMark><style=Keyword>出牌</style></link>：<link=keyword.Stun><sprite name=Stunned><style=Keyword>擊暈</style></link>1個敵軍單位。",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX046.png"
+        }
+      }
+    },
+    {
+      "card_code": "01SI056",
+      "copies_in_starter_deck": 2,
+      "cost": 3,
+      "attack": 3,
+      "health": 3,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [
+        "Fearsome"
+      ],
+      "spell_speed_ref": "",
+      "associated_card_refs": [],
+      "locales": {
+        "en_us": {
+          "name": "Frenzied Skitterer",
+          "description_raw": "When I'm summoned, give other Spider allies +1|+0 and enemies -1|-0 this round.",
+          "description_markup": "When I'm summoned, give other Spider allies +1|+0 and enemies <nobr>-1|-0</nobr> this round.",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "Fearsome"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01SI056.png"
+        },
+        "zh_tw": {
+          "name": "發狂疾行蛛",
+          "description_raw": "召喚此牌時，本回合給予我方其他蜘蛛單位+1|+0，並使所有敵軍單位-1|-0。",
+          "description_markup": "召喚此牌時，本回合給予<br>我方其他蜘蛛單位+1|+0，<br>並使所有敵軍單位<nobr>-1|-0</nobr>。",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "威嚇"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI056.png"
+        }
+      }
+    },
+    {
+      "card_code": "04NX016",
+      "copies_in_starter_deck": 2,
+      "cost": 4,
+      "attack": 2,
+      "health": 4,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [],
+      "spell_speed_ref": "",
+      "associated_card_refs": [],
+      "locales": {
+        "en_us": {
+          "name": "Shrieking Spinner",
+          "description_raw": "Attack: Give Spider allies +2|+0 this round.",
+          "description_markup": "<link=vocab.Attack><style=Vocab>Attack</style></link>: Give Spider allies +2|+0 this round.",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set4/en_us/data/set4-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set4/en_us/img/cards/04NX016.png"
+        },
+        "zh_tw": {
+          "name": "尖嘯蜘蛛",
+          "description_raw": "攻擊：本回合給予蜘蛛友軍單位+2|+0。",
+          "description_markup": "<link=vocab.Attack><style=Vocab>攻擊</style></link>：本回合給予蜘蛛友軍單位+2|+0。",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set4/zh_tw/data/set4-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set4/zh_tw/img/cards/04NX016.png"
+        }
+      }
+    },
+    {
+      "card_code": "01NX023",
+      "copies_in_starter_deck": 2,
+      "cost": 5,
+      "attack": 5,
+      "health": 3,
+      "type": "Unit",
+      "supertype": "",
+      "subtypes": [
+        "SPIDER"
+      ],
+      "keyword_refs": [],
+      "spell_speed_ref": "",
+      "associated_card_refs": [],
+      "locales": {
+        "en_us": {
+          "name": "Arachnoid Host",
+          "description_raw": "When I'm summoned, grant other Spider allies +2|+0.",
+          "description_markup": "When I'm summoned, grant other Spider allies +2|+0.",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01NX023.png"
+        },
+        "zh_tw": {
+          "name": "群蛛之主",
+          "description_raw": "召喚此牌時，賦予我方其他蜘蛛單位+2|+0。",
+          "description_markup": "召喚此牌時，賦予我方<br>其他蜘蛛單位+2|+0。",
+          "levelup_description_raw": "",
+          "keyword_names": [],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX023.png"
+        }
+      }
+    },
+    {
+      "card_code": "01SI050",
+      "copies_in_starter_deck": 2,
+      "cost": 6,
+      "attack": 0,
+      "health": 0,
+      "type": "Spell",
+      "supertype": "",
+      "subtypes": [],
+      "keyword_refs": [
+        "Slow"
+      ],
+      "spell_speed_ref": "Slow",
+      "associated_card_refs": [
+        "01SI002"
+      ],
+      "locales": {
+        "en_us": {
+          "name": "Brood Awakening",
+          "description_raw": "Summon 3 Spiderlings, then grant Spider allies +1|+0. ",
+          "description_markup": "Summon 3 <link=card.summon><style=AssociatedCard>Spiderlings</style></link>, then grant Spider allies +1|+0. ",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "Slow"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/en_us/img/cards/01SI050.png"
+        },
+        "zh_tw": {
+          "name": "傾巢而出",
+          "description_raw": "召喚3隻小蜘蛛，並賦予我方蜘蛛單位+1|+0。 ",
+          "description_markup": "召喚3隻<link=card.summon><style=AssociatedCard>小蜘蛛</style></link>，並賦予<br>我方蜘蛛單位+1|+0。 ",
+          "levelup_description_raw": "",
+          "keyword_names": [
+            "慢速"
+          ],
+          "source_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+          "source_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI050.png"
+        }
+      }
+    }
+  ],
+  "source_files": [
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set1/en_us/data/set1-en_us.json",
+      "file": "data-dragon-7_10_0/set1-en_us.json",
+      "bytes": 588941,
+      "sha256": "dd914bdcff22139a6c275be4fe39606bc80a852e9087f0558a9bac78aa9c7e6c"
+    },
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set4/en_us/data/set4-en_us.json",
+      "file": "data-dragon-7_10_0/set4-en_us.json",
+      "bytes": 523862,
+      "sha256": "f5cbfc8884058031b8ad8162943b02f5e5915a4a470e6c264866497622e9ce18"
+    },
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set6/en_us/data/set6-en_us.json",
+      "file": "data-dragon-7_10_0/set6-en_us.json",
+      "bytes": 285507,
+      "sha256": "8913b9ba8dec2e36316dc8b85a605c724278f529803c12d40d420200ce687318"
+    },
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/data/set1-zh_tw.json",
+      "file": "data-dragon-7_10_0/set1-zh_tw.json",
+      "bytes": 604555,
+      "sha256": "d1a8efe6536ea04be3ca264c0353abb027f8ff0c035914157fff35689acc8b3f"
+    },
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set4/zh_tw/data/set4-zh_tw.json",
+      "file": "data-dragon-7_10_0/set4-zh_tw.json",
+      "bytes": 532364,
+      "sha256": "fcbbc5e0ba047860e47b1e44b0d69f8851a47ee56b3fb25450b59b4de7a27871"
+    },
+    {
+      "url": "https://dd.b.pvp.net/7_10_0/set6/zh_tw/data/set6-zh_tw.json",
+      "file": "data-dragon-7_10_0/set6-zh_tw.json",
+      "bytes": 291521,
+      "sha256": "f20e65a97310f7217d8cbfe889bf2cc8dc4c1dfb03c25e1ccab396e6c1b605e2"
+    }
+  ]
+}

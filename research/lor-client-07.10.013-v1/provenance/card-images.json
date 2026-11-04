@@ -1,0 +1,110 @@
+[
+  {
+    "card_code": "01SI002",
+    "locale": "zh_tw",
+    "path": "card-images/01SI002-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI002.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI002.png",
+    "bytes": 586062,
+    "width": 680,
+    "height": 1024,
+    "sha256": "983c21d4039286b33ffaaa7f263960e17b25744e15f5186476295e783f69ca8d",
+    "delivered_path": "images/cards/01SI002-zh_tw.png"
+  },
+  {
+    "card_code": "06SI037",
+    "locale": "zh_tw",
+    "path": "card-images/06SI037-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06SI037.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06SI037.png",
+    "bytes": 575437,
+    "width": 680,
+    "height": 1024,
+    "sha256": "f0da32efdddb6b28f88c8c07182cf49a040ff48a1c56ad9c2fcde2158b86d077",
+    "delivered_path": "images/cards/06SI037-zh_tw.png"
+  },
+  {
+    "card_code": "01SI053",
+    "locale": "zh_tw",
+    "path": "card-images/01SI053-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI053.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI053.png",
+    "bytes": 765247,
+    "width": 680,
+    "height": 1024,
+    "sha256": "3e3b85fe30e269b57075eb48d34fa4196651ddffeb90c57870137833470976a2",
+    "delivered_path": "images/cards/01SI053-zh_tw.png"
+  },
+  {
+    "card_code": "06NX013",
+    "locale": "zh_tw",
+    "path": "card-images/06NX013-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06NX013.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set6/zh_tw/img/cards/06NX013.png",
+    "bytes": 676558,
+    "width": 680,
+    "height": 1024,
+    "sha256": "244fce8d77e9c1a28ffa1f13cc052a942e8350ef6f295723ba52ee9cbdbfae53",
+    "delivered_path": "images/cards/06NX013-zh_tw.png"
+  },
+  {
+    "card_code": "01NX046",
+    "locale": "zh_tw",
+    "path": "card-images/01NX046-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX046.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX046.png",
+    "bytes": 730406,
+    "width": 680,
+    "height": 1024,
+    "sha256": "ac5332dedf88925bbf8e9d26927115b4f4c832647085266930c041a5319b7ae0",
+    "delivered_path": "images/cards/01NX046-zh_tw.png"
+  },
+  {
+    "card_code": "01SI056",
+    "locale": "zh_tw",
+    "path": "card-images/01SI056-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI056.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI056.png",
+    "bytes": 797945,
+    "width": 680,
+    "height": 1024,
+    "sha256": "e68b9922ccd5670392d9ff8a79da04133b498fe660bbab13ff29fb3a17d3f083",
+    "delivered_path": "images/cards/01SI056-zh_tw.png"
+  },
+  {
+    "card_code": "04NX016",
+    "locale": "zh_tw",
+    "path": "card-images/04NX016-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set4/zh_tw/img/cards/04NX016.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set4/zh_tw/img/cards/04NX016.png",
+    "bytes": 695034,
+    "width": 680,
+    "height": 1024,
+    "sha256": "4209d03dd3e8608b7738e5890a9cb917160d6b9f666ac23717987a726a90adb0",
+    "delivered_path": "images/cards/04NX016-zh_tw.png"
+  },
+  {
+    "card_code": "01NX023",
+    "locale": "zh_tw",
+    "path": "card-images/01NX023-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX023.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01NX023.png",
+    "bytes": 720869,
+    "width": 680,
+    "height": 1024,
+    "sha256": "f66dcd8574642025a9cc98a5d531e32427c95583514cd31b98d747a50949f6c6",
+    "delivered_path": "images/cards/01NX023-zh_tw.png"
+  },
+  {
+    "card_code": "01SI050",
+    "locale": "zh_tw",
+    "path": "card-images/01SI050-zh_tw.png",
+    "official_asset_url": "http://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI050.png",
+    "download_url": "https://dd.b.pvp.net/7_10_0/set1/zh_tw/img/cards/01SI050.png",
+    "bytes": 622163,
+    "width": 680,
+    "height": 1024,
+    "sha256": "938247b9bdc09b75f722e2f9d9fbf68010cc3bf332fd03b31061aef7e63f02cd",
+    "delivered_path": "images/cards/01SI050-zh_tw.png"
+  }
+]

@@ -1,0 +1,1436 @@
+{
+  "schema_version": 1,
+  "formula_recovered": false,
+  "source_snapshot": "07.10.013 / 7-10-release",
+  "source_export_sha256": "9529326f3a183b5312e290ea48a22fecbf24cd028a14411e1e1a52ab0d04c11c",
+  "keywords": [
+    {
+      "name": "Double Strike",
+      "keyword_flag_serialized": 58,
+      "multiplier_serialized": 1.5,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_DoubleStrike_Description",
+          "value": "While attacking, it strikes both before AND at the same time as its blocker."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_DoubleStrike_Name",
+          "value": "Double Attack"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_DoubleStrike_Description",
+          "value": "此牌攻擊時，會先打擊格擋卡牌一次，然後再與它同時打擊。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_DoubleStrike_Name",
+          "value": "雙重攻擊"
+        }
+      ],
+      "source": {
+        "path_hash": "116ba689",
+        "entry_sha256": "28e0ec358d1532722d3e86cdfd976236126acfb4db1b4c0b4fbc561d4ed7b27a",
+        "offset": 13989125,
+        "end_offset": 13989287,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13989141,
+            "end_offset": 13989150,
+            "raw_float_hex": "0000c03f",
+            "value": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vulnerable",
+      "keyword_flag_serialized": 68,
+      "multiplier_serialized": 0.800000011920929,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Vulnerable_Description",
+          "value": "The enemy can challenge this unit, forcing it to block."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Vulnerable_Name",
+          "value": "Vulnerable"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Vulnerable_Description",
+          "value": "敵軍單位可強迫此單位進行<br>格擋。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Vulnerable_Name",
+          "value": "弱勢"
+        }
+      ],
+      "source": {
+        "path_hash": "1de089b2",
+        "entry_sha256": "6a9c6df9405464fcf1d6b21e2068775c09a9cac3de1984046761b2901f35fbd6",
+        "offset": 13989287,
+        "end_offset": 13989425,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13989297,
+            "end_offset": 13989306,
+            "raw_float_hex": "cdcc4c3f",
+            "value": 0.800000011920929
+          }
+        ]
+      }
+    },
+    {
+      "name": "Elusive",
+      "keyword_flag_serialized": 12,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Elusive_Description",
+          "value": "Can only be blocked by an Elusive unit."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Elusive_Name",
+          "value": "Elusive"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Elusive_Description",
+          "value": "只能由隱密單位格擋。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Elusive_Name",
+          "value": "隱密"
+        }
+      ],
+      "source": {
+        "path_hash": "2398709b",
+        "entry_sha256": "51298a16dcec86f8257023743f3551307c35198f394e1415ae0e215e6ee80174",
+        "offset": 13989425,
+        "end_offset": 13989572,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13989447,
+            "end_offset": 13989456,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Stun",
+      "keyword_flag_serialized": 80,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Stun_Description",
+          "value": "Remove a unit from combat. It can't attack or block for the rest of the round."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Stun_Name",
+          "value": "Stun"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Stun_Description",
+          "value": "從戰鬥中移除單位，該單位無法攻擊或格擋，直到回合結束。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Stun_Name",
+          "value": "擊暈"
+        }
+      ],
+      "source": {
+        "path_hash": "330f076e",
+        "entry_sha256": "70c84ec45bb84b6f746cfedd35e10e3da7ab3da972198b64c01737d988c63f8a",
+        "offset": 13989572,
+        "end_offset": 13989689,
+        "fields": []
+      }
+    },
+    {
+      "name": "Curse",
+      "keyword_flag_serialized": 167,
+      "multiplier_serialized": 1.2999999523162842,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Curse_Description",
+          "value": "Applies a negative effect as long as it's in hand. Multiples of the same curse on a unit combine, increasing their cost and effect. Cannot be targeted in hand."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Curse_Name",
+          "value": "Curse"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Curse_Description",
+          "value": "只要在手牌就會賦予負面效果。在一個單位身上下數個同樣的詛咒，將提升其魔耗值與效果。在手牌無法被指定為目標。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Curse_Name",
+          "value": "詛咒"
+        }
+      ],
+      "source": {
+        "path_hash": "338d0248",
+        "entry_sha256": "1b6f76f1ca51a90a5bbae6fb062c7595129905db44e6288a24a87ad517e49421",
+        "offset": 13989689,
+        "end_offset": 13989816,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13989699,
+            "end_offset": 13989708,
+            "raw_float_hex": "6666a63f",
+            "value": 1.2999999523162842
+          }
+        ]
+      }
+    },
+    {
+      "name": "Fated",
+      "keyword_flag_serialized": 146,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Fated_Description",
+          "value": "Each round, the first time an allied card targets me, grant me +1|+1."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Fated_Name",
+          "value": "Fated"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fated_Description",
+          "value": "每回合我方首次指定此牌為目標時，賦予此牌+1|+1。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fated_Name",
+          "value": "命定"
+        }
+      ],
+      "source": {
+        "path_hash": "34a55c84",
+        "entry_sha256": "2c6656c0cfa69daedb5623ea5cebaf2f6469fd9833c43ea3280e3e6b6c1edd6f",
+        "offset": 13989816,
+        "end_offset": 13989955,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13989838,
+            "end_offset": 13989847,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Sharpsight",
+      "keyword_flag_serialized": 140,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_BlockElusive_Description",
+          "value": "Can block Elusive units"
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_BlockElusive_Name",
+          "value": "Sharpsight"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_BlockElusive_Description",
+          "value": "可以格擋隱密單位"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_BlockElusive_Name",
+          "value": "銳目"
+        }
+      ],
+      "source": {
+        "path_hash": "48d1ae80",
+        "entry_sha256": "ca3c3b06eec26af9fc076def392267b3c9e2217d11c138dbfd7a5a2515abaec6",
+        "offset": 13989955,
+        "end_offset": 13990105,
+        "fields": []
+      }
+    },
+    {
+      "name": "Fury",
+      "keyword_flag_serialized": 99,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Fury_Description",
+          "value": "When I kill a unit, grant me +1|+1."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Fury_Name",
+          "value": "Fury"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fury_Description",
+          "value": "此牌每擊殺1個單位，便可獲得+1|+1。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fury_Name",
+          "value": "血怒"
+        }
+      ],
+      "source": {
+        "path_hash": "55a47892",
+        "entry_sha256": "a4824d36389676fd74f942eae161eb9d242717ed07656989af0325aff5884c55",
+        "offset": 13990105,
+        "end_offset": 13990231,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13990127,
+            "end_offset": 13990136,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Barrier",
+      "keyword_flag_serialized": 22,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Barrier_Description",
+          "value": "Negates the next damage the unit would take. Lasts one round."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Barrier_Name",
+          "value": "Barrier"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Barrier_Description",
+          "value": "此單位下次所受之傷害無效，持續一回合。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Barrier_Name",
+          "value": "光盾"
+        }
+      ],
+      "source": {
+        "path_hash": "5beee8f5",
+        "entry_sha256": "0d852ac022b171464b7bb8b6c0d84cc42a0725415ce05b1907d66f6e2e804030",
+        "offset": 13990231,
+        "end_offset": 13990369,
+        "fields": []
+      }
+    },
+    {
+      "name": "Immobile",
+      "keyword_flag_serialized": 3,
+      "multiplier_serialized": 0.5,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Immobile_Description",
+          "value": "Can't attack or block."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Immobile_Name",
+          "value": "Immobile"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Immobile_Description",
+          "value": "無法攻擊或格擋。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Immobile_Name",
+          "value": "定身"
+        }
+      ],
+      "source": {
+        "path_hash": "5ec261d2",
+        "entry_sha256": "d0fc41b4faaecf407e760598571e7d25f7cff72837fe4c822e41da6f07bc54ca",
+        "offset": 13990369,
+        "end_offset": 13990509,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13990379,
+            "end_offset": 13990388,
+            "raw_float_hex": "0000003f",
+            "value": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "Hallowed",
+      "keyword_flag_serialized": 160,
+      "multiplier_serialized": 0.800000011920929,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Hallowed_Description",
+          "value": "After I die, for the rest of the game when allies attack, hallow your first attacker giving it +1|+0 that round"
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Hallowed_Name",
+          "value": "Hallowed"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Hallowed_Description",
+          "value": "此牌陣亡後，於我方攻擊時聖化第一個攻擊單位，本回合給予其+1|+0。此效果持續到牌局結束。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Hallowed_Name",
+          "value": "聖化"
+        }
+      ],
+      "source": {
+        "path_hash": "60cc881e",
+        "entry_sha256": "c678ba09fa4b17e61b9ed96e3bb051f1c3ceaa279b732a396d0a2b130e1f6225",
+        "offset": 13990509,
+        "end_offset": 13990654,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13990525,
+            "end_offset": 13990534,
+            "raw_float_hex": "cdcc4c3f",
+            "value": 0.800000011920929
+          }
+        ]
+      }
+    },
+    {
+      "name": "Evolve",
+      "keyword_flag_serialized": 156,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Evolve_Description",
+          "value": "I have +2|+2 once you've had Units with 6+ other unique positive keywords in play this game."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Evolve_Name",
+          "value": "Evolve"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Evolve_Description",
+          "value": "本牌局我方場上出現6個以上不同的其他增益特性後，此牌獲得+2|+2。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Evolve_Name",
+          "value": "進化"
+        }
+      ],
+      "source": {
+        "path_hash": "6593d7bf",
+        "entry_sha256": "6d51520ceddf7d9d373f1589815352a0ea1e093b016c6387c5bc2682b1edd261",
+        "offset": 13990654,
+        "end_offset": 13990791,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13990670,
+            "end_offset": 13990679,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Frostbite",
+      "keyword_flag_serialized": 48,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Frostbite_Description",
+          "value": "Set a unit's Power to 0 this round. It can be changed after."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Frostbite_Name",
+          "value": "Frostbite"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Frostbite_Description",
+          "value": "使單位力量值本回合歸零，但可受其他效果影響而<br>變動。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Frostbite_Name",
+          "value": "凍傷"
+        }
+      ],
+      "source": {
+        "path_hash": "6900d236",
+        "entry_sha256": "88fb01e261cd0c9875af9ebbfd59c8645a67083f4467769a186dcb345138a189",
+        "offset": 13990791,
+        "end_offset": 13990925,
+        "fields": []
+      }
+    },
+    {
+      "name": "Overwhelm",
+      "keyword_flag_serialized": 10,
+      "multiplier_serialized": 1.2999999523162842,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Overwhelm_Description",
+          "value": "Excess damage I deal to my blocker is dealt to the enemy Nexus."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Overwhelm_Name",
+          "value": "Overwhelm"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Overwhelm_Description",
+          "value": "若有高於敵方格擋卡牌生命值的超額傷害，則加諸敵方主堡。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Overwhelm_Name",
+          "value": "蠻力"
+        }
+      ],
+      "source": {
+        "path_hash": "711af7d5",
+        "entry_sha256": "f3931749dfed21e5f24864753ade4ceab5312530bed0196b6faf86895c3679ea",
+        "offset": 13990925,
+        "end_offset": 13991080,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13990947,
+            "end_offset": 13990956,
+            "raw_float_hex": "6666a63f",
+            "value": 1.2999999523162842
+          }
+        ]
+      }
+    },
+    {
+      "name": "Quick Strike",
+      "keyword_flag_serialized": null,
+      "multiplier_serialized": 1.399999976158142,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_QuickStrike_Description",
+          "value": "While attacking, strikes before its blocker."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_QuickStrike_Name",
+          "value": "Quick Attack"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_QuickStrike_Description",
+          "value": "攻擊時可搶先格擋卡牌<br>進行打擊。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_QuickStrike_Name",
+          "value": "快速攻擊"
+        }
+      ],
+      "source": {
+        "path_hash": "7f0088ab",
+        "entry_sha256": "8f71532206b2bd8970c0e2dff13abc03086fca7632592e9e1ceb3a0e9f42f93c",
+        "offset": 13991080,
+        "end_offset": 13991235,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13991102,
+            "end_offset": 13991111,
+            "raw_float_hex": "3333b33f",
+            "value": 1.399999976158142
+          }
+        ]
+      }
+    },
+    {
+      "name": "Spirit",
+      "keyword_flag_serialized": 170,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Spirit_Description",
+          "value": "This unit has +1|+1. This keyword can stack."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Spirit_Name",
+          "value": "Spirit"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Spirit_Description",
+          "value": "此單位+1|+1。<br>此特性可疊加。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Spirit_Name",
+          "value": "活力"
+        }
+      ],
+      "source": {
+        "path_hash": "7ff3566f",
+        "entry_sha256": "99a2477d1c3d78a56d1aa7ac56f2cc7c0a14de63df45bbc6548aadac39a71c7d",
+        "offset": 13991235,
+        "end_offset": 13991375,
+        "fields": []
+      }
+    },
+    {
+      "name": "Tough",
+      "keyword_flag_serialized": 75,
+      "multiplier_serialized": null,
+      "additive_serialized": 1.0,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Tough_Description",
+          "value": "Takes 1 less damage from all sources."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Tough_Name",
+          "value": "Tough"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Tough_Description",
+          "value": "所有來源的傷害-1。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Tough_Name",
+          "value": "堅忍"
+        }
+      ],
+      "source": {
+        "path_hash": "808c2a65",
+        "entry_sha256": "3487ad8904d1be083c42f184bec0faf5f59888290b51ee636ec55f9f5f45e624",
+        "offset": 13991375,
+        "end_offset": 13991514,
+        "fields": [
+          {
+            "field": "AIHeuristicValueAdditive",
+            "field_hash": "45d5bd8a",
+            "offset": 13991397,
+            "end_offset": 13991406,
+            "raw_float_hex": "0000803f",
+            "value": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "name": "Regeneration",
+      "keyword_flag_serialized": 69,
+      "multiplier_serialized": 1.2999999523162842,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Regeneration_Description",
+          "value": "Heals fully at the end of each round."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Regeneration_Name",
+          "value": "Regeneration"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Regeneration_Description",
+          "value": "每回合結束時，生命值將<br>完全恢復。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Regeneration_Name",
+          "value": "再生"
+        }
+      ],
+      "source": {
+        "path_hash": "a0753461",
+        "entry_sha256": "d23672f0eaedc69cd7f0cd38a81330d3194a232aaa811d0884e336a73f4076bd",
+        "offset": 13991514,
+        "end_offset": 13991681,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13991536,
+            "end_offset": 13991545,
+            "raw_float_hex": "6666a63f",
+            "value": 1.2999999523162842
+          }
+        ]
+      }
+    },
+    {
+      "name": "Silenced",
+      "keyword_flag_serialized": 79,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Silenced_Description",
+          "value": "Removes all text and keywords from a unit."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Silenced_Name",
+          "value": "Silenced"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Silenced_Description",
+          "value": "移除該單位的所有特性與文字效果。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Silenced_Name",
+          "value": "遭到沉默"
+        }
+      ],
+      "source": {
+        "path_hash": "abba2487",
+        "entry_sha256": "029d523ce98140912802cd5bdea2b162289714b691ffe43496013293692f1478",
+        "offset": 13991681,
+        "end_offset": 13991778,
+        "fields": []
+      }
+    },
+    {
+      "name": "SpellShield",
+      "keyword_flag_serialized": 52,
+      "multiplier_serialized": 1.2999999523162842,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_SpellShield_Description",
+          "value": "Negates the next enemy spell or [Keyword:Skill]skill[/] that would affect me."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_SpellShield_Name",
+          "value": "SpellShield"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_SpellShield_Description",
+          "value": "使下個會對此單位造成影響的敵方法術/[Keyword:Skill]技能[/]失效。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_SpellShield_Name",
+          "value": "法盾"
+        }
+      ],
+      "source": {
+        "path_hash": "b2b70331",
+        "entry_sha256": "e859327e269a712ceda65337859f0cd6faa51c7347b50193aadfb1b53baae136",
+        "offset": 13991778,
+        "end_offset": 13991947,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13991806,
+            "end_offset": 13991815,
+            "raw_float_hex": "6666a63f",
+            "value": 1.2999999523162842
+          }
+        ]
+      }
+    },
+    {
+      "name": "Lifesteal",
+      "keyword_flag_serialized": 7,
+      "multiplier_serialized": 1.5,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Lifesteal_Description",
+          "value": "Damage this unit deals heals its Nexus that amount."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Lifesteal_Name",
+          "value": "Lifesteal"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Lifesteal_Description",
+          "value": "此單位造成傷害時，其主堡恢復同等於傷害值的生命值。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Lifesteal_Name",
+          "value": "吸血"
+        }
+      ],
+      "source": {
+        "path_hash": "b36e2497",
+        "entry_sha256": "d8530a53ad68fa01d23e2e83f3f4e32bef21374618eef7c5b64e05a32ce0cba3",
+        "offset": 13991947,
+        "end_offset": 13992102,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13991969,
+            "end_offset": 13991978,
+            "raw_float_hex": "0000c03f",
+            "value": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "Gloom",
+      "keyword_flag_serialized": 169,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Gloom_Description",
+          "value": "This unit has -1|-1. This keyword can stack."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Gloom_Name",
+          "value": "Gloom"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Gloom_Description",
+          "value": "此單位-1|-1。<br>此特性可疊加。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Gloom_Name",
+          "value": "無望"
+        }
+      ],
+      "source": {
+        "path_hash": "b6974c2a",
+        "entry_sha256": "dccde960cbeba913e0515a673ad4557e758399bf36e855842ef2d6b9a7d026b1",
+        "offset": 13992102,
+        "end_offset": 13992226,
+        "fields": []
+      }
+    },
+    {
+      "name": "Augment",
+      "keyword_flag_serialized": 127,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Augment_Description",
+          "value": "When you play a created card, grant me +1|+0."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Augment_Name",
+          "value": "Augment"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Augment_Description",
+          "value": "每當我方打出1張生成的卡牌，賦予此牌+1|+0。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Augment_Name",
+          "value": "擴增"
+        }
+      ],
+      "source": {
+        "path_hash": "cb02eed5",
+        "entry_sha256": "8344839f60b93d09a7736f9116f2e2b4ebf96150937519485c31acd5ba871ae2",
+        "offset": 13992226,
+        "end_offset": 13992364,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13992248,
+            "end_offset": 13992257,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Impact",
+      "keyword_flag_serialized": 144,
+      "multiplier_serialized": 1.100000023841858,
+      "additive_serialized": 1.0,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Impact_Description",
+          "value": "When this strikes while attacking, it deals 1 to the enemy Nexus. This keyword can stack."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Impact_Name",
+          "value": "Impact"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Impact_Description",
+          "value": "此牌在攻擊時進行打擊，便對敵方主堡造成1點傷害。此特性可累加。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Impact_Name",
+          "value": "衝擊"
+        }
+      ],
+      "source": {
+        "path_hash": "cd390954",
+        "entry_sha256": "1d8f95ee9101d04988c889d3d47f637a43850f6567f29a581336446b6c08361b",
+        "offset": 13992364,
+        "end_offset": 13992513,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13992392,
+            "end_offset": 13992401,
+            "raw_float_hex": "cdcc8c3f",
+            "value": 1.100000023841858
+          },
+          {
+            "field": "AIHeuristicValueAdditive",
+            "field_hash": "45d5bd8a",
+            "offset": 13992401,
+            "end_offset": 13992410,
+            "raw_float_hex": "0000803f",
+            "value": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "name": "Scout",
+      "keyword_flag_serialized": 126,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Scout_Description",
+          "value": "The first time only Scout units attack each round, ready your attack."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Scout_Name",
+          "value": "Scout"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Scout_Description",
+          "value": "每回合首次僅指派先遣單位<br>上場攻擊時，獲得攻擊<br>主動權。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Scout_Name",
+          "value": "先遣"
+        }
+      ],
+      "source": {
+        "path_hash": "ce529cb0",
+        "entry_sha256": "c022896d141f15010666ae6b914edda9dd55c4b504e4fc84439f26af50217aa7",
+        "offset": 13992513,
+        "end_offset": 13992637,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13992529,
+            "end_offset": 13992538,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Ephemeral",
+      "keyword_flag_serialized": 42,
+      "multiplier_serialized": 0.5,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Ephemeral_Description",
+          "value": "This unit dies when it strikes or when the round ends."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Ephemeral_Name",
+          "value": "Ephemeral"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Ephemeral_Description",
+          "value": "此單位打擊或回合結束時<br>便會陣亡。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Ephemeral_Name",
+          "value": "閃靈"
+        }
+      ],
+      "source": {
+        "path_hash": "cf2a73bd",
+        "entry_sha256": "f8bfe07485daba918161747c279fd5bdd6d3464513aa18feab481a4d76c0e873",
+        "offset": 13992637,
+        "end_offset": 13992780,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13992647,
+            "end_offset": 13992656,
+            "raw_float_hex": "0000003f",
+            "value": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "Lurker",
+      "keyword_flag_serialized": 105,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Lurker_Description",
+          "value": "When you attack while I'm on top of your deck, I Lurk, granting Lurker allies everywhere +1|+0. Max once per round."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Lurker_Name",
+          "value": "Lurk"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Lurker_Description",
+          "value": "我方攻擊時，若此牌在我方牌組頂端，則此牌會「潛伏」，賦予我方各處潛伏者+1|+0。每回合最多觸發1次。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Lurker_Name",
+          "value": "潛伏"
+        }
+      ],
+      "source": {
+        "path_hash": "d3f63b49",
+        "entry_sha256": "ca6ed1b8435c844de9c1e6cfa7407440a85531d67c2f02386bc43ec5ef68316b",
+        "offset": 13992780,
+        "end_offset": 13992908,
+        "fields": []
+      }
+    },
+    {
+      "name": "Formidable",
+      "keyword_flag_serialized": 141,
+      "multiplier_serialized": null,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Formidable_Description",
+          "value": "I strike with my Health instead of my Power."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Formidable_Name",
+          "value": "Formidable"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Formidable_Description",
+          "value": "此牌不以力量值，而是以<br>生命值進行打擊。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Formidable_Name",
+          "value": "重壓"
+        }
+      ],
+      "source": {
+        "path_hash": "dd7ae7f5",
+        "entry_sha256": "c31b72d39084b8f8da7bf40377289d772b583103146befc097b16230cabaad0b",
+        "offset": 13992908,
+        "end_offset": 13993052,
+        "fields": []
+      }
+    },
+    {
+      "name": "Deathless",
+      "keyword_flag_serialized": 166,
+      "multiplier_serialized": 1.2999999523162842,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Deathless_Description",
+          "value": "The next time this unit dies, remove Deathless and revive it [Keyword:Stun]Stunned[/] with 1 Health."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Deathless_Name",
+          "value": "Deathless"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Deathless_Description",
+          "value": "下次此單位陣亡時，移除不死並復甦之，其為[Keyword:Stun]暈眩[/]狀態，且生命值為1。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Deathless_Name",
+          "value": "不死"
+        }
+      ],
+      "source": {
+        "path_hash": "e2379425",
+        "entry_sha256": "44a02fede5a2719ca52bc8a2cf02e85093ff2796ad2abc95dd7289f70eb0dfb0",
+        "offset": 13993052,
+        "end_offset": 13993213,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993080,
+            "end_offset": 13993089,
+            "raw_float_hex": "6666a63f",
+            "value": 1.2999999523162842
+          }
+        ]
+      }
+    },
+    {
+      "name": "Brash",
+      "keyword_flag_serialized": 162,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Brash_Description",
+          "value": "Can only be blocked by enemies with 3 or more Health."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Brash_Name",
+          "value": "Brash"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Brash_Description",
+          "value": "只能由生命值為3以上的敵軍單位格擋。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Brash_Name",
+          "value": "硬派"
+        }
+      ],
+      "source": {
+        "path_hash": "e424db02",
+        "entry_sha256": "ff9728e2e3c2e27310c70fa936dd289bb1c388d4490cf0b1d0ae5d8f738f307f",
+        "offset": 13993213,
+        "end_offset": 13993343,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993235,
+            "end_offset": 13993244,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Challenger",
+      "keyword_flag_serialized": 50,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Challenger_Description",
+          "value": "Can choose which enemy unit blocks."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Challenger_Name",
+          "value": "Challenger"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Challenger_Description",
+          "value": "可挑選敵方的格擋單位。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Challenger_Name",
+          "value": "挑戰者"
+        }
+      ],
+      "source": {
+        "path_hash": "e60b8c0f",
+        "entry_sha256": "19940e3e4a16716d0b68dba838e27773b5f6c9bdc3b9bd9190ccf0b913025b8f",
+        "offset": 13993343,
+        "end_offset": 13993534,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993365,
+            "end_offset": 13993374,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Fearsome",
+      "keyword_flag_serialized": 18,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Fearsome_Description",
+          "value": "Can only be blocked by enemies with 3 or more Power."
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Fearsome_Name",
+          "value": "Fearsome"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fearsome_Description",
+          "value": "只能由力量值為3以上的<br>敵軍格擋。"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Fearsome_Name",
+          "value": "威嚇"
+        }
+      ],
+      "source": {
+        "path_hash": "f7995518",
+        "entry_sha256": "b3ed9b8b9c9705457c6f95efea27ea48544129f3b71cfd43e457f5e00bac2b82",
+        "offset": 13993534,
+        "end_offset": 13993685,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993556,
+            "end_offset": 13993565,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    },
+    {
+      "name": "Reckless",
+      "keyword_flag_serialized": 1,
+      "multiplier_serialized": 0.699999988079071,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Reckless_Description",
+          "value": " "
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Reckless_Name",
+          "value": "Can't Block"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Reckless_Description",
+          "value": ""
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Reckless_Name",
+          "value": "無法進行格擋"
+        }
+      ],
+      "source": {
+        "path_hash": "f897fe54",
+        "entry_sha256": "58101fb7de4aaff414400572bc002499b7cd6138e7bce2574b938fb5a1946977",
+        "offset": 13993685,
+        "end_offset": 13993824,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993695,
+            "end_offset": 13993704,
+            "raw_float_hex": "3333333f",
+            "value": 0.699999988079071
+          }
+        ]
+      }
+    },
+    {
+      "name": "Deep",
+      "keyword_flag_serialized": 77,
+      "multiplier_serialized": 1.2000000476837158,
+      "additive_serialized": null,
+      "localization": [
+        {
+          "locale": "en_us",
+          "key": "keyword_Deep_Description",
+          "value": "{DescriptionBasedOnScene}"
+        },
+        {
+          "locale": "en_us",
+          "key": "keyword_Deep_Name",
+          "value": "Deep"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Deep_Description",
+          "value": "{DescriptionBasedOnScene}"
+        },
+        {
+          "locale": "zh_tw",
+          "key": "keyword_Deep_Name",
+          "value": "探底"
+        }
+      ],
+      "source": {
+        "path_hash": "f97c0b74",
+        "entry_sha256": "046f7ac79fd79d1327ca05b803239f33a7f1cddbb32cd6b11fbba4613ffc6692",
+        "offset": 13993824,
+        "end_offset": 13994118,
+        "fields": [
+          {
+            "field": "AIHeuristicValueMultiplier",
+            "field_hash": "b49dbc35",
+            "offset": 13993840,
+            "end_offset": 13993849,
+            "raw_float_hex": "9a99993f",
+            "value": 1.2000000476837158
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "The actual evaluator formula, keyword combination rules and live usage are not recovered.",
+    "Absent serialized additive/keyword-flag fields remain null; no inferred zero.",
+    "These are reference coefficients, not calibrated win-rate or a complete AI policy."
+  ]
+}

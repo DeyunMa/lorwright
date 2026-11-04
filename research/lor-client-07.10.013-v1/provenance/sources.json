@@ -1,0 +1,200 @@
+{
+  "snapshot": "07.10.013 / 7-10-release",
+  "builder_sha256": "d58ed35259051ae12300bd7bc3e8771613c0e8163f93339426f2c7b58dd65557",
+  "copied_sources": [
+    {
+      "delivered_path": "README.md",
+      "analysis_source": "delivery/README.template.md",
+      "sha256": "323b3c4a255c3fca3ba38d4448066fcca487a298fc24b221ca1338d20027ff56"
+    },
+    {
+      "delivered_path": "verify.py",
+      "analysis_source": "delivery/verify.template.py",
+      "sha256": "786bdc835c6e8ffdd447553d8969582ef29e193fada837bb113ea3792a567ef3"
+    },
+    {
+      "delivered_path": "reference.schema.json",
+      "analysis_source": "delivery/reference.schema.json",
+      "sha256": "ce3e8ec5fc08954006274da416df8d62a9c453b6d92196cabb2cea7f1c8f002d"
+    },
+    {
+      "delivered_path": "data/elise-starter.json",
+      "analysis_source": "full-resource/starter-deck-reference.json",
+      "sha256": "2e067765654eba9496a864318e96fd3c54c5496a35adfd5c72770c9b689c8635"
+    },
+    {
+      "delivered_path": "data/elise-progression-source.json",
+      "analysis_source": "stages/02-domain/elise-reference.json",
+      "sha256": "92a0a3163a389dc9f88cd9336698336075aecd4d49e501de4325c2990da8217e"
+    },
+    {
+      "delivered_path": "images/cards/01SI002-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01SI002-zh_tw.png",
+      "sha256": "983c21d4039286b33ffaaa7f263960e17b25744e15f5186476295e783f69ca8d"
+    },
+    {
+      "delivered_path": "images/cards/06SI037-zh_tw.png",
+      "analysis_source": "full-resource/card-images/06SI037-zh_tw.png",
+      "sha256": "f0da32efdddb6b28f88c8c07182cf49a040ff48a1c56ad9c2fcde2158b86d077"
+    },
+    {
+      "delivered_path": "images/cards/01SI053-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01SI053-zh_tw.png",
+      "sha256": "3e3b85fe30e269b57075eb48d34fa4196651ddffeb90c57870137833470976a2"
+    },
+    {
+      "delivered_path": "images/cards/06NX013-zh_tw.png",
+      "analysis_source": "full-resource/card-images/06NX013-zh_tw.png",
+      "sha256": "244fce8d77e9c1a28ffa1f13cc052a942e8350ef6f295723ba52ee9cbdbfae53"
+    },
+    {
+      "delivered_path": "images/cards/01NX046-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01NX046-zh_tw.png",
+      "sha256": "ac5332dedf88925bbf8e9d26927115b4f4c832647085266930c041a5319b7ae0"
+    },
+    {
+      "delivered_path": "images/cards/01SI056-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01SI056-zh_tw.png",
+      "sha256": "e68b9922ccd5670392d9ff8a79da04133b498fe660bbab13ff29fb3a17d3f083"
+    },
+    {
+      "delivered_path": "images/cards/04NX016-zh_tw.png",
+      "analysis_source": "full-resource/card-images/04NX016-zh_tw.png",
+      "sha256": "4209d03dd3e8608b7738e5890a9cb917160d6b9f666ac23717987a726a90adb0"
+    },
+    {
+      "delivered_path": "images/cards/01NX023-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01NX023-zh_tw.png",
+      "sha256": "f66dcd8574642025a9cc98a5d531e32427c95583514cd31b98d747a50949f6c6"
+    },
+    {
+      "delivered_path": "images/cards/01SI050-zh_tw.png",
+      "analysis_source": "full-resource/card-images/01SI050-zh_tw.png",
+      "sha256": "938247b9bdc09b75f722e2f9d9fbf68010cc3bf332fd03b31061aef7e63f02cd"
+    },
+    {
+      "delivered_path": "images/keywords/Lifesteal.png",
+      "analysis_source": "resources/extracted/Lifesteal__2.png",
+      "sha256": "9398c42d96ff172c3f733a4f5aa0d942189e35dbb3e50f9993f9ef4c4362d6f3"
+    },
+    {
+      "delivered_path": "images/keywords/Regeneration.png",
+      "analysis_source": "resources/extracted/Regeneration__5.png",
+      "sha256": "ab8453e13d4cc8f5de79e17e4ba09756559befc9645a28c3ab345a50248efd25"
+    },
+    {
+      "delivered_path": "images/keywords/SpellShield.png",
+      "analysis_source": "resources/extracted/SpellShield__7.png",
+      "sha256": "5bc13940e72ad66ae39be6c0ae584df9ffc463191d4644d1310cd69b6e8ca50b"
+    },
+    {
+      "delivered_path": "images/keywords/Ephemeral.png",
+      "analysis_source": "resources/extracted/Ephemeral__8.png",
+      "sha256": "55a8cfa83a332985c22085c2bcccf5bfa04f23edf8aff0c0810a85ce6b81467c"
+    },
+    {
+      "delivered_path": "images/keywords/Vulnerable.png",
+      "analysis_source": "resources/extracted/Vulnerable__11.png",
+      "sha256": "aa70f1dfc3d616a7539d88a9b849110e35a041909603b5ee2b0dd526844a0942"
+    },
+    {
+      "delivered_path": "images/keywords/Barrier.png",
+      "analysis_source": "resources/extracted/Barrier__12.png",
+      "sha256": "3c7e10a47c29a76f60ad4bb93ee52ab5093d00bba7fddda192c835c12b4866d2"
+    },
+    {
+      "delivered_path": "images/keywords/Tough.png",
+      "analysis_source": "resources/extracted/Tough__16.png",
+      "sha256": "2f9efdd3c7be4023aa0e2a3c71f5c0f2473cbee1ca317e4ea8a5b1eeaa4b0f86"
+    },
+    {
+      "delivered_path": "images/keywords/Immobile.png",
+      "analysis_source": "resources/extracted/Immobile__18.png",
+      "sha256": "f898be5d96ef999c6c3c3b215e85f4fcc7006cc88cd3c477b248cfdb1e2d2139"
+    },
+    {
+      "delivered_path": "images/keywords/Overwhelm.png",
+      "analysis_source": "resources/extracted/Overwhelm__19.png",
+      "sha256": "619b09274a8e83da3ac9456c44ea29f30d6cccc408720ca016a0f49b5e32c032"
+    },
+    {
+      "delivered_path": "images/keywords/Fearsome.png",
+      "analysis_source": "resources/extracted/Fearsome__48.png",
+      "sha256": "b4b0410c7e0a9dc5d570f3daa1c3f5cfece4f84741664e4ba75cd125413ead61"
+    },
+    {
+      "delivered_path": "images/keywords/Silenced.png",
+      "analysis_source": "resources/extracted/Silenced__51.png",
+      "sha256": "999ac7eec3575fd9b36a77f9931460f47d2e83986fe9d05bc7268b60107450d3"
+    },
+    {
+      "delivered_path": "images/keywords/Elusive.png",
+      "analysis_source": "resources/extracted/Elusive__52.png",
+      "sha256": "b9a2f1a31170f822c4218bb22f3cabd9da9329c5bc9077366899be715ee51b0b"
+    },
+    {
+      "delivered_path": "images/keywords/Scout.png",
+      "analysis_source": "resources/extracted/Scout__53.png",
+      "sha256": "7093605af64cba15ae2682b61aa5e0a781efd1c6c3b8bb3a5b1b40300447a152"
+    },
+    {
+      "delivered_path": "images/keywords/QuickStrike.png",
+      "analysis_source": "resources/extracted/QuickStrike__57.png",
+      "sha256": "21d4edc598c58fa80d7f1473624518a74aad3799f24d69ba9c7d55be62f15d3a"
+    },
+    {
+      "delivered_path": "images/keywords/Stunned.png",
+      "analysis_source": "resources/extracted/Stunned__58.png",
+      "sha256": "57ef9055631b8e79d22feaf413a06d5be0ab6a9279da1cecd6949cade6362250"
+    },
+    {
+      "delivered_path": "images/keywords/DoubleStrike.png",
+      "analysis_source": "resources/extracted/DoubleStrike__59.png",
+      "sha256": "297eced9e1a52930bef0e42870d1385fb38e711e4dc992ba1d6c4f0c99d49b62"
+    },
+    {
+      "delivered_path": "images/keywords/Challenger.png",
+      "analysis_source": "resources/extracted/Challenger__60.png",
+      "sha256": "8d9f5185b896bd008093f8070e3f1370ddde56a16938aadc376a24911e20993d"
+    },
+    {
+      "delivered_path": "images/keywords/Frostbite.png",
+      "analysis_source": "resources/extracted/Frostbite__65.png",
+      "sha256": "e57c6d9b1c1b2458dbea80ae6cbf6f7b1398397899e156f2df8afb42b4c877fe"
+    },
+    {
+      "delivered_path": "evidence/elise-data.md",
+      "analysis_source": "stages/02-domain/findings.md",
+      "sha256": "ea33d39a0cf9fc8cb9b3548404792742321ce7e9c1e8463730f5ba9e3dae11fa"
+    },
+    {
+      "delivered_path": "evidence/input-actions.md",
+      "analysis_source": "stages/05-native-ai/round2/action-path/findings.md",
+      "sha256": "0a3e2e87ca3cb3efb9277f075d9cdd3ec9b6e5ef16e6fd20f8927c01d48d7a49"
+    },
+    {
+      "delivered_path": "evidence/network-boundary.md",
+      "analysis_source": "stages/05-native-ai/round2/protocol-boundary/findings.md",
+      "sha256": "0e3c55dae3500f88bc3b99fccf7b503ada14e684cc5cfe799ed1b1346fc034be"
+    },
+    {
+      "delivered_path": "evidence/rule-hook-boundary.md",
+      "analysis_source": "stages/05-native-ai/round2/virtual-hooks/findings.md",
+      "sha256": "474764b36af3bf5e490240886fafae41c1d13ebb4b8c2e6be2b725d88b8a1f21"
+    },
+    {
+      "delivered_path": "evidence/native-rule-sources.md",
+      "analysis_source": "native/findings.md",
+      "sha256": "4829e3c9dfd05d7be44c1282bc6d9afb173952afffbc8099b5746fd491a828a2"
+    },
+    {
+      "delivered_path": "evidence/single-frame-keyword-probe.json",
+      "analysis_source": "resources/keyword-probe.json",
+      "sha256": "9d64438f02c1a64562f6e6141ae476c11c58e2d5c6ffd74beb080730f13e6b2f"
+    }
+  ],
+  "generated_from": {
+    "keyword_weight_export_sha256": "9529326f3a183b5312e290ea48a22fecbf24cd028a14411e1e1a52ab0d04c11c",
+    "native_constants_sha256": "e9de2e379e8ebed9ad5030d823b22e8a71673412f8f584eb01b9eca183f7447d"
+  }
+}

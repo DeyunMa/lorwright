@@ -41,6 +41,17 @@ class ActionTranslator:
                 points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms
             )
 
+        if action.type is ActionType.SELECT_TARGET:
+            # 「選擇目標」阶段点一个单位完成选择。敌方/我方的选择由决策层给，
+            # 因为同一个「選擇目標」按钮下面可能是「擊暈1個敵軍單位」（点敌方）
+            # 也可能是「選擇1個單位或地標進行替換」（点我方），模板区分不了。
+            enemy = bool(action.raw.get("enemy")) if action.raw else False
+            index = int(action.raw.get("index", 0)) if action.raw else 0
+            units = state.enemy_units if enemy else state.my_units
+            if index >= len(units):
+                return None
+            return ClickPlan(points=[units[index].rect.center], wait_ms=self.tap_wait_ms)
+
         if action.type is ActionType.CANCEL:
             # 退出「選擇目標」：点战场左侧空白，已选的牌收回手上。
             if not self.layout.cancel_point:

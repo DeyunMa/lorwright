@@ -127,6 +127,8 @@ class SpiderAggroPolicy(Policy):
         #: 需要选目标的费用（冥血戰这类「擊殺1個友軍單位」的牌）。
         #: 这是牌本身的性质，不是暂时状态，所以整场战斗都不再碰它。
         self._needs_target: set[int] = set()
+        #: 「選擇目標」阶段已经试过几次（0=还没试，1=点过敌方，2=点过我方）
+        self._target_attempt: int = 0
 
     def _settle_previous_play(self, state: GameState) -> None:
         """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
@@ -154,14 +156,11 @@ class SpiderAggroPolicy(Policy):
         if state.ui_state is UIState.COMBAT_RESOLVING:
             return Action(type=ActionType.CONFIRM)
 
-        # 「選擇目標」说明上一 tick 拖出的牌要选目标（例如冥血戰要求击杀友军）。
-        # 这个状态下拖手牌没反应，先取消；取消后手牌没减少，
-        # _settle_previous_play 会把那张牌记成不可用，下次换一张。
+        # 「選擇目標」说明上一 tick 拖出的牌要选目标（击晕、替换、击杀友军…）。
+        # 这个状态下拖手牌没反应，必须点一个单位把选择做完。
         if state.ui_state is UIState.TARGETING:
-            if self._pending_cost is not None:
-                self._needs_target.add(self._pending_cost)
-                self._pending_play = None
-            return Action(type=ActionType.CANCEL)
+            return self._targeting(state)
+        self._target_attempt = 0
 
         if state.ui_state is not UIState.MY_TURN_IDLE:
             return Action(type=ActionType.NO_OP)
@@ -198,6 +197,36 @@ class SpiderAggroPolicy(Policy):
 
         # P4-d 收尾
         return Action(type=ActionType.END_TURN)
+
+    def _targeting(self, state: GameState) -> Action:
+        """「選擇目標」阶段：点一个单位把选择做完。
+
+        实机上同一个「選擇目標」按钮底下至少有两种提示，要选的对象相反：
+
+          「擊暈1個敵軍單位」            → 点**敌方**单位
+          「選擇1個單位或地標進行替換」  → 点**我方**单位（点敌方完全没反应）
+
+        光看按钮模板区分不出来，只能按顺序试：先点敌方（击晕最常见），
+        还停在 targeting 就点我方，两边都不行才取消。
+
+        之前这里直接 CANCEL，而 cancel 点的是战场空白处 —— 在「選擇目標」
+        状态下那个位置根本不响应，于是每帧都在点同一处，看门狗超时。
+        """
+        self._target_attempt += 1
+        if self._target_attempt == 1 and state.enemy_units:
+            return Action(
+                type=ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0}
+            )
+        if self._target_attempt == 2 and state.my_units:
+            return Action(
+                type=ActionType.SELECT_TARGET, raw={"enemy": False, "index": 0}
+            )
+        # 两次都点不动（或者场上没单位可选）：记下这张牌需要目标，换下一张
+        if self._pending_cost is not None:
+            self._needs_target.add(self._pending_cost)
+            self._pending_play = None
+        self._target_attempt = 0
+        return Action(type=ActionType.CANCEL)
 
     def _block(self, state: GameState) -> Action:
         """对手攻击中。已经挡好了就确认，否则一挡一。"""

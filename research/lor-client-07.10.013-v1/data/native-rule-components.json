@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "complete_rules_engine": false,
+  "library_sha256": "0bf9a4f7b73effaeeb6a5cdee5de45038014991697ed0687bf8ad99ebbed1fa8",
+  "components": [
+    {
+      "id": "scout-attack-component",
+      "source_method": "Shared.Game.BaseGameState.AttackWouldBeScout",
+      "source_va": "0x2363d48",
+      "evidence_id": "ev_06a7a9bbea7c196052b7cf2ec34b1afda9d5988bd6547c481b75f8394d5d45b0",
+      "verified_facts": [
+        "ScoutHasBeenUsedThisRound为true时不成立",
+        "攻击区必须非空",
+        "攻击区所有单位必须有Scout(126)"
+      ],
+      "limits": [
+        "不是完整攻击合法性；仍需攻击令牌、优先权、单位及其它限制",
+        "不替程序取得本轮已用先遣等动态状态"
+      ]
+    },
+    {
+      "id": "block-prevention-component",
+      "source_method": "Shared.Cards.CardState.StatePreventsBlock",
+      "source_va": "0x23ccbb8",
+      "evidence_id": "ev_7bfc82753846a639df7d1f913fbb683c0003a248ad15988f0d119aa13d3e5441",
+      "verified_facts": [
+        "按CardTypeOverride优先、否则基础数据读取卡牌类型",
+        "非Creature(2)不能格挡",
+        "Immobile(3)、Reckless(1)、Stunned(80)会阻止格挡"
+      ],
+      "limits": [
+        "这是阻止格挡的一个组件；不包含敌方闪避、威吓等完整配对规则",
+        "击晕和单位词条仍需可靠感知"
+      ]
+    },
+    {
+      "id": "fearsome-threshold-component",
+      "source_method": "Shared.Cards.CardState.GetFearsomeBlockingValue",
+      "source_va": "0x23ccf6c",
+      "source_offset": 37523308,
+      "source_bytes": "60008052c0035fd6",
+      "evidence_id": "ev_a5d7d7b26a75ff59a9f2fba49666c991e58e967997c53f9163751e2affa51f1e",
+      "verified_facts": [
+        "原生辅助函数返回威吓格挡攻击力门槛3"
+      ],
+      "limits": [
+        "满足门槛不代表完整格挡合法；其它词条和状态仍可能阻止格挡"
+      ]
+    }
+  ]
+}

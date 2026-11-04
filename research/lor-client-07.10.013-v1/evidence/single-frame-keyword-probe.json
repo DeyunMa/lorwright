@@ -1,0 +1,47 @@
+{
+  "screenshot": "/Users/mdy/Code/my-own/lorwright/tests/fixtures/screens/1080p_my_units.png",
+  "screenshot_sha256": "29fee02afc0f380ee94d7b34927ab6ec5cfdf556bb0c816d1b97d0f262f074cf",
+  "method": "masked RGB TM_CCOEFF_NORMED; heights 14..38; two manually selected unit-row regions",
+  "matches": [
+    {
+      "name": "Scout",
+      "score": 0.852963924407959,
+      "rect": [
+        1140,
+        996,
+        26,
+        23
+      ],
+      "template": "/Users/mdy/Code/my-own/lorwright-artifacts/analysis/resources/extracted/Scout__53.png",
+      "template_sha256": "7093605af64cba15ae2682b61aa5e0a781efd1c6c3b8bb3a5b1b40300447a152"
+    },
+    {
+      "name": "Challenger",
+      "score": 0.8786888122558594,
+      "rect": [
+        1118,
+        998,
+        20,
+        20
+      ],
+      "template": "/Users/mdy/Code/my-own/lorwright-artifacts/analysis/resources/extracted/Challenger__60.png",
+      "template_sha256": "8d9f5185b896bd008093f8070e3f1370ddde56a16938aadc376a24911e20993d"
+    },
+    {
+      "name": "Stunned",
+      "score": 0.47535037994384766,
+      "rect": [
+        1041,
+        222,
+        14,
+        14
+      ],
+      "template": "/Users/mdy/Code/my-own/lorwright-artifacts/analysis/resources/extracted/Stunned__58.png",
+      "template_sha256": "57ef9055631b8e79d22feaf413a06d5be0ab6a9279da1cecd6949cade6362250"
+    }
+  ],
+  "limitations": [
+    "Best match is not a validated detection.",
+    "Single frame; no threshold or accuracy claim; manually restricted regions."
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "weights": {
+      "type": "object", "required": ["schema_version", "formula_recovered", "keywords", "limits"],
+      "properties": {
+        "schema_version": {"const": 1}, "formula_recovered": {"const": false},
+        "keywords": {"type": "array", "minItems": 34, "maxItems": 34, "items": {
+          "type": "object", "required": ["name", "keyword_flag_serialized", "multiplier_serialized", "additive_serialized", "source"],
+          "properties": {"name": {"type": "string"}, "keyword_flag_serialized": {"type": ["integer", "null"]}, "multiplier_serialized": {"type": ["number", "null"]}, "additive_serialized": {"type": ["number", "null"]}, "source": {"type": "object"}}
+        }}, "limits": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "rules": {
+      "type": "object", "required": ["schema_version", "complete_rules_engine", "components"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "complete_rules_engine": {"const": false},
+        "components": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "items": {
+            "type": "object", "required": ["id", "source_method", "verified_facts", "limits"],
+            "properties": {
+              "id": {"type": "string"}, "source_method": {"type": "string"},
+              "verified_facts": {"type": "array", "items": {"type": "string"}},
+              "limits": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object", "required": ["schema_version", "snapshot", "full_ai_algorithm_included", "files"],
+      "properties": {"schema_version": {"const": 1}, "snapshot": {"type": "string"}, "full_ai_algorithm_included": {"const": false}, "files": {"type": "array", "minItems": 30, "items": {"type": "object", "required": ["path", "bytes", "sha256"], "properties": {"path": {"type": "string"}, "bytes": {"type": "integer", "minimum": 0}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "png_size": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 1}}}}}}
+    }
+  }
+}

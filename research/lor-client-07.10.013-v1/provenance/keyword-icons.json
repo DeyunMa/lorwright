@@ -1,0 +1,416 @@
+[
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 2,
+    "type": "Sprite",
+    "name": "Lifesteal",
+    "rect": {
+      "x": 640.0,
+      "y": 384.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Lifesteal__2.png",
+    "decoded_size": [
+      70,
+      99
+    ],
+    "output_sha256": "9398c42d96ff172c3f733a4f5aa0d942189e35dbb3e50f9993f9ef4c4362d6f3",
+    "delivered_path": "images/keywords/Lifesteal.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 5,
+    "type": "Sprite",
+    "name": "Regeneration",
+    "rect": {
+      "x": 384.0,
+      "y": 768.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Regeneration__5.png",
+    "decoded_size": [
+      100,
+      96
+    ],
+    "output_sha256": "ab8453e13d4cc8f5de79e17e4ba09756559befc9645a28c3ab345a50248efd25",
+    "delivered_path": "images/keywords/Regeneration.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 7,
+    "type": "Sprite",
+    "name": "SpellShield",
+    "rect": {
+      "x": 512.0,
+      "y": 768.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/SpellShield__7.png",
+    "decoded_size": [
+      106,
+      103
+    ],
+    "output_sha256": "5bc13940e72ad66ae39be6c0ae584df9ffc463191d4644d1310cd69b6e8ca50b",
+    "delivered_path": "images/keywords/SpellShield.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 8,
+    "type": "Sprite",
+    "name": "Ephemeral",
+    "rect": {
+      "x": 896.0,
+      "y": 256.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Ephemeral__8.png",
+    "decoded_size": [
+      68,
+      90
+    ],
+    "output_sha256": "55a8cfa83a332985c22085c2bcccf5bfa04f23edf8aff0c0810a85ce6b81467c",
+    "delivered_path": "images/keywords/Ephemeral.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 11,
+    "type": "Sprite",
+    "name": "Vulnerable",
+    "rect": {
+      "x": 896.0,
+      "y": 512.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Vulnerable__11.png",
+    "decoded_size": [
+      71,
+      100
+    ],
+    "output_sha256": "aa70f1dfc3d616a7539d88a9b849110e35a041909603b5ee2b0dd526844a0942",
+    "delivered_path": "images/keywords/Vulnerable.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 12,
+    "type": "Sprite",
+    "name": "Barrier",
+    "rect": {
+      "x": 128.0,
+      "y": 896.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Barrier__12.png",
+    "decoded_size": [
+      94,
+      99
+    ],
+    "output_sha256": "3c7e10a47c29a76f60ad4bb93ee52ab5093d00bba7fddda192c835c12b4866d2",
+    "delivered_path": "images/keywords/Barrier.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 16,
+    "type": "Sprite",
+    "name": "Tough",
+    "rect": {
+      "x": 768.0,
+      "y": 512.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Tough__16.png",
+    "decoded_size": [
+      84,
+      99
+    ],
+    "output_sha256": "2f9efdd3c7be4023aa0e2a3c71f5c0f2473cbee1ca317e4ea8a5b1eeaa4b0f86",
+    "delivered_path": "images/keywords/Tough.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 18,
+    "type": "Sprite",
+    "name": "Immobile",
+    "rect": {
+      "x": 384.0,
+      "y": 384.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Immobile__18.png",
+    "decoded_size": [
+      100,
+      96
+    ],
+    "output_sha256": "f898be5d96ef999c6c3c3b215e85f4fcc7006cc88cd3c477b248cfdb1e2d2139",
+    "delivered_path": "images/keywords/Immobile.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 19,
+    "type": "Sprite",
+    "name": "Overwhelm",
+    "rect": {
+      "x": 768.0,
+      "y": 384.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Overwhelm__19.png",
+    "decoded_size": [
+      105,
+      98
+    ],
+    "output_sha256": "619b09274a8e83da3ac9456c44ea29f30d6cccc408720ca016a0f49b5e32c032",
+    "delivered_path": "images/keywords/Overwhelm.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 48,
+    "type": "Sprite",
+    "name": "Fearsome",
+    "rect": {
+      "x": 256.0,
+      "y": 384.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Fearsome__48.png",
+    "decoded_size": [
+      84,
+      84
+    ],
+    "output_sha256": "b4b0410c7e0a9dc5d570f3daa1c3f5cfece4f84741664e4ba75cd125413ead61",
+    "delivered_path": "images/keywords/Fearsome.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 51,
+    "type": "Sprite",
+    "name": "Silenced",
+    "rect": {
+      "x": 512.0,
+      "y": 512.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Silenced__51.png",
+    "decoded_size": [
+      96,
+      83
+    ],
+    "output_sha256": "999ac7eec3575fd9b36a77f9931460f47d2e83986fe9d05bc7268b60107450d3",
+    "delivered_path": "images/keywords/Silenced.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 52,
+    "type": "Sprite",
+    "name": "Elusive",
+    "rect": {
+      "x": 768.0,
+      "y": 256.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Elusive__52.png",
+    "decoded_size": [
+      106,
+      81
+    ],
+    "output_sha256": "b9a2f1a31170f822c4218bb22f3cabd9da9329c5bc9077366899be715ee51b0b",
+    "delivered_path": "images/keywords/Elusive.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 53,
+    "type": "Sprite",
+    "name": "Scout",
+    "rect": {
+      "x": 384.0,
+      "y": 896.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Scout__53.png",
+    "decoded_size": [
+      116,
+      101
+    ],
+    "output_sha256": "7093605af64cba15ae2682b61aa5e0a781efd1c6c3b8bb3a5b1b40300447a152",
+    "delivered_path": "images/keywords/Scout.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 57,
+    "type": "Sprite",
+    "name": "QuickStrike",
+    "rect": {
+      "x": 384.0,
+      "y": 512.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/QuickStrike__57.png",
+    "decoded_size": [
+      85,
+      88
+    ],
+    "output_sha256": "21d4edc598c58fa80d7f1473624518a74aad3799f24d69ba9c7d55be62f15d3a",
+    "delivered_path": "images/keywords/QuickStrike.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 58,
+    "type": "Sprite",
+    "name": "Stunned",
+    "rect": {
+      "x": 640.0,
+      "y": 512.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Stunned__58.png",
+    "decoded_size": [
+      97,
+      97
+    ],
+    "output_sha256": "57ef9055631b8e79d22feaf413a06d5be0ab6a9279da1cecd6949cade6362250",
+    "delivered_path": "images/keywords/Stunned.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 59,
+    "type": "Sprite",
+    "name": "DoubleStrike",
+    "rect": {
+      "x": 640.0,
+      "y": 256.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/DoubleStrike__59.png",
+    "decoded_size": [
+      112,
+      98
+    ],
+    "output_sha256": "297eced9e1a52930bef0e42870d1385fb38e711e4dc992ba1d6c4f0c99d49b62",
+    "delivered_path": "images/keywords/DoubleStrike.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 60,
+    "type": "Sprite",
+    "name": "Challenger",
+    "rect": {
+      "x": 384.0,
+      "y": 256.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Challenger__60.png",
+    "decoded_size": [
+      90,
+      88
+    ],
+    "output_sha256": "8d9f5185b896bd008093f8070e3f1370ddde56a16938aadc376a24911e20993d",
+    "delivered_path": "images/keywords/Challenger.png"
+  },
+  {
+    "serialized_file": "19d00532c59f99c4cafc807c0f53e6fe",
+    "archive_members": [
+      "assets/bin/Data/19d00532c59f99c4cafc807c0f53e6fe"
+    ],
+    "source_sha256": "29fe4a78c253dccab3c6b034306a1d3dd7b4f827b800086563752eeb12448859",
+    "path_id": 65,
+    "type": "Sprite",
+    "name": "Frostbite",
+    "rect": {
+      "x": 256.0,
+      "y": 640.0,
+      "width": 128.0,
+      "height": 128.0
+    },
+    "output": "extracted/Frostbite__65.png",
+    "decoded_size": [
+      105,
+      105
+    ],
+    "output_sha256": "e57c6d9b1c1b2458dbea80ae6cbf6f7b1398397899e156f2df8afb42b4c877fe",
+    "delivered_path": "images/keywords/Frostbite.png"
+  }
+]

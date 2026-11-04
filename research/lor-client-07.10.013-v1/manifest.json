@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "snapshot": "LoR07.10.013-reference-v1",
+  "full_ai_algorithm_included": false,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4380,
+      "sha256": "323b3c4a255c3fca3ba38d4448066fcca487a298fc24b221ca1338d20027ff56"
+    },
+    {
+      "path": "data/elise-progression-source.json",
+      "bytes": 775153,
+      "sha256": "92a0a3163a389dc9f88cd9336698336075aecd4d49e501de4325c2990da8217e"
+    },
+    {
+      "path": "data/elise-starter.json",
+      "bytes": 15924,
+      "sha256": "2e067765654eba9496a864318e96fd3c54c5496a35adfd5c72770c9b689c8635"
+    },
+    {
+      "path": "data/keyword-ai-weights.json",
+      "bytes": 42334,
+      "sha256": "55d1542d9721b5a74ee13c571847f4fd7c529246441354cbb2d16131a5fe2479"
+    },
+    {
+      "path": "data/native-rule-components.json",
+      "bytes": 1960,
+      "sha256": "91924ba70656bf3892c373237c8735203040434a5ba7dbc7ac6929d86ad7fc3b"
+    },
+    {
+      "path": "evidence/elise-data.md",
+      "bytes": 5463,
+      "sha256": "ea33d39a0cf9fc8cb9b3548404792742321ce7e9c1e8463730f5ba9e3dae11fa"
+    },
+    {
+      "path": "evidence/input-actions.md",
+      "bytes": 9970,
+      "sha256": "0a3e2e87ca3cb3efb9277f075d9cdd3ec9b6e5ef16e6fd20f8927c01d48d7a49"
+    },
+    {
+      "path": "evidence/native-rule-sources.md",
+      "bytes": 7437,
+      "sha256": "4829e3c9dfd05d7be44c1282bc6d9afb173952afffbc8099b5746fd491a828a2"
+    },
+    {
+      "path": "evidence/network-boundary.md",
+      "bytes": 5869,
+      "sha256": "0e3c55dae3500f88bc3b99fccf7b503ada14e684cc5cfe799ed1b1346fc034be"
+    },
+    {
+      "path": "evidence/rule-hook-boundary.md",
+      "bytes": 4572,
+      "sha256": "474764b36af3bf5e490240886fafae41c1d13ebb4b8c2e6be2b725d88b8a1f21"
+    },
+    {
+      "path": "evidence/single-frame-keyword-probe.json",
+      "bytes": 1508,
+      "sha256": "9d64438f02c1a64562f6e6141ae476c11c58e2d5c6ffd74beb080730f13e6b2f"
+    },
+    {
+      "path": "images/cards/01NX023-zh_tw.png",
+      "bytes": 720869,
+      "sha256": "f66dcd8574642025a9cc98a5d531e32427c95583514cd31b98d747a50949f6c6",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/01NX046-zh_tw.png",
+      "bytes": 730406,
+      "sha256": "ac5332dedf88925bbf8e9d26927115b4f4c832647085266930c041a5319b7ae0",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/01SI002-zh_tw.png",
+      "bytes": 586062,
+      "sha256": "983c21d4039286b33ffaaa7f263960e17b25744e15f5186476295e783f69ca8d",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/01SI050-zh_tw.png",
+      "bytes": 622163,
+      "sha256": "938247b9bdc09b75f722e2f9d9fbf68010cc3bf332fd03b31061aef7e63f02cd",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/01SI053-zh_tw.png",
+      "bytes": 765247,
+      "sha256": "3e3b85fe30e269b57075eb48d34fa4196651ddffeb90c57870137833470976a2",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/01SI056-zh_tw.png",
+      "bytes": 797945,
+      "sha256": "e68b9922ccd5670392d9ff8a79da04133b498fe660bbab13ff29fb3a17d3f083",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/04NX016-zh_tw.png",
+      "bytes": 695034,
+      "sha256": "4209d03dd3e8608b7738e5890a9cb917160d6b9f666ac23717987a726a90adb0",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/06NX013-zh_tw.png",
+      "bytes": 676558,
+      "sha256": "244fce8d77e9c1a28ffa1f13cc052a942e8350ef6f295723ba52ee9cbdbfae53",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/cards/06SI037-zh_tw.png",
+      "bytes": 575437,
+      "sha256": "f0da32efdddb6b28f88c8c07182cf49a040ff48a1c56ad9c2fcde2158b86d077",
+      "png_size": [
+        680,
+        1024
+      ]
+    },
+    {
+      "path": "images/keywords/Barrier.png",
+      "bytes": 4218,
+      "sha256": "3c7e10a47c29a76f60ad4bb93ee52ab5093d00bba7fddda192c835c12b4866d2",
+      "png_size": [
+        94,
+        99
+      ]
+    },
+    {
+      "path": "images/keywords/Challenger.png",
+      "bytes": 3765,
+      "sha256": "8d9f5185b896bd008093f8070e3f1370ddde56a16938aadc376a24911e20993d",
+      "png_size": [
+        90,
+        88
+      ]
+    },
+    {
+      "path": "images/keywords/DoubleStrike.png",
+      "bytes": 5695,
+      "sha256": "297eced9e1a52930bef0e42870d1385fb38e711e4dc992ba1d6c4f0c99d49b62",
+      "png_size": [
+        112,
+        98
+      ]
+    },
+    {
+      "path": "images/keywords/Elusive.png",
+      "bytes": 4665,
+      "sha256": "b9a2f1a31170f822c4218bb22f3cabd9da9329c5bc9077366899be715ee51b0b",
+      "png_size": [
+        106,
+        81
+      ]
+    },
+    {
+      "path": "images/keywords/Ephemeral.png",
+      "bytes": 3716,
+      "sha256": "55a8cfa83a332985c22085c2bcccf5bfa04f23edf8aff0c0810a85ce6b81467c",
+      "png_size": [
+        68,
+        90
+      ]
+    },
+    {
+      "path": "images/keywords/Fearsome.png",
+      "bytes": 3959,
+      "sha256": "b4b0410c7e0a9dc5d570f3daa1c3f5cfece4f84741664e4ba75cd125413ead61",
+      "png_size": [
+        84,
+        84
+      ]
+    },
+    {
+      "path": "images/keywords/Frostbite.png",
+      "bytes": 5963,
+      "sha256": "e57c6d9b1c1b2458dbea80ae6cbf6f7b1398397899e156f2df8afb42b4c877fe",
+      "png_size": [
+        105,
+        105
+      ]
+    },
+    {
+      "path": "images/keywords/Immobile.png",
+      "bytes": 8185,
+      "sha256": "f898be5d96ef999c6c3c3b215e85f4fcc7006cc88cd3c477b248cfdb1e2d2139",
+      "png_size": [
+        100,
+        96
+      ]
+    },
+    {
+      "path": "images/keywords/Lifesteal.png",
+      "bytes": 2936,
+      "sha256": "9398c42d96ff172c3f733a4f5aa0d942189e35dbb3e50f9993f9ef4c4362d6f3",
+      "png_size": [
+        70,
+        99
+      ]
+    },
+    {
+      "path": "images/keywords/Overwhelm.png",
+      "bytes": 4699,
+      "sha256": "619b09274a8e83da3ac9456c44ea29f30d6cccc408720ca016a0f49b5e32c032",
+      "png_size": [
+        105,
+        98
+      ]
+    },
+    {
+      "path": "images/keywords/QuickStrike.png",
+      "bytes": 3716,
+      "sha256": "21d4edc598c58fa80d7f1473624518a74aad3799f24d69ba9c7d55be62f15d3a",
+      "png_size": [
+        85,
+        88
+      ]
+    },
+    {
+      "path": "images/keywords/Regeneration.png",
+      "bytes": 4184,
+      "sha256": "ab8453e13d4cc8f5de79e17e4ba09756559befc9645a28c3ab345a50248efd25",
+      "png_size": [
+        100,
+        96
+      ]
+    },
+    {
+      "path": "images/keywords/Scout.png",
+      "bytes": 5759,
+      "sha256": "7093605af64cba15ae2682b61aa5e0a781efd1c6c3b8bb3a5b1b40300447a152",
+      "png_size": [
+        116,
+        101
+      ]
+    },
+    {
+      "path": "images/keywords/Silenced.png",
+      "bytes": 3741,
+      "sha256": "999ac7eec3575fd9b36a77f9931460f47d2e83986fe9d05bc7268b60107450d3",
+      "png_size": [
+        96,
+        83
+      ]
+    },
+    {
+      "path": "images/keywords/SpellShield.png",
+      "bytes": 4403,
+      "sha256": "5bc13940e72ad66ae39be6c0ae584df9ffc463191d4644d1310cd69b6e8ca50b",
+      "png_size": [
+        106,
+        103
+      ]
+    },
+    {
+      "path": "images/keywords/Stunned.png",
+      "bytes": 5947,
+      "sha256": "57ef9055631b8e79d22feaf413a06d5be0ab6a9279da1cecd6949cade6362250",
+      "png_size": [
+        97,
+        97
+      ]
+    },
+    {
+      "path": "images/keywords/Tough.png",
+      "bytes": 2975,
+      "sha256": "2f9efdd3c7be4023aa0e2a3c71f5c0f2473cbee1ca317e4ea8a5b1eeaa4b0f86",
+      "png_size": [
+        84,
+        99
+      ]
+    },
+    {
+      "path": "images/keywords/Vulnerable.png",
+      "bytes": 3821,
+      "sha256": "aa70f1dfc3d616a7539d88a9b849110e35a041909603b5ee2b0dd526844a0942",
+      "png_size": [
+        71,
+        100
+      ]
+    },
+    {
+      "path": "provenance/card-images.json",
+      "bytes": 4269,
+      "sha256": "3432e5d9c328ec04dd9ea32e3758a5446fe970e6ec15ceb066fb55b945f00347"
+    },
+    {
+      "path": "provenance/keyword-icons.json",
+      "bytes": 11674,
+      "sha256": "0cce6da07e0867f6aa2aae99ae928d7089e1e16813e00126d75c16c5a8685777"
+    },
+    {
+      "path": "provenance/sources.json",
+      "bytes": 8699,
+      "sha256": "4adb8cb8e3e10a26b408783ffb2f5aec56a0dbba6ff597d7fe315a074e7dfe61"
+    },
+    {
+      "path": "reference.schema.json",
+      "bytes": 2205,
+      "sha256": "ce3e8ec5fc08954006274da416df8d62a9c453b6d92196cabb2cea7f1c8f002d"
+    },
+    {
+      "path": "verify.py",
+      "bytes": 1670,
+      "sha256": "786bdc835c6e8ffdd447553d8969582ef29e193fada837bb113ea3792a567ef3"
+    }
+  ]
+}

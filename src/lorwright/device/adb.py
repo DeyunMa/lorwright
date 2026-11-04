@@ -127,7 +127,10 @@ class AdbDevice:
         time.sleep(0.5)
 
     def restart_app(self, package: str) -> None:
-        """强制结束再拉起：游戏进程无响应时用（docs/handoff.md §4.1）。"""
+        """强制结束再拉起：游戏进程无响应时用（docs/handoff.md §4.1）。
+
+        注意：LoR 重启后会回到 Riot 登入页（登录态被清）。
+        """
         self._run("shell", "am", "force-stop", package)
         time.sleep(1.0)
         self.launch(package)

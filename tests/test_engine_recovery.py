@@ -56,11 +56,17 @@ class FixedLayer:
         return self.action
 
 
-def _engine(device: FakeDevice, action: Action, recovery: RecoveryPolicy) -> Engine:
+def _engine(
+    device: FakeDevice,
+    action: Action,
+    recovery: RecoveryPolicy,
+    allow_client_restart: bool = False,
+) -> Engine:
     settings = Settings()
     settings.loop.tick_ms = 0
     settings.loop.stuck_threshold = 1
     settings.loop.action_timeout_s = 0.0
+    settings.recovery.allow_client_restart = allow_client_restart
     layout = Layout(end_turn=Rect(1200, 600, 60, 60))
     return Engine(
         settings,
@@ -72,7 +78,8 @@ def _engine(device: FakeDevice, action: Action, recovery: RecoveryPolicy) -> Eng
     )
 
 
-def test_stuck_escalates_and_stops() -> None:
+def test_stuck_retries_then_stops_instead_of_restarting_client() -> None:
+    """重启客户端会掉登录态，默认配置下不能拿它当恢复手段。"""
     dev = FakeDevice()
     engine = _engine(
         dev,
@@ -82,8 +89,24 @@ def test_stuck_escalates_and_stops() -> None:
 
     engine.run(max_ticks=20)
 
-    # 重试重放了一次点击，然后两级重启各一次，最后停下
+    # 重试重放了一次点击，然后走到 restart_battle → 拒绝重启 → 停
     assert len(dev.taps) >= 2
+    assert dev.restarts == []
+    assert dev.closed
+
+
+def test_client_restart_only_when_explicitly_allowed() -> None:
+    dev = FakeDevice()
+    engine = _engine(
+        dev,
+        Action(type=ActionType.END_TURN),
+        RecoveryPolicy(retry_limit=1, battle_limit=1, client_limit=1),
+        allow_client_restart=True,
+    )
+
+    engine.run(max_ticks=20)
+
+    # restart_battle 退化为重启客户端，第二次又重启，最后耗尽停下
     assert dev.restarts == ["com.riotgames.legendsofruneterra"] * 2
     assert engine.recovery.exhausted
     assert dev.closed

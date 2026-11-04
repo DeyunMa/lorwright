@@ -140,12 +140,17 @@ class Engine:
 
         if action is RecoveryAction.RETRY:
             self._execute(self._last_plan)
-        elif action is RecoveryAction.RESTART_BATTLE:
-            # 退出对局要「投降 / 离开」界面的模板，现在还没有（issue #2）。
-            # 状态不明不点击 → 直接升级成重启客户端。
-            logger.warning("recovery: restart_battle 缺界面模板，升级为重启客户端")
-            self._restart_client()
-        elif action is RecoveryAction.RESTART_CLIENT:
+        elif action in (RecoveryAction.RESTART_BATTLE, RecoveryAction.RESTART_CLIENT):
+            if action is RecoveryAction.RESTART_BATTLE:
+                # 退出对局要「投降 / 离开」界面的模板，现在还没有（issue #2）。
+                logger.warning("recovery: 没有投降界面模板，restart_battle 退化为重启客户端")
+            if not self.settings.recovery.allow_client_restart:
+                # 重启会掉登录态（Riot 登入页），而自动登录还没做。
+                # 状态不明不点击 → 停下等人，而不是把卡住升级成要人工登录。
+                logger.error(
+                    "recovery: 重启客户端会掉登录态，未开启 recovery.allow_client_restart；停止主循环"
+                )
+                return False
             self._restart_client()
         else:
             logger.error("recovery: 已耗尽，停止主循环（{}）", state.summary())

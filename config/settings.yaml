@@ -33,6 +33,11 @@ loop:
   # 单次动作后等待状态变化的最长时间（秒）
   action_timeout_s: 8
 
+recovery:
+  # 允许重启游戏客户端。重启会回到 Riot 登入页（登录态被清），
+  # 自动登录做好之前保持 false：卡住就停下等人，不盲动。
+  allow_client_restart: false
+
 logging:
   dir: "logs"
   # 按日期分目录

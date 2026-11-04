@@ -29,6 +29,17 @@ class LoopConfig(BaseModel):
     action_timeout_s: float = 8.0
 
 
+class RecoveryConfig(BaseModel):
+    """卡住后的恢复行为。
+
+    ``restart_app`` 会清掉登录态（回到 Riot 登入页），而自动登录还没做，
+    所以默认禁止：卡住就停下等人，而不是把「卡住」升级成「要人工登录」。
+    """
+
+    #: 允许重启游戏客户端。打开前必须已经有自动登录。
+    allow_client_restart: bool = False
+
+
 class LoggingConfig(BaseModel):
     dir: str = "logs"
     by_date: bool = True
@@ -94,6 +105,7 @@ class Settings(BaseModel):
     perception: PerceptionConfig = Field(default_factory=PerceptionConfig)
     loop: LoopConfig = Field(default_factory=LoopConfig)
     act: ActConfig = Field(default_factory=ActConfig)
+    recovery: RecoveryConfig = Field(default_factory=RecoveryConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     layout: LayoutConfig = Field(default_factory=LayoutConfig)
     adb: AdbConfig = Field(default_factory=AdbConfig)

@@ -143,6 +143,10 @@ class AdbDevice:
     def home(self) -> None:
         self.keyevent(3)
 
+    def text(self, value: str) -> None:
+        """往当前焦点输入框打字（`input text`，只支持 ASCII，空格要用 %s）。"""
+        self._run("shell", "input", "text", value.replace(" ", "%s"))
+
     def launch(self, package: str) -> None:
         self._run(
             "shell", "monkey", "-p", package,

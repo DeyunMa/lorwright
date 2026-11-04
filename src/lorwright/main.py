@@ -201,6 +201,20 @@ def drag(
 
 
 @app.command()
+def text(
+    value: str = typer.Argument(..., help="要输入的文本（ASCII）"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+) -> None:
+    """往当前焦点输入框打字（登录、搜索框）。"""
+    dev = _make_device(device)
+    try:
+        dev.text(value)
+    finally:
+        dev.close()
+    console.print(f"[green]text[/green] {value!r}")
+
+
+@app.command()
 def launch(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     """启动游戏客户端（不强制结束已在跑的进程）。"""
     settings = load_settings()

@@ -54,6 +54,11 @@ class DesktopDevice:
     def size(self) -> tuple[int, int]:
         return self._size
 
+    def text(self, value: str) -> None:
+        from pynput.keyboard import Controller
+
+        Controller().type(value)
+
     def launch(self, package: str) -> None:
         # 桌面模式没有应用句柄，启动只能人工做
         from lorwright.util.logger import logger

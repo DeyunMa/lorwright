@@ -201,6 +201,18 @@ def drag(
 
 
 @app.command()
+def launch(device: str = typer.Option("adb", help="adb | desktop")) -> None:
+    """启动游戏客户端（不强制结束已在跑的进程）。"""
+    settings = load_settings()
+    dev = _make_device(device)
+    try:
+        dev.launch(settings.adb.package)
+    finally:
+        dev.close()
+    console.print(f"[green]launch[/green] {settings.adb.package}")
+
+
+@app.command()
 def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     """解析当前画面，打印识别到的状态（调感知层用）。"""
     from lorwright.perceive.digits import DigitReader

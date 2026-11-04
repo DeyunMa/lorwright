@@ -54,6 +54,12 @@ class DesktopDevice:
     def size(self) -> tuple[int, int]:
         return self._size
 
+    def launch(self, package: str) -> None:
+        # 桌面模式没有应用句柄，启动只能人工做
+        from lorwright.util.logger import logger
+
+        logger.warning("desktop: 不支持启动应用（{}），请手动打开", package)
+
     def restart_app(self, package: str) -> None:
         # 桌面模式没有应用句柄，重启只能人工做
         from lorwright.util.logger import logger

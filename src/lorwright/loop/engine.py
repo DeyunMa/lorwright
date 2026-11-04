@@ -12,6 +12,7 @@ from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
 from lorwright.models import ClickPlan, GameState, Layout
 from lorwright.perceive.digits import DigitReader
+from lorwright.perceive.normalize import Normalizer, Scale
 from lorwright.perceive.state import StateParser
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.events import emit
@@ -53,17 +54,26 @@ class Engine:
             threshold=settings.perception.match_threshold,
         )
         self._last_plan: ClickPlan | None = None
+        self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
+        self._scale = Scale(1.0, 1.0)
+        self._skipped_stale = 0
 
     def run(self, max_ticks: int | None = None) -> None:
         self.parser.load()
 
         w, h = self.device.size()
         logger.info(
-            "engine start: device={} size={}x{} layers={} layout={}",
+            "engine start: device={} size={}x{} design={}x{} layers={} layout={}",
             self.device.name, w, h,
+            self.settings.screen.width, self.settings.screen.height,
             [getattr(p, "name", type(p).__name__) for p in self.router.layers],
             "ready" if self.layout.end_turn else "NOT CALIBRATED",
         )
+        if (w, h) != (self.settings.screen.width, self.settings.screen.height):
+            logger.info(
+                "分辨率与设计尺寸不一致（{}x{} vs {}x{}），已按设计尺寸归一化",
+                w, h, self.settings.screen.width, self.settings.screen.height,
+            )
         if not self.layout.end_turn:
             logger.warning("layout 未标定，动作会被跳过。先跑 `lorwright shot` 量坐标。")
 
@@ -74,7 +84,25 @@ class Engine:
                 t0 = time.time()
 
                 frame = self.device.screencap()
-                state = self._build_state(frame.image)
+                image, self._scale = self.normalizer.fit(frame.image)
+                state = self._build_state(image)
+
+                # 帧时效：截图 + 识别 + 决策如果已经花了太久，画面可能早变了。
+                # 拿旧帧去点就是「状态不明还点」，宁可这一轮什么都不做。
+                age = frame.age_s()
+                if age > self.settings.loop.max_frame_age_s:
+                    self._skipped_stale += 1
+                    logger.warning(
+                        "stale frame: age={:.2f}s > {:.2f}s，本轮不动作（累计 {}）",
+                        age, self.settings.loop.max_frame_age_s, self._skipped_stale,
+                    )
+                    emit(
+                        tick=ticks, ui=state.ui_state.value, layer="stale",
+                        action="no_op", clicks=0, stuck=False,
+                        ms=round((time.time() - t0) * 1000),
+                    )
+                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    continue
 
                 result = self.router.decide(state)
                 # NO_OP 不计入卡死：对手回合状态本来就不变
@@ -110,24 +138,32 @@ class Engine:
             logger.info("engine stop: coverage={}", self.router.coverage())
 
     def _execute(self, plan: ClickPlan | None) -> int:
-        """执行点击计划，返回实际操作次数。"""
+        """执行点击计划，返回实际操作次数。
+
+        `ClickPlan` 里的坐标是**设计坐标**，这里按当前帧的缩放系数换成设备像素。
+        """
         if plan is None:
             return 0
         self._last_plan = plan
+        sc = self._scale
 
         if plan.drags:
             for (x1, y1), (x2, y2) in plan.drags:
-                self.device.drag(x1, y1, x2, y2, plan.drag_hold_ms, plan.drag_ms)
+                dx1, dy1 = sc.to_device(x1, y1)
+                dx2, dy2 = sc.to_device(x2, y2)
+                self.device.drag(dx1, dy1, dx2, dy2, plan.drag_hold_ms, plan.drag_ms)
                 time.sleep(plan.wait_ms / 1000)
             return len(plan.drags)
 
         if plan.drag and len(plan.points) == 2:
             (x1, y1), (x2, y2) = plan.points
-            self.device.drag(x1, y1, x2, y2, plan.drag_hold_ms, plan.drag_ms)
+            dx1, dy1 = sc.to_device(x1, y1)
+            dx2, dy2 = sc.to_device(x2, y2)
+            self.device.drag(dx1, dy1, dx2, dy2, plan.drag_hold_ms, plan.drag_ms)
             return 2
 
         for x, y in plan.points:
-            self.device.tap(x, y)
+            self.device.tap(*sc.to_device(x, y))
             time.sleep(plan.wait_ms / 1000)
         return len(plan.points)
 

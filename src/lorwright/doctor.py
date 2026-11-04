@@ -42,6 +42,7 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
               "brew install android-platform-tools / winget install Google.PlatformTools")
     )
 
+    device = None
     if adb_ok:
         from lorwright.device.adb import AdbDevice
 
@@ -50,6 +51,14 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
             Check("ADB 设备", bool(serials), f"{len(serials)} 台: {', '.join(serials[:3])}" if serials else "未连接",
                   "手机开 USB 调试并允许；模拟器先启动")
         )
+        if serials:
+            device = AdbDevice(
+                serial=settings.adb.serial or None, adb=settings.adb.adb_path
+            )
+
+    # 分辨率 / 输入通道 / 登录态：都要真连上设备才查得了
+    if device is not None:
+        checks.extend(_device_checks(settings, device))
 
     # 依赖（核心）
     for mod, pkg in [("cv2", "opencv-python"), ("numpy", "numpy"),
@@ -66,12 +75,26 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
         )
 
     # 素材
+    for name, hint in [
+        ("mulligan.png", "起手换牌识别，缺了会把换牌判成我方回合"),
+        ("action_pass.png", "动作按钮「略過」"),
+        ("action_commit.png", "动作按钮「結算」"),
+    ]:
+        p = r / "assets" / "buttons" / name
+        checks.append(Check(f"模板 {name}", p.exists(), "存在" if p.exists() else "缺失", hint))
+    for name in ["login_splash.png", "login_form.png"]:
+        p = r / "assets" / "ui" / name
+        checks.append(Check(f"模板 {name}", p.exists(), "存在" if p.exists() else "缺失",
+                            "登录界面识别"))
+
     buttons = list((r / "assets" / "buttons").glob("*.png"))
     cards = list((r / "assets" / "cards").glob("*.png"))
-    checks.append(Check("按钮模板", len(buttons) >= 2, f"{len(buttons)} 张",
-                        "至少 end_turn.png + victory.png，见 issue #2"))
-    checks.append(Check("卡牌图库", len(cards) >= 10, f"{len(cards)} 张",
-                        "用 tools/collect_cards.py 采集，见 issue #3"))
+    checks.append(Check("按钮模板", len(buttons) >= 3, f"{len(buttons)} 张",
+                        "起手换牌 + 动作按钮文字"))
+    checks.append(
+        Check("卡牌图库", len(cards) >= 10, f"{len(cards)} 张",
+              "用 tools/collect_cards.py 采集，见 issue #3", optional=True)
+    )
 
     # Layout
     lay = settings.layout.to_layout()
@@ -86,6 +109,67 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
                         settings.vlm_model or "未配置", "可选；不配就只用规则层", optional=True))
 
     return checks
+
+
+def _device_checks(settings: Settings, device) -> list[Check]:
+    """连上设备后才能做的检查：分辨率、输入后端、登录态。"""
+    out: list[Check] = []
+    try:
+        size = device.size()
+    except Exception as e:  # noqa: BLE001 - 自检要能报出任何失败
+        out.append(Check("截图", False, f"{type(e).__name__}: {e}", "确认设备已连接、未锁屏"))
+        return out
+
+    design = (settings.screen.width, settings.screen.height)
+    out.append(
+        Check(
+            "截图", True, f"{size[0]}x{size[1]}",
+        )
+    )
+    out.append(
+        Check(
+            "分辨率", True,
+            f"{size[0]}x{size[1]}（设计 {design[0]}x{design[1]}，会归一化）"
+            if size != design
+            else f"{size[0]}x{size[1]} = 设计尺寸",
+        )
+    )
+
+    # 输入后端：能不能表达「按住再拖」决定出牌能不能做
+    try:
+        surface = device.surface()
+        hold = getattr(surface, "can_hold", False)
+        node = getattr(getattr(surface, "device", None), "node", "")
+        out.append(
+            Check(
+                "输入后端", hold,
+                f"{type(surface).__name__}{' @' + node if node else ''}"
+                + ("（可停顿）" if hold else "（只能原子手势，出牌会失败）"),
+                "shell 需要在 input 组里才能写 /dev/input/eventN",
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        out.append(Check("输入后端", False, f"{type(e).__name__}: {e}", "检查 adb 权限"))
+
+    # 登录态：卡在登录页时 ui_state 只能是 UNKNOWN，会表现为「什么都不做」
+    try:
+        from lorwright.perceive.login import LoginDetector, LoginScreen
+
+        det = LoginDetector()
+        det.load()
+        kind = det.detect(device.screencap().image)
+        out.append(
+            Check(
+                "登录态", kind is LoginScreen.NONE,
+                {"none": "已登录 / 不在登录界面", "splash": "停在登录页",
+                 "form": "停在账号密码表单"}[kind.value],
+                "跑 `lorwright login`（账号从 .env 的 LOR_USERNAME/LOR_PASSWORD 读）",
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        out.append(Check("登录态", False, f"{type(e).__name__}: {e}", "检查 assets/ui/login_*.png"))
+
+    return out
 
 
 def format_checks(checks: list[Check]) -> str:

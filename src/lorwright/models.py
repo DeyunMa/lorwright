@@ -105,6 +105,11 @@ class Layout:
     enemy_hp: Rect | None = None
     my_hp: Rect | None = None
     mana: Rect | None = None
+    # 登录界面（splash 按钮 / 用户名 / 密码 / 提交）
+    login_splash: Rect | None = None
+    login_username: Rect | None = None
+    login_password: Rect | None = None
+    login_submit: Rect | None = None
     extras: dict[str, Rect] = field(default_factory=dict)
 
 

@@ -27,6 +27,9 @@ class LoopConfig(BaseModel):
     tick_ms: int = 200
     stuck_threshold: int = 3
     action_timeout_s: float = 8.0
+    #: 帧时效上限（秒）。截图+决策耗时超过它就放弃本帧（退 NO_OP），
+    #: 避免拿着已经过时的画面去点。见 docs/maa/04-screencap.md
+    max_frame_age_s: float = 2.0
 
 
 class RecoveryConfig(BaseModel):
@@ -81,6 +84,11 @@ class LayoutConfig(BaseModel):
     enemy_hp: list[int] | None = None
     my_hp: list[int] | None = None
     mana: list[int] | None = None
+    # 登录界面
+    login_splash: list[int] | None = None
+    login_username: list[int] | None = None
+    login_password: list[int] | None = None
+    login_submit: list[int] | None = None
 
     @staticmethod
     def _rect(v: list[int] | None) -> Rect | None:
@@ -98,6 +106,10 @@ class LayoutConfig(BaseModel):
             enemy_hp=self._rect(self.enemy_hp),
             my_hp=self._rect(self.my_hp),
             mana=self._rect(self.mana),
+            login_splash=self._rect(self.login_splash),
+            login_username=self._rect(self.login_username),
+            login_password=self._rect(self.login_password),
+            login_submit=self._rect(self.login_submit),
         )
 
 

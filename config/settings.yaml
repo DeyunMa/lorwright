@@ -5,6 +5,8 @@ screen:
   # 当前目标：BlueStacks 的 Pie64 实例（Android 9）
   # 逻辑分辨率用 `adb shell wm size 1920x1080` 抬高（模拟器原生 1280x720 时
   # 手牌费用数字只有 ~10px，读不出来）。换分辨率后 layout 必须重标定。
+  # 这是**设计尺寸**：识别与坐标都按它标定，实际分辨率由 perceive/normalize.py
+  # 归一化后反算回设备像素。改这里等于换一套标定。
   width: 1920
   height: 1080
   dpi_scale: 150
@@ -33,6 +35,8 @@ loop:
   stuck_threshold: 3
   # 单次动作后等待状态变化的最长时间（秒）
   action_timeout_s: 8
+  # 帧时效上限（秒）：截图+决策超时就不动，避免点在被过时的画面上
+  max_frame_age_s: 2.0
 
 recovery:
   # 允许重启游戏客户端。重启会回到 Riot 登入页（登录态被清），
@@ -57,6 +61,11 @@ layout:
   # 数字区域（perceive/digits.py 字形匹配）
   enemy_hp:     [215, 390, 56, 40]      # 敌方水晶旁数字
   my_hp:        [216, 646, 56, 40]      # 我方水晶旁数字
+  # 登录界面（1920x1080 实测）。账号密码从 .env 读。
+  login_splash: [650, 790, 140, 90]        # 登入页的 Riot 按钮
+  login_username: [110, 360, 1480, 190]
+  login_password: [110, 580, 1480, 180]
+  login_submit: [1580, 750, 280, 260]
   mana:         [1668, 388, 33, 36]     # 动作按钮上方的当前法力
 
 adb:

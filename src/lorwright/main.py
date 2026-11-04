@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import typer
@@ -9,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from lorwright.config import load_settings
+from lorwright.perceive.login import LoginDetector, LoginScreen
 from lorwright.util.logger import setup_logger
 
 app = typer.Typer(add_completion=False, help="lorwright — LoR 英雄之路自动化")
@@ -227,6 +229,57 @@ def launch(device: str = typer.Option("adb", help="adb | desktop")) -> None:
 
 
 @app.command()
+def login(
+    tries: int = typer.Option(3, help="最多尝试几轮"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+) -> None:
+    """登录 LoR（账号密码从 .env 的 LOR_USERNAME / LOR_PASSWORD 读）。
+
+    模拟器重启会清掉登录态，而客户端卡在登录页时 `ui_state` 只能是 UNKNOWN，
+    看门狗只会判「卡住」。所以登录得是个显式步骤。
+    """
+    settings = load_settings()
+    user, pwd = settings.lor_username, settings.lor_password
+    if not user or not pwd:
+        console.print("[red]缺少 LOR_USERNAME / LOR_PASSWORD[/red]（写进 .env）")
+        raise typer.Exit(2)
+
+    layout = settings.layout.to_layout()
+    if not (layout.login_splash and layout.login_username and layout.login_password
+            and layout.login_submit):
+        console.print("[red]config/settings.yaml 缺 login_* 坐标[/red]")
+        raise typer.Exit(2)
+
+    detector = LoginDetector()
+    detector.load()
+    dev = _make_device(device)
+    try:
+        for i in range(tries):
+            kind = detector.detect(dev.screencap().image)
+            console.print(f"  [{i + 1}/{tries}] {kind.value}")
+            if kind is LoginScreen.NONE:
+                console.print("[green]login[/green] 已登录（不在登录界面）")
+                return
+            if kind is LoginScreen.SPLASH:
+                dev.tap(*layout.login_splash.center)
+                time.sleep(5)
+                continue
+            dev.tap(*layout.login_username.center)
+            time.sleep(0.6)
+            dev.text(user)
+            time.sleep(0.4)
+            dev.tap(*layout.login_password.center)
+            time.sleep(0.6)
+            dev.text(pwd)
+            time.sleep(0.4)
+            dev.tap(*layout.login_submit.center)
+            time.sleep(10)
+    finally:
+        dev.close()
+    console.print("[yellow]login[/yellow] 未能确认登录成功，请人工看一眼")
+
+
+@app.command()
 def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     """解析当前画面，打印识别到的状态（调感知层用）。"""
     from lorwright.perceive.digits import DigitReader
@@ -252,7 +305,15 @@ def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     finally:
         dev.close()
 
-    st = parser.parse(frame.image)
+    from lorwright.perceive.normalize import Normalizer
+
+    image, scale = Normalizer((settings.screen.width, settings.screen.height)).fit(frame.image)
+    if not scale.identity:
+        console.print(
+            f"[yellow]分辨率 {frame.width}x{frame.height} != 设计尺寸 "
+            f"{settings.screen.width}x{settings.screen.height}，已归一化[/yellow]"
+        )
+    st = parser.parse(image)
     table = Table(title="状态解析")
     table.add_column("字段")
     table.add_column("值")
@@ -286,8 +347,13 @@ def doctor() -> None:
 def run(
     max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限"),
     device: str = typer.Option("adb", help="adb | desktop"),
+    replay: str = typer.Option("", help="回放目录：用历史截图跑，不碰设备"),
 ) -> None:
-    """运行主循环。"""
+    """运行主循环。
+
+    `--replay <dir>` 用目录里的截图当设备，动作只记录不执行，
+    适合离线调感知/决策（docs/maa/06-debugging.md）。
+    """
     from lorwright.champions import load as load_champion
     from lorwright.decide.jev import JevClient
     from lorwright.decide.jev_policy import JevPolicy, LlmPolicy
@@ -307,12 +373,21 @@ def run(
             LlmPolicy(LlmClient(settings.vlm_base_url, settings.vlm_api_key, settings.vlm_model))
         )
 
-    dev = _make_device(device)
+    if replay:
+        from lorwright.device.replay import ReplayDevice
+
+        dev = ReplayDevice(replay)
+        console.print(f"回放：[bold]{replay}[/bold]（{len(dev.frames)} 帧）")
+    else:
+        dev = _make_device(device)
+
     engine = Engine(settings, Router(layers), dev)
     try:
         engine.run(max_ticks=max_ticks or None)
     except KeyboardInterrupt:
         console.print("[yellow]已停止[/yellow]")
+    if replay:
+        console.print(f"回放动作：{dev.actions}")
 
 
 if __name__ == "__main__":

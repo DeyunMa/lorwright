@@ -64,6 +64,10 @@ class TouchSurface(Protocol):
     def drag(self, x1: int, y1: int, x2: int, y2: int, hold_ms: int, drag_ms: int) -> None: ...
 
 
+#: 拖拽插值步数。每步 3 个 sendevent（x/y/syn），一次进程启动 ~40ms，
+#: 步数多了整段手势就超过 2s，游戏会当成「长按预览」而不是拖拽。
+_DRAG_STEPS = 6
+
 _ABS_LINE = re.compile(r"(ABS_MT_POSITION_[XY])\s*:.*?max\s+(-?\d+)")
 _DEV_LINE = re.compile(r"^add device \d+: (/dev/input/event\d+)")
 _NAME_LINE = re.compile(r'^\s*name:\s+"(.+)"')
@@ -170,10 +174,11 @@ class EvdevSurface:
         ]
 
     def _seq_move(self, x: int, y: int) -> list[str]:
+        # 不再每次重发 ABS_MT_SLOT：整个手势只用 slot 0，协议 B 下选中一次就够。
+        # 每个 sendevent 是一次进程启动（~40ms），事件数直接决定手势时长。
         w, h = self.screen
         rx, ry = self.device.to_raw(x, y, w, h)
         return [
-            self._ev(3, 47, 0),                    # 每次上报都要重新选中 slot
             self._ev(3, 53, rx),
             self._ev(3, 54, ry),
             self._ev(0, 0, 0),
@@ -181,7 +186,6 @@ class EvdevSurface:
 
     def _seq_up(self) -> list[str]:
         return [
-            self._ev(3, 47, 0),
             self._ev(3, 57, -1),                   # TRACKING_ID = -1 → 抬手
             self._ev(1, 330, 0),                   # BTN_TOUCH
             self._ev(0, 0, 0),
@@ -195,9 +199,13 @@ class EvdevSurface:
         y2: int,
         hold_ms: int,
         drag_ms: int,
-        steps: int = 20,
+        steps: int = _DRAG_STEPS,
     ) -> str:
-        """把一次「按住 → 停顿 → 拖 → 松手」拼成设备端 shell 脚本。"""
+        """把一次「按住 → 停顿 → 拖 → 松手」拼成设备端 shell 脚本。
+
+        时长上限是硬约束：整段手势要落在 2s 以内，否则游戏把它当长按预览
+        （卡片放大但不跟着手指走），松手后卡片回手牌。
+        """
         steps = max(1, steps)
         step_sleep = max(0.004, drag_ms / 1000 / steps)
         lines = ["#!/system/bin/sh", *self._seq_down(x1, y1), f"sleep {hold_ms / 1000:.3f}"]

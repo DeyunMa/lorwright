@@ -102,13 +102,26 @@ def test_script_moves_in_steps_and_ends_on_target() -> None:
     assert abs(last_x - expected) <= 2
 
 
-def test_every_move_report_selects_slot() -> None:
-    """协议 B 要求每次上报前重新选中 slot（0），漏了移动事件会被忽略。"""
+def test_gesture_stays_short_enough() -> None:
+    """整段手势要 < 2s：每个 sendevent 是一次进程启动（~40ms）。
+
+    事件数一多手势就拖到 3s 以上，LoR 会当成「长按预览」——卡片放大但不
+    跟手，松手回手牌。这条盯的是事件数，不是逻辑。
+    """
+    from lorwright.device.touch import _DRAG_STEPS
+
+    lines = _script(steps=_DRAG_STEPS)
+    events = [ln for ln in lines if ln.startswith("sendevent")]
+    # 按下 6 + 每步 3 + 抬手 3；按 40ms/次估算总时长
+    assert len(events) <= 30, f"事件太多：{len(events)}"
+    assert len(events) * 0.040 + 0.120 + 0.600 < 2.0
+
+
+def test_slot_selected_once_at_down() -> None:
+    """整个手势只用 slot 0，按下时选一次即可（协议 B）。"""
     lines = _script(steps=3)
-    xs = [i for i, ln in enumerate(lines) if " 3 53 " in ln]
-    # 第一个是按下时的初始坐标，后面每个都是移动
-    for i in xs[1:]:
-        assert lines[i - 1].endswith(" 3 47 0"), f"移动前缺 ABS_MT_SLOT：{lines[i - 1]}"
+    slots = [ln for ln in lines if ln.endswith(" 3 47 0")]
+    assert len(slots) == 1, f"ABS_MT_SLOT 只该发一次，实际 {len(slots)}"
 
 
 def test_tap_goes_through_runner() -> None:

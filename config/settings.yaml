@@ -22,8 +22,9 @@ perception:
 act:
   # 出牌手势 = 按住 drag_hold_ms → 移动 drag_ms → 松手。
   # 不停顿会被 LoR 当成点击 / 长按预览（docs/handoff.md §4.6）。
-  drag_ms: 800
-  drag_hold_ms: 300
+  # 整段手势必须 < 2s，否则 LoR 当成「长按预览」：卡片放大但不跟手，松手回手牌
+  drag_ms: 600
+  drag_hold_ms: 120
   # 拖拽结束到画面稳定的等待
   drag_wait_ms: 600
   tap_wait_ms: 400

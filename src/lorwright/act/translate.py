@@ -15,8 +15,8 @@ class ActionTranslator:
     def __init__(
         self,
         layout: Layout,
-        drag_ms: int = 800,
-        drag_hold_ms: int = 300,
+        drag_ms: int = 600,
+        drag_hold_ms: int = 120,
         drag_wait_ms: int = 600,
         tap_wait_ms: int = 400,
     ) -> None:

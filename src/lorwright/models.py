@@ -26,6 +26,7 @@ class UIState(StrEnum):
     UNKNOWN = "unknown"
     MULLIGAN = "mulligan"            # 起手换牌：有「確定」按钮，还没进对局
     MY_TURN_IDLE = "my_turn_idle"      # 可以出牌
+    BLOCKING = "blocking"              # 对手在攻击，等我方声明格挡（手牌拖不动）
     TARGETING = "targeting"            # 已选牌，等待选目标
     ENEMY_TURN = "enemy_turn"          # 对手行动中
     COMBAT_RESOLVING = "combat_resolving"

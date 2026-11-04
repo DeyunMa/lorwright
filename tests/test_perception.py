@@ -97,6 +97,22 @@ def test_hand_costs_from_live_frame() -> None:
     assert [c.cost for c in state.hand] == [3, 2, 5, 2, 6, 3]
 
 
+def test_block_phase_is_not_my_turn() -> None:
+    """「略過格擋」也是同一块蓝色按钮，但这时手牌拖不动。
+
+    只靠颜色判定会把格挡阶段当成我方回合，策略每帧都试着出牌、每帧都失败
+    （表现为「拖拽没反应」，实际是游戏根本不接受）。
+    """
+    state = _parser().parse(_load("1080p_block_phase.png"))
+    assert state.ui_state is UIState.BLOCKING
+
+
+def test_commit_phase_is_not_my_turn() -> None:
+    """「結算」= 提交格挡/攻击声明，同样不能出牌。"""
+    state = _parser().parse(_load("1080p_commit_phase.png"))
+    assert state.ui_state is UIState.COMBAT_RESOLVING
+
+
 def test_main_menu_is_not_a_battle() -> None:
     state = _parser(LEGACY_720P).parse(_load("720p_main_menu.png"))
     assert state.ui_state is UIState.UNKNOWN

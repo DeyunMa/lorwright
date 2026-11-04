@@ -11,6 +11,18 @@ from lorwright.device.touch import (
     parse_getevent,
 )
 
+
+class _Runner:
+    """假的 adb 入口：记录脚本，不真跑。"""
+
+    def __init__(self) -> None:
+        self.scripts: list[str] = []
+
+    def run(self, *args, stdin=None, binary=False):
+        if stdin:
+            self.scripts.append(stdin.decode())
+        return ""
+
 #: 真机上 `adb shell getevent -pl` 的片段（BlueStacks Pie64）。
 GETEVENT = """\
 add device 1: /dev/input/event6
@@ -55,7 +67,7 @@ def test_to_raw_scales_and_clamps() -> None:
 
 def _script(**kw) -> list[str]:
     dev = TouchDevice("/dev/input/event4", "touch", 32767, 32767)
-    surface = EvdevSurface(dev, (1920, 1080))
+    surface = EvdevSurface(dev, (1920, 1080), _Runner())
     script = surface.build_script(
         kw.get("x1", 1482), kw.get("y1", 1015),
         kw.get("x2", 960), kw.get("y2", 900),
@@ -97,3 +109,39 @@ def test_every_move_report_selects_slot() -> None:
     # 第一个是按下时的初始坐标，后面每个都是移动
     for i in xs[1:]:
         assert lines[i - 1].endswith(" 3 47 0"), f"移动前缺 ABS_MT_SLOT：{lines[i - 1]}"
+
+
+def test_tap_goes_through_runner() -> None:
+    """输入必须走统一的 adb 入口：绕过它就会丢掉重连和返回码检查。"""
+    runner = _Runner()
+    dev = TouchDevice(node="/dev/input/event4", name="t", max_x=32767, max_y=32767)
+    surface = EvdevSurface(dev, (1920, 1080), runner)
+
+    surface.tap(100, 200)
+
+    assert len(runner.scripts) == 1
+    script = runner.scripts[0]
+    assert "sendevent /dev/input/event4 3 53 1707" in script
+    assert "sendevent /dev/input/event4 3 54 6068" in script
+
+
+def test_adb_runner_raises_on_failure(monkeypatch) -> None:
+    """adb 返回非 0 必须抛错。以前输入后端把返回码丢掉，点失败也报成功。"""
+    import subprocess
+
+    from lorwright.device.adb import AdbRunner
+
+    class _P:
+        returncode = 1
+        stdout = b""
+        stderr = b"error: no devices/emulators found"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _P())
+    runner = AdbRunner(serial=None)
+
+    try:
+        runner.run("shell", "input", "tap", "1", "2")
+    except RuntimeError as e:
+        assert "no devices" in str(e)
+    else:
+        raise AssertionError("应当抛 RuntimeError")

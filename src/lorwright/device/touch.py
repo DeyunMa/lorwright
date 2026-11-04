@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 __all__ = [
+    "AdbRunnerLike",
     "TouchDevice",
     "TouchSurface",
     "AdbInputSurface",
@@ -30,6 +31,12 @@ __all__ = [
     "parse_getevent",
     "discover_touch_device",
 ]
+
+
+class AdbRunnerLike(Protocol):
+    """`device.adb.AdbRunner` 的接口（避免 touch → adb 的反向依赖）。"""
+
+    def run(self, *args: str, stdin: bytes | None = None, binary: bool = False): ...
 
 
 @dataclass(frozen=True)
@@ -104,21 +111,15 @@ class AdbInputSurface:
 
     can_hold = False
 
-    def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 15.0) -> None:
-        self.serial = serial
-        self.adb = adb
-        self.timeout = timeout
-
-    def _run(self, *args: str) -> None:
-        cmd = [self.adb] + (["-s", self.serial] if self.serial else []) + list(args)
-        subprocess.run(cmd, capture_output=True, timeout=self.timeout)
+    def __init__(self, runner: AdbRunnerLike) -> None:
+        self.runner = runner
 
     def tap(self, x: int, y: int) -> None:
-        self._run("shell", "input", "tap", str(x), str(y))
+        self.runner.run("shell", "input", "tap", str(x), str(y))
 
     def drag(self, x1: int, y1: int, x2: int, y2: int, hold_ms: int, drag_ms: int) -> None:
         # 停顿无法表达：只能把总时长给 swipe。需要停顿请换 EvdevSurface。
-        self._run(
+        self.runner.run(
             "shell", "input", "swipe",
             str(x1), str(y1), str(x2), str(y2), str(max(1, drag_ms)),
         )
@@ -143,15 +144,11 @@ class EvdevSurface:
         self,
         device: TouchDevice,
         screen: tuple[int, int],
-        serial: str | None = None,
-        adb: str = "adb",
-        timeout: float = 30.0,
+        runner: AdbRunnerLike,
     ) -> None:
         self.device = device
         self.screen = screen
-        self.serial = serial
-        self.adb = adb
-        self.timeout = timeout
+        self.runner = runner
         self._tracking_id = 100
 
     # --- 事件流 ---------------------------------------------------------
@@ -212,11 +209,9 @@ class EvdevSurface:
         return "\n".join(lines) + "\n"
 
     def _shell(self, script: str) -> None:
-        cmd = [self.adb] + (["-s", self.serial] if self.serial else [])
-        # 脚本经 stdin 送进去，避免命令行转义（Windows 上尤其容易出错）
-        subprocess.run(
-            cmd + ["shell", "sh"], input=script.encode(), capture_output=True, timeout=self.timeout
-        )
+        # 脚本经 stdin 送进去，避免命令行转义（Windows 上尤其容易出错）。
+        # 返回码由 runner 检查：写不进 /dev/input 必须报错，不能静默失败。
+        self.runner.run("shell", "sh", stdin=script.encode())
 
     # --- TouchSurface ---------------------------------------------------
 
@@ -230,20 +225,16 @@ class EvdevSurface:
         self._shell(self.build_script(x1, y1, x2, y2, hold_ms, drag_ms))
 
 
-def discover_touch_device(
-    serial: str | None = None, adb: str = "adb", timeout: float = 15.0
-) -> TouchDevice | None:
+def discover_touch_device(runner: AdbRunnerLike) -> TouchDevice | None:
     """找可写的触摸设备。
 
     `/dev/input/eventN` 写不写得了取决于设备（shell 在 input 组里才行）。
     找不到就返回 None，调用方退回 `AdbInputSurface`。
     """
-    cmd = [adb] + (["-s", serial] if serial else []) + ["shell", "getevent", "-pl"]
     try:
-        out = subprocess.run(cmd, capture_output=True, timeout=timeout)
-    except (OSError, subprocess.SubprocessError):
+        text = runner.run("shell", "getevent", "-pl")
+    except (OSError, subprocess.SubprocessError, RuntimeError):
         return None
-    text = out.stdout.decode("utf-8", "replace")
     devices = parse_getevent(text)
     if not devices:
         return None

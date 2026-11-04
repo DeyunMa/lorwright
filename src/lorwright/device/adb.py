@@ -21,23 +21,24 @@ from lorwright.device.touch import (
 from lorwright.util.logger import logger
 
 
-class AdbDevice:
-    name = "adb"
+class AdbRunner:
+    """adb 调用入口：统一重连与错误检查。
 
-    def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 15.0) -> None:
-        self.serial = serial
+    输入后端和截图必须走同一个入口。之前输入后端自己起 `adb`，绕过了重连，
+    还把返回码丢掉了——新会话里 adb daemon 刚起、设备还没连上，
+    `input tap` 报 "no devices" 却被当成成功，表现是「点了没反应」。
+    """
+
+    def __init__(self, adb: str = "adb", serial: str | None = None, timeout: float = 15.0) -> None:
         self.adb = adb
+        self.serial = serial
         self.timeout = timeout
-        self._size: tuple[int, int] | None = None
         self._connected = False
-        self._surface: TouchSurface | None = None
 
-    # ---- 进程调用 ----
-
-    def _base(self) -> list[str]:
+    def base(self) -> list[str]:
         return [self.adb] + (["-s", self.serial] if self.serial else [])
 
-    def _ensure_connected(self) -> None:
+    def ensure(self) -> None:
         """serial 形如 host:port 时先 `adb connect`。
 
         adb daemon 会随发起它的会话一起消失，模拟器实例因此掉线；
@@ -51,12 +52,12 @@ class AdbDevice:
             capture_output=True, timeout=self.timeout, check=False,
         )
 
-    def _run(self, *args: str, binary: bool = False):
-        self._ensure_connected()
-        cmd = self._base() + list(args)
+    def run(self, *args: str, stdin: bytes | None = None, binary: bool = False):
+        self.ensure()
+        cmd = self.base() + list(args)
         try:
             p = subprocess.run(
-                cmd, capture_output=True, timeout=self.timeout, check=False
+                cmd, input=stdin, capture_output=True, timeout=self.timeout, check=False
             )
         except FileNotFoundError as e:
             raise RuntimeError(f"找不到 adb：{self.adb}") from e
@@ -64,6 +65,23 @@ class AdbDevice:
             err = p.stderr.decode("utf-8", "ignore").strip()
             raise RuntimeError(f"adb 失败（{p.returncode}）：{' '.join(args)} → {err}")
         return p.stdout if binary else p.stdout.decode("utf-8", "ignore")
+
+
+class AdbDevice:
+    name = "adb"
+
+    def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 15.0) -> None:
+        self.serial = serial
+        self.adb = adb
+        self.timeout = timeout
+        self._size: tuple[int, int] | None = None
+        self._adb = AdbRunner(adb=adb, serial=serial, timeout=timeout)
+        self._surface: TouchSurface | None = None
+
+    # ---- 进程调用 ----
+
+    def _run(self, *args: str, binary: bool = False):
+        return self._adb.run(*args, binary=binary)
 
     # ---- 设备发现 ----
 
@@ -120,11 +138,12 @@ class AdbDevice:
         """
         if self._surface is not None:
             return self._surface
-        dev = discover_touch_device(self.serial, self.adb, self.timeout)
+        dev = discover_touch_device(self._adb)
         if dev is not None:
-            self._surface = EvdevSurface(dev, self.size(), self.serial, self.adb)
+            self._surface = EvdevSurface(dev, self.size(), self._adb)
         else:
-            self._surface = AdbInputSurface(self.serial, self.adb, self.timeout)
+            logger.warning("没找到可写的触摸设备，退回 input 后端（无法「按住再拖」）")
+            self._surface = AdbInputSurface(self._adb)
         return self._surface
 
     def tap(self, x: int, y: int) -> None:

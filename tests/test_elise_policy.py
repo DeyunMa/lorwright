@@ -19,8 +19,10 @@ POLICY = SpiderAggroPolicy()
 def _reset_policy() -> None:
     """policy 会记住「上一张没出成」，测试之间必须清空，否则互相污染。"""
     POLICY._pending_play = None
+    POLICY._pending_cost = None
     POLICY._pending_hand = -1
     POLICY._unplayable.clear()
+    POLICY._needs_target.clear()
 
 
 def hand(index: int, name: str, cost: int) -> CardInHand:
@@ -206,3 +208,28 @@ def test_card_that_opens_targeting_is_marked_unplayable() -> None:
     second = policy.decide(state)
     assert second is not None and second.type is ActionType.PLAY_CARD
     assert second.card_index != first.card_index
+
+
+def test_needs_target_survives_hand_size_change() -> None:
+    """「需要选目标」是牌本身的性质，手牌数量变了也不能忘。
+
+    实机死循环：取消选目标后手牌从展开态 7 张收回扇形 6 张，数量一变就清空
+    了失败记忆，于是又去试同一张 0 费牌，取消 → 重试 → 取消，无限转。
+    """
+    policy = SpiderAggroPolicy()
+    hand = [
+        CardInHand(index=0, name="", cost=0, rect=RECT),
+        CardInHand(index=1, name="", cost=3, rect=RECT),
+    ]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
+    assert policy.decide(state).type is ActionType.PLAY_CARD
+    policy.decide(GameState(ui_state=UIState.TARGETING, mana=6, max_mana=6, hand=hand))
+
+    # 取消后手牌收起，少了一张（展开态平铺 7 张、收起态只露 6 张）
+    shorter = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=6,
+        max_mana=6,
+        hand=[CardInHand(index=0, name="", cost=0, rect=RECT)],
+    )
+    assert policy.decide(shorter).type is ActionType.END_TURN

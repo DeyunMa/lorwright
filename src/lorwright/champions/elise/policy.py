@@ -109,17 +109,24 @@ class SpiderAggroPolicy(Policy):
         #: 要求「本回合有友軍單位陣亡」。不记下来就会每 tick 重试同一张，
         #: 永远出不了牌（实机 2026-11-04 卡了 10 个 tick）。
         self._pending_play: int | None = None
+        self._pending_cost: int | None = None
         self._pending_hand: int = -1
-        #: 当前手牌状态下确认拖不出去的序号
+        #: 拖不动的费用。**按费用记，不按序号**：手牌展开态是平铺 7 张、
+        #: 收起态是扇形只露 6 张，同一个序号在两种状态下指的不是同一张牌，
+        #: 按序号记会在展开/收起之间反复失忆（实机死循环过）。
         self._unplayable: set[int] = set()
+        #: 需要选目标的费用（冥血戰这类「擊殺1個友軍單位」的牌）。
+        #: 这是牌本身的性质，不是暂时状态，所以整场战斗都不再碰它。
+        self._needs_target: set[int] = set()
 
     def _settle_previous_play(self, state: GameState) -> None:
         """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
         if self._pending_play is None:
             return
-        if len(state.hand) >= self._pending_hand:
-            self._unplayable.add(self._pending_play)
+        if len(state.hand) >= self._pending_hand and self._pending_cost is not None:
+            self._unplayable.add(self._pending_cost)
         self._pending_play = None
+        self._pending_cost = None
 
     def decide(self, state: GameState) -> Action | None:
         # P0 守卫：没有优先权时，唯一合法的动作就是不动。
@@ -132,6 +139,9 @@ class SpiderAggroPolicy(Policy):
         # 这个状态下拖手牌没反应，先取消；取消后手牌没减少，
         # _settle_previous_play 会把那张牌记成不可用，下次换一张。
         if state.ui_state is UIState.TARGETING:
+            if self._pending_cost is not None:
+                self._needs_target.add(self._pending_cost)
+                self._pending_play = None
             return Action(type=ActionType.CANCEL)
 
         if state.ui_state is not UIState.MY_TURN_IDLE:
@@ -151,11 +161,15 @@ class SpiderAggroPolicy(Policy):
 
         # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
         ranked = [
-            item for item in rank_playable(state) if item[0].index not in self._unplayable
+            item
+            for item in rank_playable(state)
+            if item[0].cost not in self._unplayable
+            and item[0].cost not in self._needs_target
         ]
         if ranked:
             card, _definition, _score = ranked[0]
             self._pending_play = card.index
+            self._pending_cost = card.cost
             return Action(type=ActionType.PLAY_CARD, card_index=card.index)
 
         # P2 攻击声明：求解器说值得打才打

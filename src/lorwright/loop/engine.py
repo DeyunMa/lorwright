@@ -44,6 +44,7 @@ class Engine:
             drag_hold_ms=settings.act.drag_hold_ms,
             drag_wait_ms=settings.act.drag_wait_ms,
             tap_wait_ms=settings.act.tap_wait_ms,
+            expand_wait_ms=settings.act.expand_wait_ms,
         )
         self.watchdog = Watchdog(threshold=settings.loop.stuck_threshold)
         self.recovery = recovery or RecoveryPolicy()

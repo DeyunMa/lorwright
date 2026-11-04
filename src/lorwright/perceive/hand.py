@@ -20,7 +20,14 @@ import numpy as np
 from lorwright.models import CardInHand, Rect
 from lorwright.perceive.digits import DigitReader, normalize_glyph, rotate_glyph
 
-__all__ = ["Badge", "find_badges", "read_cost", "recognize"]
+__all__ = [
+    "Badge",
+    "find_badges",
+    "find_badges_expanded",
+    "read_cost",
+    "recognize",
+    "recognize_expanded",
+]
 
 #: 收起态徽章模板（48×48，采自 1920×1080 截图）
 BADGE_TEMPLATE = Path("assets/ui/badge.png")
@@ -28,6 +35,14 @@ BADGE_TEMPLATE = Path("assets/ui/badge.png")
 BADGE_MIN_SCORE = 0.96
 #: 非极大值抑制半径：徽章直径约 48px，取 45 够去重
 BADGE_MIN_DIST = 45
+
+#: 展开态徽章模板（56×56）。展开后卡片放大，徽章从 48px 变 56px，
+#: 收起态模板匹配不上——这正好用来区分两种状态，别试图用缩放凑。
+BADGE_EXPANDED_TEMPLATE = Path("assets/ui/badge_expanded.png")
+#: 展开态实测：真徽章 ≥0.977，唯一误报 0.937
+EXPANDED_MIN_SCORE = 0.96
+#: 展开态卡间距 222~242px，抑制半径取 120 不会吃掉邻卡
+EXPANDED_MIN_DIST = 120
 
 #: 抠费用字形的半边长。徽章半径 24，数字高约 20px，取 16 够且不碰外环
 _GLYPH_RAD = 16
@@ -37,6 +52,8 @@ _WHITE_MIN = 170
 _ROTATIONS = tuple(range(-8, 9, 2))
 #: 拖拽起点相对徽章中心的偏移：徽章在卡片左上角，卡身朝右下
 DRAG_OFFSET = (15, 45)
+#: 展开态拖拽起点：卡片平铺、不重叠，徽章右侧就是卡身中部
+DRAG_OFFSET_EXPANDED = (64, 10)
 
 
 @dataclass(frozen=True)
@@ -140,6 +157,67 @@ def read_cost(
         return None
     hit = digits.classify(glyph, rotations=_ROTATIONS)
     return None if hit is None else hit[0]
+
+
+def find_badges_expanded(
+    image: np.ndarray,
+    region: Rect,
+    template: str | Path = BADGE_EXPANDED_TEMPLATE,
+    threshold: float = EXPANDED_MIN_SCORE,
+) -> list[Badge]:
+    """在展开态手牌区域里找徽章，按从左到右排序。
+
+    展开态必须单独一套模板：卡片放大后徽章 56px，收起态的 48px 模板完全
+    匹配不上（实测最高 0.90，全是误报）。
+    """
+    tpl = cv2.imread(str(template), cv2.IMREAD_GRAYSCALE)
+    if tpl is None:
+        return []
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    sub = gray[region.y : region.y + region.h, region.x : region.x + region.w]
+    h, w = tpl.shape
+    if sub.shape[0] < h or sub.shape[1] < w:
+        return []
+
+    res = cv2.matchTemplate(sub, tpl, cv2.TM_CCORR_NORMED, mask=_ring_mask(h))
+    found: list[Badge] = []
+    while True:
+        _, score, _, loc = cv2.minMaxLoc(res)
+        if score < threshold:
+            break
+        found.append(
+            Badge(
+                center=(region.x + loc[0] + w // 2, region.y + loc[1] + h // 2),
+                score=float(score),
+            )
+        )
+        cv2.circle(res, loc, EXPANDED_MIN_DIST, 0, -1)
+
+    return sorted(found, key=lambda b: b.center[0])
+
+
+def recognize_expanded(
+    image: np.ndarray,
+    region: Rect,
+    digits: DigitReader,
+    threshold: float = EXPANDED_MIN_SCORE,
+) -> list[CardInHand]:
+    """识别展开态手牌（卡片平铺在屏幕下方）。"""
+    cards: list[CardInHand] = []
+    for index, badge in enumerate(find_badges_expanded(image, region, threshold=threshold)):
+        cx, cy = badge.center
+        dx, dy = DRAG_OFFSET_EXPANDED
+        cost = read_cost(image, badge, digits)
+        cards.append(
+            CardInHand(
+                index=index,
+                name="",
+                cost=-1 if cost is None else cost,
+                rect=Rect(cx + dx - 4, cy + dy - 4, 8, 8),
+            )
+        )
+    return cards
 
 
 def recognize(

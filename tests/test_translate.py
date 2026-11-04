@@ -12,6 +12,7 @@ LAYOUT = Layout(
     end_turn=Rect(1700, 900, 100, 60),
     enemy_nexus=Rect(900, 200, 120, 120),
     play_area=Rect(900, 500, 200, 200),
+    hand_region=Rect(1420, 855, 500, 225),
 )
 
 
@@ -22,13 +23,31 @@ def test_end_turn_click() -> None:
     assert plan.points == [(1750, 930)]
 
 
-def test_play_card_two_clicks() -> None:
+def test_play_card_drags_from_expanded_hand() -> None:
+    """展开态卡片平铺，直接拖到场上。"""
+    state = GameState(
+        hand=[CardInHand(0, "蜘蛛", 1, Rect(100, 1000, 80, 120))],
+        hand_expanded=True,
+    )
+    t = ActionTranslator(LAYOUT)
+    plan = t.translate(Action(type=ActionType.PLAY_CARD, card_index=0), state)
+    assert plan is not None
+    assert plan.drag
+    assert plan.points[0] == (140, 1060)
+    assert plan.points[1] == (1000, 600)
+
+
+def test_play_card_expands_collapsed_hand_first() -> None:
+    """收起态拖不动（实测 hold 120/300/800ms 全部无效），必须先 tap 展开。
+
+    展开后卡片位置全变，所以出牌拆成两帧：这一帧只展开，下一帧再拖。
+    """
     state = GameState(hand=[CardInHand(0, "蜘蛛", 1, Rect(100, 1000, 80, 120))])
     t = ActionTranslator(LAYOUT)
     plan = t.translate(Action(type=ActionType.PLAY_CARD, card_index=0), state)
     assert plan is not None
-    assert plan.points[0] == (140, 1060)
-    assert plan.points[1] == (1000, 600)
+    assert not plan.drag
+    assert plan.points == [(1670, 967)]
 
 
 def test_attack_uses_first_available_unit() -> None:

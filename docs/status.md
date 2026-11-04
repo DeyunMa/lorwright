@@ -1,6 +1,6 @@
 # 项目状态
 
-> 更新：2026-11-03
+> 更新：2026-11-04
 >
 > **要接手开发，先读 [`docs/handoff.md`](handoff.md)。** 这份只记状态，不记行动计划。
 
@@ -14,14 +14,16 @@
 | M3 | 自动走地图 | 待做 |
 | M4 | 跑完一个完整副本 | 待做 |
 
-## 运行环境（2026-11-03 实测）
+## 运行环境（2026-11-04 实测）
 
 | 项 | 值 |
 |---|---|
 | 模拟器 | BlueStacks 5.22.286.1004 |
-| 可用实例 | **`Pie64`（Android 9，1280×720，density 240）** |
-| ADB | `127.0.0.1:5555` |
-| LoR | `07.10.013`，已装、已登录，首次进入正在下载 3278 MB |
+| 可用实例 | **`Pie64`（Android 9，density 240）** |
+| 逻辑分辨率 | **1920×1080**（`adb shell wm size 1920x1080` 抬高；原生 1280×720 时手牌数字只有 ~10px，读不出） |
+| ADB | `127.0.0.1:5555`（与 `emulator-5554` 是同一台） |
+| LoR | `live_7-10-13`，账号 `mdy114514` |
+| 账号密码 | `.env` 的 `LOR_USERNAME` / `LOR_PASSWORD`（不入库；f1 另用 `setx` 写了用户环境变量） |
 
 **Android 11 的实例（`Rvc64` / `Rvc64_2`）跑不了 LoR**——启动 0.6 秒后
 `SIGSEGV`，崩在 ART 解释器的 invoke 路径（方法指针为空，`call [rdi+0x20]`
@@ -43,6 +45,9 @@
 | `perceive/digits.py` | 字形模板读数（多原型 + 旋转搜索），读不出返回 `None` |
 | `perceive/hand.py` | 手牌费用：环形掩码匹配徽章 + 倾斜字形识别 |
 | `perceive/state.py` | 截图 → `GameState`（法力 / 血量 / 手牌 / UI 状态） |
+| `perceive/normalize.py` | 分辨率解耦：按设计尺寸归一化后识别，动作坐标反算回设备像素 |
+| `perceive/login.py` | 登录界面检测（`login_splash` / `login_form`） |
+| `device/touch.py` | 输入原语：`TouchSurface.can_hold`、`EvdevSurface`（事件级手势）、`AdbInputSurface`（退化） |
 | `champions/elise/` | 伊莉絲英雄包：牌表 + 蜘蛛快攻规则 |
 | `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
 | `decide/card.py` | 卡牌通用词汇（CardKind / CardDef） |
@@ -58,17 +63,17 @@
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**118 个单测，ruff 全绿。**
+**143 个单测，ruff 全绿。**
 
 **已在真机验证**（BlueStacks `Pie64`，Android 9，横屏 1920×1080）：
 
 - `adb screencap` 正常，`input tap` 正常
-- LoR 启动、登录、进对局、打完整一局都正常
-- `lorwright state` 读出 `my_turn_idle / mana 2/2 / hp 50/30`，手牌 6 张费用 `0,0,2,2,5,5`
+- LoR 启动、登录、进对局、手动打完一局都正常
+- `lorwright state` 读出 `my_turn_idle / mana 2/2 / hp 50/30`，手牌 6 张费用 `0,0,2,2,5,5`（6/6 全对）
 - 起手换牌识别正常（`assets/buttons/mulligan.png`，1080p）
-- 动作按钮文字可判：`略過` / `結算`
-- 账号密码从 `.env`（`LOR_USERNAME` / `LOR_PASSWORD`）读取
-- **未跑通**：出牌手势（牌抓得起来、松手不落地，见 `handoff.md` §4.6）、场面识别
+- 动作按钮文字可判：`略過` / `略過格擋` / `結算` → `MY_TURN_IDLE` / `BLOCKING` / `COMBAT_RESOLVING`
+- 账号密码从 `.env` 读取，`lorwright login` 可用
+- **未跑通**：出牌手势（见 `handoff.md` §4.6 与 issue #9）、场面识别（issue #10）
 
 ### 一个容易误判的现象
 

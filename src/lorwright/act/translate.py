@@ -19,6 +19,7 @@ class ActionTranslator:
         drag_hold_ms: int = 120,
         drag_wait_ms: int = 600,
         tap_wait_ms: int = 400,
+        expand_wait_ms: int = 500,
     ) -> None:
         self.layout = layout
         #: LoR 手机版只认慢拖，快 swipe 会被当成滑动取消
@@ -26,6 +27,8 @@ class ActionTranslator:
         self.drag_hold_ms = drag_hold_ms
         self.drag_wait_ms = drag_wait_ms
         self.tap_wait_ms = tap_wait_ms
+        #: 点手牌到展开动画结束的等待
+        self.expand_wait_ms = expand_wait_ms
 
     def translate(self, action: Action, state: GameState) -> ClickPlan | None:
         if action.type is ActionType.NO_OP:
@@ -39,6 +42,16 @@ class ActionTranslator:
             )
 
         if action.type is ActionType.PLAY_CARD and action.card_index is not None:
+            # 收起态手牌斜叠、每张只露左边缘，**拖不动**（实测 hold 120/300/800ms
+            # 全部无效，但 tap 能展开）。必须先 tap 展开，下一帧在展开态再拖。
+            # 拆成两帧是有意的：展开后卡片位置全变，同一帧里算不出拖拽起点。
+            if not state.hand_expanded:
+                if self.layout.hand_region is None:
+                    return None
+                return ClickPlan(
+                    points=[self.layout.hand_region.center], wait_ms=self.expand_wait_ms
+                )
+
             card = next((c for c in state.hand if c.index == action.card_index), None)
             if card is None or self.layout.play_area is None:
                 return None

@@ -97,6 +97,22 @@ def test_hand_costs_from_live_frame() -> None:
     assert [c.cost for c in state.hand] == [3, 2, 5, 2, 6, 3]
 
 
+def test_expanded_hand_is_detected_as_expanded() -> None:
+    """展开态卡片大、位置明确、能拖；收起态只露左边缘、拖不动。
+
+    两套徽章模板（48px / 56px）互不匹配，所以「哪套认出来」就等于「哪个状态」。
+    """
+    state = _parser().parse(_load("1080p_hand_expanded.png"))
+    assert state.hand_expanded is True
+    assert len(state.hand) == 6
+
+
+def test_collapsed_hand_is_not_expanded() -> None:
+    state = _parser().parse(_load("1080p_hand_fan.png"))
+    assert state.hand_expanded is False
+    assert len(state.hand) == 6
+
+
 def test_block_phase_is_not_my_turn() -> None:
     """「略過格擋」也是同一块蓝色按钮，但这时手牌拖不动。
 

@@ -70,6 +70,8 @@ class ActConfig(BaseModel):
     drag_wait_ms: int = 600
     #: 单次点击后等待
     tap_wait_ms: int = 400
+    #: 点手牌到展开动画结束的等待。收起态拖不动，出牌前必须先展开
+    expand_wait_ms: int = 500
 
 
 class LayoutConfig(BaseModel):
@@ -80,6 +82,8 @@ class LayoutConfig(BaseModel):
     my_nexus: list[int] | None = None
     play_area: list[int] | None = None
     hand_region: list[int] | None = None
+    # 展开态手牌（tap 一下手牌后卡片平铺在屏幕下方，比收起态大得多）
+    hand_expanded: list[int] | None = None
     # 数字区域：水晶血量、法力
     enemy_hp: list[int] | None = None
     my_hp: list[int] | None = None
@@ -103,6 +107,7 @@ class LayoutConfig(BaseModel):
             my_nexus=self._rect(self.my_nexus),
             play_area=self._rect(self.play_area),
             hand_region=self._rect(self.hand_region),
+            hand_expanded=self._rect(self.hand_expanded),
             enemy_hp=self._rect(self.enemy_hp),
             my_hp=self._rect(self.my_hp),
             mana=self._rect(self.mana),

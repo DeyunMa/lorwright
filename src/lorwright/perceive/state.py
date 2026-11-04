@@ -59,7 +59,15 @@ class StateParser:
             self._my_hp = my_hp
         state.nexus_hp = self._my_hp
 
-        if lay.hand_region is not None:
+        # 先看展开态：展开后卡片大、位置明确、能拖；收起态只露左边缘拖不动。
+        # 两套模板互不匹配（48px vs 56px），所以「谁认出来」就等于「处于哪个状态」。
+        if lay.hand_expanded is not None:
+            expanded = hand_perceive.recognize_expanded(image, lay.hand_expanded, self.digits)
+            if expanded:
+                state.hand = expanded
+                state.hand_expanded = True
+
+        if not state.hand_expanded and lay.hand_region is not None:
             # 徽章阈值是 hand 模块自己的常量，不要传 perception.match_threshold：
             # 0.85 是卡面模板的阈值，用在这里会把上百个圆形装饰都当成徽章
             state.hand = hand_perceive.recognize(image, lay.hand_region, self.digits)

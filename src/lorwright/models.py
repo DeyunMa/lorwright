@@ -77,6 +77,9 @@ class GameState:
     mana: int = 0
     max_mana: int = 0
     hand: list[CardInHand] = field(default_factory=list)
+    #: 手牌是否处于展开态。收起态卡片斜叠、只露左边缘，**拖不动**；
+    #: 必须先 tap 展开才能拖出牌（2026-11-04 实测）
+    hand_expanded: bool = False
     my_units: list[Unit] = field(default_factory=list)
     enemy_units: list[Unit] = field(default_factory=list)
     nexus_hp: int = 20
@@ -103,6 +106,7 @@ class Layout:
     my_nexus: Rect | None = None
     play_area: Rect | None = None
     hand_region: Rect | None = None
+    hand_expanded: Rect | None = None
     enemy_hp: Rect | None = None
     my_hp: Rect | None = None
     mana: Rect | None = None

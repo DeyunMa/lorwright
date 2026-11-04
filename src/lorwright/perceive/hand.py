@@ -48,6 +48,9 @@ EXPANDED_MIN_DIST = 120
 _GLYPH_RAD = 16
 #: 白字判据：三通道都不低于它才算「白」（蓝底 ~(20,60,140)，青环缺 R 通道）
 _WHITE_MIN = 170
+#: 0 费卡的数字是**绿色**的（R/B 都很低），白字判据抠不出来，单独认一路
+_GREEN_MIN = 180
+_GREEN_MAX_RB = 120
 #: 字形已按主轴扶正，只剩估算误差，小范围搜索就够
 _ROTATIONS = tuple(range(-8, 9, 2))
 #: 拖拽起点相对徽章中心的偏移：徽章在卡片左上角，卡身朝右下
@@ -111,13 +114,11 @@ def _tilt(glyph: np.ndarray) -> float:
     if m["mu20"] + m["mu02"] < 1e-6:
         return 0.0
     ang = 0.5 * np.degrees(np.arctan2(2 * m["mu11"], m["mu20"] - m["mu02"]))
-    # 主轴角以 180° 为周期：-87° 和 +93° 是同一个方向。不统一到 [0,180)，
-    # 展开态会算出负角、旋转方向相反，同一个字形就匹配不上模板了
-    # （实测 3 张卡因此读不出费用）。
-    if ang < 0:
-        ang += 180.0
-    # 数字是竖长的：主轴偏向 x 轴时说明差了 90°，转回来
-    return ang if m["mu20"] < m["mu02"] else ang - 90.0
+    # 主轴角以 180° 为周期，且数字是竖长的：主轴接近 ±90°，真正要的是
+    # 「相对竖直的倾角」。折回 (-45, 45] 就是它——手牌扇形倾斜不会超过 ±45°。
+    # 直接返回主轴角（75~90°）会让字形被转躺下，同数字的不同倾斜样本还会
+    # 转到不同方向（86° vs 94°），匹配全靠模板碰巧同向，非常脆。
+    return (ang + 45.0) % 90.0 - 45.0
 
 
 def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD):
@@ -132,7 +133,11 @@ def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD
     if patch.shape[:2] != (rad * 2, rad * 2):
         return None
 
-    white = (patch.min(axis=2) >= _WHITE_MIN).astype(np.uint8) * 255
+    blue, green, red = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
+    lit = (patch.min(axis=2) >= _WHITE_MIN) | (
+        (green >= _GREEN_MIN) & (red <= _GREEN_MAX_RB) & (blue <= _GREEN_MAX_RB)
+    )
+    white = lit.astype(np.uint8) * 255
     yy, xx = np.mgrid[0 : rad * 2, 0 : rad * 2]
     c = rad - 0.5
     white[np.hypot(xx - c, yy - c) > rad - 2] = 0   # 只留圆盘内部，排除外环

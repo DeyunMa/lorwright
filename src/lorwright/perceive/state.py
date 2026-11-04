@@ -33,6 +33,9 @@ class StateParser:
         #: 上次读成功的血量。数字被特效遮住时沿用旧值，比跳回默认值安全。
         self._my_hp = DEFAULT_NEXUS_HP
         self._enemy_hp = DEFAULT_NEXUS_HP
+        #: 上次读成功的法力。读到 0 和读不出来是两回事：前者是没费了，
+        #: 后者是数字被特效/动画盖住——当成 0 会让策略白白跳过一回合。
+        self._mana = 0
 
     def load(self) -> None:
         self.ui.load()
@@ -44,10 +47,11 @@ class StateParser:
 
         mana = self._read(image, lay.mana)
         if mana is not None:
-            state.mana = mana
-            # 法力上限暂时跟着当前法力走：出牌判定只用到 mana，
-            # 真正的宝石计数要等 pips 模板（见 docs/handoff.md §2）
-            state.max_mana = mana
+            self._mana = mana
+        state.mana = self._mana
+        # 法力上限暂时跟着当前法力走：出牌判定只用到 mana，
+        # 真正的宝石计数要等 pips 模板（见 docs/handoff.md §2）
+        state.max_mana = self._mana
 
         enemy_hp = self._read(image, lay.enemy_hp)
         if enemy_hp is not None:
@@ -73,7 +77,7 @@ class StateParser:
             state.hand = hand_perceive.recognize(image, lay.hand_region, self.digits)
 
         if state.ui_state is not UIState.MULLIGAN and mana is None:
-            logger.debug("法力读不出来（区域 {}），本帧按 0 处理", lay.mana)
+            logger.debug("法力读不出来（区域 {}），沿用上次值 {}", lay.mana, self._mana)
         return state
 
     def _read(self, image: np.ndarray, rect) -> int | None:

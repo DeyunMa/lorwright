@@ -233,3 +233,14 @@ def test_needs_target_survives_hand_size_change() -> None:
         hand=[CardInHand(index=0, name="", cost=0, rect=RECT)],
     )
     assert policy.decide(shorter).type is ActionType.END_TURN
+
+
+def test_combat_resolving_confirms() -> None:
+    """「結算」按钮答案唯一：点一下就往下走。
+
+    不处理会一直 no_op —— 实机在战斗结算界面卡了 13 个 tick，
+    引擎按「状态不明不点击」空转，看起来像卡死。
+    """
+    action = POLICY.decide(GameState(ui_state=UIState.COMBAT_RESOLVING))
+    assert action is not None
+    assert action.type is ActionType.CONFIRM

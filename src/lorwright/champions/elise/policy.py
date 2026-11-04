@@ -135,6 +135,11 @@ class SpiderAggroPolicy(Policy):
         if state.ui_state is UIState.BLOCKING:
             return self._block(state)
 
+        # 「結算」= 战斗结算/提交声明，答案唯一，点一下就走。
+        # 不处理会一直 no_op 卡死（实机卡过 13 个 tick）。
+        if state.ui_state is UIState.COMBAT_RESOLVING:
+            return Action(type=ActionType.CONFIRM)
+
         # 「選擇目標」说明上一 tick 拖出的牌要选目标（例如冥血戰要求击杀友军）。
         # 这个状态下拖手牌没反应，先取消；取消后手牌没减少，
         # _settle_previous_play 会把那张牌记成不可用，下次换一张。

@@ -21,6 +21,7 @@ buff 光效、装备图标、选中高亮都会改变像素，同一张截图里
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import cv2
@@ -39,14 +40,31 @@ __all__ = [
 ]
 
 #: 攻击力方块的橙色（OpenCV HSV：H 0-180）。实测我方/敌方中位 H 都是 13-15。
+#:
+#: 试过把下限放到 H=5 去捞「攻击行橙→红渐变」的方块（7|9 那只的 H 分位
+#: 是 7/18/177），结果相邻的橙色元素全部连通：敌方从 3 个掉到 2 个、
+#: 我方从 5 个掉到 3 个。色域不能再放宽，攻击行的个别单位宁可漏检。
 ATTACK_ORANGE = ((8, 150, 140), (30, 255, 255))
 #: 真方块实测 62×44、面积 1700-2200。下限 1400 能滤掉卡面上的 buff 图标
 #: （面积 250-1150）和装备标记，又不至于因为数字变化把真方块排除。
 ATTACK_BLOCK_MIN_AREA = 1400
-#: 尺寸窗口。高度是最稳的判据：真方块恒为 43-44，误检全是 19-39。
-ATTACK_BLOCK_SIZE = (50, 80, 40, 48)  # (w_min, w_max, h_min, h_max)
+#: 尺寸窗口 (w_min, w_max, h_min, h_max)。
+#:
+#: 待命单位的方块实测 60-62 × 43-44。但**攻击行**的单位方块外面多一层
+#: 描边，实测 68 × 59；只按 43-44 卡高度会把正在攻击的单位全部漏掉，
+#: 格挡阶段就找不到该拖到哪儿。上限放到 90×70 覆盖这层描边，
+#: 下限 35 仍然能滤掉卡面装饰（误检实测 19-39 高）。
+#:
+#: 另有一种情况这个窗口管不了：单位整圈套着「攻击中」橙色高亮时，
+#: 高亮和攻击力方块连通成一个 150×250 的大块（实测 7|9 那只）。
+#: 那需要单独按「高亮框」处理，见 `_find_highlighted`。
+ATTACK_BLOCK_SIZE = (50, 90, 35, 70)
 #: 同一单位卡上会出现第二个橙色元素（buff 图标），实测间距 68-95px；
 #: 正常单位间距 163px。100 能在两者之间干净切开。
+#:
+#: 注意是**欧氏距离**不是 x 距离。待命位和攻击行是上下两排，同一列的
+#: 两个单位 x 只差 60-80（实测 4|6 在 x=926、它正下方的 4|3 在 x=1004），
+#: 只比 x 会把下面那个当成上面那个卡面上的图标丢掉。
 UNIT_MIN_DIST = 100
 
 #: 我方方块在卡面顶部，拖拽点要落到卡身中部才抓得住
@@ -109,7 +127,9 @@ def find_unit_badges(
     candidates.sort(key=lambda b: -b.score)
     kept: list[UnitBadge] = []
     for badge in candidates:
-        if all(abs(badge.center[0] - k.center[0]) >= UNIT_MIN_DIST for k in kept):
+        if all(
+            math.dist(badge.center, k.center) >= UNIT_MIN_DIST for k in kept
+        ):
             kept.append(badge)
     kept.sort(key=lambda b: b.center[0])
     return kept

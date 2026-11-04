@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from lorwright.champions.elise.deck import Effect, EliseCard, lookup
 from lorwright.decide.base import Policy
-from lorwright.decide.combat import best_attack, to_combatant
 from lorwright.models import Action, ActionType, CardInHand, GameState, UIState
 
 
@@ -112,9 +111,6 @@ def _units_in_attack_row(state: GameState) -> bool:
 class SpiderAggroPolicy(Policy):
     name = "elise_spider_aggro"
     version = "0.3.0"
-
-    #: 快攻 + 恐惧穿透：脸伤比换血值钱。默认 3.0，这套牌调高。
-    nexus_weight: float = 4.0
 
     def __init__(self) -> None:
         #: 上一 tick 打出的手牌序号。用来发现「拖了但没出成」。
@@ -221,44 +217,25 @@ class SpiderAggroPolicy(Policy):
         if not state.has_attack_token:
             return None
 
-        # 攻击力/生命值还没识别（units.py 只给了位置）—— 不做求解，
-        # 全体压上。蜘蛛 aggro 本来就是铺完场换脸，这里宁可粗糙也不要
-        # 把「不知道」当成 0 攻击力而白站一回合。
-        if not state.my_units:
-            return None
-        if any(u.attack < 0 for u in state.my_units):
-            return Action(
-                type=ActionType.ATTACK,
-                target="nexus",
-                raw={"attackers": list(range(len(state.my_units)))},
-            )
-
-        challenger = state.my_units_have_challenger
-        attackers = [
-            to_combatant(u, challenger=challenger) for u in state.my_units if u.can_attack
-        ]
+        # 蜘蛛快攻：**全员压上**，不做「最优子集」求解。
+        #
+        # 求解器 `decide.combat.best_attack` 只看攻/血两个数，算不出这套牌
+        # 真正吃的东西：
+        #   - 伊莉絲「攻擊：召喚 1 隻攻擊中的小蜘蛛」—— 她参战就白赚一个单位，
+        #     站着不动等于每回合扔掉一只蜘蛛；
+        #   - 尖嘯蜘蛛「攻擊：本回合全體蜘蛛 +2|+0」；
+        #   - 恐惧让对面攻击力 <3 的单位根本挡不了。
+        # 它按「脸伤×权重 − 阵亡价值」评分，天然倾向只派一两个去换，实战表现
+        # 就是每回合只有一个单位冲上去，英雄卡一直站着。用户多次指出这一点。
+        #
+        # 快攻要的是持续施压和触发次数，不是每回合算一次最优交换。所以这里
+        # 跳过求解：能攻击的全部参战。攻击力还没识别（-1）时也一样。
+        attackers = [i for i, u in enumerate(state.my_units) if u.can_attack]
         if not attackers:
             return None
-
-        blockers = [to_combatant(u) for u in state.enemy_units]
-        plan = best_attack(
-            attackers,
-            blockers,
-            nexus_weight=self.nexus_weight,
-            challenger=challenger,
-        )
-
-        # 求解器算出所有声明都不划算（比如拿 1/1 白喂 5/5）→ 不打
-        if not plan.attackers or plan.score <= 0:
-            return None
-
         return Action(
             type=ActionType.ATTACK,
             target="nexus",
-            raw={
-                "attackers": list(plan.attackers),
-                "nexus_damage": plan.nexus_damage,
-                "score": plan.score,
-            },
+            raw={"attackers": attackers},
         )
 

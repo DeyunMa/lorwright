@@ -132,11 +132,26 @@ def test_attacks_when_board_is_empty_and_worth_it():
     action = POLICY.decide(state)
     assert action is not None
     assert action.type is ActionType.ATTACK
-    assert action.raw["nexus_damage"] == 2
+    assert action.raw["attackers"] == [0]
 
 
-def test_does_not_attack_into_a_bad_trade():
-    """拿 1/1 去喂 5/5 是白送，求解器应该拒绝。"""
+def test_attacks_even_into_an_unfavourable_trade():
+    """1/1 打 5/5 也要上 —— 这条 2026-11-04 反转了，之前是「不打」。
+
+    旧逻辑把声明交给 `decide.combat.best_attack` 求最优子集，按
+    「脸伤×权重 − 阵亡价值」评分。问题是它只看攻/血两个数，算不出这套牌
+    真正吃的东西：
+
+      - 伊莉絲「攻擊：召喚 1 隻攻擊中的小蜘蛛」—— 参战就白赚一个单位；
+      - 尖嘯蜘蛛「攻擊：本回合全體蜘蛛 +2|+0」；
+      - 恐惧让对面攻击力 <3 的单位根本挡不了。
+
+    而且按那套评分，几乎每回合都只会派一两个单位去换，英雄卡长期站着
+    不动。用户多次指出「没看到伊莉絲攻击过」。
+
+    蜘蛛快攻要的是持续施压和触发次数，不是每回合算一次最优交换，所以
+    现在能攻击的全部参战。
+    """
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         my_units=[unit("小蜘蛛", 1, 1)],
@@ -145,7 +160,27 @@ def test_does_not_attack_into_a_bad_trade():
     )
     action = POLICY.decide(state)
     assert action is not None
-    assert action.type is ActionType.END_TURN
+    assert action.type is ActionType.ATTACK
+    assert action.raw["attackers"] == [0]
+
+
+def test_every_unit_attacks_together():
+    """全员压上：场上所有能攻击的单位都进 attackers，不是只挑一个。"""
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        my_units=[
+            unit("伊莉絲", 2, 3),
+            unit("小蜘蛛", 1, 1),
+            unit("小蜘蛛", 1, 1),
+            unit("尖嘯蜘蛛", 2, 4),
+        ],
+        enemy_units=[unit("大块头", 5, 5)],
+        has_attack_token=True,
+    )
+    action = POLICY.decide(state)
+    assert action is not None
+    assert action.type is ActionType.ATTACK
+    assert action.raw["attackers"] == [0, 1, 2, 3]
 
 
 def test_attacks_with_challenger_when_elise_is_leveled():
@@ -186,7 +221,6 @@ def test_lethal_attack_is_taken():
     action = POLICY.decide(state)
     assert action is not None
     assert action.type is ActionType.ATTACK
-    assert action.raw["nexus_damage"] >= 7
     assert action.raw["attackers"] == [0, 1]
 
 

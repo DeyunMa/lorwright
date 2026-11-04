@@ -167,3 +167,18 @@ def test_small_glyph_generalizes_or_refuses() -> None:
     assert reader.read(_load("720p_map.png"), Rect(375, 670, 16, 20)) == 6
     # 主菜单金币 155753 里有 7，字形库里没有 7 → 整串拒读
     assert reader.read(_load("720p_main_menu.png"), Rect(395, 18, 85, 28)) is None
+
+
+def test_targeting_button_is_detected() -> None:
+    """「選擇目標」按钮是深色半透明的（蓝色占比 <0.45），只能靠文字认出来。
+
+    实机栽过：文字判断被套在「蓝色占比 ≥0.45」里面，这个按钮永远进不去，
+    整个状态落到 UNKNOWN，策略按「状态不明不点击」空转到引擎停。
+    """
+    from lorwright.perceive.ui_state import UIStateDetector
+
+    detector = UIStateDetector(action_button=Rect(1680, 470, 132, 132))
+    detector.load()
+    frame = cv2.imread("tests/fixtures/screens/1080p_targeting.png")
+    assert frame is not None
+    assert detector.detect(frame) is UIState.TARGETING

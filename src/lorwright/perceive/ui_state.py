@@ -48,9 +48,10 @@ class UIStateDetector:
     优先级：
       1. 模板匹配 mulligan → MULLIGAN（必须最先：它和动作按钮同位置同颜色）
       2. 模板匹配 victory/defeat → BATTLE_END
-      3. 动作按钮蓝色占比 → MY_TURN_IDLE
-      4. 模板匹配 enemy_turn → ENEMY_TURN
-      5. 都没有 → UNKNOWN
+      3. 动作按钮文字 → 对应状态（文字优先，见下方注释）
+      4. 动作按钮蓝色占比 → MY_TURN_IDLE
+      5. 模板匹配 enemy_turn → ENEMY_TURN
+      6. 都没有 → UNKNOWN
     """
 
     #: 动作按钮文字 → UI 状态
@@ -127,11 +128,15 @@ class UIStateDetector:
         if "defeat" in t and exists(frame, t["defeat"], self.threshold):
             return UIState.BATTLE_END
 
-        # 3. 动作按钮：颜色 + 文字
+        # 3. 动作按钮：**先读文字，再看颜色**。
+        #    「選擇目標」按钮是深色半透明的，蓝色占比只有 0.2 上下，
+        #    先判颜色会把整个状态漏掉；文字模板区分度很高（实测 1.00 vs ≤0.51），
+        #    先读文字更可靠，颜色只用来兜底「认不出字但按钮在」的情况。
+        by_text = self.action_text(frame)
+        if by_text is not None:
+            return by_text
+
         if self.action_button and blue_ratio(frame, self.action_button) >= MIN_BLUE_RATIO:
-            by_text = self.action_text(frame)
-            if by_text is not None:
-                return by_text
             return UIState.MY_TURN_IDLE
 
         # 4. 对手回合

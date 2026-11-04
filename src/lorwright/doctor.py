@@ -46,7 +46,9 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
     if adb_ok:
         from lorwright.device.adb import AdbDevice
 
-        serials = AdbDevice.list_devices(settings.adb.adb_path)
+        serials = AdbDevice.list_devices(
+            settings.adb.adb_path, connect=settings.adb.serial or None
+        )
         checks.append(
             Check("ADB 设备", bool(serials), f"{len(serials)} 台: {', '.join(serials[:3])}" if serials else "未连接",
                   "手机开 USB 调试并允许；模拟器先启动")

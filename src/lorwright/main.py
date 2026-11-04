@@ -37,10 +37,13 @@ def _make_device(kind: str):
 
 @app.command()
 def devices() -> None:
-    """列出已连接的 ADB 设备。"""
+    """列出已连接的 ADB 设备（配了 serial 会先自动 connect）。"""
     from lorwright.device.adb import AdbDevice
 
-    serials = AdbDevice.list_devices()
+    settings = load_settings()
+    serials = AdbDevice.list_devices(
+        settings.adb.adb_path, connect=settings.adb.serial or None
+    )
     if not serials:
         console.print("[yellow]没有检测到 ADB 设备[/yellow]")
         console.print("检查：USB 调试是否开启、是否点了「允许」、数据线是否支持数据传输")

@@ -68,18 +68,33 @@ class AdbDevice:
     # ---- 设备发现 ----
 
     @staticmethod
-    def list_devices(adb: str = "adb") -> list[str]:
-        try:
-            out = subprocess.run(
-                [adb, "devices"], capture_output=True, text=True, timeout=10, check=False
-            ).stdout
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return []
-        serials = []
-        for line in out.splitlines()[1:]:
-            parts = line.split()
-            if len(parts) >= 2 and parts[1] == "device":
-                serials.append(parts[0])
+    def list_devices(adb: str = "adb", connect: str | None = None) -> list[str]:
+        """列出已连接设备。
+
+        `connect` 用于网络设备（模拟器）：adb daemon 会随发起它的会话消失，
+        重连一次再列，否则调用方会误判成「没有设备」。
+        """
+
+        def _scan() -> list[str]:
+            try:
+                out = subprocess.run(
+                    [adb, "devices"], capture_output=True, text=True, timeout=10, check=False
+                ).stdout
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return []
+            found = []
+            for line in out.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == "device":
+                    found.append(parts[0])
+            return found
+
+        serials = _scan()
+        if not serials and connect and ":" in connect:
+            subprocess.run(
+                [adb, "connect", connect], capture_output=True, timeout=15, check=False
+            )
+            serials = _scan()
         return serials
 
     # ---- Device 接口 ----

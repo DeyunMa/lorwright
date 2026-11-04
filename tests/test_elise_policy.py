@@ -5,7 +5,9 @@ from __future__ import annotations
 from lorwright.champions.elise import SpiderAggroPolicy
 from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
-RECT = Rect(0, 0, 10, 10)
+# 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
+# 用 (0,0) 会被误判成已经声明过攻击
+RECT = Rect(0, 900, 10, 10)
 POLICY = SpiderAggroPolicy()
 
 

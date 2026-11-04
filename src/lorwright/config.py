@@ -81,6 +81,13 @@ class LayoutConfig(BaseModel):
     enemy_nexus: list[int] | None = None
     my_nexus: list[int] | None = None
     play_area: list[int] | None = None
+    # 场上单位：靠卡面攻击力徽章定位（perceive/units.py）
+    my_board: list[int] | None = None
+    enemy_board: list[int] | None = None
+    # 攻击声明落点：把单位拖到分隔线上方这一带，单位会吸附到攻击行
+    attack_row: list[int] | None = None
+    # 攻击令牌箭头（动作按钮左侧的橙色箭头）
+    attack_token: list[int] | None = None
     hand_region: list[int] | None = None
     # 展开态手牌（tap 一下手牌后卡片平铺在屏幕下方，比收起态大得多）
     hand_expanded: list[int] | None = None
@@ -106,6 +113,10 @@ class LayoutConfig(BaseModel):
             enemy_nexus=self._rect(self.enemy_nexus),
             my_nexus=self._rect(self.my_nexus),
             play_area=self._rect(self.play_area),
+            my_board=self._rect(self.my_board),
+            enemy_board=self._rect(self.enemy_board),
+            attack_row=self._rect(self.attack_row),
+            attack_token=self._rect(self.attack_token),
             hand_region=self._rect(self.hand_region),
             hand_expanded=self._rect(self.hand_expanded),
             enemy_hp=self._rect(self.enemy_hp),

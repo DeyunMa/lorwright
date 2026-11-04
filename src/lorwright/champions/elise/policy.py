@@ -87,6 +87,15 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
     return playable
 
 
+#: 单位被拖到攻击行（或格挡位）后 y 中心约 710；平躺在己方半场时约 930。
+#: 用它区分「还没声明」和「已声明、等确认」—— 后者按钮是「確認」，状态机认不出来。
+ATTACK_ROW_MAX_Y = 800
+
+
+def _units_in_attack_row(state: GameState) -> bool:
+    return any(u.rect.center[1] < ATTACK_ROW_MAX_Y for u in state.my_units)
+
+
 class SpiderAggroPolicy(Policy):
     name = "elise_spider_aggro"
     version = "0.2.0"
@@ -98,8 +107,17 @@ class SpiderAggroPolicy(Policy):
         # P0 守卫：没有优先权时，唯一合法的动作就是不动。
         # 返回 NO_OP 而不是 None —— 弃权会把请求送去 JEV，
         # 对手回合每一帧都白烧一次网络调用。
+        if state.ui_state is UIState.BLOCKING:
+            return self._block(state)
+
         if state.ui_state is not UIState.MY_TURN_IDLE:
             return Action(type=ActionType.NO_OP)
+
+        # 单位已经被拖到攻击行 → 按钮已变成「確認」，下一步只能确认。
+        # 用位置判断而不是按钮文字：拖完的按钮是「確認」，状态机认不出它，
+        # 但攻击行的单位 y 坐标（≈710）和平躺的（≈930）差得很开。
+        if state.my_units and _units_in_attack_row(state):
+            return Action(type=ActionType.CONFIRM)
 
         # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
         ranked = rank_playable(state)
@@ -115,9 +133,35 @@ class SpiderAggroPolicy(Policy):
         # P4-d 收尾
         return Action(type=ActionType.END_TURN)
 
+    def _block(self, state: GameState) -> Action:
+        """对手攻击中。已经挡好了就确认，否则一挡一。"""
+        if _units_in_attack_row(state):
+            return Action(type=ActionType.CONFIRM)
+        if not state.my_units or not state.enemy_units:
+            # 没兵可挡：只能放行（点「略過格擋」= 结束回合按钮）
+            return Action(type=ActionType.END_TURN)
+        # 从后往前配：先用攻击力最高的挡，剩小的挡剩下的
+        pairs = [
+            (i, i)
+            for i in range(min(len(state.my_units), len(state.enemy_units)))
+        ]
+        return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
+
     def _attack(self, state: GameState) -> Action | None:
         if not state.has_attack_token:
             return None
+
+        # 攻击力/生命值还没识别（units.py 只给了位置）—— 不做求解，
+        # 全体压上。蜘蛛 aggro 本来就是铺完场换脸，这里宁可粗糙也不要
+        # 把「不知道」当成 0 攻击力而白站一回合。
+        if not state.my_units:
+            return None
+        if any(u.attack < 0 for u in state.my_units):
+            return Action(
+                type=ActionType.ATTACK,
+                target="nexus",
+                raw={"attackers": list(range(len(state.my_units)))},
+            )
 
         challenger = state.my_units_have_challenger
         attackers = [

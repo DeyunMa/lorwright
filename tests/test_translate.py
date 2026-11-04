@@ -12,6 +12,7 @@ LAYOUT = Layout(
     end_turn=Rect(1700, 900, 100, 60),
     enemy_nexus=Rect(900, 200, 120, 120),
     play_area=Rect(900, 500, 200, 200),
+    attack_row=Rect(700, 470, 520, 70),
     hand_region=Rect(1420, 855, 500, 225),
 )
 
@@ -51,11 +52,14 @@ def test_play_card_expands_collapsed_hand_first() -> None:
 
 
 def test_attack_uses_first_available_unit() -> None:
-    state = GameState(my_units=[Unit("s", 2, 2, Rect(400, 600, 80, 80))])
+    state = GameState(my_units=[Unit("s", 2, 2, Rect(400, 890, 80, 80))])
     t = ActionTranslator(LAYOUT)
     plan = t.translate(Action(type=ActionType.ATTACK, target="nexus"), state)
     assert plan is not None
-    assert plan.points[0] == (440, 640)
+    # 起点是单位卡身，落点是攻击行（分隔线上方），不是敌方水晶
+    assert plan.points[0] == (440, 930)
+    assert plan.points[1] == (960, 505)
+    assert plan.drag
 
 
 def test_missing_layout_returns_none() -> None:

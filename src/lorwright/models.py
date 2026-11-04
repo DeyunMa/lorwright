@@ -36,6 +36,8 @@ class UIState(StrEnum):
 class ActionType(StrEnum):
     PLAY_CARD = "play_card"
     ATTACK = "attack"
+    BLOCK = "block"          # 声明格挡：把单位拖到敌方攻击单位上
+    CONFIRM = "confirm"      # 点动作按钮确认（攻擊/格擋声明后的「確認」）
     END_TURN = "end_turn"
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
@@ -105,6 +107,13 @@ class Layout:
     enemy_nexus: Rect | None = None
     my_nexus: Rect | None = None
     play_area: Rect | None = None
+    # 场上单位区域（靠攻击力徽章定位）
+    my_board: Rect | None = None
+    enemy_board: Rect | None = None
+    # 攻击声明落点（分隔线上方）
+    attack_row: Rect | None = None
+    # 攻击令牌箭头（动作按钮左侧）
+    attack_token: Rect | None = None
     hand_region: Rect | None = None
     hand_expanded: Rect | None = None
     enemy_hp: Rect | None = None

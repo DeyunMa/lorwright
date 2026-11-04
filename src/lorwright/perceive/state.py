@@ -9,7 +9,9 @@ from __future__ import annotations
 import numpy as np
 
 from lorwright.models import GameState, Layout, UIState
+from lorwright.perceive import attack_token
 from lorwright.perceive import hand as hand_perceive
+from lorwright.perceive import units as units_perceive
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.logger import logger
@@ -75,6 +77,21 @@ class StateParser:
             # 徽章阈值是 hand 模块自己的常量，不要传 perception.match_threshold：
             # 0.85 是卡面模板的阈值，用在这里会把上百个圆形装饰都当成徽章
             state.hand = hand_perceive.recognize(image, lay.hand_region, self.digits)
+
+        # 场上单位：只认位置，攻击力/生命值留 -1（留给战斗求解器读）
+        if lay.my_board is not None:
+            state.my_units = units_perceive.to_units(
+                units_perceive.find_unit_badges(image, lay.my_board)
+            )
+        if lay.enemy_board is not None:
+            state.enemy_units = units_perceive.to_units(
+                units_perceive.find_unit_badges(image, lay.enemy_board, enemy=True),
+                enemy=True,
+            )
+
+        # 只有轮到自己行动时令牌才有意义；对手攻击时的箭头长一样，但那时是 BLOCKING
+        if state.ui_state is UIState.MY_TURN_IDLE and lay.attack_token is not None:
+            state.has_attack_token = attack_token.has_attack_token(image, lay.attack_token)
 
         if state.ui_state is not UIState.MULLIGAN and mana is None:
             logger.debug("法力读不出来（区域 {}），沿用上次值 {}", lay.mana, self._mana)

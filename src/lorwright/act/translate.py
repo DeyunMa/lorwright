@@ -65,7 +65,10 @@ class ActionTranslator:
             )
 
         if action.type is ActionType.ATTACK:
-            target = self.layout.enemy_nexus
+            # 实测（2026-11-04）：把单位拖到分隔线上方（y≈500）就声明攻击，
+            # 单位吸附到攻击行；拖到敌方水晶反而无效。拖完按钮变「確認」，
+            # 需要下一帧再发 CONFIRM——拖拽和确认不能挤在同一帧。
+            target = self.layout.attack_row
             if target is None:
                 return None
             wanted = action.raw.get("attackers") if action.raw else None
@@ -75,7 +78,6 @@ class ActionTranslator:
                 attackers = [u for u in state.my_units if u.can_attack][:1]
             if not attackers:
                 return None
-            # LoR 手机版：把每个单位拖到敌方水晶就是声明攻击
             drags = tuple((u.rect.center, target.center) for u in attackers)
             return ClickPlan(
                 points=[drags[0][0], drags[0][1]],
@@ -85,5 +87,37 @@ class ActionTranslator:
                 drag_hold_ms=self.drag_hold_ms,
                 drags=drags,
             )
+
+        if action.type is ActionType.BLOCK:
+            # 格挡 = 把单位拖到敌方攻击单位上，单位会吸附到它正下方；
+            # 被挡住的攻击不再打水晶（伤害预览数字实时下降）。
+            pairs = action.raw.get("pairs") if action.raw else None
+            if not pairs:
+                return None
+            drags = []
+            for blocker_index, attacker_index in pairs:
+                if blocker_index >= len(state.my_units) or attacker_index >= len(state.enemy_units):
+                    continue
+                drags.append(
+                    (
+                        state.my_units[blocker_index].rect.center,
+                        state.enemy_units[attacker_index].rect.center,
+                    )
+                )
+            if not drags:
+                return None
+            return ClickPlan(
+                points=[drags[0][0], drags[0][1]],
+                wait_ms=self.drag_wait_ms,
+                drag=True,
+                drag_ms=self.drag_ms,
+                drag_hold_ms=self.drag_hold_ms,
+                drags=tuple(drags),
+            )
+
+        if action.type is ActionType.CONFIRM:
+            if not self.layout.end_turn:
+                return None
+            return ClickPlan(points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms)
 
         return None

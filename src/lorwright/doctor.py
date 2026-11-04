@@ -153,6 +153,23 @@ def _device_checks(settings: Settings, device) -> list[Check]:
     except Exception as e:  # noqa: BLE001
         out.append(Check("输入后端", False, f"{type(e).__name__}: {e}", "检查 adb 权限"))
 
+    # 前台是不是 LoR：不在游戏里时，下面所有感知结论都没有意义
+    package = settings.adb.package
+    try:
+        focus = device.current_focus()
+    except Exception as e:  # noqa: BLE001
+        focus = f"{type(e).__name__}: {e}"
+    in_game = package in focus
+    out.append(
+        Check(
+            "游戏在前台", in_game,
+            "是" if in_game else (focus[-60:] or "取不到前台窗口"),
+            "跑 `lorwright launch` 启动游戏",
+        )
+    )
+    if not in_game:
+        return out
+
     # 登录态：卡在登录页时 ui_state 只能是 UNKNOWN，会表现为「什么都不做」
     try:
         from lorwright.perceive.login import LoginDetector, LoginScreen
@@ -163,7 +180,7 @@ def _device_checks(settings: Settings, device) -> list[Check]:
         out.append(
             Check(
                 "登录态", kind is LoginScreen.NONE,
-                {"none": "已登录 / 不在登录界面", "splash": "停在登录页",
+                {"none": "已登录", "splash": "停在登录页",
                  "form": "停在账号密码表单"}[kind.value],
                 "跑 `lorwright login`（账号从 .env 的 LOR_USERNAME/LOR_PASSWORD 读）",
             )

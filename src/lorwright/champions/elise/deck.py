@@ -56,6 +56,8 @@ class EliseCard(CardDef):
 SPIDER_AGGRO: tuple[EliseCard, ...] = (
     EliseCard("小蜘蛛", "Spiderling", 1, 1, 1),
     EliseCard(
+        # 基础费用 1；英雄之路里常被能力减到 0（牌面显示 0），
+        # 但牌表记的是基础值，减费属于对局状态。
         "闇影島泰爾石",
         "Shadow Isles Tellstones",
         1,

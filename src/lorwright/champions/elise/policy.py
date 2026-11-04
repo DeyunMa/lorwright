@@ -48,8 +48,10 @@ def score(card: EliseCard, *, spiders_on_board: int, enemy_max_attack: int) -> f
         # 伊莉絲：攻击时白赚一只小蜘蛛
         bonus = card.summons * 2
     elif card.effect is Effect.GENERATE_CHOICE:
-        # 泰爾石：1 费换一张 +2|+2，灵活度折 3 分
-        bonus = 3.0
+        # 泰爾石：三选一虽然灵活，但要占掉一次出牌节奏，还要多两次点击。
+        # 蜘蛛快攻要的是「这回合就把蜘蛛铺上去」，所以给负分排到最后，
+        # 只有实在没别的牌可出时才会轮到它（用户明确要求不要默认打它）。
+        bonus = -5.0
 
     return base + bonus - card.cost * 1.5
 

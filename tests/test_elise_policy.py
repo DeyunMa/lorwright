@@ -251,3 +251,19 @@ def test_mulligan_confirms_without_swapping() -> None:
     action = POLICY.decide(GameState(ui_state=UIState.MULLIGAN))
     assert action is not None
     assert action.type is ActionType.CONFIRM
+
+
+def test_tellstones_rank_last_behind_units() -> None:
+    """泰爾石要排在有身材的牌后面。
+
+    实机连出两轮 0 费泰爾石、一个单位都没铺上去，就是因为它的评分
+    （bonus 3.0、费用按 1 算）高于 1 费小蜘蛛。用户明确要求不要默认打它。
+    """
+    from lorwright.champions.elise.deck import lookup
+    from lorwright.champions.elise.policy import score
+
+    tellstones = lookup("闇影島泰爾石")
+    spiderling = lookup("小蜘蛛")
+    assert tellstones is not None and spiderling is not None
+    kwargs = {"spiders_on_board": 0, "enemy_max_attack": 0}
+    assert score(tellstones, **kwargs) < score(spiderling, **kwargs)

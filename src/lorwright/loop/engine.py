@@ -130,6 +130,9 @@ class Engine:
                     clicks=clicks,
                     stuck=stuck,
                     ms=elapsed_ms,
+                    # 决策依据：事后能看出「为什么没出牌」，不然只能靠复现
+                    mana=state.mana,
+                    hand=[c.cost for c in state.hand],
                 )
 
                 time.sleep(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))

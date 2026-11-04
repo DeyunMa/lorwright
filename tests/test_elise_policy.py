@@ -244,3 +244,10 @@ def test_combat_resolving_confirms() -> None:
     action = POLICY.decide(GameState(ui_state=UIState.COMBAT_RESOLVING))
     assert action is not None
     assert action.type is ActionType.CONFIRM
+
+
+def test_mulligan_confirms_without_swapping() -> None:
+    """起手直接「確定」：蜘蛛快攻的起手都是低费单位，换牌收益不如赶紧开局。"""
+    action = POLICY.decide(GameState(ui_state=UIState.MULLIGAN))
+    assert action is not None
+    assert action.type is ActionType.CONFIRM

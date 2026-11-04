@@ -135,6 +135,11 @@ class SpiderAggroPolicy(Policy):
         if state.ui_state is UIState.BLOCKING:
             return self._block(state)
 
+        # 起手换牌：「確定」按钮和动作按钮同位置同颜色，点一下保留整手牌。
+        # 蜘蛛快攻的起手本来就都是低费单位，换牌收益低于「卡住不出牌」的代价。
+        if state.ui_state is UIState.MULLIGAN:
+            return Action(type=ActionType.CONFIRM)
+
         # 「結算」= 战斗结算/提交声明，答案唯一，点一下就走。
         # 不处理会一直 no_op 卡死（实机卡过 13 个 tick）。
         if state.ui_state is UIState.COMBAT_RESOLVING:

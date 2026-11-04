@@ -48,6 +48,7 @@
 | `perceive/normalize.py` | 分辨率解耦：按设计尺寸归一化后识别，动作坐标反算回设备像素 |
 | `perceive/login.py` | 登录界面检测（`login_splash` / `login_form`） |
 | `device/touch.py` | 输入原语：`TouchSurface.can_hold`、`EvdevSurface`（事件级手势）、`AdbInputSurface`（退化） |
+| `perceive/hand.py` | 手牌徽章 / 费用识别（收起态 48px、展开态 56px 两套模板） |
 | `champions/elise/` | 伊莉絲英雄包：牌表 + 蜘蛛快攻规则 |
 | `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
 | `decide/card.py` | 卡牌通用词汇（CardKind / CardDef） |
@@ -73,7 +74,9 @@
 - 起手换牌识别正常（`assets/buttons/mulligan.png`，1080p）
 - 动作按钮文字可判：`略過` / `略過格擋` / `結算` → `MY_TURN_IDLE` / `BLOCKING` / `COMBAT_RESOLVING`
 - 账号密码从 `.env` 读取，`lorwright login` 可用
-- **未跑通**：出牌手势（见 `handoff.md` §4.6 与 issue #9）、场面识别（issue #10）
+- **出牌手势**：展开态真机成功（蜘蛛上场、法力 3→2、手牌 6→5）；收起态拖不动，改「先 tap 展开再拖」（`handoff.md` §4.6）
+- 手牌费用：收起态 6/6，展开态 4/6（待修）
+- **未跑通**：两帧出牌的端到端（issue #9）、场面识别（issue #10）
 
 ### 一个容易误判的现象
 

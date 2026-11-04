@@ -18,7 +18,7 @@ import cv2
 import numpy as np
 
 from lorwright.models import CardInHand, Rect
-from lorwright.perceive.digits import DigitReader, normalize_glyph
+from lorwright.perceive.digits import DigitReader, normalize_glyph, rotate_glyph
 
 __all__ = ["Badge", "find_badges", "read_cost", "recognize"]
 
@@ -29,10 +29,12 @@ BADGE_MIN_SCORE = 0.96
 #: 非极大值抑制半径：徽章直径约 48px，取 45 够去重
 BADGE_MIN_DIST = 45
 
-#: 抠费用字形的半边长。徽章半径 24，取 15 只覆盖中间的数字区
-_GLYPH_RAD = 15
-#: 字形随卡片倾斜的角度搜索范围（度）
-_ROTATIONS = tuple(range(-28, 29, 3))
+#: 抠费用字形的半边长。徽章半径 24，数字高约 20px，取 16 够且不碰外环
+_GLYPH_RAD = 16
+#: 白字判据：三通道都不低于它才算「白」（蓝底 ~(20,60,140)，青环缺 R 通道）
+_WHITE_MIN = 170
+#: 字形已按主轴扶正，只剩估算误差，小范围搜索就够
+_ROTATIONS = tuple(range(-8, 9, 2))
 #: 拖拽起点相对徽章中心的偏移：徽章在卡片左上角，卡身朝右下
 DRAG_OFFSET = (15, 45)
 
@@ -86,47 +88,47 @@ def find_badges(
     return sorted(found, key=lambda b: b.center[0])
 
 
-def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD):
-    """从徽章圆心抠出费用字形，返回归一化后的 0..1 图（认不出返回 None）。
+def _tilt(glyph: np.ndarray) -> float:
+    """字形主轴相对竖直方向的倾角（度）。手牌是扇形，每张卡倾斜角度不同。"""
+    m = cv2.moments((glyph * 255).astype(np.uint8), binaryImage=False)
+    if m["mu20"] + m["mu02"] < 1e-6:
+        return 0.0
+    ang = 0.5 * np.degrees(np.arctan2(2 * m["mu11"], m["mu20"] - m["mu02"]))
+    # 数字是竖长的：主轴偏向 x 轴时说明差了 90°，转回来
+    return ang if m["mu20"] < m["mu02"] else ang - 90.0
 
-    用 `max(axis=2)` 而不是灰度：0 费（减费高亮）是绿字，灰度会把它压暗。
+
+def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD):
+    """从徽章圆心抠出费用字形，返回归一化并扶正的 0..1 图（认不出返回 None）。
+
+    判白字用 `min(R,G,B)` 而不是灰度或 max：徽章底是蓝色、外环是青色，
+    两者都「某个通道很亮」，只有数字是三个通道都亮。用灰度/最大值会在
+    1080p 把青色环一起框进来，和数字粘成一块（字形直接读废）。
     """
     cx, cy = center
-    v = image.max(axis=2)
-    patch = v[cy - rad : cy + rad, cx - rad : cx + rad]
-    if patch.shape != (rad * 2, rad * 2):
+    patch = image[cy - rad : cy + rad, cx - rad : cx + rad]
+    if patch.shape[:2] != (rad * 2, rad * 2):
         return None
 
+    white = (patch.min(axis=2) >= _WHITE_MIN).astype(np.uint8) * 255
     yy, xx = np.mgrid[0 : rad * 2, 0 : rad * 2]
     c = rad - 0.5
-    disc = np.hypot(xx - c, yy - c) <= rad - 2
+    white[np.hypot(xx - c, yy - c) > rad - 2] = 0   # 只留圆盘内部，排除外环
 
-    # 只在圆盘内部做 Otsu：把环和外面的卡面排除掉
-    thr, _ = cv2.threshold(
-        patch[disc].reshape(-1, 1), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-    binary = np.zeros_like(patch)
-    binary[disc] = (patch[disc] >= thr) * 255
-
-    # 开运算断开「徽章高光」和数字之间的粘连（2 会被粘出一条尾巴）
-    binary = cv2.morphologyEx(binary.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-
-    count, _, stats, cent = cv2.connectedComponentsWithStats(binary, 8)
-    best: tuple[float, int, int, int, int] | None = None
-    for i in range(1, count):
-        x, y, w, h, area = (int(stats[i, k]) for k in range(5))
-        # 数字又高又窄；高光是小圆点（高 < 12）
-        if area < 30 or w < 5 or h < 12:
-            continue
-        dist = float(np.hypot(cent[i][0] - c, cent[i][1] - c))
-        if best is None or dist < best[0]:
-            best = (dist, x, y, w, h)
-    if best is None:
+    count, _, stats, _ = cv2.connectedComponentsWithStats(white, 8)
+    boxes = [
+        (int(stats[i, 4]), int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]))
+        for i in range(1, count)
+        if stats[i, 4] >= 20
+    ]
+    if not boxes:
         return None
-    dist, x, y, w, h = best
-    if dist > rad * 0.7:      # 离圆心太远 = 不是数字
+    _, x, y, w, h = max(boxes)          # 数字是盘内最大的一块白
+    if h < 10 or w > h * 1.4:           # 太扁 = 高光碎片，不是数字
         return None
-    return normalize_glyph(binary[y : y + h, x : x + w])
+
+    glyph = normalize_glyph(white[y : y + h, x : x + w])
+    return rotate_glyph(glyph, _tilt(glyph))
 
 
 def read_cost(

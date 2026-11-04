@@ -74,11 +74,27 @@ def test_mulligan_is_not_my_turn() -> None:
 
 
 def test_battle_turn2() -> None:
+    """右侧有两个法力指示器：上排是对手，下排是我们。
+
+    这张截图是对手 2 费、我方 3 费（第 3 回合）。早先的 layout 指到上排，
+    读到 2 却「看起来对」，实战里会让 bot 以为没费而整局空过。
+    """
     state = _parser().parse(_load("1080p_battle_turn2.png"))
     assert state.ui_state is UIState.MY_TURN_IDLE
-    assert state.mana == 2
+    assert state.mana == 3
     assert state.nexus_hp == 50
     assert state.enemy_nexus_hp == 30
+
+
+def test_hand_costs_from_live_frame() -> None:
+    """实战截图里的 6 张手牌费用必须全读对。
+
+    这条盯的是「徽章抠图」：数字是白字、徽章底是蓝色、外环是青色。
+    用灰度或 max 通道会在 1080p 把青环并进数字，6 张里错 4 张；
+    改判据为 min(R,G,B)（三通道都亮才算白）后全对。
+    """
+    state = _parser().parse(_load("1080p_hand_fan.png"))
+    assert [c.cost for c in state.hand] == [3, 2, 5, 2, 6, 3]
 
 
 def test_main_menu_is_not_a_battle() -> None:
@@ -91,7 +107,7 @@ def test_main_menu_is_not_a_battle() -> None:
     [
         ("1080p_battle_turn2.png", Rect(215, 390, 56, 40), 30),
         ("1080p_battle_turn2.png", Rect(216, 646, 56, 40), 50),
-        ("1080p_battle_turn2.png", Rect(1668, 388, 33, 36), 2),
+        ("1080p_battle_turn2.png", Rect(1650, 640, 50, 45), 3),   # 我方法力（下排）
         ("720p_battle_turn2.png", Rect(145, 262, 45, 23), 30),
         ("720p_battle_turn2.png", Rect(147, 433, 45, 23), 50),
         ("720p_battle_turn2.png", Rect(1112, 259, 22, 24), 2),

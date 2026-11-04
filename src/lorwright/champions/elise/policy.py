@@ -128,6 +128,12 @@ class SpiderAggroPolicy(Policy):
         if state.ui_state is UIState.BLOCKING:
             return self._block(state)
 
+        # 「選擇目標」说明上一 tick 拖出的牌要选目标（例如冥血戰要求击杀友军）。
+        # 这个状态下拖手牌没反应，先取消；取消后手牌没减少，
+        # _settle_previous_play 会把那张牌记成不可用，下次换一张。
+        if state.ui_state is UIState.TARGETING:
+            return Action(type=ActionType.CANCEL)
+
         if state.ui_state is not UIState.MY_TURN_IDLE:
             return Action(type=ActionType.NO_OP)
 

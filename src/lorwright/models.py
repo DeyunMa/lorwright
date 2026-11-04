@@ -39,6 +39,7 @@ class ActionType(StrEnum):
     BLOCK = "block"          # 声明格挡：把单位拖到敌方攻击单位上
     CONFIRM = "confirm"      # 点动作按钮确认（攻擊/格擋声明后的「確認」）
     END_TURN = "end_turn"
+    CANCEL = "cancel"        # 退出「選擇目標」：点战场空白处收回已选的牌
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
 
@@ -114,6 +115,8 @@ class Layout:
     attack_row: Rect | None = None
     # 攻击令牌箭头（动作按钮左侧）
     attack_token: Rect | None = None
+    # 取消选目标的落点：战场左侧空白，点这里会把手上的牌收回去
+    cancel_point: Rect | None = None
     hand_region: Rect | None = None
     hand_expanded: Rect | None = None
     enemy_hp: Rect | None = None

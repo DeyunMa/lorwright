@@ -88,6 +88,8 @@ class LayoutConfig(BaseModel):
     attack_row: list[int] | None = None
     # 攻击令牌箭头（动作按钮左侧的橙色箭头）
     attack_token: list[int] | None = None
+    # 取消选目标：点战场左侧空白，已选的牌会收回手上
+    cancel_point: list[int] | None = None
     hand_region: list[int] | None = None
     # 展开态手牌（tap 一下手牌后卡片平铺在屏幕下方，比收起态大得多）
     hand_expanded: list[int] | None = None
@@ -117,6 +119,7 @@ class LayoutConfig(BaseModel):
             enemy_board=self._rect(self.enemy_board),
             attack_row=self._rect(self.attack_row),
             attack_token=self._rect(self.attack_token),
+            cancel_point=self._rect(self.cancel_point),
             hand_region=self._rect(self.hand_region),
             hand_expanded=self._rect(self.hand_expanded),
             enemy_hp=self._rect(self.enemy_hp),

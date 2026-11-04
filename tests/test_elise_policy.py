@@ -171,3 +171,38 @@ def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
 
     assert policy.decide(state).type is ActionType.PLAY_CARD
     assert policy.decide(state).type is ActionType.END_TURN
+
+
+def test_targeting_state_cancels_instead_of_playing() -> None:
+    """「選擇目標」时拖手牌没反应，必须先取消，不能继续出牌。
+
+    实机场景：0 费冥血戰要求「擊殺1個友軍單位」，拖出去后进入选目标，
+    旧逻辑当成 unknown → no_op，卡到引擎停。
+    """
+    state = GameState(
+        ui_state=UIState.TARGETING,
+        mana=6,
+        max_mana=6,
+        hand=[CardInHand(index=0, name="", cost=0, rect=RECT)],
+    )
+    action = POLICY.decide(state)
+    assert action is not None
+    assert action.type is ActionType.CANCEL
+
+
+def test_card_that_opens_targeting_is_marked_unplayable() -> None:
+    """取消后手牌没减少 → 那张牌记成不可用，下次换别的。"""
+    policy = SpiderAggroPolicy()
+    hand = [
+        CardInHand(index=0, name="", cost=0, rect=RECT),
+        CardInHand(index=1, name="", cost=3, rect=RECT),
+    ]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
+    first = policy.decide(state)
+    assert first is not None and first.type is ActionType.PLAY_CARD
+
+    # 取消回来，手牌一张没少
+    policy.decide(GameState(ui_state=UIState.TARGETING, mana=6, max_mana=6, hand=hand))
+    second = policy.decide(state)
+    assert second is not None and second.type is ActionType.PLAY_CARD
+    assert second.card_index != first.card_index

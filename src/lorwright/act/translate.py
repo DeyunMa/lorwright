@@ -41,6 +41,14 @@ class ActionTranslator:
                 points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms
             )
 
+        if action.type is ActionType.CANCEL:
+            # 退出「選擇目標」：点战场左侧空白，已选的牌收回手上。
+            if not self.layout.cancel_point:
+                return None
+            return ClickPlan(
+                points=[self.layout.cancel_point.center], wait_ms=self.tap_wait_ms
+            )
+
         if action.type is ActionType.PLAY_CARD and action.card_index is not None:
             # 收起态手牌斜叠、每张只露左边缘，**拖不动**（实测 hold 120/300/800ms
             # 全部无效，但 tap 能展开）。必须先 tap 展开，下一帧在展开态再拖。

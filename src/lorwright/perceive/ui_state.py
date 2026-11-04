@@ -4,6 +4,8 @@
     略過        → 我方回合空闲，可以出牌
     略過格擋    → 对手在攻击，等我方声明格挡（**手牌拖不动**）
     結算        → 提交格挡 / 攻击声明
+    選擇目標    → 已拖出一张需要选目标的牌（例如「擊殺1個友軍單位」），
+                  这个状态下拖手牌没反应，必须先取消
 
 只靠颜色分不出这三者。把「略過格擋」当成「我方回合」会让策略每帧都试着
 出牌、每帧都失败，看起来像「拖拽没反应」——所以按钮文字必须参与判定。
@@ -56,6 +58,7 @@ class UIStateDetector:
         "action_block": UIState.BLOCKING,
         "action_commit": UIState.COMBAT_RESOLVING,
         "action_pass": UIState.MY_TURN_IDLE,
+        "action_target": UIState.TARGETING,
     }
 
     def __init__(

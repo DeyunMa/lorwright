@@ -98,10 +98,28 @@ def _units_in_attack_row(state: GameState) -> bool:
 
 class SpiderAggroPolicy(Policy):
     name = "elise_spider_aggro"
-    version = "0.2.0"
+    version = "0.3.0"
 
     #: 快攻 + 恐惧穿透：脸伤比换血值钱。默认 3.0，这套牌调高。
     nexus_weight: float = 4.0
+
+    def __init__(self) -> None:
+        #: 上一 tick 打出的手牌序号。用来发现「拖了但没出成」。
+        #: 有些牌带着条件，不满足时**根本拖不动**：伊莉絲变成英雄法术后
+        #: 要求「本回合有友軍單位陣亡」。不记下来就会每 tick 重试同一张，
+        #: 永远出不了牌（实机 2026-11-04 卡了 10 个 tick）。
+        self._pending_play: int | None = None
+        self._pending_hand: int = -1
+        #: 当前手牌状态下确认拖不出去的序号
+        self._unplayable: set[int] = set()
+
+    def _settle_previous_play(self, state: GameState) -> None:
+        """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
+        if self._pending_play is None:
+            return
+        if len(state.hand) >= self._pending_hand:
+            self._unplayable.add(self._pending_play)
+        self._pending_play = None
 
     def decide(self, state: GameState) -> Action | None:
         # P0 守卫：没有优先权时，唯一合法的动作就是不动。
@@ -113,6 +131,12 @@ class SpiderAggroPolicy(Policy):
         if state.ui_state is not UIState.MY_TURN_IDLE:
             return Action(type=ActionType.NO_OP)
 
+        self._settle_previous_play(state)
+        # 手牌数量一变（出成了 / 抽到新牌）就重新给每张牌机会
+        if len(state.hand) != self._pending_hand:
+            self._unplayable.clear()
+        self._pending_hand = len(state.hand)
+
         # 单位已经被拖到攻击行 → 按钮已变成「確認」，下一步只能确认。
         # 用位置判断而不是按钮文字：拖完的按钮是「確認」，状态机认不出它，
         # 但攻击行的单位 y 坐标（≈710）和平躺的（≈930）差得很开。
@@ -120,9 +144,12 @@ class SpiderAggroPolicy(Policy):
             return Action(type=ActionType.CONFIRM)
 
         # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
-        ranked = rank_playable(state)
+        ranked = [
+            item for item in rank_playable(state) if item[0].index not in self._unplayable
+        ]
         if ranked:
             card, _definition, _score = ranked[0]
+            self._pending_play = card.index
             return Action(type=ActionType.PLAY_CARD, card_index=card.index)
 
         # P2 攻击声明：求解器说值得打才打

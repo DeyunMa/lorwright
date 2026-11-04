@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+import pytest
+
 from lorwright.champions.elise import SpiderAggroPolicy
 from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
 # 用 (0,0) 会被误判成已经声明过攻击
 RECT = Rect(0, 900, 10, 10)
+
+
 POLICY = SpiderAggroPolicy()
+
+
+@pytest.fixture(autouse=True)
+def _reset_policy() -> None:
+    """policy 会记住「上一张没出成」，测试之间必须清空，否则互相污染。"""
+    POLICY._pending_play = None
+    POLICY._pending_hand = -1
+    POLICY._unplayable.clear()
 
 
 def hand(index: int, name: str, cost: int) -> CardInHand:
@@ -128,3 +140,34 @@ def test_lethal_attack_is_taken():
     assert action.type is ActionType.ATTACK
     assert action.raw["nexus_damage"] >= 7
     assert action.raw["attackers"] == [0, 1]
+
+
+def test_unplayable_card_is_skipped_on_retry() -> None:
+    """拖不动的牌不能每 tick 重试：手牌没减少就换下一张。
+
+    实机场景：伊莉絲上场后英雄牌变成英雄法术，要求「本回合有友方单位阵亡」，
+    不满足时卡片根本拖不动，旧逻辑会一直重试同一张卡 10 个 tick。
+    """
+    policy = SpiderAggroPolicy()
+    hand = [
+        CardInHand(index=0, name="", cost=1, rect=RECT),
+        CardInHand(index=1, name="", cost=3, rect=RECT),
+    ]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand)
+
+    first = policy.decide(state)
+    assert first is not None and first.type is ActionType.PLAY_CARD
+    # 手牌没变 = 上一张没出成 → 必须换一张，而不是重试
+    second = policy.decide(state)
+    assert second is not None and second.type is ActionType.PLAY_CARD
+    assert second.card_index != first.card_index
+
+
+def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
+    """全都拖不动时不能死循环，要落到结束回合。"""
+    policy = SpiderAggroPolicy()
+    hand = [CardInHand(index=0, name="", cost=1, rect=RECT)]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand)
+
+    assert policy.decide(state).type is ActionType.PLAY_CARD
+    assert policy.decide(state).type is ActionType.END_TURN

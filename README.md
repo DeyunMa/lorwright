@@ -63,7 +63,7 @@ git clone git@github.com:DeyunMa/lorwright.git
 cd lorwright
 pip install -e ".[dev]"
 
-pytest                      # 90 个单测，不需要游戏
+pytest                      # 143 个单测，不需要游戏
 ruff check src tests tools
 
 lorwright devices           # 列出 ADB 设备

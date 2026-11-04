@@ -105,6 +105,11 @@ def test_expanded_hand_is_detected_as_expanded() -> None:
     state = _parser().parse(_load("1080p_hand_expanded.png"))
     assert state.hand_expanded is True
     assert len(state.hand) == 6
+    # 展开态徽章 56px，字形比收起态粗；`_tilt` 的负角没归一化时
+    # 3 张卡会读成错的费用（实测 0.55 vs 0.93）
+    costs = [c.cost for c in state.hand]
+    assert costs[:5] == [1, -1, 3, 3, 2]
+    # 6 号是绿色数字的 0 费卡，白字判据抠不出来（已知遗留）
 
 
 def test_collapsed_hand_is_not_expanded() -> None:

@@ -15,12 +15,15 @@
    PoC 至今无 API（见 `docs/adr/0002`）。**不要尝试接 API 做 PoC 状态。**
 2. **主路径是 ADB（手机/模拟器），不是 Windows 窗口。** 见 `docs/adr/0003`。
    桌面模式（mss+pynput）只作为调试回退。
-3. **手机版只能拖拽出牌**（实测：点击不发牌）。出牌一律用 `input swipe`，
-   不是「点卡 → 点地面」两次点击。PC 版可另配 `click_to_play` 开关。
+3. **手机版只能拖拽出牌**（实测：点击不发牌），且手势必须是
+   **按住 → 停顿 → 拖 → 松手**。`input swipe` 是原子手势、从第 0 ms 就插值移动，
+   表达不了停顿，会被 LoR 判成长按预览；所以出牌走 `device/touch.py` 的事件级后端
+   （`EvdevSurface.drag(hold_ms, drag_ms)`）。不是「点卡 → 点地面」两次点击。
 5. **UI 状态 UNKNOWN 时绝不点击。** 兜底动作是 `NO_OP`，不是「结束回合」。
    2026-11-02 因为盲点，机器人点进了设定菜单。
-4. **模板按目标设备分辨率采集。** 手机横屏 2510×1156、Pie64 模拟器 1280×720；
-   换分辨率就要重采，否则坐标全错。环境细节见 `docs/environment.md`。
+4. **坐标和模板按「设计尺寸」标定，不按物理分辨率。** 设计尺寸写在 `config.screen`
+   （现 1920×1080），`perceive/normalize.py` 负责把实际截图归一化过去、动作坐标再反算回设备像素。
+   Pie64 原生 720p 读不出数字，用 `adb shell wm size 1920x1080` 抬高。环境细节见 `docs/environment.md`。
 
 ## 目标牌组
 
@@ -32,7 +35,7 @@ PoC 目前只跑**一个**牌组：伊莉絲（Elise）英雄之路起始牌组�
 
 ```bash
 pip install -e ".[dev]"     # 安装
-pytest                      # 90 个单测（不需要游戏）
+pytest                      # 143 个单测（不需要游戏）
 ruff check src tests tools  # 静态检查
 lorwright doctor            # 环境自检
 lorwright devices           # 列出 ADB 设备

@@ -242,7 +242,7 @@ F1 模拟器计划跑 **1920×1080**，**坐标和模板必须全部重采**。
 - [ ] `lorwright shot --grid` 出图，确认横屏 1920×1080
 - [ ] `lorwright crop` 重新裁 `action_button`，确认蓝色占比 > 45%
 - [ ] 重新标定 `layout` 四个区域
-- [ ] 手动拖一张牌，确认 `input swipe` 能出牌（手机已验证可行）
+- [ ] 手动拖一张牌，确认 `lorwright drag` 能出牌（事件级手势，见 issue #9）
 - [ ] `lorwright run --max-ticks 20`，看日志 `ui=` 是否正确
 - [ ] 确认对手回合日志是 `action=no_op`，**不是** `end_turn`
 - [ ] 确认 `NO_OP` 不触发卡死检测（当前会，见 §8）

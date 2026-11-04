@@ -111,6 +111,11 @@ def _tilt(glyph: np.ndarray) -> float:
     if m["mu20"] + m["mu02"] < 1e-6:
         return 0.0
     ang = 0.5 * np.degrees(np.arctan2(2 * m["mu11"], m["mu20"] - m["mu02"]))
+    # 主轴角以 180° 为周期：-87° 和 +93° 是同一个方向。不统一到 [0,180)，
+    # 展开态会算出负角、旋转方向相反，同一个字形就匹配不上模板了
+    # （实测 3 张卡因此读不出费用）。
+    if ang < 0:
+        ang += 180.0
     # 数字是竖长的：主轴偏向 x 轴时说明差了 90°，转回来
     return ang if m["mu20"] < m["mu02"] else ang - 90.0
 

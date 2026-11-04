@@ -149,11 +149,18 @@ adb -s 127.0.0.1:5555 install-multiple -r `
 
 | 项 | 值 |
 |---|---|
-| 分辨率 | **1280 × 720** |
+| 原生分辨率 | 1280 × 720 |
+| **实际使用的逻辑分辨率** | **1920 × 1080**（`adb shell wm size 1920x1080`） |
 | density | 240 |
 
-`Pie64` 建实例时选的就是 1280×720。想改 1080p 可以用
-`adb shell wm size 1920x1080` + `wm density 240`，但**改完必须重新标定坐标和模板**。
+`Pie64` 建实例时选的是 1280×720。**原生 720p 下不可用**：手牌费用数字只有 ~10px，
+字形读不出来。抬高到 1080p 后徽章数字约 15px、血量约 34px，才可读。
+
+`wm size` 是**运行时覆盖**，2026-11-04 那次模拟器重启后**仍然保留**（`wm size` 显示
+`Physical 1280x720 / Override 1920x1080`）。但不能假设它永远在——`lorwright doctor` 会核对。
+
+改分辨率要重新标定：`config/settings.yaml` 的 `layout` 与 `assets/` 下的模板都按
+**设计尺寸**（`config.screen`）标定，`perceive/normalize.py` 负责把实际截图归一化过去。
 
 ## 5. ADB 的坑（Windows + SSH）
 
@@ -207,14 +214,46 @@ BlueStacks 的「迷你模式」只改变**宿主窗口**的显示方式，
 ADB 输入走的是 guest 内部输入栈，与宿主窗口状态无关；
 不过**触摸注入没有在迷你模式下单独验证过**，第一次在迷你模式下跑动作时留意一下。
 
-## 7. 当前进度（2026-11-03）
+## 7. 当前进度（2026-11-04）
 
-- `Pie64` 已装 LoR，**已登录**（账号信息不记录在本仓库）
-- 首次进入需下载 **3278 MB** 游戏资源，正在下载
-- **还没到主菜单**，因此以下都还没验证：
-  - 英雄之路入口是否可达
-  - 对局界面能否正常渲染
-  - 1280×720 下的坐标标定
+- `Pie64` 已装 LoR（`live_7-10-13`，区域 jpn/apac），能进主菜单、英雄之路、对局
+- 账号密码在 `.env`（`LOR_USERNAME` / `LOR_PASSWORD`），`lorwright login` 可自动登录
+- 1080p 标定完成，感知链路真机验证过（法力 / 血量 / 手牌费用 / UI 状态）
+- **未完成**：出牌手势（issue #9）、场面识别（#10）
+
+### 7.1 模拟器重启会清掉 LoR 登录态
+
+重启实例后 LoR 回到 Riot 登入页，需要重新登录。所以：
+
+- **不要**把「重启客户端」当作卡住时的恢复手段（见 `handoff.md` §4.7）
+- 恢复流程要等自动登录接上之后再打开（`recovery.allow_client_restart`）
+
+### 7.2 网络不可达会让登录页假死
+
+现象：停在「登入以開始遊戲」，点任何按钮都没反应，画面**完全静止**。
+
+真因（logcat）：
+
+```
+[BaconAuthenticationProvider] Waiting on client config to be loaded
+Firestore: connect failed to firestore.googleapis.com:443 … ECONNREFUSED
+```
+
+Riot 自己的域名（`fe-apac-green.b.pvp.net:443`）通、Google 的域名不通时就会这样。
+先修网络（代理 / TUN），再谈自动化。
+
+### 7.3 游戏进程会冻死在启动页
+
+现象同上但原因不同：进程无响应。判据：
+
+```bash
+# 连续两帧 0 差异（用 lorwright shot 连拍两张对比）
+adb shell input keyevent 3        # HOME 能生效 → 系统正常，是游戏冻死
+```
+
+处理：`adb shell am force-stop com.riotgames.legendsofruneterra` + `lorwright launch`。
+
+固化这条检查见 issue #12。
 
 ## 8. 复现环境的最短路径
 
@@ -222,5 +261,5 @@ ADB 输入走的是 guest 内部输入栈，与宿主窗口状态无关；
 2. 起实例（用户点 GUI）→ `adb connect 127.0.0.1:5555`
 3. `install-multiple` 两个 APK
 4. 启动 `am start -n com.riotgames.legendsofruneterra/.LoRActivity`
-5. 等资源下载完 → **手动登录**（程序不碰账号密码）
+5. 等资源下载完 → `lorwright login`（账号从 `.env` 读，或手动登录一次）
 6. 从 `docs/handoff.md` §2 第 1 步开始

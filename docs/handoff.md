@@ -40,67 +40,68 @@ ruff check src tests tools  # 必须 All checks passed
 
 | 能力 | 状态 |
 |---|---|
-| ADB 设备发现 / 截图 / 点击 | ✅ 真机验证 |
-| 1920×1080 标定（`config/settings.yaml`） | ✅ 全量重标，`state` 读出 `my_turn_idle / mana 2/2 / hp 50/30` |
-| 法力 / 双方水晶血量读数 | ✅ 字形模板，真机 + 118 个单测 |
-| 手牌费用识别（收起态扇形） | ✅ 环形掩码匹配 + 旋转字形，6/6 命中 |
+| ADB 设备发现 / 截图 / 点击 / 文本输入 / 启动 | ✅ 真机验证 |
+| 分辨率解耦（`perceive/normalize.py`） | ✅ 按设计尺寸归一化后识别，动作坐标反算回设备像素 |
+| 法力 / 双方水晶血量读数 | ✅ 字形模板，真机核对（注意右侧上排是对手、下排是我方） |
+| 手牌费用识别（收起态扇形） | ✅ 环形掩码 + 主轴扶正 + ±8° 搜索，1080p 实战 6/6 |
 | 起手换牌识别 | ✅ `assets/buttons/mulligan.png`（1080p）+ `UIState.MULLIGAN` 优先于颜色探针 |
-| 动作按钮文字识别 | ✅ `action_pass.png`（略過）/ `action_commit.png`（結算） |
-| 登录账号 | ✅ 从 `.env` 读 `LOR_USERNAME` / `LOR_PASSWORD` |
-| 战斗求解器（格挡分配 / 攻击声明 / 斩杀） | ✅ 6v6 穷举 17–24ms，18 个单测 |
+| 动作按钮文字识别 | ✅ `action_pass` / `action_block` / `action_commit` → `MY_TURN_IDLE` / `BLOCKING` / `COMBAT_RESOLVING`，区分度 1.00 vs ≤0.50 |
+| 帧时效校验 | ✅ `loop.max_frame_age_s=2s`，超龄退 `no_op` |
+| 登录检测 + 登录流程 | ✅ `perceive/login.py` + `lorwright login`（账号从 `.env`） |
+| 输入原语（down/move/up + 能力声明） | ✅ `device/touch.py`，真机事件级手势 |
+| 战斗求解器（格挡分配 / 攻击声明 / 斩杀） | ✅ 6v6 穷举 17–24ms，18 个单测（但输入还是空的，见下） |
 | 伊莉絲牌表 + 评分 + buff 优先排序 | ✅ 16 个单测 |
 | 分层路由 + 覆盖率统计 | ✅ 单测 |
-| 恢复状态机 `RecoveryPolicy` | ✅ 已接进 `Engine`，但**别让它重启客户端**（见 §4.7） |
-| 118 个单测 / ruff 全绿 | ✅ |
+| 恢复状态机 `RecoveryPolicy` | ✅ 已接进 `Engine`，L3 默认禁用（见 §4.7） |
+| 143 个单测 / ruff 全绿 | ✅ |
 
 ### 不能跑（缺东西）
 
-| 缺什么 | 后果 | 优先级 |
+| 缺什么 | 后果 | 对应 issue |
 |---|---|---|
-| **出牌手势没有稳定复现** | 牌抓得起来、松手不落地（见 §4.6），整条循环走不通 | **P0** |
-| 场面识别（我方/敌方单位） | `my_units` / `enemy_units` 恒空，攻击声明、格挡、斩杀都拿不到输入 | **P0** |
-| 卡牌名识别 | 手牌只有费用没有身份，同费牌分不出（9 种牌 → 只知道 9 个费用） | P1 |
-| 攻击手势未真机验证 | 「拖到敌方水晶」这个手势没确认过 | P1 |
-| 挑战者 / 击晕图标未解析 | 求解器拿到的 `challenger`/`stunned` 永远是 False | P1 |
-| JEV / LLM 兜底未接 | L2 / L3 层空转 | P2 |
+| **出牌手势没验证到底** | 日志里没有一次成功的 `play_card`；牌抓得起来、松手不落地（见 §4.6） | **#9（P0）** |
+| 攻击声明 / 格挡手势 | 只靠出牌 + 结束回合打不完一局 | #11 |
+| 场面识别（我方/敌方单位） | `my_units` / `enemy_units` 恒空，战斗求解器等于空转 | #10 |
+| 卡牌身份识别 | 手牌只有费用没有身份，同费牌分不出（9 种牌只知道 9 个费用） | #3 |
+| 挑战者 / 击晕图标 | 求解器拿到的 `challenger`/`stunned` 永远是 False | #10 |
+| 前置自检（网络 / 登录假死 / App 冻死） | 卡住一次要人工诊断半小时 | #12 |
+| JEV / LLM 兜底未接 | L2 / L3 层空转 | #8 |
 
 ---
 
 ## 2. 你要做的第一件事
 
-**不要先碰 JEV、不要先碰 LLM、不要先做插件化。** 2026-11-03 定下的顺序：
+**不要先碰 JEV、不要先碰 LLM、不要先做插件化。** 顺序（2026-11-04 按 issue 重排）：
 
-> 先定接口 → 补底层最小集 → 写英雄规则
+```
+#9 出牌手势真机验证  →  #11 攻击/格挡手势  →  #10 场面识别  →  英雄规则  →  #5 端到端
+```
 
-理由：英雄规则是纯逻辑、离线可测，但它产出的 `PlayCard(index)` 现在**无法在真机验证**。
+理由：英雄规则是纯逻辑、离线可测，但它产出的 `PlayCard(index)` 现在**还没在真机验证成功**。
 先写规则，任何「策略对不对」的结论都会退化成「手势有没有生效」。
 
 ### 第 1 步：接口（动作集合）
 
-`models.ActionType` 现在就够用，但要明确**每个动作由哪个 `act/` 原语执行**，
-且原语必须是真机验证过的。目前只有 `TAP` 是验证过的。
+`models.ActionType` 就够用，但要明确**每个动作由哪个原语执行**，且原语必须真机验证过。
 
 | 动作 | 执行原语 | 真机状态 |
 |---|---|---|
-| `PLAY_CARD` | 手牌徽章中心 → 我方行 的手势 | ❌ 未复现（§4.6） |
+| `PLAY_CARD` | 手牌徽章中心 → 我方行，`drag(hold_ms, drag_ms)` | ⚠️ 机制已实现，缺一次成功出牌（#9） |
 | `END_TURN` / `PASS` | 点 `layout.end_turn` | ✅ |
-| `ATTACK` | 单位拖到攻击行 + 点 `結算` | ❌ 未验证 |
+| `ATTACK` | 单位拖到攻击行 + 点 `結算` | ❌ 未验证（#11） |
 | `NO_OP` | 无 | ✅ |
 
 ### 第 2 步：底层最小集
 
-只做三件事，做完就能跑通一轮「出牌 + 结束回合」：
+1. **出牌手势**（#9）—— 唯一硬阻塞
+2. `END_TURN` —— 已可用
+3. `ReadHand()` —— 费用已完成，身份见 #3
 
-1. **出牌手势**（§4.6）—— 唯一阻塞项，先解决它
-2. `END_TURN` —— 已可用（点动作按钮）
-3. `ReadHand()` —— 已完成（费用可读，身份待做）
-
-**场面识别（`my_units` / `enemy_units`）先不做**：第一轮循环不需要，
-做了会让底层膨胀，而且没有卡牌模板时也认不出单位。
+**场面识别（#10）排在出牌之后**：第一轮循环不需要，而且它依赖出牌能验证「场面变化确实发生了」。
 
 ### 第 3 步：英雄规则（伊莉絲）
 
-等第 2 步能出牌之后再写。规则清单见 `docs/champions/elise.md`，已确认的两条：
+等 #9 通过之后再写。规则清单见 `docs/champions/elise.md`，已确认的两条：
 
 1. **有攻击 token 才出伊莉絲**（她带「狂風之力」给先遣，但回合结束会洗回牌组）
 2. **先遣单位先打第一波**
@@ -117,10 +118,11 @@ ruff check src tests tools  # 必须 All checks passed
 包括 ABI 选 `ARM` 的那个）启动 LoR 都会在 0.6 秒内 `SIGSEGV`；
 Android 9 的 `Pie64` 正常。**换 ABI 不解决问题，变量是 Android 版本。**
 
-- 分辨率 **1280×720**，density 240
-- 登录**必须手动做**，程序不碰账号密码
+- 原生 1280×720，**实际用 `adb shell wm size 1920x1080` 抬到 1080p**（720p 下数字读不出）
+- 登录：`lorwright login`（账号密码在 `.env`），或手动登一次
 - 首次进入要下载约 3.2 GB 资源
 - 实例**必须由人在多开管理器里启动**，从 SSH 命令行拉起会自己退出
+- **重启实例会清掉登录态**，且游戏可能冻死在启动页（判据见 §4.1）
 
 ### 3.2 ADB
 
@@ -142,29 +144,32 @@ Get-Process adb -ErrorAction SilentlyContinue | Stop-Process -Force
 git clone git@github.com:DeyunMa/lorwright.git
 cd lorwright
 pip install -e ".[dev]"
-pytest                            # 应该 90 个全过，不需要游戏
+pytest                            # 应该 143 个全过，不需要游戏
 ruff check src tests tools
 ```
 
-### 3.4 重标定（必须做）
+### 3.4 标定（已完成，换设备才需要重做）
 
-**所有坐标和模板都是按手机 2510×1156 采的，1280×720 下全部作废。**
+2026-11-03 已在 1920×1080 上完成全量标定，结果写在 `config/settings.yaml`。
+**现在不需要重新标定**——`perceive/normalize.py` 会先把截图归一化到设计尺寸
+（`config.screen`），所以实际分辨率变了也只是缩放系数变化，坐标和模板不用重做。
+
+真要重标（换设备、换游戏 UI 版本）：
 
 ```bash
 lorwright devices
-lorwright shot --grid --out logs/720p.png     # 带坐标网格，方便量
+lorwright shot --grid --out logs/1080p.png     # 带坐标网格，方便量
 ```
 
-然后改 `config/settings.yaml` 的 `layout` 段四个矩形，重裁 `assets/buttons/action_button.png`。
+然后改 `config/settings.yaml` 的 `layout` 段，并用工具重采模板：
 
-| 项 | 手机（现有值） | Pie64 1280×720（待标定） |
-|---|---|---|
-| 动作按钮 | `[2035, 487, 138, 138]` | ? |
-| 敌方水晶 | `[329, 372, 80, 80]` | ? |
-| 出牌落点 | `[900, 750, 700, 200]` | ? |
-| 手牌区 | `[1750, 940, 740, 210]` | ? |
+| 模板 | 工具 |
+|---|---|
+| 手牌徽章 | `lorwright crop --rect x,y,w,h --name badge` |
+| 动作按钮文字 | `python tools/build_action_texts.py` |
+| 字形（血量 / 法力 / 手牌） | `python tools/build_digits.py` / `build_hand_digits.py` |
 
-**验证标定对不对**：`lorwright probe` 应该报 `ui=my_turn_idle` 且蓝色占比 > 45%。
+**验证**：`lorwright state` 应该报 `ui=my_turn_idle` 且 mana / hp 与画面一致。
 
 ---
 
@@ -183,7 +188,31 @@ adb shell dumpsys window | grep mCurrentFocus    # 前台切到桌面了吗
 adb shell dumpsys power | grep mState            # 屏幕是 ON 吗
 ```
 
-HOME 生效但游戏不响应 → **重启游戏，别怀疑坐标**。
+HOME 生效但游戏不响应 → **重启游戏，别怀疑坐标**：
+
+```bash
+adb shell am force-stop com.riotgames.legendsofruneterra
+lorwright launch
+```
+
+#### 2026-11-04 补：还有第二种「输入全无效」
+
+停在「登入以開始遊戲」，点任何按钮都没反应，但画面**完全静止**（连续两帧 0 差异）。
+这不是冻死，是**网络不可达**——登录页要拉 client config：
+
+```
+[BaconAuthenticationProvider] Waiting on client config to be loaded
+Firestore: connect failed to firestore.googleapis.com:443 … ECONNREFUSED
+```
+
+`firestore.googleapis.com` 不通（而 Riot 自己的域名通）时就会这样。检查：
+
+```bash
+adb shell "dumpsys window | grep mCurrentFocus"          # 前台是不是 LoR
+adb logcat -d -t 300 | grep -i "client config|firestore"
+```
+
+先修网络（代理 / TUN），再谈自动化。固化这条检查见 issue #12。
 
 ### 4.2 截图时机
 
@@ -207,31 +236,53 @@ HOME 生效但游戏不响应 → **重启游戏，别怀疑坐标**。
 
 返回 `None`（弃权）会让路由把请求送去 JEV，对手回合每帧白烧一次调用。
 
-### 4.6 出牌手势：抓得起来，松手不落地（2026-11-03 实测）
+### 4.6 出牌手势：两个真因，机制已改，还没验到底
 
-这是当前唯一的 P0 阻塞。已经确认的事实，别重复踩：
+**状态（2026-11-04）**：机制已实现，但日志里还没有一次成功的 `play_card`。见 issue #9。
 
-| 结论 | 证据 |
+#### 真因 1：状态判错，格挡阶段去出牌
+
+动作按钮在**我方回合 / 格挡 / 结算**三种情况下是同一块蓝色（占比 0.892 vs 0.878），
+只看颜色必然误判。格挡阶段手牌本来拖不动，策略却每帧 `play_card`、每帧失败，
+看起来就像「拖拽没反应」。
+
+修法：`UIState.BLOCKING` + 按钮文字模板（`action_pass` / `action_block` / `action_commit`），
+文字用 `TM_CCOEFF_NORMED` 在按钮中段匹配，区分度 1.00 vs ≤0.50。重采用
+`python tools/build_action_texts.py`，不要手量坐标。
+
+#### 真因 2：手势太慢，被 LoR 判成长按预览
+
+每个 `sendevent` 都是一次进程启动（实测 ~40ms）。原来 20 步 × 4 事件 = 86 个事件，
+`getevent` 实测一次拖拽 **4.7s**。时间一长 LoR 就把按压判成「长按预览」：
+卡片放大居中、但不跟手，松手回手牌。
+
+修法：步数 20 → 6，移动不再重发 `ABS_MT_SLOT`，默认 `hold 300 → 120ms`、`drag 800 → 600ms`。
+单测改成盯「事件总数 ≤ 30 且估算时长 < 2s」。
+
+#### 已经排除的方向（别重复试）
+
+| 试过的 | 结果 |
 |---|---|
-| **牌是能出的**（人手动可以） | 用户手动出牌成功 |
-| 人用的手势是**按住 → 停一下 → 拖到场上 → 松手** | 用户描述 |
-| `input swipe` **做不到「先停再拖」** | 它从第 0 ms 就开始插值移动；游戏把这种输入判成**长按预览**（右下角放大卡 + 道具面板），松手即取消 |
-| `input swipe` 2000ms 能**抓起**牌 | 中途截图看到放大卡 + 「魔力藥水」道具面板 |
-| 落点不是唯一问题 | 8 个落点（y 650/700/800/900/950/1050，x 600/960/1200）× 3 个时长（1500/2000/2500ms）全部回手 |
-| `input draganddrop` 无效 | 被当成滑动取消 |
-| `input motionevent` **不存在** | Android 9 的 `input` 没有这个命令 |
-| `sendevent` 点击**有效** | `/dev/input/event4`（BlueStacks Virtual Touch），32767 归一化坐标，点「略過」回合真的推进了 |
-| `sendevent` 拖拽**不产生被接受的 MOVE** | 同一条路径按住停顿再拖，游戏只认到长按预览 |
-| 网络弹窗会吃掉所有输入 | 「等候取得獎勵詳情逾時」模态框出现时，所有手势都打空，状态探针还照样报 `my_turn_idle` |
-| 客户端重启会**掉登录态** | `restart_app` 之后回到 Riot 登入页，需要重新输账号 |
+| `input swipe` 各种时长（700/900/1500/2000/2500ms） | 只能抓起牌（长按预览），落不了地 |
+| 8 个落点（y 650–1050 × x 600/960/1200） | 全部回手 —— 落点不是主因 |
+| `input draganddrop` | 被当成滑动取消 |
+| `input motionevent` | **Android 9 没有这个命令** |
+| 直接 `sendevent` 拖拽（不带停顿参数优化） | 只认到长按预览 |
 
-**下一步实验（按顺序，别跳）**：
+#### 已验证可用的
 
-1. 在一场**刚开局的正常主阶段**（我方先攻、mana 2/2、按钮不是 `略過`）测一次「按住 0.5s → 拖 → 松手」，
-   用 `lor_drag.sh`（`/data/local/tmp/lor_drag.sh X1 Y1 X2 Y2 HOLD DRAG STEPS`）和 `input swipe` 各测一遍，中途截图。
-2. 若 `sendevent` 仍不产生 MOVE：改用**两次 `input swipe`** 或 `input swipe` 起点偏移极小（先原地 300ms 再走），
-   确认游戏到底需要哪种事件序列。
-3. 落点优先测**手牌正上方的我方行**（y ≈ 830–1050）；用户提示单位要拖到「中间区域」再按攻击。
+| 手段 | 说明 |
+|---|---|
+| `sendevent` 点击 | `/dev/input/event4`（BlueStacks Virtual Touch），坐标按 32767 归一化，点「略過」回合真的推进 |
+| 事件级拖拽 | `device/touch.py:EvdevSurface`，一次 `adb shell sh` 发完整手势（down → sleep(hold) → move×N → up） |
+| 设备发现 | `getevent -pl` 解析 `ABS_MT_POSITION_X/Y` 的 `max`；Pie64 没有 `ABS_MT_PRESSURE` |
+
+#### 下一步
+
+1. 在一场**正常主阶段**（我方先攻、按钮不是 `略過`）跑 `lorwright drag <x1> <y1> <x2> <y2>`，
+   确认手牌数 -1、法力被扣。
+2. 若仍失败：用 `logs/` 里的帧 + `getevent` 对照真实手指的事件序列（人做一次、抓包对比）。
+3. 落点优先测**我方行 y ≈ 830–1050**；攻击是把单位拖到中间攻击行再点 `結算`（#11）。
 
 ### 4.7 别用重启客户端做恢复（已修）
 
@@ -305,17 +356,19 @@ HOME 生效但游戏不响应 → **重启游戏，别怀疑坐标**。
 
 ---
 
-## 9. 当前打开的问题（按优先级）
+## 9. 当前打开的问题
 
-| 优先级 | 问题 |
-|---|---|
-| P0 | **出牌手势复现不出来**（§4.6）：牌能抓起、松手不落地 |
-| P0 | 场面识别（`my_units` / `enemy_units`）恒空 |
-| P1 | 卡牌名识别（同费牌分不出：9 种牌只知道费用） |
-| P1 | 攻击手势（拖到攻击行 + 点 `結算`）未真机验证 |
-| P1 | 挑战者 / 击晕图标未解析 |
-| P2 | 网络弹窗（「等候取得獎勵詳情逾時」）没有检测与处理 |
-| P2 | `RecoveryPolicy.RESTART_BATTLE` 会重启客户端 → 掉登录态 |
-| P2 | JEV 接入（缺 key 和 4 项接口信息） |
-| P2 | LLM 界面分类兜底 |
-| P2 | 模板版本化（对应游戏 `live_7-10-13`） |
+**以 GitHub Issues 为准**（标签 `p0` / `p1` / `p2`）。截至 2026-11-04：
+
+| Issue | 优先级 | 标题 |
+|---|---|---|
+| #9 | P0 | 出牌手势：真机验证与参数标定 ← 唯一硬阻塞 |
+| #4 | P0 | 状态解析：法力 / 血量（已完成，待关） |
+| #2 | P0 | UI 模板采集 + Layout 坐标标定（缺 victory / defeat） |
+| #3 | P0 | 卡牌图库采集 + 手牌识别（费用已完成，剩身份） |
+| #5 | P1 | 端到端：自动打完一场战斗 |
+| #6 | P1 | 异常恢复：分级策略（L2 缺投降模板、L3 默认禁用） |
+| #10 | P1 | 场面识别：单位 / 攻血 / 挑战者 / 击晕 |
+| #11 | P1 | 攻击声明与格挡手势验证 |
+| #12 | P1 | 前置自检：网络 / 登录假死 / App 冻死 |
+| #8 | P2 | JEV / LLM 接入验证与降级链路 |

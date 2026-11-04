@@ -57,7 +57,7 @@ def score(card: EliseCard, *, spiders_on_board: int, enemy_max_attack: int) -> f
 
 
 def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]:
-    """当前能打出的牌，按「先 buff 后普通，再按评分」排好序。
+    """当前能打出的牌，按「先铺场后召唤时 buff，再按评分」排好序。
 
     buff 牌先出是这套牌的确定性规则：所有 buff 都是给「其他蜘蛛」的，
     先出只会让后面的牌更值，不会更亏。
@@ -85,7 +85,8 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
             )
         )
 
-    playable.sort(key=lambda item: (not item[1].is_buffer, -item[2]))
+    # 「召喚時」型 buff 排在后面：先铺受益的蜘蛛，再召唤它们
+    playable.sort(key=lambda item: (item[1].settles_last, -item[2]))
     return playable
 
 

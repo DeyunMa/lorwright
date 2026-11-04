@@ -63,7 +63,8 @@ def test_plays_cheapest_when_only_one_playable():
     assert action.card_index == 1
 
 
-def test_plays_buff_before_plain_unit():
+def test_plays_plain_unit_before_summon_buff():
+    """先铺场再召唤群蛛之主 —— 它的 buff 只覆盖召唤那一刻已在场的蜘蛛。"""
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         mana=10,
@@ -73,7 +74,7 @@ def test_plays_buff_before_plain_unit():
     )
     action = POLICY.decide(state)
     assert action is not None
-    assert action.card_index == 1  # 群蛛之主
+    assert action.card_index == 0  # 蜘蛛哨兵
 
 
 def test_attacks_when_board_is_empty_and_worth_it():

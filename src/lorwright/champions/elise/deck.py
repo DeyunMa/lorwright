@@ -28,13 +28,22 @@ class Effect(StrEnum):
     GENERATE_CHOICE = "generate_choice"        # 闇影島泰爾石：生成三选一
 
 
-#: 打出后会增强「之后打出的牌」的效果 —— 同一回合里应该先出
-BUFFER_EFFECTS = frozenset(
+#: 「召喚此牌時」型 buff：只影响**当时已经在场**的其他蜘蛛，后打出的吃不到。
+#: 所以这类牌应该**后出** —— 先把受益的蜘蛛铺上去，再召唤它。
+#:
+#: 之前这里写反了（叫 `BUFFER_EFFECTS`、注释写「应该先出」）。官方
+#: Data Dragon 7_10_0 的效果文本是：
+#:   群蛛之主 01NX023  召喚此牌時，賦予我方其他蜘蛛單位 +2|+0
+#:   發狂疾行蛛 01SI056 召喚此牌時，本回合給予我方其他蜘蛛單位 +1|+0
+#: 两条都是「召喚此牌時」，先出只会 buff 到更少的蜘蛛。
+#:
+#: 不在这个集合里的两个容易搞混：
+#:   尖嘯蜘蛛 04NX016  「攻擊：」本回合給予蜘蛛友軍 +2|+0 —— 攻击时触发，与出牌顺序无关
+#:   傾巢而出 01SI050  召喚 3 隻小蜘蛛並賦予我方蜘蛛 +1|+0 —— 自己召唤的自己吃到，顺序无关
+SETTLE_LAST_EFFECTS = frozenset(
     {
         Effect.BUFF_PERMANENT,
-        Effect.BUFF_ON_ATTACK,
         Effect.BUFF_ON_SUMMON,
-        Effect.SUMMON_SPIDERLINGS,
     }
 )
 
@@ -48,8 +57,9 @@ class EliseCard(CardDef):
     buff_attack: int = 0   # 给其他蜘蛛的攻击加成
 
     @property
-    def is_buffer(self) -> bool:
-        return self.effect in BUFFER_EFFECTS
+    def settles_last(self) -> bool:
+        """「召喚此牌時」型 buff：场上蜘蛛越多越值，所以排在铺场之后。"""
+        return self.effect in SETTLE_LAST_EFFECTS
 
 
 #: 伊莉絲英雄之路起始牌组（18 张 = 9 种 × 2）

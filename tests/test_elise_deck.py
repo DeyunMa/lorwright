@@ -80,8 +80,17 @@ def test_brood_awakening_counts_summoned_spiderlings():
 # ---------- 出牌排序 ----------
 
 
-def test_buff_cards_are_played_before_plain_units():
-    """即使普通牌评分更高，buff 牌也要先出（先出只会让后面更值）。"""
+def test_summon_buff_cards_are_played_after_plain_units():
+    """「召喚此牌時」型 buff 要后出，不能先出。
+
+    官方 7_10_0 文本：群蛛之主「召喚此牌時，賦予我方其他蜘蛛單位 +2|+0」，
+    發狂疾行蛛「召喚此牌時，本回合給予我方其他蜘蛛單位 +1|+0」。
+    两条都只影响**当时已在场**的蜘蛛 —— 先出它，后面铺上去的蜘蛛吃不到 buff。
+    所以正确顺序是先把受益单位铺上去，再召唤这两张。
+
+    之前这里锁的是反的结论（`is_buffer` 优先），依据是「先出只会让后面更值」，
+    但那句话只对「给之后打出的牌加成」的效果成立，这套牌里没有这种效果。
+    """
     state = GameState(
         mana=10,
         hand=[hand(0, "蜘蛛哨兵", 3), hand(1, "群蛛之主", 5)],
@@ -89,7 +98,23 @@ def test_buff_cards_are_played_before_plain_units():
         enemy_units=[unit("大块头", 10, 10)],
     )
     ranked = rank_playable(state)
-    assert ranked[0][1].name == "群蛛之主"
+    assert ranked[0][1].name == "蜘蛛哨兵"
+    assert ranked[-1][1].name == "群蛛之主"
+
+
+def test_attack_trigger_buff_is_not_deferred():
+    """「攻擊：」型 buff（尖嘯蜘蛛）不吃出牌顺序，不该被排到最后。
+
+    它是在攻击时给全体蜘蛛 +2|+0，早出晚出效果一样；
+    把它和「召喚時」型混在一起排到后面，只会白白让它少参与一次攻击。
+    """
+    from lorwright.champions.elise.deck import lookup
+
+    spinner = lookup("尖嘯蜘蛛")
+    host = lookup("群蛛之主")
+    assert spinner is not None and host is not None
+    assert not spinner.settles_last
+    assert host.settles_last
 
 
 def test_rank_playable_filters_by_mana():

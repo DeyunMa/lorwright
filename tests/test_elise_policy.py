@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from lorwright.champions.elise import SpiderAggroPolicy
+from lorwright.champions.elise.policy import rank_playable
 from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
@@ -56,6 +57,50 @@ def test_plays_cheapest_when_only_one_playable():
         ui_state=UIState.MY_TURN_IDLE,
         mana=3,
         hand=[hand(0, "群蛛之主", 5), hand(1, "小蜘蛛", 1)],
+    )
+    action = POLICY.decide(state)
+    assert action is not None
+    assert action.type is ActionType.PLAY_CARD
+    assert action.card_index == 1
+
+
+def test_elise_outranks_every_other_card():
+    """伊莉絲是这套牌的核心：手里有她，就先出她。
+
+    「攻擊：召喚 1 隻攻擊中的小蜘蛛」是每次攻击都触发，不是打出那一次
+    的一次性收益；2|3 恐惧的身材本身也合格。蜘蛛快攻的整套节奏都建立
+    在「她每回合多带一个攻击单位」上。
+
+    这条之前不成立：`ATTACK_SUMMON` 只给 `summons * 2` = 2.0，
+    2 费算下来 5+2-3 = 4.0，排在蜘蛛哨兵、發狂疾行蛛、尖嘯蜘蛛之后，
+    实战里整局都不打英雄卡。用户多次指出过这个问题。
+    """
+    from lorwright.champions.elise.deck import SPIDER_AGGRO
+
+    for other in SPIDER_AGGRO:
+        if other.name == "伊莉絲":
+            continue
+        state = GameState(
+            ui_state=UIState.MY_TURN_IDLE,
+            mana=10,
+            hand=[hand(0, "伊莉絲", 2), hand(1, other.name, other.cost)],
+            my_units=[unit("小蜘蛛", 1, 1), unit("小蜘蛛", 1, 1)],
+            # 用实战里常见的敌方场面（最大攻击力 5），而不是 10|10 这种
+            # 极端值 —— 那种场面下蜘術士的击晕本来就该值更多分
+            enemy_units=[unit("蜘蛛哨兵", 5, 5)],
+        )
+        ranked = rank_playable(state)
+        assert ranked[0][1].name == "伊莉絲", f"伊莉絲 应该排在 {other.name} 前面"
+
+
+def test_elise_is_chosen_over_cheaper_cards():
+    """费用更低不是理由 —— 有伊莉絲就打伊莉絲，不打 1 费小蜘蛛。"""
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=10,
+        hand=[hand(0, "小蜘蛛", 1), hand(1, "伊莉絲", 2)],
+        my_units=[],
+        enemy_units=[unit("大块头", 10, 10)],
     )
     action = POLICY.decide(state)
     assert action is not None

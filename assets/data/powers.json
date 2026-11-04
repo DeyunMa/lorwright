@@ -1,0 +1,5798 @@
+[
+{
+"code": "FP0000",
+"name_en": "Adoribus!",
+"name_zh": "變可愛！",
+"rarity": "COMMON",
+"desc_zh": "回合開始：本回合將仇敵的最強侍從單位幻化為1|1小松鼠並沉默該單位。"
+},
+{
+"code": "FP0001",
+"name_en": "Blade in the Darkness",
+"name_zh": "黑暗利刃",
+"rarity": "EPIC",
+"desc_zh": "回合結束：若仇敵主堡本回合受過傷害，則使我方的最強單位打擊之。"
+},
+{
+"code": "FP0002",
+"name_en": "Completely Unacceptable",
+"name_zh": "無法接受",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在我方手牌生成1張審判。仇敵打出法術時，使審判魔耗值-1。"
+},
+{
+"code": "FP0003",
+"name_en": "Cower, Worship, Beg",
+"name_zh": "敬懼求饒",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：我方隨機召喚1個等級2英雄，其魔耗值等同我方的魔力寶石槽位數量。"
+},
+{
+"code": "FP0004",
+"name_en": "Every Day is Progress Day",
+"name_zh": "日日都是進步日",
+"rarity": "COMMON",
+"desc_zh": "本回合我方抽出的卡牌魔耗值-2"
+},
+{
+"code": "FP0005",
+"name_en": "Forest Workout",
+"name_zh": "森林健身房",
+"rarity": "COMMON",
+"desc_zh": "使所有單位擁有「打擊：使此牌力量值加倍」。"
+},
+{
+"code": "FP0006",
+"name_en": "Frost Gathers",
+"name_zh": "寒霜凝聚",
+"rarity": "LEGENDARY",
+"desc_zh": "使仇敵的單位擁有弱勢。我方單位獲得+0|+2。"
+},
+{
+"code": "FP0007",
+"name_en": "Gathering Storm",
+"name_zh": "暴風凝聚",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，擊暈仇敵的最弱單位，且我方抽1張牌。"
+},
+{
+"code": "FP0008",
+"name_en": "God Among Gladiators",
+"name_zh": "競技場之神",
+"rarity": "EPIC",
+"desc_zh": "回合結束：若我方場上沒有達瑞文，則召喚之。達瑞文攻擊時，本回合給予其+1|+0與雙重攻擊。"
+},
+{
+"code": "FP0009",
+"name_en": "Hardfought Heist",
+"name_zh": "玩命劫案",
+"rarity": "COMMON",
+"desc_zh": "回合開始：我方在手牌生成1張挖到寶。"
+},
+{
+"code": "FP0010",
+"name_en": "Hemorrhage",
+"name_zh": "絞喉",
+"rarity": "EPIC",
+"desc_zh": "回合結束：我方場上每有1個單位，便對仇敵主堡造成1點傷害。"
+},
+{
+"code": "FP0011",
+"name_en": "Heroics",
+"name_zh": "英勇行徑",
+"rarity": "EPIC",
+"desc_zh": "回合開始：我方每有1個友軍單位，便賦予最強友軍單位+1|+1。"
+},
+{
+"code": "FP0012",
+"name_en": "Hollowblood",
+"name_zh": "虛厄之血",
+"rarity": "EPIC",
+"desc_zh": "仇敵的單位打擊我方主堡時，賦予其-2|-0。若其力量值為4以下，則改為泯滅之。"
+},
+{
+"code": "FP0013",
+"name_en": "I Am Inevitable",
+"name_zh": "宿命難逃",
+"rarity": "LEGENDARY",
+"desc_zh": "我方單位承受傷害且未陣亡時，賦予其堅忍。若其已有堅忍，則改為賦予+2|+2。"
+},
+{
+"code": "FP0014",
+"name_en": "Inspiring Presence",
+"name_zh": "勵志人物",
+"rarity": "EPIC",
+"desc_zh": "我方打出英雄時，賦予其他我方單位+2|+2。"
+},
+{
+"code": "FP0015",
+"name_en": "Its Wings Are More Talons?!",
+"name_zh": "與其說是翅膀，不如說是利爪？！",
+"rarity": "EPIC",
+"desc_zh": "所有單位擁有弱勢。使我方單位擁有+4|+0與快速攻擊。"
+},
+{
+"code": "FP0016",
+"name_en": "Legendary Battlefield",
+"name_zh": "傳奇戰場",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方召喚咆嘯深淵。我方召喚英雄時，將其能力值加倍。"
+},
+{
+"code": "FP0017",
+"name_en": "Light Eternal",
+"name_zh": "光芒永恆",
+"rarity": "EPIC",
+"desc_zh": "我方打出法術時，賦予牌組最上方的單位+4|+4。"
+},
+{
+"code": "FP0018",
+"name_en": "Lingering Shadows",
+"name_zh": "徘徊暗影",
+"rarity": "COMMON",
+"desc_zh": "單位陣亡時，隨機賦予原主手牌中1個單位+1|+1。"
+},
+{
+"code": "FP0019",
+"name_en": "Mega Mush!",
+"name_zh": "超級雪橇！",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，隨機召喚1個魔耗值為1攻擊中的普羅，並賦予其+5|+5。"
+},
+{
+"code": "FP0020",
+"name_en": "Militant March",
+"name_zh": "行軍令",
+"rarity": "RARE",
+"desc_zh": "我方單位的單次打擊造成5點以上傷害時，賦予其+2|+2。"
+},
+{
+"code": "FP0021",
+"name_en": "Neverending Nightmare",
+"name_zh": "無盡夢魘",
+"rarity": "RARE",
+"desc_zh": "我方單位擁有夜臨：召喚1個此牌的閃靈複製單位。"
+},
+{
+"code": "FP0022",
+"name_en": "On the Case",
+"name_zh": "著手辦案",
+"rarity": "EPIC",
+"desc_zh": "回合開始：將8張閃光炸彈陷阱植入仇敵牌組最上方8張牌中。"
+},
+{
+"code": "FP0023",
+"name_en": "Pick on Someone My Size",
+"name_zh": "公平對決",
+"rarity": "EPIC",
+"desc_zh": "回合結束：若我方場上的友軍單位生命值總和為20以上，賦予我方英雄法盾，且我方場上沒有加里歐，則召喚之。"
+},
+{
+"code": "FP0024",
+"name_en": "Remove the Imperfection",
+"name_zh": "排除瑕疵",
+"rarity": "EPIC",
+"desc_zh": "我方召喚單位時，召回仇敵1個力量值小於該單位的侍從單位。"
+},
+{
+"code": "FP0025",
+"name_en": "Rockets go BOOM!",
+"name_zh": "轟天火箭炮！",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，打出超威能死亡火箭！。"
+},
+{
+"code": "FP0026",
+"name_en": "Secrets Hidden By Frost",
+"name_zh": "冰藏祕密",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則凍傷仇敵最強單位，並召喚1個冰霜尖牙狼群。"
+},
+{
+"code": "FP0027",
+"name_en": "Small Sacrifice",
+"name_zh": "小我換大我",
+"rarity": "COMMON",
+"desc_zh": "使我方的單位擁有遺願：進行重鑄。"
+},
+{
+"code": "FP0028",
+"name_en": "Snow Scavenger",
+"name_zh": "拾荒雪巨魔",
+"rarity": "EPIC",
+"desc_zh": "回合開始：奪取1張牌並賦予其1個隨機道具。"
+},
+{
+"code": "FP0029",
+"name_en": "Sovereign's Domination",
+"name_zh": "王權統御",
+"rarity": "EPIC",
+"desc_zh": "回合開始：我方召喚1個上回合仇敵陣亡的最強侍從單位的閃靈複製單位。"
+},
+{
+"code": "FP0030",
+"name_en": "Survival of the Fittest",
+"name_zh": "適者生存",
+"rarity": "COMMON",
+"desc_zh": "回合開始：泯滅我方的最弱單位，並將其能力值加倍後賦予我方的最強單位。"
+},
+{
+"code": "FP0031",
+"name_en": "Swarm Tactics",
+"name_zh": "人海戰術",
+"rarity": "RARE",
+"desc_zh": "我方攻擊時，召喚1個攻擊中的發狂疾行蛛。"
+},
+{
+"code": "FP0032",
+"name_en": "The Dragon's Spirit",
+"name_zh": "龍魂之力",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，賦予其他我方單位+0|+2。若無則改為賦予+2|+0。"
+},
+{
+"code": "FP0033",
+"name_en": "The Saltwater Scourge",
+"name_zh": "海洋之災",
+"rarity": "EPIC",
+"desc_zh": "回合開始：我方召喚1個火藥桶。我方在回合開始生命值首次低於25時，召喚1個恐懼號。"
+},
+{
+"code": "FP0034",
+"name_en": "Undying Rage",
+"name_zh": "無盡怒火",
+"rarity": "EPIC",
+"desc_zh": "每回合我方單位首次將要陣亡時，改為賦予其堅忍、蠻力與威嚇。"
+},
+{
+"code": "FP0035",
+"name_en": "Wrath of Nagakabouros",
+"name_zh": "娜葛卡布爾之怒",
+"rarity": "EPIC",
+"desc_zh": "我方每打出1張卡牌，便海祭2次。"
+},
+{
+"code": "P0000",
+"name_en": "Pyromania",
+"name_zh": "嗜火",
+"rarity": "RARE",
+"desc_zh": "使我方法術與技能造成1點額外傷害。"
+},
+{
+"code": "P0001",
+"name_en": "Pyromania II",
+"name_zh": "嗜火II",
+"rarity": "EPIC",
+"desc_zh": "使我方法術與技能造成2點額外傷害。"
+},
+{
+"code": "P0002",
+"name_en": "Playful Trick",
+"name_zh": "新奇花招",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張飛逝狡詐。"
+},
+{
+"code": "P0003",
+"name_en": "Caretaker's Blessing",
+"name_zh": "守望者的祝福",
+"rarity": "RARE",
+"desc_zh": "召喚能力值增加的友軍單位時，賦予其1項隨機特性。"
+},
+{
+"code": "P0004",
+"name_en": "Caretaker's Blessing II",
+"name_zh": "守望者的祝福II",
+"rarity": "EPIC",
+"desc_zh": "召喚能力值增加的友軍單位時，賦予其2項隨機特性。"
+},
+{
+"code": "P0005",
+"name_en": "Cosmic Presence",
+"name_zh": "氣場無邊",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。抽到附有編鐘的牌時，將2張編鐘植入我方牌組。"
+},
+{
+"code": "P0006",
+"name_en": "Carve a Path",
+"name_zh": "殺出血路",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。每回合我方攻擊單位力量值總和首次達15以上時，進行備戰。"
+},
+{
+"code": "P0007",
+"name_en": "Noxian Might",
+"name_zh": "諾克薩斯威能",
+"rarity": "RARE",
+"desc_zh": "每回合首次打出友軍單位時，賦予其+2|+0。"
+},
+{
+"code": "P0008",
+"name_en": "Demacian Might",
+"name_zh": "蒂瑪西亞之力",
+"rarity": "RARE",
+"desc_zh": "友軍單位進行打擊時，賦予其+1|+1。"
+},
+{
+"code": "P0009",
+"name_en": "Noxian Might II",
+"name_zh": "諾克薩斯威能II",
+"rarity": "EPIC",
+"desc_zh": "每回合首次打出友軍單位時，賦予其+4|+0與蠻力。"
+},
+{
+"code": "P0010",
+"name_en": "Justice",
+"name_zh": "正義",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：若手牌中沒有，則在手牌生成1張單挑。"
+},
+{
+"code": "P0011",
+"name_en": "Prophet of an Elder God",
+"name_zh": "遠古預言",
+"rarity": "RARE",
+"desc_zh": "我方攻擊時，海祭1。"
+},
+{
+"code": "P0012",
+"name_en": "Demacian Might II",
+"name_zh": "蒂瑪西亞之力II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位進行打擊時，賦予其+2|+2。"
+},
+{
+"code": "P0013",
+"name_en": "Prophet of an Elder God II",
+"name_zh": "遠古預言II",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，海祭3。"
+},
+{
+"code": "P0014",
+"name_en": "Test of Spirit",
+"name_zh": "祖靈之試",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：賦予最弱敵軍單位弱勢。"
+},
+{
+"code": "P0015",
+"name_en": "Setting the Stage",
+"name_zh": "布置舞台",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。友軍單位打出技能時，賦予其+1|+1。"
+},
+{
+"code": "P0016",
+"name_en": "Beauty in Death",
+"name_zh": "死亡之美",
+"rarity": "RARE",
+"desc_zh": "我方每打出4張快速法術、慢速法術或技能時，便在手牌生成1張魔幻時刻。"
+},
+{
+"code": "P0017",
+"name_en": "Wreak Havoc",
+"name_zh": "大鬧一場",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方升級英雄時，在手牌生成1張超威能死亡火箭！。"
+},
+{
+"code": "P0018",
+"name_en": "What's the Worst that Could Happen?",
+"name_zh": "最糟能糟到哪裡去？",
+"rarity": "RARE",
+"desc_zh": "我方打出和棄置卡牌時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0019",
+"name_en": "Beauty in Death II",
+"name_zh": "死亡之美II",
+"rarity": "EPIC",
+"desc_zh": "我方每打出4張快速法術、慢速法術或技能時，便在手牌生成1張魔耗值為0的魔幻時刻。"
+},
+{
+"code": "P0020",
+"name_en": "Dragon's Spirit",
+"name_zh": "龍魂",
+"rarity": "RARE",
+"desc_zh": "在同一回合中打出第二張法術牌時，本回合給予最強友軍單位+4|+4。"
+},
+{
+"code": "P0021",
+"name_en": "What's the Worst that Could Happen? II",
+"name_zh": "最糟能糟到哪裡去？II",
+"rarity": "EPIC",
+"desc_zh": "我方打出和棄置卡牌時，對敵方主堡與1個隨機敵軍單位各造成1點傷害。"
+},
+{
+"code": "P0022",
+"name_en": "Dragon's Spirit II",
+"name_zh": "龍魂II",
+"rarity": "EPIC",
+"desc_zh": "在同一回合中打出第二張法術牌時，本回合給予最強友軍單位+8|+8。"
+},
+{
+"code": "P0023",
+"name_en": "Extend your Senses",
+"name_zh": "拓展感官",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張飛逝雙重戒律。"
+},
+{
+"code": "P0024",
+"name_en": "Lighting the Way II",
+"name_zh": "照亮前路II",
+"rarity": "EPIC",
+"desc_zh": "每回合我方首次消耗魔力打出法術牌時，恢復等同於其魔耗值的魔力。"
+},
+{
+"code": "P0025",
+"name_en": "Pushing my Limits",
+"name_zh": "衝破極限",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方消耗6點以上魔力打出法術時，在手牌生成1張魔耗值為0的光盾庇護。"
+},
+{
+"code": "P0026",
+"name_en": "Lighting the Way",
+"name_zh": "照亮前路",
+"rarity": "RARE",
+"desc_zh": "每回合我方首次消耗魔力打出法術牌時，恢復等同於其魔耗值的法術魔力。"
+},
+{
+"code": "P0027",
+"name_en": "Nothing but Powder Monkeys",
+"name_zh": "火藥猴群",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則召喚1個火藥猴。"
+},
+{
+"code": "P0028",
+"name_en": "Nothing but Powder Monkeys II",
+"name_zh": "火藥猴群II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：召喚1個火藥猴。"
+},
+{
+"code": "P0029",
+"name_en": "Most Wanted",
+"name_zh": "頭號要犯",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方攻擊時，抽1張單位牌。"
+},
+{
+"code": "P0030",
+"name_en": "Piltover's Finest",
+"name_zh": "皮爾托福特警",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：抽2張魔耗值為2以下的牌。"
+},
+{
+"code": "P0031",
+"name_en": "Relentless Force",
+"name_zh": "粉碎震波",
+"rarity": "RARE",
+"desc_zh": "我方抽牌時，賦予最強友軍單位+0|+1與衝擊。"
+},
+{
+"code": "P0032",
+"name_en": "Never Dull",
+"name_zh": "蓄勢待發",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。友軍單位進行打擊時，賦予其+1|+0。"
+},
+{
+"code": "P0033",
+"name_en": "Follow the Wind",
+"name_zh": "隨風而行",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則擊暈最強敵軍單位。"
+},
+{
+"code": "P0034",
+"name_en": "Relentless Force II",
+"name_zh": "粉碎震波II",
+"rarity": "EPIC",
+"desc_zh": "我方抽牌時，賦予最強友軍單位衝擊2次與+0|+2。"
+},
+{
+"code": "P0035",
+"name_en": "Frenzied Fighting",
+"name_zh": "狂暴血戰",
+"rarity": "EPIC",
+"desc_zh": "使友軍單位擁有+2|+2。回合結束：對所有友軍單位造成2點傷害。"
+},
+{
+"code": "P0036",
+"name_en": "Follow the Wind II",
+"name_zh": "隨風而行II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：擊暈最強敵軍單位。"
+},
+{
+"code": "P0037",
+"name_en": "Empire Above All",
+"name_zh": "帝國至上",
+"rarity": "EPIC",
+"desc_zh": "回合結束：賦予所有單位+2|+0。"
+},
+{
+"code": "P0038",
+"name_en": "Unstoppable Force",
+"name_zh": "勢不可擋",
+"rarity": "EPIC",
+"desc_zh": "使友軍單位擁有+3|+3、蠻力與無法進行格擋。"
+},
+{
+"code": "P0039",
+"name_en": "Animated Armor",
+"name_zh": "活鎧甲",
+"rarity": "EPIC",
+"desc_zh": "使所有單位擁有重壓。"
+},
+{
+"code": "P0040",
+"name_en": "Petricite's Presence",
+"name_zh": "反魔法英石的存在",
+"rarity": "EPIC",
+"desc_zh": "所有法術的魔耗值變為6。"
+},
+{
+"code": "P0041",
+"name_en": "Natural Magic",
+"name_zh": "天然魔法",
+"rarity": "EPIC",
+"desc_zh": "所有卡牌魔耗值-2。"
+},
+{
+"code": "P0042",
+"name_en": "Waves of Worry",
+"name_zh": "無盡憂慮",
+"rarity": "EPIC",
+"desc_zh": "使所有單位擁有弱勢。"
+},
+{
+"code": "P0043",
+"name_en": "House Rules",
+"name_zh": "自家規則",
+"rarity": "EPIC",
+"desc_zh": "回合開始：賦予手牌中1張隨機卡牌1件隨機道具。"
+},
+{
+"code": "P0044",
+"name_en": "Mercy Killings",
+"name_zh": "安樂死",
+"rarity": "EPIC",
+"desc_zh": "回合結束：擊殺所有負傷單位。"
+},
+{
+"code": "P0045",
+"name_en": "Steady Supply",
+"name_zh": "穩定供應",
+"rarity": "EPIC",
+"desc_zh": "回合開始：召喚1個腐蝕藥劑桶。"
+},
+{
+"code": "P0046",
+"name_en": "Inquisition",
+"name_zh": "審問",
+"rarity": "EPIC",
+"desc_zh": "回合開始：沉默所有單位。"
+},
+{
+"code": "P0047",
+"name_en": "Mageseeker's Clearance",
+"name_zh": "狙魔許可",
+"rarity": "EPIC",
+"desc_zh": "使我方法術擁有飛逝。我方打出非終極閃光的法術時，在手牌生成1張終極閃光。"
+},
+{
+"code": "P0048",
+"name_en": "The Price of Progress",
+"name_zh": "進步的代價",
+"rarity": "EPIC",
+"desc_zh": "我方的法術魔耗值-2，但單位魔耗值+1。"
+},
+{
+"code": "P0049",
+"name_en": "Coastal Chaos",
+"name_zh": "濱海混亂",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：雙方各召喚2個沿岸守軍。"
+},
+{
+"code": "P0050",
+"name_en": "Not So Fast",
+"name_zh": "還早得很呢！",
+"rarity": "EPIC",
+"desc_zh": "回合開始：擊暈最強與最弱單位。"
+},
+{
+"code": "P0051",
+"name_en": "Narwhal Blessing",
+"name_zh": "獨角鯨祝福",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：雙方各召喚3個黃金獨角鯨。"
+},
+{
+"code": "P0052",
+"name_en": "Arms Race",
+"name_zh": "軍備競賽",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：雙方各召喚2個武趣工匠。"
+},
+{
+"code": "P0053",
+"name_en": "Gearing Up",
+"name_zh": "蓄勢待發",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚2個巨臂改裝迷。"
+},
+{
+"code": "P0054",
+"name_en": "Reunited",
+"name_zh": "重逢",
+"rarity": "COMMON",
+"desc_zh": "所有友軍單位獲得+1|+0。"
+},
+{
+"code": "P0055",
+"name_en": "Disarmed",
+"name_zh": "卸除武器",
+"rarity": "COMMON",
+"desc_zh": "所有敵軍單位受到-1|-0。"
+},
+{
+"code": "P0056",
+"name_en": "Quick Draw",
+"name_zh": "抽抽樂",
+"rarity": "RARE",
+"desc_zh": "本回合我方抽出的卡牌魔耗值-1。"
+},
+{
+"code": "P0057",
+"name_en": "Alternative Power Source",
+"name_zh": "替代能源",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：召喚1個海克斯科技觀測所。"
+},
+{
+"code": "P0058",
+"name_en": "Fixer Upper",
+"name_zh": "補救大師",
+"rarity": "RARE",
+"desc_zh": "回合開始：本回合給予最弱友軍單位+3|+3。"
+},
+{
+"code": "P0059",
+"name_en": "Spell Burn",
+"name_zh": "法術燃燒",
+"rarity": "RARE",
+"desc_zh": "我方打出法術時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0060",
+"name_en": "Reset",
+"name_zh": "時間重置",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在我方牌組生成3張計時開始。"
+},
+{
+"code": "P0061",
+"name_en": "Officer Backup",
+"name_zh": "支援警力",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚臥底探員。"
+},
+{
+"code": "P0062",
+"name_en": "Stabilize",
+"name_zh": "分身術",
+"rarity": "RARE",
+"desc_zh": "我方打出英雄時，召喚1位該英雄的閃靈複製單位。"
+},
+{
+"code": "P0063",
+"name_en": "Explosive Entrance",
+"name_zh": "爆炸性進場",
+"rarity": "EPIC",
+"desc_zh": "召喚友軍單位時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0064",
+"name_en": "Hold It!",
+"name_zh": "站住！",
+"rarity": "EPIC",
+"desc_zh": "回合開始：擊暈最強敵軍單位。"
+},
+{
+"code": "P0065",
+"name_en": "In My Sights",
+"name_zh": "發現目標",
+"rarity": "RARE",
+"desc_zh": "回合開始：賦予最弱敵軍單位弱勢。"
+},
+{
+"code": "P0067",
+"name_en": "Manaflow",
+"name_zh": "附魔",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：獲得1顆魔力寶石。"
+},
+{
+"code": "P0068",
+"name_en": "Yipp's Genius",
+"name_zh": "奕卜是個天才",
+"rarity": "EPIC",
+"desc_zh": "我方召喚魔耗值為1的單位時，賦予其+2|+2。"
+},
+{
+"code": "P0069",
+"name_en": "Trifarian Might",
+"name_zh": "特菲利安之力",
+"rarity": "RARE",
+"desc_zh": "我方召喚力量值為5以上的單位時，使其打擊最弱敵軍單位。"
+},
+{
+"code": "P0070",
+"name_en": "Unstable Manaflow",
+"name_zh": "不穩定附魔",
+"rarity": "RARE",
+"desc_zh": "（前3場對戰）牌局開始：獲得1顆魔力寶石。"
+},
+{
+"code": "P0071",
+"name_en": "Crush",
+"name_zh": "壓倒性力量",
+"rarity": "COMMON",
+"desc_zh": "友軍單位擁有蠻力。"
+},
+{
+"code": "P0072",
+"name_en": "Lie in Wait",
+"name_zh": "暗伏殺機",
+"rarity": "RARE",
+"desc_zh": "使各處魔耗值為3以下的友軍單位獲得潛伏，且視為潛伏者。"
+},
+{
+"code": "P0073",
+"name_en": "Endless Wealth",
+"name_zh": "無盡財富",
+"rarity": "EPIC",
+"desc_zh": "每場遭遇戰後額外獲得200金幣。"
+},
+{
+"code": "P0074",
+"name_en": "Duplicate",
+"name_zh": "複製",
+"rarity": "LEGENDARY",
+"desc_zh": "複製每回合我方打出的第1張牌。"
+},
+{
+"code": "P0075",
+"name_en": "Perfected Manaflow",
+"name_zh": "完美附魔",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：獲得1顆魔力寶石。"
+},
+{
+"code": "P0076",
+"name_en": "Level Up",
+"name_zh": "升級",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：將10張等級2英雄洗入我方牌組，這些英雄牌魔耗值-1。"
+},
+{
+"code": "P0077",
+"name_en": "Unstable Inventory",
+"name_zh": "不穩定道具欄",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：在我方牌組的每張卡牌上隨機添加1件道具，此效果持續到牌局結束。"
+},
+{
+"code": "P0078",
+"name_en": "Power Overwhelming",
+"name_zh": "無窮力量",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：賦予各處友軍單位+1|+1。"
+},
+{
+"code": "P0079",
+"name_en": "Sticky Fingers",
+"name_zh": "妙手空空",
+"rarity": "COMMON",
+"desc_zh": "我方攻擊時，奪取1張牌。"
+},
+{
+"code": "P0080",
+"name_en": "Unyielding Determination",
+"name_zh": "不屈決心",
+"rarity": "LEGENDARY",
+"desc_zh": "每局我方主堡首次生命值即將歸零時，治療其30點生命值，並賦予各處友軍單位+1|+1。"
+},
+{
+"code": "P0081",
+"name_en": "Duelist",
+"name_zh": "決鬥家",
+"rarity": "COMMON",
+"desc_zh": "召喚友軍單位時，本回合給予其挑戰者。"
+},
+{
+"code": "P0082",
+"name_en": "Grit",
+"name_zh": "毅力",
+"rarity": "COMMON",
+"desc_zh": "使友軍單位擁有「攻擊：此牌的力量值提升至等同於生命值。」"
+},
+{
+"code": "P0083",
+"name_en": "Enfeebling Strike",
+"name_zh": "衰弱之擊",
+"rarity": "RARE",
+"desc_zh": "我方對敵軍單位造成傷害時，使其力量值降低，降低量等同於所受的傷害量。"
+},
+{
+"code": "P0084",
+"name_en": "Wild Inspiration",
+"name_zh": "天馬行空",
+"rarity": "RARE",
+"desc_zh": "我方生成的卡牌魔耗值-1。"
+},
+{
+"code": "P0085",
+"name_en": "Raiding Party",
+"name_zh": "劫掠部隊",
+"rarity": "COMMON",
+"desc_zh": "我方對敵方主堡造成傷害時，賦予牌組最上方的友軍單位+1|+1。"
+},
+{
+"code": "P0086",
+"name_en": "The Best Defense...",
+"name_zh": "最好的防禦",
+"rarity": "RARE",
+"desc_zh": "使友軍單位擁有「攻擊：此牌的生命值提升至等同於力量值。」"
+},
+{
+"code": "P0087",
+"name_en": "Higher Education",
+"name_zh": "高等教育",
+"rarity": "RARE",
+"desc_zh": "我方抽牌時，本回合給予所有友軍單位+1|+0。"
+},
+{
+"code": "P0089",
+"name_en": "Endurance",
+"name_zh": "耐力賽",
+"rarity": "COMMON",
+"desc_zh": "友軍單位承受傷害且未陣亡時，賦予其+1|+1。"
+},
+{
+"code": "P0090",
+"name_en": "Evolution",
+"name_zh": "進化",
+"rarity": "LEGENDARY",
+"desc_zh": "友軍單位每有1項特性，便獲得+1|+1。"
+},
+{
+"code": "P0091",
+"name_en": "Dragon's Rage",
+"name_zh": "神龍擺尾",
+"rarity": "COMMON",
+"desc_zh": "召喚友軍單位時，賦予其血怒，並視為龍族牌。"
+},
+{
+"code": "P0093",
+"name_en": "Can't Stop; Won't Stop",
+"name_zh": "不能停，不要停",
+"rarity": "EPIC",
+"desc_zh": "使友軍單位獲得的「本回合」增益一直持續到牌局結束（光盾除外）。"
+},
+{
+"code": "P0094",
+"name_en": "Vitality",
+"name_zh": "生命力",
+"rarity": "RARE",
+"desc_zh": "我方最大生命值提升10點。"
+},
+{
+"code": "P0096",
+"name_en": "Seat of Power",
+"name_zh": "力量寶座",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚1個神皇座台。"
+},
+{
+"code": "P0097",
+"name_en": "Flexible Gameplan",
+"name_zh": "靈活戰術",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：抽2張牌。"
+},
+{
+"code": "P0098",
+"name_en": "New Student",
+"name_zh": "新生入學",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚1個武術學徒。"
+},
+{
+"code": "P0099",
+"name_en": "Immortality",
+"name_zh": "不朽不滅",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：治療我方主堡10點生命值。"
+},
+{
+"code": "P0100",
+"name_en": "Vanguard Lookout",
+"name_zh": "先鋒瞭望兵",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚2名先鋒瞭望兵。"
+},
+{
+"code": "P0101",
+"name_en": "Out the Gates",
+"name_zh": "身先士卒",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：從我方牌組召喚1個魔耗值為2的單位。"
+},
+{
+"code": "P0102",
+"name_en": "Black Market Discount",
+"name_zh": "黑市特價",
+"rarity": "EPIC",
+"desc_zh": "回合結束：我方手牌中魔耗值最高的卡牌魔耗值-1。"
+},
+{
+"code": "P0103",
+"name_en": "Clock Setter",
+"name_zh": "定時轟炸",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在我方牌組生成4張定時炸彈。"
+},
+{
+"code": "P0104",
+"name_en": "Bouncing Blades",
+"name_zh": "彈射利刃",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張飛逝利刃刀鋒。"
+},
+{
+"code": "P0105",
+"name_en": "Fast Deal",
+"name_zh": "快閃優惠",
+"rarity": "RARE",
+"desc_zh": "回合開始：抽1張牌，並給予其飛逝。棄置卡牌時，在我方牌組生成1張該牌的複製牌。"
+},
+{
+"code": "P0106",
+"name_en": "Counterfeit Production",
+"name_zh": "仿造",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張魔耗值為0的飛逝盜版贗品。"
+},
+{
+"code": "P0107",
+"name_en": "Hold Them Off",
+"name_zh": "拖延攻勢",
+"rarity": "RARE",
+"desc_zh": "回合開始：本回合凍傷最強敵軍單位。"
+},
+{
+"code": "P0108",
+"name_en": "Feral Senses",
+"name_zh": "野性大發",
+"rarity": "RARE",
+"desc_zh": "回合開始：在手牌生成1張飛逝野性直覺。"
+},
+{
+"code": "P0109",
+"name_en": "Lil' Buddies",
+"name_zh": "小小夥伴",
+"rarity": "EPIC",
+"desc_zh": "回合開始：隨機召喚1個魔耗值為1的普羅。"
+},
+{
+"code": "P0110",
+"name_en": "Battlefield Training",
+"name_zh": "戰場訓練",
+"rarity": "COMMON",
+"desc_zh": "回合開始：賦予最弱友軍單位+1|+1。 "
+},
+{
+"code": "P0111",
+"name_en": "Sorcery",
+"name_zh": "巫術",
+"rarity": "RARE",
+"desc_zh": "回合開始：恢復我方所有法術魔力。"
+},
+{
+"code": "P0112",
+"name_en": "Domination",
+"name_zh": "征服",
+"rarity": "EPIC",
+"desc_zh": "回合開始：進行備戰。"
+},
+{
+"code": "P0113",
+"name_en": "Spellslinger",
+"name_zh": "魔法師",
+"rarity": "RARE",
+"desc_zh": "我方的法術魔耗值-1。"
+},
+{
+"code": "P0114",
+"name_en": "Slow But Steady",
+"name_zh": "穩紮穩打",
+"rarity": "RARE",
+"desc_zh": "我方打出慢速法術時，對相同目標再複製一次。"
+},
+{
+"code": "P0115",
+"name_en": "Sharing is Caring",
+"name_zh": "齊心協力",
+"rarity": "EPIC",
+"desc_zh": "召喚友軍單位時，將其特性賦予所有友軍單位。"
+},
+{
+"code": "P0116",
+"name_en": "Welcome Gifts",
+"name_zh": "迎賓禮",
+"rarity": "RARE",
+"desc_zh": "召喚友軍單位時，賦予其1項隨機特性。"
+},
+{
+"code": "P0117",
+"name_en": "Rush Them Down",
+"name_zh": "突襲攻城",
+"rarity": "COMMON",
+"desc_zh": "召喚友軍單位時，本回合給予其+1|+1。"
+},
+{
+"code": "P0118",
+"name_en": "Share the Bounty",
+"name_zh": "有福同享",
+"rarity": "EPIC",
+"desc_zh": "對友軍單位使用單體目標法術時，最弱友軍單位獲得相同效果。"
+},
+{
+"code": "P0119",
+"name_en": "Nature's Revenge",
+"name_zh": "大自然的報復",
+"rarity": "EPIC",
+"desc_zh": "我方獲得攻擊主動權時，召喚1個小樹精。"
+},
+{
+"code": "P0120",
+"name_en": "Snippets of Song",
+"name_zh": "隻詞片曲",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方沒有攻擊主動權，則召喚1個幽靈樂團。"
+},
+{
+"code": "P0121",
+"name_en": "Needlework",
+"name_zh": "飛針走線",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方最左側的攻擊單位與其右側的攻擊單位一起獲得聖化增益。"
+},
+{
+"code": "P0122",
+"name_en": "Snippets of Song II",
+"name_zh": "隻詞片曲II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：召喚1個幽靈樂團。"
+},
+{
+"code": "P0123",
+"name_en": "Peak of Ecstasy",
+"name_zh": "狂喜極樂",
+"rarity": "RARE",
+"desc_zh": "我方升級英雄時，賦予各處友軍單位+1|+1。"
+},
+{
+"code": "P0124",
+"name_en": "Love Eternal",
+"name_zh": "永恆之愛",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。每回合我方首次擊殺友軍侍從單位時，在手牌生成1張該牌的飛逝複製牌。"
+},
+{
+"code": "P0125",
+"name_en": "Peak of Ecstasy II",
+"name_zh": "狂喜極樂II",
+"rarity": "EPIC",
+"desc_zh": "我方升級英雄時，賦予各處友軍單位+2|+2。"
+},
+{
+"code": "P0126",
+"name_en": "From Prey to Predator",
+"name_zh": "弱肉食強",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則賦予最強友軍單位1個隨機增益特性。"
+},
+{
+"code": "P0127",
+"name_en": "Voidtouched",
+"name_zh": "虛空之力",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。擁有3個以上增益特性的友軍單位獲得+2|+2。"
+},
+{
+"code": "P0128",
+"name_en": "From Prey to Predator II",
+"name_zh": "弱肉食強II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：賦予最強友軍單位1個隨機增益特性。"
+},
+{
+"code": "P0129",
+"name_en": "Good Morning, Grumpy",
+"name_zh": "起床氣噗噗",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚1個冬眠岩熊。"
+},
+{
+"code": "P0130",
+"name_en": "Recycled Stone",
+"name_zh": "落石環保",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方地標被摧毀時，賦予所有友軍單位+1|+0。"
+},
+{
+"code": "P0131",
+"name_en": "Good Morning, Grumpy II",
+"name_zh": "起床氣噗噗II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：召喚1個冬眠岩熊。使友軍單位獲得+1|+1與蠻力。"
+},
+{
+"code": "P0132",
+"name_en": "We Got This",
+"name_zh": "同心斷金",
+"rarity": "RARE",
+"desc_zh": "使友軍單位擁有命定。"
+},
+{
+"code": "P0133",
+"name_en": "So Many Friends",
+"name_zh": "朋友多多",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：召喚2隻魔耗值為1的隨機普羅。"
+},
+{
+"code": "P0134",
+"name_en": "We Got This II",
+"name_zh": "同心斷金II",
+"rarity": "EPIC",
+"desc_zh": "使友軍單位擁有命定。指定擁有命定的友軍單位為目標時，額外賦予其+1|+1。"
+},
+{
+"code": "P0135",
+"name_en": "Frost Shot",
+"name_zh": "冰霜射擊",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則凍傷最強敵軍單位，並在本回合給予其弱勢。"
+},
+{
+"code": "P0136",
+"name_en": "Avarosan Spirit",
+"name_zh": "艾伐洛森之靈",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。友軍單位擊殺力量值為0的單位時，賦予其+1|+1。"
+},
+{
+"code": "P0137",
+"name_en": "Frost Shot II",
+"name_zh": "冰霜射擊II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：凍傷最強敵軍單位，並在本回合給予其弱勢。"
+},
+{
+"code": "P0138",
+"name_en": "Outcast's Edge",
+"name_zh": "流放者之刃",
+"rarity": "RARE",
+"desc_zh": "友軍單位擁有「夜臨：賦予此牌+2|+0。」"
+},
+{
+"code": "P0139",
+"name_en": "Twilight Offering",
+"name_zh": "暮光獻祭",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方每回合第一次出牌時，恢復1點魔力。 "
+},
+{
+"code": "P0140",
+"name_en": "Outcast's Edge II",
+"name_zh": "流放者之刃II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位擁有「夜臨：賦予此牌+2|+0，並快速攻擊。若此牌已擁有快速攻擊，則改為賦予此牌雙重攻擊。」"
+},
+{
+"code": "P0141",
+"name_en": "Last Light of Icathia",
+"name_zh": "伊卡西亞的最後明燈",
+"rarity": "RARE",
+"desc_zh": "友軍單位擁有「攻擊：賦予此牌+1|+0。若此牌已裝備，則同時賦予其裝備+1|+0。」"
+},
+{
+"code": "P0142",
+"name_en": "Relentless Assault",
+"name_zh": "無情突擊",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。已裝備的友軍單位陣亡時，抽1張牌。"
+},
+{
+"code": "P0143",
+"name_en": "Last Light of Icathia II",
+"name_zh": "伊卡西亞的最後明燈II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位擁有「攻擊：賦予此牌+1|+1。若此牌已裝備，則同時賦予其裝備+2|+0。」"
+},
+{
+"code": "P0144",
+"name_en": "Reap Essence",
+"name_zh": "魂魄收割",
+"rarity": "RARE",
+"desc_zh": "友軍單位擊殺單位時，賦予該友軍單位+1|+1並治療其2點生命值。"
+},
+{
+"code": "P0145",
+"name_en": "Suitable Host",
+"name_zh": "合適宿主",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：在手牌生成1件隨機冥血族裝備，使其魔耗值-2。"
+},
+{
+"code": "P0146",
+"name_en": "Reap Essence II",
+"name_zh": "魂魄收割II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位擊殺單位時，賦予該友軍單位+2|+2並治癒之。 "
+},
+{
+"code": "P0147",
+"name_en": "Solar Power",
+"name_zh": "太陽之力",
+"rarity": "RARE",
+"desc_zh": "友軍單位擁有「破曉：賦予此牌+1|+1。」"
+},
+{
+"code": "P0148",
+"name_en": "Piety's Reward",
+"name_zh": "虔誠的賞賜",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方升級英雄時，在手牌生成1張旭日晨光，該牌魔耗值為0。"
+},
+{
+"code": "P0149",
+"name_en": "Solar Power II",
+"name_zh": "太陽之力II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位擁有「破曉或我方發動其他破曉效果時：賦予此牌+1|+1。」"
+},
+{
+"code": "P0150",
+"name_en": "Glutton for Punishment",
+"name_zh": "嗜罰者",
+"rarity": "RARE",
+"desc_zh": "友軍單位承受傷害且未陣亡時，賦予其+1|+1。"
+},
+{
+"code": "P0151",
+"name_en": "Long-Term Contract",
+"name_zh": "長期契約",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方俘虜單位時，在手牌生成1張該牌的複製牌，並使其魔耗值-1。"
+},
+{
+"code": "P0152",
+"name_en": "Glutton for Punishment II",
+"name_zh": "嗜罰者II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位承受傷害且未陣亡時，賦予其+2|+2。"
+},
+{
+"code": "P0153",
+"name_en": "Armed and Ready",
+"name_zh": "全副武裝準備就緒",
+"rarity": "RARE",
+"desc_zh": "我方攻擊時，將5張劇毒膨菇植入敵方牌組。"
+},
+{
+"code": "P0154",
+"name_en": "Strike Swiftly",
+"name_zh": "迅速打擊",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。對手抽到附有劇毒膨菇的牌時，在手牌生成1張疾速飛逝劇毒吹箭。"
+},
+{
+"code": "P0155",
+"name_en": "Armed and Ready II",
+"name_zh": "全副武裝準備就緒II",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，將10張劇毒膨菇植入敵方牌組。"
+},
+{
+"code": "P0156",
+"name_en": "Infernal Chains",
+"name_zh": "冥府血鏈",
+"rarity": "RARE",
+"desc_zh": "已裝備的友軍單位進行打擊時，使手牌中1張隨機卡牌的魔耗值-1。"
+},
+{
+"code": "P0157",
+"name_en": "Corrupted Weapon",
+"name_zh": "墮落武器",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：在手牌生成2件隨機冥血族裝備。"
+},
+{
+"code": "P0158",
+"name_en": "Infernal Chains II",
+"name_zh": "冥府血鏈II",
+"rarity": "EPIC",
+"desc_zh": "已裝備的友軍單位進行打擊時，使手牌中1張隨機卡牌的魔耗值-2。"
+},
+{
+"code": "P0159",
+"name_en": "Branching Possibilities",
+"name_zh": "平行時空",
+"rarity": "RARE",
+"desc_zh": "友軍單位在預言出現時，賦予其+1|+1。"
+},
+{
+"code": "P0160",
+"name_en": "Z-Drive Resonance",
+"name_zh": "共振驅動-Z",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方生成的卡牌魔耗值-1。"
+},
+{
+"code": "P0161",
+"name_en": "Branching Possibilities II",
+"name_zh": "平行時空II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位在預言出現時，賦予其+2|+2與1項隨機特性。"
+},
+{
+"code": "P0162",
+"name_en": "Spider Queen",
+"name_zh": "蜘蛛女王",
+"rarity": "COMMON",
+"desc_zh": "我方攻擊時，賦予各處的友軍小蜘蛛+1|+0。"
+},
+{
+"code": "P0163",
+"name_en": "Caught In The Webs",
+"name_zh": "蛛網纏身",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合結束：若本回合有友軍單位陣亡，則召喚1個小蜘蛛。"
+},
+{
+"code": "P0164",
+"name_en": "Spider Queen II",
+"name_zh": "蜘蛛女王II",
+"rarity": "EPIC",
+"desc_zh": "我方攻擊時，賦予各處的友軍小蜘蛛+1|+0及我方英雄的增益特性。"
+},
+{
+"code": "P0165",
+"name_en": "Outrage",
+"name_zh": "怒氣爆發",
+"rarity": "RARE",
+"desc_zh": "回合結束：若本回合我方已對敵方主堡造成傷害，則賦予所有友軍單位衝擊。"
+},
+{
+"code": "P0166",
+"name_en": "Beast Within",
+"name_zh": "獸性大發",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張魔耗值為2的原始衝撞。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0167",
+"name_en": "Outrage II",
+"name_zh": "怒氣爆發II",
+"rarity": "EPIC",
+"desc_zh": "回合結束：若本回合我方已對敵方主堡造成傷害，則賦予所有友軍單位衝擊2次。"
+},
+{
+"code": "P0168",
+"name_en": "Tip the Scales",
+"name_zh": "扭轉戰局",
+"rarity": "RARE",
+"desc_zh": "我方恢復魔力時，本回合給予友軍單位+1|+0。"
+},
+{
+"code": "P0169",
+"name_en": "Sleepin with the Fishes",
+"name_zh": "鯊幫制裁",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方獲得攻擊主動權時：在手牌生成1張飛逝拳擊賽。"
+},
+{
+"code": "P0170",
+"name_en": "Tip the Scales II",
+"name_zh": "扭轉戰局II",
+"rarity": "EPIC",
+"desc_zh": "我方恢復魔力時，本回合給予友軍單位+1|+0，並對所有敵軍單位造成1點傷害。"
+},
+{
+"code": "P0171",
+"name_en": "Ashes to Ashes",
+"name_zh": "塵歸塵",
+"rarity": "RARE",
+"desc_zh": "回合開始：若手牌中沒有螢火靈，則召喚1張。我方屠殺友軍或被標記單位時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0172",
+"name_en": "Circle of Death",
+"name_zh": "死亡循環",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張靈魂之旅。若手牌中已有該牌，則改為使其魔耗值-2。"
+},
+{
+"code": "P0173",
+"name_en": "Ashes to Ashes II",
+"name_zh": "塵歸塵II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若手牌中沒有螢火靈，則召喚1張。我方屠殺友軍或被標記單位時，對敵方主堡造成2點傷害。"
+},
+{
+"code": "P0174",
+"name_en": "Deceptively Deadly",
+"name_zh": "致命假象",
+"rarity": "RARE",
+"desc_zh": "回合開始：在手牌生成1張飛逝打磨心志。該牌魔耗值-1。"
+},
+{
+"code": "P0175",
+"name_en": "Everywhere, Everyone",
+"name_zh": "無所不在",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方攻擊時，若本牌局已升級英雄，則召喚1個攻擊中的閃靈勒布朗。"
+},
+{
+"code": "P0176",
+"name_en": "Deceptively Deadly II",
+"name_zh": "致命假象II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張飛逝打磨心志。該牌魔耗值為0。"
+},
+{
+"code": "P0177",
+"name_en": "Mind and Body",
+"name_zh": "身心合一",
+"rarity": "RARE",
+"desc_zh": "我方打出非飛逝法術或技能時，在手牌生成1張魔耗值為1的飛逝雙重戒律。"
+},
+{
+"code": "P0178",
+"name_en": "Emai",
+"name_zh": "耶麥",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：川流：本回合給予最強友軍單位隱密。"
+},
+{
+"code": "P0179",
+"name_en": "Mind and Body II",
+"name_zh": "身心合一II",
+"rarity": "EPIC",
+"desc_zh": "我方打出非飛逝法術或技能時，在手牌生成1張魔耗值為1的飛逝雙重戒律。回合開始：川流：賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0180",
+"name_en": "Embrace the Current",
+"name_zh": "擁抱浪潮",
+"rarity": "RARE",
+"desc_zh": "我方打出法術時，獲得1點法術魔力。"
+},
+{
+"code": "P0181",
+"name_en": "Call the Tide",
+"name_zh": "呼風喚雨",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：抽1張法術牌。"
+},
+{
+"code": "P0182",
+"name_en": "Embrace the Current II",
+"name_zh": "擁抱浪潮II",
+"rarity": "EPIC",
+"desc_zh": "我方打出法術時，獲得1點法術魔力。若此為本回合第4次施放，則對相同目標再複製一次。"
+},
+{
+"code": "P0183",
+"name_en": "Boon of the Ascended",
+"name_zh": "飛昇祝福",
+"rarity": "RARE",
+"desc_zh": "回合結束：本回合我方每屠殺1個單位，便賦予最強友軍單位+1|+1。我方屠殺10個以上單位後，復原烈日巨環。"
+},
+{
+"code": "P0184",
+"name_en": "Shuriman Preservation",
+"name_zh": "蘇瑞瑪之護",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。所有敵軍單位受到-1|-0。弱勢敵軍單位則受到-3|-0。"
+},
+{
+"code": "P0185",
+"name_en": "Boon of the Ascended II",
+"name_zh": "飛昇祝福II",
+"rarity": "EPIC",
+"desc_zh": "回合結束：本回合我方每屠殺1個單位，便賦予最強友軍單位+2|+2。我方屠殺8個以上單位後，復原烈日巨環。"
+},
+{
+"code": "P0186",
+"name_en": "Harmony of the Wild",
+"name_zh": "野性和諧",
+"rarity": "RARE",
+"desc_zh": "每回合我方打出的第1個與場上友軍單位卡牌次類不同的單位魔耗值-1。"
+},
+{
+"code": "P0187",
+"name_en": "Definitely Not Neeko",
+"name_zh": "我不是妮可",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：若我方牌組內的單位有卡牌次類，賦予其衝擊。若無，則該牌視為變形師。"
+},
+{
+"code": "P0188",
+"name_en": "Harmony of the Wild II",
+"name_zh": "野性和諧II",
+"rarity": "EPIC",
+"desc_zh": "每回合我方打出的第1個與場上友軍單位卡牌次類不同的單位魔耗值-2。"
+},
+{
+"code": "P0189",
+"name_en": "Survival of the Fittest",
+"name_zh": "適者生存",
+"rarity": "RARE",
+"desc_zh": "友軍單位幻化時，賦予其+1|+1與衝擊。"
+},
+{
+"code": "P0190",
+"name_en": "Most Dangerous Game",
+"name_zh": "超危險獵物",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方獲得攻擊主動權時：在手牌生成1張靈巧偽裝。"
+},
+{
+"code": "P0191",
+"name_en": "Survival of the Fittest II",
+"name_zh": "適者生存II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位幻化時，賦予其+1|+1與衝擊。若為本回合首次幻化，召喚1個該單位的閃靈複製單位。"
+},
+{
+"code": "P0192",
+"name_en": "Sweet Solitude",
+"name_zh": "甜密孤寂",
+"rarity": "RARE",
+"desc_zh": "回合開始：在手牌生成1張魔耗值為0的飛逝時間與奉獻。"
+},
+{
+"code": "P0193",
+"name_en": "I Made This",
+"name_zh": "這是我做的",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方首次打出魔耗值為4以上的友軍單位或裝備時，顯化1件裝備並使其魔耗值-2。 "
+},
+{
+"code": "P0194",
+"name_en": "Sweet Solitude II",
+"name_zh": "甜密孤寂II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張魔耗值為0的飛逝時間與奉獻。我方每回合首次鑄煉時，再次鑄煉。"
+},
+{
+"code": "P0195",
+"name_en": "Stronger Together",
+"name_zh": "團結力量大",
+"rarity": "COMMON",
+"desc_zh": "回合開始：若友軍單位擁有4個以上獨特特性，則賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0196",
+"name_en": "For the King!",
+"name_zh": "國王萬歲！",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合結束：若本回合有友軍單位陣亡，則賦予最弱友軍單位+1|+1與1個該單位沒有的隨機特性。"
+},
+{
+"code": "P0197",
+"name_en": "Stronger Together II",
+"name_zh": "團結力量大II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若友軍單位擁有4個以上獨特特性，則賦予所有友軍單位+2|+2。"
+},
+{
+"code": "P0198",
+"name_en": "Abyssal Might",
+"name_zh": "深淵之力",
+"rarity": "RARE",
+"desc_zh": "潛伏額外賦予+0|+1。"
+},
+{
+"code": "P0199",
+"name_en": "Phantom Haul",
+"name_zh": "鬼抓人",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：若我方擁有攻擊主動權，則召喚1個閃靈幼鯊。"
+},
+{
+"code": "P0200",
+"name_en": "Abyssal Might II",
+"name_zh": "深淵之力II",
+"rarity": "EPIC",
+"desc_zh": "潛伏額外賦予+1|+1。"
+},
+{
+"code": "P0201",
+"name_en": "Collect Your Bounty",
+"name_zh": "賞金入袋",
+"rarity": "RARE",
+"desc_zh": "每回合我方首次對敵方主堡造成傷害時，我方打出的下一張卡牌魔耗值-1。"
+},
+{
+"code": "P0202",
+"name_en": "Style On 'Em",
+"name_zh": "英姿颯爽",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方每回合第三次出牌時，賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0203",
+"name_en": "Collect Your Bounty II",
+"name_zh": "賞金入袋II",
+"rarity": "EPIC",
+"desc_zh": "每回合我方首次對敵方主堡造成傷害時，我方打出的下一張卡牌魔耗值-3。"
+},
+{
+"code": "P0204",
+"name_en": "Knuckle Up",
+"name_zh": "摩拳擦掌",
+"rarity": "RARE",
+"desc_zh": "我方每回合消耗6點以上魔力後，賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0205",
+"name_en": "Bet on Sett",
+"name_zh": "全押賽特",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張金幣。"
+},
+{
+"code": "P0206",
+"name_en": "Knuckle Up II",
+"name_zh": "摩拳擦掌II",
+"rarity": "EPIC",
+"desc_zh": "我方每回合每消耗6點以上魔力後，便賦予所有友軍單位+2|+2。我方每回合消耗12點以上魔力後，進行備戰。"
+},
+{
+"code": "P0207",
+"name_en": "Savor the Screams",
+"name_zh": "悅耳尖叫",
+"rarity": "RARE",
+"desc_zh": "回合開始：上回合每有1個友軍單位陣亡，便隨機賦予1個友軍單位+1|+1及陣亡友軍單位的所有特性。"
+},
+{
+"code": "P0208",
+"name_en": "Come Out and Play",
+"name_zh": "出來玩吧",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。本牌局每有1個友軍單位陣亡，瑟雷西魔耗值便-1。"
+},
+{
+"code": "P0209",
+"name_en": "Savor the Screams II",
+"name_zh": "悅耳尖叫II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：上回合每有1個單位陣亡，便隨機賦予1個友軍單位+1|+1及陣亡單位的所有特性。"
+},
+{
+"code": "P0210",
+"name_en": "Blighted Blessing",
+"name_zh": "蠻荒祝福",
+"rarity": "RARE",
+"desc_zh": "每回合首次對友軍單位使用單體目標法術時，最強友軍單位獲得同一效果。"
+},
+{
+"code": "P0211",
+"name_en": "Gift of Corruption",
+"name_zh": "墮落贈禮",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：使我方牌組中1張法術牌的魔耗值-1，並在手牌生成1張該牌的飛逝複製牌。"
+},
+{
+"code": "P0212",
+"name_en": "Blighted Blessing II",
+"name_zh": "蠻荒祝福II",
+"rarity": "EPIC",
+"desc_zh": "對友軍單位使用單體目標法術時，最強友軍單位獲得同一效果。"
+},
+{
+"code": "P0213",
+"name_en": "It must do something...",
+"name_zh": "這玩意一定有某種用處吧…",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權且手牌中裝備數量少於2張，則生成1張黃金鍋鏟。"
+},
+{
+"code": "P0214",
+"name_en": "Night Hunter",
+"name_zh": "夜之狩獵",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。裝備友軍單位時，本回合給予其先遣。"
+},
+{
+"code": "P0215",
+"name_en": "It must do something... II",
+"name_zh": "這玩意一定有某種用處吧…II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若我方擁有攻擊主動權且手牌中裝備數量少於2，則生成1張黃金鍋鏟並賦予其1項隨機特性。"
+},
+{
+"code": "P0216",
+"name_en": "I am Evil",
+"name_zh": "我很邪惡",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張黑暗。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P0217",
+"name_en": "All Powerful",
+"name_zh": "全能全速",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方黑暗加速至疾速。"
+},
+{
+"code": "P0218",
+"name_en": "I am Evil II",
+"name_zh": "我很邪惡II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張黑暗，其魔耗值為0。"
+},
+{
+"code": "P0219",
+"name_en": "Afterlife Forbidden",
+"name_zh": "死無後生",
+"rarity": "COMMON",
+"desc_zh": "首次有友軍單位陣亡時，召喚1個鬼影陵墓。"
+},
+{
+"code": "P0220",
+"name_en": "Overprepared",
+"name_zh": "準備過度",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在手牌生成1張隨機裝備牌。該牌魔耗值-2。"
+},
+{
+"code": "P0221",
+"name_en": "Chilling Prophecy",
+"name_zh": "顫慄預言",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚1個冰封奴魔並將其倒數設為5。"
+},
+{
+"code": "P0222",
+"name_en": "Stacked Against Them",
+"name_zh": "數量優勢",
+"rarity": "EPIC",
+"desc_zh": "我方起始牌組每有20張牌，每回合我方打出的第1張牌魔耗值-1。"
+},
+{
+"code": "P0223",
+"name_en": "Memory Game",
+"name_zh": "對對碰",
+"rarity": "RARE",
+"desc_zh": "回合開始：在手牌生成1張我方打出的上一張非飛逝卡牌的飛逝複製牌。"
+},
+{
+"code": "P0224",
+"name_en": "The Craftsman's Favor",
+"name_zh": "工匠之惠",
+"rarity": "RARE",
+"desc_zh": "回合開始：在手牌生成1張飛逝時間與奉獻。"
+},
+{
+"code": "P0225",
+"name_en": "The Baccai Deterrent",
+"name_zh": "巴凱恫嚇者",
+"rarity": "EPIC",
+"desc_zh": "使所有單位擁有威嚇與-1|-0。"
+},
+{
+"code": "P0226",
+"name_en": "The Desert Endures",
+"name_zh": "永恆黃沙",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：召喚1個埋沒的烈日巨環並在手牌生成1張雷尼克頓、阿祈爾或納瑟斯。"
+},
+{
+"code": "P0227",
+"name_en": "Ascension's Toll",
+"name_zh": "飛昇代價",
+"rarity": "EPIC",
+"desc_zh": "我方升級英雄時，雙方棄置所有手牌。"
+},
+{
+"code": "P0228",
+"name_en": "Health",
+"name_zh": "生命",
+"rarity": "COMMON",
+"desc_zh": "我方最大生命值提升5點"
+},
+{
+"code": "P0229",
+"name_en": "Power",
+"name_zh": "力量",
+"rarity": "COMMON",
+"desc_zh": "第1回合：獲得1顆臨時魔力寶石。"
+},
+{
+"code": "P0230",
+"name_en": "Knowledge",
+"name_zh": "知識",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：抽1張牌。"
+},
+{
+"code": "P0231",
+"name_en": "Mortal Marks",
+"name_zh": "凡人印記",
+"rarity": "EPIC",
+"desc_zh": "任一方召喚單位時，使其生命值為1。"
+},
+{
+"code": "P0232",
+"name_en": "Ascendant Indignation",
+"name_zh": "飛昇者之怒",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌隨機生成1張擁有倒數的飛逝地標。我方召喚擁有倒數的地標時，使其快轉2回合。"
+},
+{
+"code": "P0233",
+"name_en": "The Isles Remember",
+"name_zh": "群島永念",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：將3張殞落王者的詛咒的複製牌洗入雙方牌組，並使其魔耗值為0。"
+},
+{
+"code": "P0234",
+"name_en": "Vestige of Helia",
+"name_zh": "希利亞遺跡",
+"rarity": "EPIC",
+"desc_zh": "所有法術的魔耗值-1。使所有單位擁有法盾。"
+},
+{
+"code": "P0235",
+"name_en": "Dying Laughing",
+"name_zh": "含笑而終",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：雙方各召喚1個0|10魅影搗蛋鬼。"
+},
+{
+"code": "P0268",
+"name_en": "Demacian Might",
+"name_zh": "蒂瑪西亞之力",
+"rarity": "RARE",
+"desc_zh": "仇敵的單位打擊時，賦予其+1|+1。"
+},
+{
+"code": "P0302",
+"name_en": "Lil' Buddies",
+"name_zh": "小小夥伴",
+"rarity": "EPIC",
+"desc_zh": "回合開始：仇敵隨機召喚1個魔耗值為1的普羅。"
+},
+{
+"code": "P0315",
+"name_en": "What's Updraft?",
+"name_zh": "吹升是什麼？",
+"rarity": "COMMON",
+"desc_zh": "每當我方打出魔耗值降低的牌，我方牌組最上方的牌魔耗值-1。"
+},
+{
+"code": "P0316",
+"name_en": "Eye of the Storm",
+"name_zh": "風暴之眼",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。每當打出魔耗值降低的牌，賦予最弱友軍單位+1|+1。"
+},
+{
+"code": "P0317",
+"name_en": "What's Updraft? II",
+"name_zh": "吹升是什麼？II",
+"rarity": "EPIC",
+"desc_zh": "每當我方打出魔耗值降低的牌，我方牌組最上方2張牌魔耗值-1。"
+},
+{
+"code": "P0318",
+"name_en": "Joy Unbound",
+"name_zh": "奔放笑顏",
+"rarity": "RARE",
+"desc_zh": "每回合複製我方打出的第1張飛逝單位或法術。"
+},
+{
+"code": "P0319",
+"name_en": "Water Recycler",
+"name_zh": "流水循環",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。棄置卡牌時，在我方牌組生成1張該牌的複製牌，並於下次回合開始抽1張飛逝牌。"
+},
+{
+"code": "P0320",
+"name_en": "Joy Unbound II",
+"name_zh": "奔放笑顏II",
+"rarity": "EPIC",
+"desc_zh": "每回合複製我方打出的前2張飛逝單位或法術。"
+},
+{
+"code": "P0321",
+"name_en": "Subterranean Thunder",
+"name_zh": "地底鳴雷",
+"rarity": "RARE",
+"desc_zh": "我方屠殺單位時，召喚1個風暴之紋。"
+},
+{
+"code": "P0322",
+"name_en": "Sky Splitter",
+"name_zh": "蒼穹裂隙",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方召喚泰坦單位時，使其打擊最弱敵軍單位。"
+},
+{
+"code": "P0323",
+"name_en": "Subterranean Thunder II",
+"name_zh": "地底鳴雷II",
+"rarity": "EPIC",
+"desc_zh": "我方屠殺單位時，召喚2個風暴之紋。"
+},
+{
+"code": "P0324",
+"name_en": "Urumi Shield",
+"name_zh": "流形護盾",
+"rarity": "COMMON",
+"desc_zh": "我方打出法術時，恢復我方主堡1點生命值。若是元素卡牌，恢復2點生命值。"
+},
+{
+"code": "P0325",
+"name_en": "Mystic Meditation",
+"name_zh": "祕術冥想",
+"rarity": "RARE",
+"desc_zh": "回合開始：手牌中法術魔耗值-1。"
+},
+{
+"code": "P0326",
+"name_en": "Elemental Winds",
+"name_zh": "元素之風",
+"rarity": "EPIC",
+"desc_zh": "使我方法術與技能造成2點額外傷害。"
+},
+{
+"code": "P0327",
+"name_en": "Titanic Wake",
+"name_zh": "泰坦覺醒",
+"rarity": "RARE",
+"desc_zh": "我方召喚力量值、生命值或魔耗值為8以上的單位時，賦予其+8|+8。"
+},
+{
+"code": "P0329",
+"name_en": "Astral Radiance",
+"name_zh": "星界光彩",
+"rarity": "EPIC",
+"desc_zh": "我方打出生成的卡牌時，使各處我方英雄的魔耗值-1。我方打出英雄時，將其升級。不客氣。"
+},
+{
+"code": "P0330",
+"name_en": "Cosmic Creator",
+"name_zh": "宇宙創世",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。賜予我方所有生成的卡牌1件稀有或史詩道具。"
+},
+{
+"code": "P0331",
+"name_en": "Astral Radiance II",
+"name_zh": "星界光彩II",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出生成的卡牌時，使各處我方英雄的魔耗值-2。我方打出英雄時，將其升級。不客氣。"
+},
+{
+"code": "P0332",
+"name_en": "Breath of Light",
+"name_zh": "星光吐息",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出單位時，將其能力值加倍。若打出翱銳龍獸，則天界殞落所有可悲的敵軍單位。"
+},
+{
+"code": "P0345",
+"name_en": "Shared Blessings",
+"name_zh": "共享祝福",
+"rarity": "RARE",
+"desc_zh": "當我方給予或賦予場上一個友軍單位能力值，即賦予手牌中一名隨機友軍單位 +1|+0（若手牌中沒有友軍單位，則對我方牌組中最上面的友軍單位生效）。"
+},
+{
+"code": "P0346",
+"name_en": "Divine Intervention",
+"name_zh": "神聖加護",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張巨石峰的祝福。若手牌中已有該卡牌，則使其魔耗值-1。"
+},
+{
+"code": "P0347",
+"name_en": "Shared Blessings II",
+"name_zh": "共享祝福II",
+"rarity": "EPIC",
+"desc_zh": "當我方給予或賦予場上一個友軍單位能力值，即賦予手牌中一名隨機友軍單位同等能力值（若手牌中沒有友軍單位，則對我方牌組中最上面的友軍單位生效）。"
+},
+{
+"code": "P0348",
+"name_en": "Three Sugars",
+"name_zh": "三顆方糖",
+"rarity": "RARE",
+"desc_zh": "我方召喚生成的友軍單位時，賦予其+1|+1。"
+},
+{
+"code": "P0349",
+"name_en": "Found Friends",
+"name_zh": "一見如故",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始及打出基本魔耗值為4以上的卡牌時：將1張神祕傳送門植入我方牌組最上方4張牌中。"
+},
+{
+"code": "P0350",
+"name_en": "Six Sugars",
+"name_zh": "六顆方糖",
+"rarity": "EPIC",
+"desc_zh": "我方召喚生成的友軍單位時，賦予其+3|+1。"
+},
+{
+"code": "P0354",
+"name_en": "Dragon Breath",
+"name_zh": "龍息",
+"rarity": "RARE",
+"desc_zh": "我方召喚龍族單位時，使其對最弱敵軍單位造成3點傷害。"
+},
+{
+"code": "P0355",
+"name_en": "Fury of the Brood",
+"name_zh": "群龍之怒",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。所有龍族友軍單位獲得血怒。賦予場上與手牌的所有龍族友軍單位血怒增益。"
+},
+{
+"code": "P0356",
+"name_en": "Dragon Breath II",
+"name_zh": "龍息II",
+"rarity": "EPIC",
+"desc_zh": "我方召喚龍族單位時，使其打擊最弱敵軍單位。"
+},
+{
+"code": "P0360",
+"name_en": "Dragonsire",
+"name_zh": "飛龍之王",
+"rarity": "RARE",
+"desc_zh": "基本魔耗值為6以上的友軍單位魔耗值-1。"
+},
+{
+"code": "P0361",
+"name_en": "Aspect of the Dragon",
+"name_zh": "巨龍威勢",
+"rarity": "EPIC",
+"desc_zh": "+1起始魔力。每當我方打出基本魔耗值為6以上的友軍單位時，對其施放1種隨機龍恩。"
+},
+{
+"code": "P0362",
+"name_en": "Dragonsire II",
+"name_zh": "飛龍之王II",
+"rarity": "EPIC",
+"desc_zh": "基本魔耗值為6以上的友軍單位魔耗值-2。"
+},
+{
+"code": "P0363",
+"name_en": "Twice Slain",
+"name_zh": "兩度戰死",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，在手牌生成1張魔耗值為2的不滅之軀。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0364",
+"name_en": "Thrice Born",
+"name_zh": "三度重生",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方復甦友軍單位時，賦予其+2|+0與蠻力。"
+},
+{
+"code": "P0365",
+"name_en": "Twice Slain II",
+"name_zh": "兩度戰死II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張魔耗值為2的不滅之軀。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0366",
+"name_en": "Bound Wings",
+"name_zh": "誓縛雙翼",
+"rarity": "RARE",
+"desc_zh": "選擇敵軍單位為目標時，對其下枷鎖詛咒。"
+},
+{
+"code": "P0367",
+"name_en": "Crushing Guilt",
+"name_zh": "沉重罪孽",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合結束：對受詛咒的敵方單位造成2點傷害，並且敵方手牌中每有1張詛咒，就對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0368",
+"name_en": "Bound Wings II",
+"name_zh": "誓縛雙翼II",
+"rarity": "EPIC",
+"desc_zh": "使各處敵方詛咒魔耗值+1。選擇敵軍單位為目標時，對其下枷鎖詛咒。"
+},
+{
+"code": "P0375",
+"name_en": "Biggledust Stash",
+"name_zh": "一批蘑菇幻塵",
+"rarity": "EPIC",
+"desc_zh": "我方召喚生成的友軍單位時，賦予其+2|+2。"
+},
+{
+"code": "P0376",
+"name_en": "Undying Legion",
+"name_zh": "無盡軍勢",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合友軍單位首次陣亡時，復甦之。"
+},
+{
+"code": "P0377",
+"name_en": "Phantom Pranks",
+"name_zh": "魅影惡作劇",
+"rarity": "RARE",
+"desc_zh": "每有1個友軍單位陣亡，便對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0378",
+"name_en": "Inheritance",
+"name_zh": "臨終傳承",
+"rarity": "EPIC",
+"desc_zh": "當1個友軍單位陣亡時，其力量值會被賦予給手牌中1個友軍單位。"
+},
+{
+"code": "P0379",
+"name_en": "Deep Cuts",
+"name_zh": "深度割傷",
+"rarity": "RARE",
+"desc_zh": "每當友軍單位打擊敵方主堡，便對仇敵下膿水詛咒。"
+},
+{
+"code": "P0380",
+"name_en": "Easy Prey",
+"name_zh": "顯著目標",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚2個空殼"
+},
+{
+"code": "P0381",
+"name_en": "Unlimited Power",
+"name_zh": "無盡力量",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次施放的法術魔耗值-10。"
+},
+{
+"code": "P0383",
+"name_en": "Woosh!",
+"name_zh": "咻！",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚1位梵斯塔雅弟子。"
+},
+{
+"code": "P0384",
+"name_en": "Supple Stone",
+"name_zh": "柔石",
+"rarity": "RARE",
+"desc_zh": "每回合我方首次打出地標牌時，恢復等同於其魔耗值的魔力。"
+},
+{
+"code": "P0385",
+"name_en": "Converging Timelines",
+"name_zh": "時空聚合",
+"rarity": "EPIC",
+"desc_zh": "每回合我方打出首個侍從單位時，可從魔耗值+3的侍從單位中3選1，並幻化為該單位。"
+},
+{
+"code": "P0386",
+"name_en": "Phalanx",
+"name_zh": "防禦陣型",
+"rarity": "RARE",
+"desc_zh": "指定友軍單位為目標時，本回合給予其光盾。"
+},
+{
+"code": "P0387",
+"name_en": "Survey Corp",
+"name_zh": "調查兵團",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚1個林地瞭望兵。"
+},
+{
+"code": "P0388",
+"name_en": "Haunting Hall",
+"name_zh": "鬧鬼大廳",
+"rarity": "COMMON",
+"desc_zh": "使友軍單位擁有聖化。"
+},
+{
+"code": "P0389",
+"name_en": "Armed To The Teeth",
+"name_zh": "全副武裝",
+"rarity": "RARE",
+"desc_zh": "擁有裝備或附著單位的友軍單位+2|+2。"
+},
+{
+"code": "P0390",
+"name_en": "Norra's Portal Accelerator",
+"name_zh": "諾拉 傳送門加速器",
+"rarity": "EPIC",
+"desc_zh": "若此牌是諾拉，則起始魔力+1。我方召喚生成的友軍單位時，賦予其衝擊。"
+},
+{
+"code": "P0391",
+"name_en": "Strength of Stone",
+"name_zh": "頑石之力",
+"rarity": "EPIC",
+"desc_zh": "召喚友軍單位時，賦予其+0|+1與重壓。"
+},
+{
+"code": "P0393",
+"name_en": "Spellweaver's Symphony",
+"name_zh": "術士交響曲",
+"rarity": "EPIC",
+"desc_zh": "我方獲得攻擊主動權時，在手牌生成1張魔耗值為2、我方區域的隨機法術牌。其為飛逝且魔耗值為0。"
+},
+{
+"code": "P0394",
+"name_en": "Secret Technique",
+"name_zh": "奧祕之技",
+"rarity": "EPIC",
+"desc_zh": "法術使友軍單位能力值增加時，增加量翻倍。"
+},
+{
+"code": "P0398",
+"name_en": "Glory of the Sands II",
+"name_zh": "沙漠榮光II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：召喚1張埋沒的烈日巨環。我方每召喚1個單位或地標便使其快轉1回合。每當我方復原烈日巨環時，恢復所有魔力。"
+},
+{
+"code": "P0399",
+"name_en": "Glory of the Sands",
+"name_zh": "沙漠榮光",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚1張埋沒的烈日巨環。我方每召喚1個單位便使其快轉1回合。"
+},
+{
+"code": "P0400",
+"name_en": "Emperor's Assault",
+"name_zh": "帝王猛襲",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方每回合召喚第二個單位時，賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0401",
+"name_en": "Technological Leap II",
+"name_zh": "技術大躍進II",
+"rarity": "EPIC",
+"desc_zh": "具備擴增的友軍單位獲得+1|+1。我方的擴增賦予額外的+0|+1。"
+},
+{
+"code": "P0402",
+"name_en": "Technological Leap",
+"name_zh": "技術大躍進",
+"rarity": "RARE",
+"desc_zh": "具備擴增的友軍單位獲得+1|+1。"
+},
+{
+"code": "P0403",
+"name_en": "March of the Machines",
+"name_zh": "機械行軍",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方召喚生成的單位時，賦予其擴增。"
+},
+{
+"code": "P0404",
+"name_en": "Beyond the Mists",
+"name_zh": "黯霧之外",
+"rarity": "RARE",
+"desc_zh": "每回合首次屠殺友軍單位時，召喚1個幽侵黯霧。"
+},
+{
+"code": "P0405",
+"name_en": "Harrowed Path",
+"name_zh": "幽影之徑",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。力量值為4以上的友軍單位陣亡時，使手牌中所有力量值為4以上的友軍單位魔耗值-1。"
+},
+{
+"code": "P0406",
+"name_en": "Beyond the Mists II",
+"name_zh": "黯霧之外II",
+"rarity": "EPIC",
+"desc_zh": "每回合首次屠殺友軍單位和首次屠殺敵軍單位時，召喚1個幽侵黯霧。"
+},
+{
+"code": "P0407",
+"name_en": "Hyper Charge II",
+"name_zh": "超頻導體II",
+"rarity": "EPIC",
+"desc_zh": "打出魔耗值為6以上的法術時，手牌中非法術牌的魔耗值-1，並在本回合賦予友軍單位+1|+0和1項隨機特性。"
+},
+{
+"code": "P0408",
+"name_en": "Hyper Charge",
+"name_zh": "超頻導體",
+"rarity": "RARE",
+"desc_zh": "打出魔耗值為6以上的法術時，手牌中非法術牌的魔耗值-1。"
+},
+{
+"code": "P0409",
+"name_en": "Unstable State",
+"name_zh": "不穩定狀態",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：若手牌中沒有以此方法生成的海克斯科技異常，則在手牌生成1張。"
+},
+{
+"code": "P0410",
+"name_en": "Crush the Weak II",
+"name_zh": "輾壓弱者II",
+"rarity": "EPIC",
+"desc_zh": "敵方主堡每失去5點生命，每回合我方施放前3個法術或技能就造成1點額外傷害。"
+},
+{
+"code": "P0411",
+"name_en": "Collateral Damage",
+"name_zh": "連帶傷害",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。單位陣亡時，對敵方主堡造成1點傷害。\r\n\r\n\r\n"
+},
+{
+"code": "P0412",
+"name_en": "Crush the Weak ",
+"name_zh": "輾壓弱者 ",
+"rarity": "RARE",
+"desc_zh": "敵方主堡每失去5點生命，每回合我方首次施放的法術或技能就造成1點額外傷害。\r\n"
+},
+{
+"code": "P0413",
+"name_en": "Caught In My Trap II",
+"name_zh": "正中陷阱II",
+"rarity": "EPIC",
+"desc_zh": "我方陷阱造成三倍傷害。"
+},
+{
+"code": "P0414",
+"name_en": "On the Case",
+"name_zh": "著手辦案",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。召喚友軍單位或攻擊時，將1張閃光炸彈陷阱隨機植入敵方牌組最上方8張牌中。"
+},
+{
+"code": "P0415",
+"name_en": "Caught In My Trap",
+"name_zh": "正中陷阱",
+"rarity": "RARE",
+"desc_zh": "我方陷阱造成雙倍傷害。"
+},
+{
+"code": "P0416",
+"name_en": "Light Guides Us II",
+"name_zh": "聖光指引II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位被指定為目標或獲得支援時，賦予其活力與衝擊。"
+},
+{
+"code": "P0417",
+"name_en": "Sweet Dreams",
+"name_zh": "甜蜜夢境",
+"rarity": "RARE",
+"desc_zh": "我方透過出牌以外的方式召喚單位時，賦予其活力。"
+},
+{
+"code": "P0418",
+"name_en": "Psychological Warfare",
+"name_zh": "心理戰",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。\r\n我方法術和技能對敵軍單位造成傷害時，改為附加無望。\r\n"
+},
+{
+"code": "P0419",
+"name_en": "Sweet Dreams II",
+"name_zh": "甜蜜夢境II",
+"rarity": "EPIC",
+"desc_zh": "我方透過出牌以外的方式召喚單位時，賦予其活力2次。\r\n\r\n"
+},
+{
+"code": "P0420",
+"name_en": "Looming Darkness",
+"name_zh": "闇黑迫近",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則增幅所有敵軍單位。"
+},
+{
+"code": "P0421",
+"name_en": "Inspiring Presence",
+"name_zh": "激勵人心",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。\r\n回合開始：在手牌生成1張稜光障壁。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0422",
+"name_en": "Looming Darkness II",
+"name_zh": "闇黑迫近II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：增幅所有敵軍單位。"
+},
+{
+"code": "P0423",
+"name_en": "Too Sleepy",
+"name_zh": "睡意朦朧",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。\r\n回合開始：在手牌生成1張綻夢之花。若手牌中已有該牌，則使其魔耗值-1。\r\n"
+},
+{
+"code": "P0424",
+"name_en": "Light Guides Us",
+"name_zh": "聖光指引",
+"rarity": "RARE",
+"desc_zh": "友軍單位被指定為目標或獲得支援時，賦予其活力。"
+},
+{
+"code": "P0432",
+"name_en": "Share My Torment",
+"name_zh": "同受煎熬",
+"rarity": "LEGENDARY",
+"desc_zh": "詛咒敵軍單位時，賦予所有友軍單位+1|+0。"
+},
+{
+"code": "P0434",
+"name_en": "Guns Blazing",
+"name_zh": "火力全開",
+"rarity": "LEGENDARY",
+"desc_zh": "在戰鬥中，使我方法術與技能造成4點額外傷害。"
+},
+{
+"code": "P0435",
+"name_en": "Military Training ",
+"name_zh": "軍事訓練 ",
+"rarity": "RARE",
+"desc_zh": "友軍單位攻擊時，為各處的同名友軍單位賦予+1|+0。"
+},
+{
+"code": "P0436",
+"name_en": "Reinforce the Formation",
+"name_zh": "陣型馳援",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張徵兵。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0438",
+"name_en": "Military Training II",
+"name_zh": "軍事訓練 II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位攻擊時，為各處的同名友軍單位賦予+1|+1。"
+},
+{
+"code": "P0439",
+"name_en": "The Hand of Noxus",
+"name_zh": "諾克薩斯之力",
+"rarity": "LEGENDARY",
+"desc_zh": "我方攻擊時，召喚1個魔耗值等同現有魔力寶石數量的隨機諾克薩斯友軍單位。"
+},
+{
+"code": "P0440",
+"name_en": "Throw Another Rock!",
+"name_zh": "再丟一顆石頭！",
+"rarity": "LEGENDARY",
+"desc_zh": "友軍單位攻擊時，打出旋舞飛岩。我方每有1個地標，使我方法術與技能造成1點額外傷害。"
+},
+{
+"code": "P0441",
+"name_en": "SCIENCE!!! II",
+"name_zh": "科學威力！II",
+"rarity": "EPIC",
+"desc_zh": "每次我方施放法術並消耗6點以上魔力時，手牌及場上的機械友軍單位將從強化增益中獲得1項隨機增益。"
+},
+{
+"code": "P0442",
+"name_en": "Pursuit of Progress",
+"name_zh": "追求進步",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方召喚單位時，恢復1點法術魔力。"
+},
+{
+"code": "P0443",
+"name_en": "SCIENCE!",
+"name_zh": "科學威力！",
+"rarity": "RARE",
+"desc_zh": "每次我方施放法術並消耗6點以上魔力時，手牌及場上的機械友軍單位將獲得1項隨機增益。"
+},
+{
+"code": "P0444",
+"name_en": "Get Jinxed!",
+"name_zh": "瘋癲英雄！",
+"rarity": "LEGENDARY",
+"desc_zh": "我方法術和技能造成的傷害加倍。"
+},
+{
+"code": "P0445",
+"name_en": "Purge With Silver",
+"name_zh": "銀彈驅魔",
+"rarity": "LEGENDARY",
+"desc_zh": "友軍單位攻擊時，本回合給予其+4|+0。"
+},
+{
+"code": "P0446",
+"name_en": "Eternal Hunger II",
+"name_zh": "永恆飢渴 II",
+"rarity": "EPIC",
+"desc_zh": "本牌局我方每造成5次傷害，友軍單位便獲得+1|+0。"
+},
+{
+"code": "P0447",
+"name_en": "Eternal Hunger",
+"name_zh": "永恆飢渴",
+"rarity": "RARE",
+"desc_zh": "本牌局我方每造成7次傷害，友軍單位便獲得+1|+0。"
+},
+{
+"code": "P0448",
+"name_en": "Primal Howl",
+"name_zh": "本能怒嚎",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張血跡獵蹤。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P0449",
+"name_en": "Gift of Avarosa",
+"name_zh": "艾伐洛森之贈禮",
+"rarity": "LEGENDARY",
+"desc_zh": "降低敵軍單位的力量值時，將等量力量值隨機分配給手牌中的友軍單位。"
+},
+{
+"code": "P0450",
+"name_en": "Last Dance",
+"name_zh": "最後一舞",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：召喚4個幽靈樂團，並進行備戰。"
+},
+{
+"code": "P0451",
+"name_en": "The Grander Plaza",
+"name_zh": "宏偉廣場",
+"rarity": "EPIC",
+"desc_zh": "召喚友軍單位時，本回合給予其+2|+2、挑戰者與1項隨機特性。"
+},
+{
+"code": "P0452",
+"name_en": "Surprise Summoning",
+"name_zh": "召喚驚喜",
+"rarity": "LEGENDARY",
+"desc_zh": "我方傳送門召喚等級2英雄。"
+},
+{
+"code": "P0453",
+"name_en": "Future Firepower",
+"name_zh": "未來火力",
+"rarity": "LEGENDARY",
+"desc_zh": "友軍單位在預言出現時，將其能力值加倍。"
+},
+{
+"code": "P0454",
+"name_en": "Wield The abyss",
+"name_zh": "駕馭深淵",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：在手牌生成1張二階蟲甲。使用二階蟲甲指定友軍單位為目標時，本回合給予其凱莎的特性。"
+},
+{
+"code": "P0455",
+"name_en": "Darkin Awakened",
+"name_zh": "冥血覺醒",
+"rarity": "LEGENDARY",
+"desc_zh": "召喚或幻化冥血族時，將其能力值加倍。"
+},
+{
+"code": "P0456",
+"name_en": "Doom of All",
+"name_zh": "萬物厄運",
+"rarity": "LEGENDARY",
+"desc_zh": "我方召喚泰坦友軍單位時，每有1層風暴之紋，便賦予其+2|+2。"
+},
+{
+"code": "P0457",
+"name_en": "The Power Of Friendship!",
+"name_zh": "友誼力量！",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：本回合所有友軍單位能力值提升至等同於最強友軍單位的能力值。"
+},
+{
+"code": "P0460",
+"name_en": "Beautiful and Brutal",
+"name_zh": "美麗而殘酷",
+"rarity": "LEGENDARY",
+"desc_zh": "我方獲得攻擊主動權時，本回合給予所有友軍單位+4|+0。"
+},
+{
+"code": "P0461",
+"name_en": "Pop Blossom!",
+"name_zh": "萬紫千紅",
+"rarity": "LEGENDARY",
+"desc_zh": "我方攻擊時，對所有敵軍單位與敵方主堡造成1點傷害。每有1個攻擊中且有卡牌次類的友軍單位，便增加1點傷害。"
+},
+{
+"code": "P0465",
+"name_en": "Everything is Misery",
+"name_zh": "苦命人生",
+"rarity": "LEGENDARY",
+"desc_zh": "敵軍單位在戰鬥外陣亡時，賦予其他敵軍單位無望。"
+},
+{
+"code": "P0466",
+"name_en": "Explosive Finale",
+"name_zh": "爆炸收場",
+"rarity": "RARE",
+"desc_zh": "敵軍單位在戰鬥外陣亡時，對敵方主堡造成4點傷害。"
+},
+{
+"code": "P0467",
+"name_en": "Lady of Light",
+"name_zh": "光之少女",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次攻擊時，每有1個攻擊中的友軍單位便回復1點魔力，然後抽1張法術牌。"
+},
+{
+"code": "P0468",
+"name_en": "Dreamwoven Spirits",
+"name_zh": "織夢精靈",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次打出單位時，召喚1個與之相同的攻擊中閃靈複製單位。\r\n"
+},
+{
+"code": "P0469",
+"name_en": "Icon of Valhir",
+"name_zh": "法赫爾之象徵",
+"rarity": "EPIC",
+"desc_zh": "使我方元素法術與技能造成2點額外傷害。"
+},
+{
+"code": "P0470",
+"name_en": "All Will Serve",
+"name_zh": "萬物臣服",
+"rarity": "LEGENDARY",
+"desc_zh": "召喚幽侵黯霧時，賦予各處友軍單位+1|+0。"
+},
+{
+"code": "P0471",
+"name_en": "Demonic Ascension",
+"name_zh": "魔君降生",
+"rarity": "LEGENDARY",
+"desc_zh": "我方使用法術或技能對敵軍單位造成傷害時，對其他敵軍單位造成同等傷害。\r\n"
+},
+{
+"code": "P0473",
+"name_en": "Typhoon",
+"name_zh": "颱風",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：召回遭到擊暈的敵軍單位。"
+},
+{
+"code": "P0474",
+"name_en": "Voidtouched II",
+"name_zh": "虛空之力II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。擁有3個以上增益特性的友軍單位獲得+2|+2，擁有6個以上增益特性的友軍單位獲得+4|+4。"
+},
+{
+"code": "P0475",
+"name_en": "Treacherous Terrain",
+"name_zh": "地形險惡",
+"rarity": "RARE",
+"desc_zh": "仇敵每回合首次召喚單位時，凍傷該單位。"
+},
+{
+"code": "P0476",
+"name_en": "Shock & Awe",
+"name_zh": "震撼教育",
+"rarity": "EPIC",
+"desc_zh": "魔耗值1以下的友軍單位攻擊時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0477",
+"name_en": "Lux's Incandescent Baton",
+"name_zh": "拉克絲 光輝魔棒",
+"rarity": "EPIC",
+"desc_zh": "若此牌是拉克絲，則起始魔力+1。牌局開始：抽1張魔耗值為2以下的侍從單位並賦予其巨石盾甲。"
+},
+{
+"code": "P0479",
+"name_en": "Death From Everywhere",
+"name_zh": "屍橫遍野",
+"rarity": "LEGENDARY",
+"desc_zh": "我方各處的法術牌獲得潛伏。卡牌潛伏時，若為侍從單位，則以攻擊中狀態召喚之；否則抽出該牌。"
+},
+{
+"code": "P0484",
+"name_en": "Immovable Object ",
+"name_zh": "不動如山 ",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵的主堡每回合不會承受超過20點傷害。"
+},
+{
+"code": "P0485",
+"name_en": "Misbegotten Creation",
+"name_zh": "鄙惡造物",
+"rarity": "LEGENDARY",
+"desc_zh": "玩家生成的卡牌魔耗值+3。"
+},
+{
+"code": "P0490",
+"name_en": "Broken Blade",
+"name_zh": "破刃",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出卡牌時，使其各處的複製牌魔耗值+2。"
+},
+{
+"code": "P0492",
+"name_en": "Deadly",
+"name_zh": "致命",
+"rarity": "EPIC",
+"desc_zh": "仇敵召喚單位時，賦予其相當於自身一半能力值，採無條件進位。\r\n仇敵的法術和技能造成雙倍傷害。"
+},
+{
+"code": "P0494",
+"name_en": "Hextech Infusion",
+"name_zh": "海克斯灌注",
+"rarity": "LEGENDARY",
+"desc_zh": "打出魔耗值為6以上的法術後，對1個隨機敵軍單位造成10點傷害，若無敵軍單位，則對敵方主堡造成傷害。\r\n"
+},
+{
+"code": "P0495",
+"name_en": "Army of Stone",
+"name_zh": "石之軍團",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵打出單位時，使其力量值歸零，但生命值加倍並賦予其重壓。"
+},
+{
+"code": "P0496",
+"name_en": "Warm Reception",
+"name_zh": "熱情接待",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵從牌組召喚2個不同的最強單位。"
+},
+{
+"code": "P0501",
+"name_en": "Hugify!",
+"name_zh": "變大吧！",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵從牌組召喚1個隨機單位，使其能力值提升至10|20，並賦予其弱勢。"
+},
+{
+"code": "P0504",
+"name_en": "Immolation",
+"name_zh": "獻祭",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：對玩家的所有單位造成2點傷害。"
+},
+{
+"code": "P0505",
+"name_en": "Cage Match",
+"name_zh": "鐵籠格鬥",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵的主堡在第5回合之前生命值不會低於1。"
+},
+{
+"code": "P0506",
+"name_en": "Spells & Swells II",
+"name_zh": "法術增長II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：仇敵抽1張法術牌，並恢復所有法術魔力。"
+},
+{
+"code": "P0508",
+"name_en": "Unending Siege",
+"name_zh": "無盡圍城",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：仇敵召喚3個攻城投石機。"
+},
+{
+"code": "P0509",
+"name_en": "Perfect Aim",
+"name_zh": "完美瞄準",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：若手牌中沒有王牌射手，則在手牌生成1張。我方陷阱觸發時，使其魔耗值-1。"
+},
+{
+"code": "P0510",
+"name_en": "We run these streets",
+"name_zh": "這是我們的街道",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出卡牌時，賦予手牌中的友軍單位+1|+0。"
+},
+{
+"code": "P0514",
+"name_en": "Black Shield",
+"name_zh": "黑暗之盾",
+"rarity": "EPIC",
+"desc_zh": "召喚友軍單位時，賦予其法盾。"
+},
+{
+"code": "P0515",
+"name_en": "Hidden Tome",
+"name_zh": "禁忌魔典",
+"rarity": "EPIC",
+"desc_zh": "打出或升級英雄時，恢復我方所有法術魔力。"
+},
+{
+"code": "P0517",
+"name_en": "Big Guns",
+"name_zh": "巨型槍枝",
+"rarity": "EPIC",
+"desc_zh": "使我方法術與技能造成1點額外傷害。"
+},
+{
+"code": "P0518",
+"name_en": "Stacked Deck",
+"name_zh": "卡牌騙術",
+"rarity": "EPIC",
+"desc_zh": "能力：牌局開始時，扣除18張卡牌數量後，我方牌組每多12張卡牌，友軍單位便獲得+1|+1。"
+},
+{
+"code": "P0519",
+"name_en": "Jumpscare",
+"name_zh": "驚嚇派對",
+"rarity": "EPIC",
+"desc_zh": "當仇敵抽到魔耗值為2以下的侍從單位時，仇敵會召喚之。"
+},
+{
+"code": "P0521",
+"name_en": "Eyes in the Dark",
+"name_zh": "幽冥之眼",
+"rarity": "RARE",
+"desc_zh": "當仇敵幻化其單位時，本回合給予該單位+2|+2。"
+},
+{
+"code": "P0522",
+"name_en": "Die of Fright",
+"name_zh": "驚嚇而亡",
+"rarity": "RARE",
+"desc_zh": "回合結束：擊殺所有力量值為0的玩家單位。"
+},
+{
+"code": "P0523",
+"name_en": "Freefall",
+"name_zh": "自由落體",
+"rarity": "RARE",
+"desc_zh": "第7回合結束時，對玩家的主堡造成77點傷害。"
+},
+{
+"code": "P0524",
+"name_en": "The Skittering",
+"name_zh": "妙手空空",
+"rarity": "RARE",
+"desc_zh": "牌局開始：仇敵在玩家牌組中洗入13張小蜘蛛。當你抽到這些牌時，仇敵會將其偷走且若有可能便召喚之。"
+},
+{
+"code": "P0525",
+"name_en": "Blood In The Water",
+"name_zh": "嗅血獵殺",
+"rarity": "RARE",
+"desc_zh": "回合開始：仇敵在手牌生成1張飛逝殺戮名單。"
+},
+{
+"code": "P0526",
+"name_en": "Thanatophobia",
+"name_zh": "死亡恐懼",
+"rarity": "RARE",
+"desc_zh": "每當仇敵以法術或技能擊殺1個單位時，便對玩家主堡造成3點傷害。"
+},
+{
+"code": "P0527",
+"name_en": "The Relentless Dark",
+"name_zh": "無情黑暗",
+"rarity": "RARE",
+"desc_zh": "仇敵攻擊時，會以玩家主堡為目標打出1張黑暗。"
+},
+{
+"code": "P0528",
+"name_en": "They're All Laughing",
+"name_zh": "眾生笑我",
+"rarity": "RARE",
+"desc_zh": "仇敵召喚單位時，賦予力量值小於該單位的玩家單位無望。"
+},
+{
+"code": "P0529",
+"name_en": "Night's Kiss",
+"name_zh": "暗夜之吻",
+"rarity": "LEGENDARY",
+"desc_zh": "當友軍空殼賦予友軍單位能力值時，改為賦予雙倍數值。"
+},
+{
+"code": "P0530",
+"name_en": "Spirit's Blessing II",
+"name_zh": "神靈祝福II",
+"rarity": "EPIC",
+"desc_zh": "我方召喚或召回友軍單位時，賦予其活力。"
+},
+{
+"code": "P0531",
+"name_en": "Whispers From Past Lives",
+"name_zh": "逝者低語",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。單位被召回時，永久保留其數值增益與特性。我方召回1名友軍單位時，降低其魔耗值1。"
+},
+{
+"code": "P0532",
+"name_en": "Spirit's Blessing",
+"name_zh": "神靈祝福",
+"rarity": "RARE",
+"desc_zh": "我方召回1名友軍單位時，賦予其活力。"
+},
+{
+"code": "P0533",
+"name_en": "Relentless Undead",
+"name_zh": "無盡亡靈",
+"rarity": "RARE",
+"desc_zh": "回合開始：仇敵對其主堡造成10點傷害並進行備戰。玩家無法對仇敵的主堡造成傷害。"
+},
+{
+"code": "P0534",
+"name_en": "Wrathful Wilderness",
+"name_zh": "狂怒野性",
+"rarity": "RARE",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，則仇敵會召喚1個巨型食人蔓藤。"
+},
+{
+"code": "P0535",
+"name_en": "Eureka!!!!",
+"name_zh": "靈光一閃！！！！",
+"rarity": "LEGENDARY",
+"desc_zh": "我方手牌及場上的機械友軍單位開場時即擁有3種隨機強化增益。牌局開始：召喚1個Mk0：發條粉碎機。"
+},
+{
+"code": "P0537",
+"name_en": "Jumpscare II",
+"name_zh": "驚嚇派對II",
+"rarity": "LEGENDARY",
+"desc_zh": "當仇敵抽到魔耗值為3以下的侍從單位時，仇敵會召喚之，並賦予其+2|+2和威嚇。"
+},
+{
+"code": "P0538",
+"name_en": "Thanatophobia",
+"name_zh": "死亡恐懼",
+"rarity": "EPIC",
+"desc_zh": "每當仇敵以法術或技能擊殺1個單位時，便對玩家主堡造成5點傷害。"
+},
+{
+"code": "P0539",
+"name_en": "The Skittering",
+"name_zh": "妙手空空",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵將13張八爪夢魘洗入玩家的牌組。如果玩家抽到這些牌，則仇敵偷取之，並且只要情況允許便會召喚之。"
+},
+{
+"code": "P0540",
+"name_en": "Biggledust Sprinkle ",
+"name_zh": "一抹蘑菇幻塵 ",
+"rarity": "COMMON",
+"desc_zh": "我方召喚生成的友軍單位時，賦予其+1|+1。"
+},
+{
+"code": "P0541",
+"name_en": "Lethal",
+"name_zh": "致命",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵召喚單位時，會使其能力值加倍。\r\n仇敵的法術和技能造成的傷害加倍。"
+},
+{
+"code": "P0542",
+"name_en": "Relentless Undead",
+"name_zh": "無盡亡靈",
+"rarity": "EPIC",
+"desc_zh": "回合開始：仇敵對其主堡造成20點傷害並進行備戰。玩家無法對仇敵的主堡造成傷害。"
+},
+{
+"code": "P0543",
+"name_en": "Eyes in the Dark",
+"name_zh": "幽冥之眼",
+"rarity": "EPIC",
+"desc_zh": "當仇敵幻化其單位時，本回合給予該單位+5|+5。"
+},
+{
+"code": "P0544",
+"name_en": "Die of Fright",
+"name_zh": "驚嚇而亡",
+"rarity": "EPIC",
+"desc_zh": "回合結束：賦予玩家的單位-1|-0，然後擊殺所有力量值為0的玩家單位。"
+},
+{
+"code": "P0547",
+"name_en": "Parting Gift",
+"name_zh": "臨別之禮",
+"rarity": "LEGENDARY",
+"desc_zh": "我方召回友軍單位時，該單位將打擊敵方主堡。"
+},
+{
+"code": "P0549",
+"name_en": "Defense Spending",
+"name_zh": "防禦消耗",
+"rarity": "EPIC",
+"desc_zh": "我方主堡擁有堅忍。 "
+},
+{
+"code": "P0553",
+"name_en": "All Hands on Deck",
+"name_zh": "緊急動員令",
+"rarity": "COMMON",
+"desc_zh": "仇敵攻擊時，本回合給予仇敵所有攻擊中單位+2|+0。"
+},
+{
+"code": "P0555",
+"name_en": "Mercurial Nature",
+"name_zh": "天性易變",
+"rarity": "EPIC",
+"desc_zh": "回合開始：我方在手牌生成1張魔耗值為6以下、我方區域的飛逝法術牌。該牌魔耗值為1。"
+},
+{
+"code": "P0558",
+"name_en": "Shifting Mists",
+"name_zh": "幻變黯霧",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則召喚1個附有道具的幽侵黯霧，並賦予各處幽侵黯霧+1|+1。"
+},
+{
+"code": "P0559",
+"name_en": "Nowhere Is Safe II",
+"name_zh": "無情虐泉II",
+"rarity": "EPIC",
+"desc_zh": "回合結束：本回合我方每次對敵方主堡造成傷害，恐懼1。"
+},
+{
+"code": "P0560",
+"name_en": "They Are Close",
+"name_zh": "威脅進逼",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：以夢魘的形式在敵方牌組植入3張我方牌組隨機侍從單位的複製牌。"
+},
+{
+"code": "P0561",
+"name_en": "Nowhere Is Safe",
+"name_zh": "無情虐泉",
+"rarity": "RARE",
+"desc_zh": "回合結束：本回合我方每有1個單位打擊敵方主堡，恐懼1。"
+},
+{
+"code": "P0562",
+"name_en": "Power Surge",
+"name_zh": "力量湧現",
+"rarity": "LEGENDARY",
+"desc_zh": "每當我方打出生成的法術或單位時，複製之。"
+},
+{
+"code": "P0563",
+"name_en": "Bountiful Harvest",
+"name_zh": "豐收之魘",
+"rarity": "LEGENDARY",
+"desc_zh": "我方發動恐懼時，賦予敵軍單位無望並賦予隨機友軍2層活力。"
+},
+{
+"code": "P0566",
+"name_en": "Recurring Nightmares",
+"name_zh": "不息夢魘",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：將8個單位化為夢魘，植入仇敵牌組。回合結束：仇敵本回合每將1張卡牌加入手牌，我方恐懼1。"
+},
+{
+"code": "P0568",
+"name_en": "Out of my way!",
+"name_zh": "別擋路！",
+"rarity": "LEGENDARY",
+"desc_zh": "我方攻擊時，若力量值總和為10以上，擊殺最强敵軍後排單位。"
+},
+{
+"code": "P0569",
+"name_en": "Cruel Experiments",
+"name_zh": "殘酷實驗",
+"rarity": "EPIC",
+"desc_zh": "每一次打出生命值為2以上的友軍單位時，對其造成1點傷害，並賦予其蠻力與衝擊。"
+},
+{
+"code": "P0570",
+"name_en": "Wounded Prey",
+"name_zh": "負傷獵物",
+"rarity": "COMMON",
+"desc_zh": "每一次有生命值為2以上的敵軍單位被召喚，對其造成1點傷害。"
+},
+{
+"code": "P0571",
+"name_en": "Eternal Hunger III",
+"name_zh": "永恆飢渴 III",
+"rarity": "LEGENDARY",
+"desc_zh": "本牌局我方每造成3次傷害，盟友便獲得+1|+0。友軍單位擊殺單位時，治癒該牌並賦予其+0|+3與衝擊。"
+},
+{
+"code": "P0573",
+"name_en": "Emperor's Command",
+"name_zh": "神皇的指令",
+"rarity": "EPIC",
+"desc_zh": "仇敵攻擊時，召喚1個其牌組內最弱侍從單位的閃靈複製單位，使其處於攻擊中。"
+},
+{
+"code": "P0575",
+"name_en": "Teamwork",
+"name_zh": "團隊合作",
+"rarity": "EPIC",
+"desc_zh": "你可以在本次冒險中獲得英雄的星力。"
+},
+{
+"code": "P0584",
+"name_en": "Sacrifice for Progress",
+"name_zh": "為進步奉獻",
+"rarity": "RARE",
+"desc_zh": "我方用法術擊殺單位時，對所有敵軍單位與敵方主堡造成1點傷害。"
+},
+{
+"code": "P0585",
+"name_en": "Sacrifice for Progress II",
+"name_zh": "為進步奉獻II",
+"rarity": "EPIC",
+"desc_zh": "我方用法術擊殺單位時，對所有敵軍單位與敵方主堡造成2點傷害。"
+},
+{
+"code": "P0586",
+"name_en": "Strength & Strategy",
+"name_zh": "力量與策略",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方造成法術傷害時，該法術各處相同卡牌提升1點傷害。"
+},
+{
+"code": "P0587",
+"name_en": "Interrogate",
+"name_zh": "審問",
+"rarity": "RARE",
+"desc_zh": "我方抽牌時，該牌本回合魔耗值-2。"
+},
+{
+"code": "P0595",
+"name_en": "Lesson Time",
+"name_zh": "上課時間",
+"rarity": "RARE",
+"desc_zh": "我方單位攻擊時，本回合會與所有攻擊單位共享其特性。"
+},
+{
+"code": "P0599",
+"name_en": "Soul's Reflection",
+"name_zh": "映魂祕使",
+"rarity": "LEGENDARY",
+"desc_zh": "打出法術牌時，在手牌生成一張飛逝複製牌，每回合一個法術限一次。"
+},
+{
+"code": "P0601",
+"name_en": "Day of Judgment",
+"name_zh": "審判日",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出力量值為5以上的友軍單位時，對所有敵軍單位造成3點傷害。若該友軍單位為力量值10以上的英雄，則改為打擊所有敵軍單位。"
+},
+{
+"code": "P0603",
+"name_en": "Souls of Dragons",
+"name_zh": "龍族之魂",
+"rarity": "LEGENDARY",
+"desc_zh": "你的龍恩已替換為龍魂。"
+},
+{
+"code": "P0604",
+"name_en": "Early Bird",
+"name_zh": "早起鳥兒",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚我方牌組中最弱的侍從單位。"
+},
+{
+"code": "P0612",
+"name_en": "Larger Than Life",
+"name_zh": "超群不凡",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：雙方獲得3顆魔力寶石。雙方的單位和傷害技能增強，魔耗值為3以下的卡牌所需魔耗值增加。"
+},
+{
+"code": "P0614",
+"name_en": "Storm's Wrath",
+"name_zh": "暴風之怒",
+"rarity": "EPIC",
+"desc_zh": "仇敵攻擊時，每個攻擊中的泰坦單位隨機對1個我方單位打出無情風暴。若無我方單位，則以我方主堡為目標。"
+},
+{
+"code": "P0615",
+"name_en": "Uphill Battle",
+"name_zh": "艱苦纏鬥",
+"rarity": "EPIC",
+"desc_zh": "回合開始：仇敵每擁有1個地標，便擊暈我方最弱單位。"
+},
+{
+"code": "P0616",
+"name_en": "Land Of Giants",
+"name_zh": "巨人之地",
+"rarity": "LEGENDARY",
+"desc_zh": "任一方玩家增加1張手牌時，將該卡牌的魔耗值設為3。"
+},
+{
+"code": "P0617",
+"name_en": "Soul Reclamation",
+"name_zh": "靈魂復歸",
+"rarity": "LEGENDARY",
+"desc_zh": "我方屠殺單位時，我方手牌中每張卡牌的魔耗值-1（最低1點）。我方復原烈日巨環後，賦予各處友軍單位+5|+5。"
+},
+{
+"code": "P0618",
+"name_en": "Aspect of the Sun",
+"name_zh": "烈陽星靈",
+"rarity": "LEGENDARY",
+"desc_zh": "每次友軍單位發動破曉時，再發動一次。"
+},
+{
+"code": "P0620",
+"name_en": "The Endless March",
+"name_zh": "無盡前行",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。若我方尚未探底，我方抽牌時，亂擲1張牌。牌局開始：亂擲直到我方卡牌數量等於40張。"
+},
+{
+"code": "P0621",
+"name_en": "Echoes From the Deep II",
+"name_zh": "深淵迴響II",
+"rarity": "EPIC",
+"desc_zh": "每抽滿或亂擲5張卡牌，探底額外獲得+1|+1。"
+},
+{
+"code": "P0622",
+"name_en": "Echoes From the Deep",
+"name_zh": "深淵迴響",
+"rarity": "RARE",
+"desc_zh": "每抽滿或亂擲10張卡牌，探底額外獲得+1|+1。"
+},
+{
+"code": "P0623",
+"name_en": "Dragon's Wrath",
+"name_zh": "龍族之怒",
+"rarity": "EPIC",
+"desc_zh": "仇敵打出基本魔耗值為6以上的單位時，對其打出1種隨機龍恩。仇敵主堡生命值+10。"
+},
+{
+"code": "P0624",
+"name_en": "Rising Tides",
+"name_zh": "洶湧怒濤",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次抽出或亂擲一個魔耗值小於或等同我方魔力寶石數量的單位時，在場上生成一張複製牌。"
+},
+{
+"code": "P0625",
+"name_en": "Fortifications",
+"name_zh": "強化堡壘",
+"rarity": "RARE",
+"desc_zh": "我方主堡擁有堅忍。"
+},
+{
+"code": "P0626",
+"name_en": "Dragon's Wrath",
+"name_zh": "龍族之怒",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵打出基本魔耗值為6以上的單位時，對其打出1種隨機龍魂。"
+},
+{
+"code": "P0628",
+"name_en": "Unnatural Selection",
+"name_zh": "物競人擇",
+"rarity": "COMMON",
+"desc_zh": "使友軍單位擁有進化。"
+},
+{
+"code": "P0629",
+"name_en": "Pursuit of Progress",
+"name_zh": "追求進步",
+"rarity": "COMMON",
+"desc_zh": "我方召喚單位時，恢復1點法術魔力。"
+},
+{
+"code": "P0634",
+"name_en": "Proper Offerings",
+"name_zh": "適當奉獻",
+"rarity": "COMMON",
+"desc_zh": "回合開始：召喚1個風暴之紋。"
+},
+{
+"code": "P0636",
+"name_en": "Thrice Bound",
+"name_zh": "三重束縛",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚牌組中魔耗值最高的侍從單位，並對其下枷鎖詛咒3次。"
+},
+{
+"code": "P0639",
+"name_en": "Eternal Radiance",
+"name_zh": "永恆光輝",
+"rarity": "LEGENDARY",
+"desc_zh": "我方攻擊時，在手牌生成1張終極閃光。我方本牌局每消耗6點魔力打出法術，我方法術與技能造成1點額外傷害。"
+},
+{
+"code": "P0641",
+"name_en": "Hehehe",
+"name_zh": "得意的笑",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方打出受控的卡牌，或受控的友軍單位打擊敵方主堡時，將3張劇毒膨菇植入敵方牌組。"
+},
+{
+"code": "P0642",
+"name_en": "I'll Take That Too",
+"name_zh": "我也不客氣啦",
+"rarity": "EPIC",
+"desc_zh": "我方觸發陷阱時，在手牌生成1張遭結附陷阱牌的飛逝複製牌，並降低其魔耗值，減幅等同於該原牌所結附的陷阱數量乘以二。"
+},
+{
+"code": "P0643",
+"name_en": "I'll Take That",
+"name_zh": "我就收下啦",
+"rarity": "RARE",
+"desc_zh": "我方觸發陷阱時，在手牌生成1張遭結附陷阱牌的飛逝複製牌，並使其魔耗值-2。"
+},
+{
+"code": "P0656",
+"name_en": "Bloodsworn Pact",
+"name_zh": "血誓契約",
+"rarity": "LEGENDARY",
+"desc_zh": "召喚友軍單位時，於本回合使其能力值加倍。當我方打出戰爭號令時，備戰。"
+},
+{
+"code": "P0657",
+"name_en": "Warlord's Pledge",
+"name_zh": "軍閥之誓",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，在手牌生成1張戰爭號令。若手牌中已有該卡牌，則使其魔耗值-2。"
+},
+{
+"code": "P0658",
+"name_en": "Bloodlust",
+"name_zh": "嗜血殺戮",
+"rarity": "EPIC",
+"desc_zh": "+1起始魔力我方攻擊時，賦予牌組中友軍單位+1|+1。"
+},
+{
+"code": "P0659",
+"name_en": "Warlord's Pledge II",
+"name_zh": "軍閥之誓II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張戰爭號令。若手牌中已有該牌，則改為使其魔耗值-2。"
+},
+{
+"code": "P0666",
+"name_en": "Going Rogue II",
+"name_zh": "離經叛道II",
+"rarity": "EPIC",
+"desc_zh": "我方的倒數效果發動2次。我方地標倒數時，本回合給予友軍單位+1|+0。"
+},
+{
+"code": "P0667",
+"name_en": "Sentinel Business",
+"name_zh": "哨兵業務",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：召喚1個軍閥府邸。"
+},
+{
+"code": "P0668",
+"name_en": "Absolution",
+"name_zh": "赦罪",
+"rarity": "LEGENDARY",
+"desc_zh": "我方軍閥府邸被摧毀時，偷取1顆魔力寶石。我方CardRef被摧毀時，復甦最強已陣亡非閃靈友軍單位。"
+},
+{
+"code": "P0669",
+"name_en": "Going Rogue",
+"name_zh": "離經叛道",
+"rarity": "RARE",
+"desc_zh": "我方地標倒數時，本回合給予友軍單位+1|+0。"
+},
+{
+"code": "P0670",
+"name_en": "I'm Assembling a Team",
+"name_zh": "我正在組隊",
+"rarity": "EPIC",
+"desc_zh": "在此次冒險中，除起始英雄之外，以輪抽方式構建你的牌組。重抽機會+2。"
+},
+{
+"code": "P0671",
+"name_en": "Protectors of Demacia",
+"name_zh": "蒂瑪西亞守護者",
+"rarity": "EPIC",
+"desc_zh": "升級我方英雄時，召喚拉克絲。若你已經擁有拉克絲，則改為召喚蓋倫。若你已擁有前兩者而沒有加里歐，召喚加里歐。"
+},
+{
+"code": "P0672",
+"name_en": "Share in My Curse",
+"name_zh": "分擔我的詛咒",
+"rarity": "EPIC",
+"desc_zh": "回合結束：以枷鎖詛咒仇敵的最強單位。"
+},
+{
+"code": "P0680",
+"name_en": "Epic Escapades",
+"name_zh": "史詩級歷險",
+"rarity": "EPIC",
+"desc_zh": "我方史詩牌魔耗值-2。"
+},
+{
+"code": "P0681",
+"name_en": "All Skill",
+"name_zh": "全技能",
+"rarity": "RARE",
+"desc_zh": "我方技能造成2點額外傷害。"
+},
+{
+"code": "P0682",
+"name_en": "Gemcrafting",
+"name_zh": "寶石工藝",
+"rarity": "COMMON",
+"desc_zh": "我方打出法術時，隨機賦予手牌中1個友軍單位+1|+1。"
+},
+{
+"code": "P0683",
+"name_en": "Perfection",
+"name_zh": "完美無瑕",
+"rarity": "EPIC",
+"desc_zh": "我方傷害敵軍或敵方主堡時，將傷害增加至4點。"
+},
+{
+"code": "P0684",
+"name_en": "Lethality",
+"name_zh": "物理致命",
+"rarity": "RARE",
+"desc_zh": "仇敵主堡承受所有來源的1點額外傷害。"
+},
+{
+"code": "P0686",
+"name_en": "Fuses Lit",
+"name_zh": "一觸即發",
+"rarity": "RARE",
+"desc_zh": "回合開始：召喚2個火藥桶。"
+},
+{
+"code": "P0688",
+"name_en": "Boarding Party",
+"name_zh": "登船小隊",
+"rarity": "COMMON",
+"desc_zh": "我方攻擊時，對戰鬥中敵軍單位與敵方主堡造成1點傷害。"
+},
+{
+"code": "P0689",
+"name_en": "Get Swole",
+"name_zh": "肌力爆發",
+"rarity": "RARE",
+"desc_zh": "我方以法術提升友軍單位能力值時，再提升2點。"
+},
+{
+"code": "P0690",
+"name_en": "Wild Card",
+"name_zh": "命運鬼牌",
+"rarity": "RARE",
+"desc_zh": "我方每回合第三次出牌時，在手牌生成1張命運鬼牌。"
+},
+{
+"code": "P0691",
+"name_en": "Wild Card II",
+"name_zh": "命運鬼牌II",
+"rarity": "EPIC",
+"desc_zh": "我方每回合第三次出牌時，在手牌生成1張魔耗值為1的命運鬼牌。"
+},
+{
+"code": "P0692",
+"name_en": "Luck of the Draw",
+"name_zh": "好運抽抽樂",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方每回合第一張牌之後抽出的卡牌本回合魔耗值-1。"
+},
+{
+"code": "P0693",
+"name_en": "Destiny",
+"name_zh": "命運",
+"rarity": "LEGENDARY",
+"desc_zh": "將我方「命運」卡牌替換為加強版：CardRef、CardRef，及CardRef。"
+},
+{
+"code": "P0694",
+"name_en": "Thieves in the Night",
+"name_zh": "暗夜大盜",
+"rarity": "LEGENDARY",
+"desc_zh": "受控的友軍單位擁有隱密。"
+},
+{
+"code": "P0695",
+"name_en": "Pilfered Plans",
+"name_zh": "非法計畫",
+"rarity": "RARE",
+"desc_zh": "牌局開始：從敵方手牌隨機抽1張隨機卡牌，並使其魔耗值降為0。"
+},
+{
+"code": "P0696",
+"name_en": "Hohohoho",
+"name_zh": "笑口常開",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵抽出附帶5個以上陷阱的卡牌時，賦予友軍單位+1|+1。仇敵棄置1張隨機卡牌，然後抽1張牌。"
+},
+{
+"code": "P0697",
+"name_en": "Hired Muscle",
+"name_zh": "受雇打手",
+"rarity": "LEGENDARY",
+"desc_zh": "每當我方打出附有5+堆層的金幣，召喚CardRef。若場上已有CardRef，則在手牌生成1張CardRef。 "
+},
+{
+"code": "P0699",
+"name_en": "Shield of Daybreak",
+"name_zh": "拂曉盾擊",
+"rarity": "EPIC",
+"desc_zh": "具備破曉的友軍單位，擁有堅忍。當友軍單位發動破曉時，賦予友軍+0|+1。"
+},
+{
+"code": "P0700",
+"name_en": "Gifts from Beyond: Teemo II",
+"name_zh": "彼方餽贈：提摩II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成一張我抓！。"
+},
+{
+"code": "P0701",
+"name_en": "Gifts from Beyond: Teemo",
+"name_zh": "彼方餽贈：提摩",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成一張我抓！。"
+},
+{
+"code": "P0705",
+"name_en": "Death in 4 Acts",
+"name_zh": "死亡終章4",
+"rarity": "LEGENDARY",
+"desc_zh": "使我方技能與法術造成2點額外傷害。遭到擊暈的敵軍單位承受四倍傷害。"
+},
+{
+"code": "P0706",
+"name_en": "Poacher's Raid",
+"name_zh": "盜獵者入侵",
+"rarity": "RARE",
+"desc_zh": "仇敵打出法術時，本回合給予其單位+3|+0。"
+},
+{
+"code": "P0707",
+"name_en": "Curse of Omniscience",
+"name_zh": "全知詛咒",
+"rarity": "RARE",
+"desc_zh": "每回合仇敵打出的首張卡牌魔耗值改為消耗主堡生命值。"
+},
+{
+"code": "P0708",
+"name_en": "Siphon Sin",
+"name_zh": "轉化罪業",
+"rarity": "RARE",
+"desc_zh": "回合結束：若本回合仇敵已屠殺單位，則賦予其單位+3|+3。"
+},
+{
+"code": "P0709",
+"name_en": "Warden's Hold",
+"name_zh": "獄長魔爪",
+"rarity": "RARE",
+"desc_zh": "每個仇敵單位首次挑戰另一單位時，該仇敵單位會俘虜其挑戰的單位。"
+},
+{
+"code": "P0710",
+"name_en": "Ante Up",
+"name_zh": "下注",
+"rarity": "RARE",
+"desc_zh": "每回合玩家首次生成一張卡牌時，仇敵生成1張該牌的飛逝複製牌，且魔耗值為0。"
+},
+{
+"code": "P0711",
+"name_en": "Foreseen Demise",
+"name_zh": "毀滅預視",
+"rarity": "RARE",
+"desc_zh": "回合開始：仇敵在牌組底部生成2張毀滅風暴。"
+},
+{
+"code": "P0712",
+"name_en": "Race the Ruins",
+"name_zh": "遺跡競賽",
+"rarity": "RARE",
+"desc_zh": "回合結束：若仇敵場上主堡生命值達50以上，則仇敵獲勝。仇敵獲得攻擊主動權時，增加15點主堡生命值。"
+},
+{
+"code": "P0713",
+"name_en": "Sandthrasher's Brawl",
+"name_zh": "沙戮者之爭",
+"rarity": "RARE",
+"desc_zh": "仇敵召喚單位時，會增加其能力值，達到比玩家最強單位多1點。"
+},
+{
+"code": "P0714",
+"name_en": "The Time Keeper",
+"name_zh": "時光守護者",
+"rarity": "RARE",
+"desc_zh": "牌局開始：仇敵召喚鐘樓守護者而玩家召喚CardRef。打出正確的卡牌將其開啟，並贏得遊戲！"
+},
+{
+"code": "P0715",
+"name_en": "What Lies Beneath",
+"name_zh": "潛伏於下",
+"rarity": "RARE",
+"desc_zh": "玩家每回合首次打出單位時，若場上已有5個以上單位，則仇敵有50%機率召喚1張沙丘吞噬者。"
+},
+{
+"code": "P0716",
+"name_en": "Arms Dealer",
+"name_zh": "軍火商",
+"rarity": "RARE",
+"desc_zh": "仇敵的已裝備單位擁有+2|+2及衝擊。"
+},
+{
+"code": "P0718",
+"name_en": "A Killer Among Us",
+"name_zh": "潛伏殺手",
+"rarity": "RARE",
+"desc_zh": "回合結束：若其中一個仇敵單位於本回合中遭擊殺，則賦予其單位+1|+1。"
+},
+{
+"code": "P0719",
+"name_en": "City Watch",
+"name_zh": "城市守衛",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：仇敵召喚1個神皇座台。"
+},
+{
+"code": "P0720",
+"name_en": "Presto Change-o!",
+"name_zh": "魔術時間！",
+"rarity": "RARE",
+"desc_zh": "回合開始：仇敵轉化其最弱單位為魔耗值3以上的隨機侍從單位。"
+},
+{
+"code": "P0724",
+"name_en": "Lingering Essence II",
+"name_zh": "縈繞精粹II",
+"rarity": "EPIC",
+"desc_zh": "我方打出魔耗值為1以上的法術時，召喚1張能力值等同於該法術魔耗值的魅火。"
+},
+{
+"code": "P0725",
+"name_en": "Guided Spirits",
+"name_zh": "指引之靈",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。閃靈友軍單位擁有挑戰者。"
+},
+{
+"code": "P0726",
+"name_en": "Lingering Essence",
+"name_zh": "縈繞精粹",
+"rarity": "RARE",
+"desc_zh": "我方打出魔耗值為1以上的法術時，召喚1張魅火。"
+},
+{
+"code": "P0727",
+"name_en": "Circle of Life",
+"name_zh": "生命循環",
+"rarity": "LEGENDARY",
+"desc_zh": "每次友軍單位陣亡時，恢復1點魔力。"
+},
+{
+"code": "P0728",
+"name_en": "Throes of Passion",
+"name_zh": "心潮澎湃",
+"rarity": "LEGENDARY",
+"desc_zh": "敵軍單位受控於我方時，給予其蠻力，並在本回合使其力量值加倍。"
+},
+{
+"code": "P0729",
+"name_en": "Be Mine II",
+"name_zh": "成為我的II",
+"rarity": "EPIC",
+"desc_zh": "友軍單位打擊時，在手牌生成1張魔耗值為6的吸魂凝視。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P0730",
+"name_en": "Temptation",
+"name_zh": "誘惑",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。受控的友軍單位擁有+2|+0。"
+},
+{
+"code": "P0731",
+"name_en": "Be Mine",
+"name_zh": "成為我的",
+"rarity": "RARE",
+"desc_zh": "友軍單位打擊時，在手牌生成1張吸魂凝視。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P0732",
+"name_en": "Bathe in Blood",
+"name_zh": "鮮血沐浴",
+"rarity": "RARE",
+"desc_zh": "當一個友軍單位陣亡，賦予我方手牌友軍+0|+1。"
+},
+{
+"code": "P0733",
+"name_en": "Gifts from Beyond: Evelynn",
+"name_zh": "彼方餽贈：伊芙琳",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成一張魔耗值為3的吸魂凝視。"
+},
+{
+"code": "P0734",
+"name_en": "Gifts from Beyond: Evelynn II",
+"name_zh": "彼方餽贈：伊芙琳II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成一張魔耗值為3的吸魂凝視。"
+},
+{
+"code": "P0735",
+"name_en": "Irresistible Charms",
+"name_zh": "魅力無法擋",
+"rarity": "LEGENDARY",
+"desc_zh": "每場牌局魅惑首個被召喚的敵軍侍從單位。"
+},
+{
+"code": "P0736",
+"name_en": "Spiritual Awakening",
+"name_zh": "靈性覺醒",
+"rarity": "LEGENDARY",
+"desc_zh": "閃靈友軍單位獲得+3|+3。"
+},
+{
+"code": "P0738",
+"name_en": "Dark Passage",
+"name_zh": "鬼影燈籠",
+"rarity": "LEGENDARY",
+"desc_zh": "當一個友軍單位陣亡，賦予我方各處英雄+1|+1。"
+},
+{
+"code": "P0740",
+"name_en": "Calm Before The Storm",
+"name_zh": "風暴前的寧靜",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方手牌中沒有風暴導體，則一張隨機卡牌成為風暴導體。當我方出牌時，凝聚風暴。"
+},
+{
+"code": "P0741",
+"name_en": "Winds of Reflection",
+"name_zh": "反思之風",
+"rarity": "EPIC",
+"desc_zh": "+1起始魔力。我方打出英雄時，抽1張牌並使其成為風暴導體。"
+},
+{
+"code": "P0742",
+"name_en": "Anointed by the Storm",
+"name_zh": "風暴欽定",
+"rarity": "LEGENDARY",
+"desc_zh": "一張卡牌成為風暴導體時，隨機賦予其一件史詩道具。"
+},
+{
+"code": "P0743",
+"name_en": "Calm Before The Storm II",
+"name_zh": "風暴前的寧靜II",
+"rarity": "EPIC",
+"desc_zh": "回合開始且我方打出一張風暴導體時：若我方手牌中沒有風暴導體，則一張隨機卡牌成為風暴導體。當我方出牌時，凝聚風暴。"
+},
+{
+"code": "P0744",
+"name_en": "Mark of the Kindred I",
+"name_zh": "鏡爪印記I",
+"rarity": "RARE",
+"desc_zh": "回合開始：標記1個隨機敵軍單位。每當友軍單位陣亡時，在手牌生成1張野獸狂熱。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0745",
+"name_en": "Mark of the Kindred II",
+"name_zh": "鏡爪印記II",
+"rarity": "EPIC",
+"desc_zh": "回合開始：標記1個隨機敵軍單位。每當任何單位陣亡時，在手牌生成1張野獸狂熱。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0746",
+"name_en": "Death's Approach",
+"name_zh": "死亡迫近",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：將被標記的敵軍單位生命值降至1。"
+},
+{
+"code": "P0747",
+"name_en": "Mounting Dread",
+"name_zh": "恐懼蔓延",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1每次被標記的敵軍單位陣亡時，賦予閃靈，我方各處友軍英雄單位+1|+0。"
+},
+{
+"code": "P0748",
+"name_en": "Gifts From Beyond: Ahri II",
+"name_zh": "彼方餽贈：阿璃II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成1張花瓣命數。 "
+},
+{
+"code": "P0749",
+"name_en": "Gifts from Beyond: Ahri",
+"name_zh": "彼方餽贈：阿璃",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成1張花瓣命數。"
+},
+{
+"code": "P0750",
+"name_en": "Presto Change-o!",
+"name_zh": "魔術時間！",
+"rarity": "EPIC",
+"desc_zh": "回合開始：將我方單位轉化為魔耗值3以上的隨機侍從單位。"
+},
+{
+"code": "P0752",
+"name_en": "Curse of Omniscience",
+"name_zh": "全知詛咒",
+"rarity": "EPIC",
+"desc_zh": "複製我方每回合打出的第一張卡牌。該牌改為消耗主堡生命值，而非魔力。"
+},
+{
+"code": "P0756",
+"name_en": "No Cheating",
+"name_zh": "不准作弊",
+"rarity": "EPIC",
+"desc_zh": "每回合仇敵首次在手牌生成卡牌時，我方會竊取該牌。該牌魔耗值為0且擁有飛逝。"
+},
+{
+"code": "P0763",
+"name_en": "Overkill",
+"name_zh": "超量傷害",
+"rarity": "RARE",
+"desc_zh": "我方單位或法術對敵軍造成的傷害如有溢出，則將該傷害值隨機轉移至1個後排敵軍單位。"
+},
+{
+"code": "P0764",
+"name_en": "Crystallize",
+"name_zh": "寒冰屏障",
+"rarity": "LEGENDARY",
+"desc_zh": "敵方攻擊時，凍傷最強攻擊單位。力量值為0的敵軍單位承受雙倍傷害。"
+},
+{
+"code": "P0765",
+"name_en": "Winter's Boon",
+"name_zh": "凜冬祝福",
+"rarity": "COMMON",
+"desc_zh": "我方打出元素法術或技能時，下回合獲得1顆臨時魔力寶石。"
+},
+{
+"code": "P0766",
+"name_en": "Glacial Overflow",
+"name_zh": "冰川氾濫",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。如果我方進入開悟狀態，則每當即將獲得1顆魔力寶石時，改為賦予友軍單位+1|+1。"
+},
+{
+"code": "P0767",
+"name_en": "Winter's Boon II",
+"name_zh": "凜冬祝福II",
+"rarity": "EPIC",
+"desc_zh": "我方打出元素法術或技能時，獲得1格魔力寶石槽位。"
+},
+{
+"code": "P0785",
+"name_en": "The Fox Spirit",
+"name_zh": "狐仙",
+"rarity": "RARE",
+"desc_zh": "任一方打出法術時，仇敵召喚1張魅火。"
+},
+{
+"code": "P0786",
+"name_en": "Outfoxed",
+"name_zh": "智取狐仙",
+"rarity": "COMMON",
+"desc_zh": "狐仙會記住這一點。"
+},
+{
+"code": "P0787",
+"name_en": "Sorrowful",
+"name_zh": "愁眉苦臉",
+"rarity": "COMMON",
+"desc_zh": "噬哀者會記住這一點。"
+},
+{
+"code": "P0788",
+"name_en": "Soul Hunt",
+"name_zh": "靈魂捕獵",
+"rarity": "RARE",
+"desc_zh": "牌局開始：召喚1個獄長的獵物。"
+},
+{
+"code": "P0790",
+"name_en": "Press the Advantage",
+"name_zh": "先發制人",
+"rarity": "RARE",
+"desc_zh": "我方獲得攻擊主動權時，本回合給予我方未受傷單位光盾。"
+},
+{
+"code": "P0793",
+"name_en": "Greatmother's Gifts",
+"name_zh": "聖母贈禮",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方在牌組隨機生成10張魔耗值為6以上的法術牌，並將其魔耗值降為3。"
+},
+{
+"code": "P0797",
+"name_en": "Yipp's Vision",
+"name_zh": "奕卜的遠見",
+"rarity": "RARE",
+"desc_zh": "我方每施放6種新法術，便召喚1個貓劫降臨。"
+},
+{
+"code": "P0798",
+"name_en": "Choir of Meeps",
+"name_zh": "米普齊唱",
+"rarity": "RARE",
+"desc_zh": "我方每消耗1點魔力，便在我方牌組植入3張編鐘。"
+},
+{
+"code": "P0802",
+"name_en": "Incorrigible Prankster",
+"name_zh": "無理惡作劇",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：本次冒險此前我方每贏過一場遭遇戰，則仇敵會將10張陷阱植入我方牌組。每當敵方單位打擊我方主堡時，抽1張牌。"
+},
+{
+"code": "P0803",
+"name_en": "Windborne Remains",
+"name_zh": "乘風遺跡",
+"rarity": "LEGENDARY",
+"desc_zh": "每當我方打出魔耗值降低的單位，賦予此單位+3|+3。"
+},
+{
+"code": "P0805",
+"name_en": "Eat Up Dearies",
+"name_zh": "張嘴，親愛的！",
+"rarity": "RARE",
+"desc_zh": "回合結束：場上每有1個單位，則仇敵會將2張劇毒膨菇植入我方牌組。"
+},
+{
+"code": "P0806",
+"name_en": "Fireworks Show!",
+"name_zh": "煙火秀！",
+"rarity": "RARE",
+"desc_zh": "仇敵召喚地標時，玩家召喚其複製單位。我方任一地標離場時，對我方主堡造成10點傷害。"
+},
+{
+"code": "P0807",
+"name_en": "Sappy Sonnets",
+"name_zh": "感傷十四行詩",
+"rarity": "RARE",
+"desc_zh": "仇敵發動故事時，賦予友軍單位無望。"
+},
+{
+"code": "P0808",
+"name_en": "Sadness & Woe",
+"name_zh": "憂傷與哀愁",
+"rarity": "RARE",
+"desc_zh": "牌局開始：仇敵召喚1隻遭到擊暈的厄塔汗。"
+},
+{
+"code": "P0809",
+"name_en": "Forgotten Friends",
+"name_zh": "被遺忘的朋友",
+"rarity": "LEGENDARY",
+"desc_zh": "所有友軍單位為閃靈。"
+},
+{
+"code": "P0810",
+"name_en": "Squandered Potential",
+"name_zh": "揮霍潛能",
+"rarity": "LEGENDARY",
+"desc_zh": "起始魔力-2。"
+},
+{
+"code": "P0811",
+"name_en": "Inefficient",
+"name_zh": "拖泥帶水",
+"rarity": "RARE",
+"desc_zh": "敵方召喚單位時，賦予該單位法盾。"
+},
+{
+"code": "P0812",
+"name_en": "Reckless",
+"name_zh": "橫衝直撞",
+"rarity": "RARE",
+"desc_zh": "回合開始：仇敵進行備戰。"
+},
+{
+"code": "P0813",
+"name_en": "Irrational Dread",
+"name_zh": "莫名畏懼",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵召喚一個20|20的凶厄普羅。"
+},
+{
+"code": "P0814",
+"name_en": "Bullied",
+"name_zh": "忍氣吞聲",
+"rarity": "COMMON",
+"desc_zh": "所有敵軍單位擁有衝擊2次。"
+},
+{
+"code": "P0815",
+"name_en": "Ineffective",
+"name_zh": "徒勞無功",
+"rarity": "RARE",
+"desc_zh": "所有敵軍單位與敵方主堡擁有堅忍。"
+},
+{
+"code": "P0816",
+"name_en": "Gullible",
+"name_zh": "輕信於人",
+"rarity": "COMMON",
+"desc_zh": "所有友軍單位擁有弱勢。"
+},
+{
+"code": "P0817",
+"name_en": "Idolater",
+"name_zh": "崇拜者",
+"rarity": "RARE",
+"desc_zh": "我方英雄的魔耗值+3。"
+},
+{
+"code": "P0818",
+"name_en": "Overindulgent",
+"name_zh": "過度溺愛",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：將50張劇毒膨菇隨機植入我方牌組。"
+},
+{
+"code": "P0819",
+"name_en": "Complete the Cycle",
+"name_zh": "新春大滿貫",
+"rarity": "EPIC",
+"desc_zh": "每當英雄或閃靈友軍單位擊殺敵人時，恢復所有法術魔力。"
+},
+{
+"code": "P0820",
+"name_en": "Justice",
+"name_zh": "正義",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張飛逝單挑。"
+},
+{
+"code": "P0821",
+"name_en": "Never Dull",
+"name_zh": "蓄勢待發",
+"rarity": "COMMON",
+"desc_zh": "友軍單位進行打擊時，賦予其+1|+0。"
+},
+{
+"code": "P0822",
+"name_en": "Water Recycler",
+"name_zh": "流水循環",
+"rarity": "COMMON",
+"desc_zh": "棄置卡牌時，在我方牌組生成1張該牌的複製牌，並於下次回合開始抽1張飛逝牌。"
+},
+{
+"code": "P0823",
+"name_en": "Suitable Host",
+"name_zh": "合適宿主",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在手牌隨機生成1件冥血族裝備，該牌魔耗值-2。"
+},
+{
+"code": "P0824",
+"name_en": "Playful Trick",
+"name_zh": "新奇花招",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張飛逝狡詐。"
+},
+{
+"code": "P0825",
+"name_en": "So Many Friends",
+"name_zh": "朋友多多",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：隨機召喚2個魔耗值為1的普羅。"
+},
+{
+"code": "P0826",
+"name_en": "Divine Intervention",
+"name_zh": "神聖加護",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張巨石峰的祝福。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0827",
+"name_en": "March of the Machines",
+"name_zh": "機械行軍",
+"rarity": "COMMON",
+"desc_zh": "我方召喚生成的單位時，賦予其擴增。"
+},
+{
+"code": "P0828",
+"name_en": "Psychological Warfare",
+"name_zh": "心理戰",
+"rarity": "COMMON",
+"desc_zh": "我方法術和技能對敵軍造成傷害時，改為附加無望。"
+},
+{
+"code": "P0829",
+"name_en": "Most Dangerous Game",
+"name_zh": "超危險獵物",
+"rarity": "COMMON",
+"desc_zh": "我方獲得攻擊主動權時，在手牌生成1張靈巧偽裝。"
+},
+{
+"code": "P0830",
+"name_en": "Bet on Sett",
+"name_zh": "全押賽特",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張金幣。"
+},
+{
+"code": "P0831",
+"name_en": "Primal Howl",
+"name_zh": "本能怒嚎",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張血跡獵蹤。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P0832",
+"name_en": "Carve a Path",
+"name_zh": "殺出血路",
+"rarity": "COMMON",
+"desc_zh": "每回合我方攻擊單位力量值總和首次達15以上時，進行備戰。"
+},
+{
+"code": "P0833",
+"name_en": "Found Friends",
+"name_zh": "一見如故",
+"rarity": "COMMON",
+"desc_zh": "牌局開始及打出基本魔耗值為4以上的卡牌時：將1張神祕傳送門植入我方牌組最上方4張牌中。"
+},
+{
+"code": "P0834",
+"name_en": "Harrowed Path",
+"name_zh": "幽影之徑",
+"rarity": "COMMON",
+"desc_zh": "力量值為4以上的友軍單位陣亡時，使手牌中所有力量值為4以上的友軍單位魔耗值-1。"
+},
+{
+"code": "P0835",
+"name_en": "Caught In The Webs",
+"name_zh": "蛛網纏身",
+"rarity": "COMMON",
+"desc_zh": "回合結束：若本回合有友軍單位陣亡，則召喚1張小蜘蛛。"
+},
+{
+"code": "P0836",
+"name_en": "Piltover's Finest",
+"name_zh": "皮爾托福之最",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：抽2張魔耗值為2以下的牌。"
+},
+{
+"code": "P0837",
+"name_en": "For the King!",
+"name_zh": "國王萬歲！",
+"rarity": "COMMON",
+"desc_zh": "回合結束：若本回合有友軍單位陣亡，則賦予最弱友軍單位+1|+1與1個該單位沒有的隨機特性。"
+},
+{
+"code": "P0838",
+"name_en": "Style On 'Em",
+"name_zh": "英姿颯爽",
+"rarity": "COMMON",
+"desc_zh": "我方每回合第三次出牌時，賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P0839",
+"name_en": "Gift of Corruption",
+"name_zh": "墮落贈禮",
+"rarity": "RARE",
+"desc_zh": "回合開始：使我方牌組中1張法術牌的魔耗值-1，並在手牌生成1張該牌的飛逝複製牌。"
+},
+{
+"code": "P0840",
+"name_en": "Collateral Damage",
+"name_zh": "連帶傷害",
+"rarity": "RARE",
+"desc_zh": "單位陣亡時，對敵方主堡造成1點傷害。"
+},
+{
+"code": "P0841",
+"name_en": "Cosmic Creator",
+"name_zh": "宇宙創世",
+"rarity": "RARE",
+"desc_zh": "我方生成1張卡牌時，賦予其1件稀有或史詩道具。"
+},
+{
+"code": "P0842",
+"name_en": "On the Case",
+"name_zh": "著手辦案",
+"rarity": "COMMON",
+"desc_zh": "友軍單位受召喚或攻擊時，將1張閃光炸彈陷阱隨機植入敵方牌組最上方8張牌中。"
+},
+{
+"code": "P0843",
+"name_en": "Reinforce the Formation",
+"name_zh": "陣型馳援",
+"rarity": "COMMON",
+"desc_zh": "回合開始：在手牌生成1張徵兵。若手牌中已有該牌，則使其魔耗值-1。"
+},
+{
+"code": "P0844",
+"name_en": "Bloodlust",
+"name_zh": "嗜血殺戮",
+"rarity": "RARE",
+"desc_zh": "我方攻擊時，賦予牌組中友軍單位+1|+1。"
+},
+{
+"code": "P0845",
+"name_en": "Shuriman Preservation",
+"name_zh": "蘇瑞瑪之護",
+"rarity": "COMMON",
+"desc_zh": "所有敵軍單位受到-1|-0。弱勢敵軍單位則受到-3|-0。"
+},
+{
+"code": "P0846",
+"name_en": "Dark Child",
+"name_zh": "黑暗之女",
+"rarity": "LEGENDARY",
+"desc_zh": "我方技能額外發動一次。"
+},
+{
+"code": "P0847",
+"name_en": "Strength & Strategy",
+"name_zh": "力量與策略",
+"rarity": "COMMON",
+"desc_zh": "我方造成法術傷害時，該法術之其它各處的相同卡牌，提升輸出傷害1。"
+},
+{
+"code": "P0848",
+"name_en": "Gifts From Beyond: Kindred",
+"name_zh": "彼方餽贈：鏡爪",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成一張狂熱釋放。"
+},
+{
+"code": "P0849",
+"name_en": "Gifts From Beyond: Kindred II",
+"name_zh": "彼方餽贈：鏡爪II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成一張狂熱釋放。"
+},
+{
+"code": "P0850",
+"name_en": "Signing Bonus",
+"name_zh": "登入獎勵",
+"rarity": "COMMON",
+"desc_zh": "冒險中獲得的侍從單位獲得刺釘皮甲。"
+},
+{
+"code": "P0852",
+"name_en": "Champion's Strength",
+"name_zh": "英雄之力",
+"rarity": "RARE",
+"desc_zh": "使我方英雄擁有+2|+2"
+},
+{
+"code": "P0853",
+"name_en": "Savvy Shopper",
+"name_zh": "老練買家",
+"rarity": "RARE",
+"desc_zh": "金幣+200。史詩能力與道具出現機率+10%"
+},
+{
+"code": "P0854",
+"name_en": "Infiltrators",
+"name_zh": "滲透專家",
+"rarity": "COMMON",
+"desc_zh": "未受格擋的友軍單位擁有+2|+0。"
+},
+{
+"code": "P0855",
+"name_en": "False Loyalty",
+"name_zh": "虛假歸屬",
+"rarity": "COMMON",
+"desc_zh": "受控的友軍單位獲得+1|+1。"
+},
+{
+"code": "P0856",
+"name_en": "Taste of Sorcery",
+"name_zh": "巫術鑑賞",
+"rarity": "RARE",
+"desc_zh": "牌局開始：恢復我方的法術魔力"
+},
+{
+"code": "P0857",
+"name_en": "Spirit Armor",
+"name_zh": "靈魂板甲",
+"rarity": "RARE",
+"desc_zh": "召喚友軍單位時，賦予其+0|+3。"
+},
+{
+"code": "P0858",
+"name_en": "Reconnaissance",
+"name_zh": "偵察",
+"rarity": "RARE",
+"desc_zh": "每回合首次有友軍單位打擊敵方主堡時，抽1張牌。"
+},
+{
+"code": "P0859",
+"name_en": "Omniscience",
+"name_zh": "全能",
+"rarity": "RARE",
+"desc_zh": "+20洞察力，重抽機會+2。"
+},
+{
+"code": "P0860",
+"name_en": "Puffcap Proliferation",
+"name_zh": "膨菇增生",
+"rarity": "RARE",
+"desc_zh": "我方對敵方主堡造成傷害時，在敵方牌組植入相同數量的劇毒膨菇。"
+},
+{
+"code": "P0861",
+"name_en": "Keep it Flowing",
+"name_zh": "川流不息",
+"rarity": "RARE",
+"desc_zh": "回合開始：川流：抽1張牌。"
+},
+{
+"code": "P0862",
+"name_en": "The Taker's Bow",
+"name_zh": "奪命者之弓",
+"rarity": "EPIC",
+"desc_zh": "攻擊中的閃靈友軍單位免疫傷害及死亡。"
+},
+{
+"code": "P0863",
+"name_en": "Emotional Support Bear",
+"name_zh": "安撫小熊",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：將3張泰貝爾洗入我方牌組。我方泰貝爾魔耗值-2並獲得+5|+5。"
+},
+{
+"code": "P0864",
+"name_en": "Arcane Empowerment ",
+"name_zh": "奧術強化 ",
+"rarity": "COMMON",
+"desc_zh": "使我方法術與技能額外造成1點傷害。"
+},
+{
+"code": "P0865",
+"name_en": "Self-Destructive",
+"name_zh": "自我毀滅",
+"rarity": "RARE",
+"desc_zh": "回合結束：對我方下膿水詛咒兩次。"
+},
+{
+"code": "P0866",
+"name_en": "Frozen in Fear",
+"name_zh": "凍彈不得",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方打出3張卡牌後，此回合我方卡牌魔耗值+3。"
+},
+{
+"code": "P0867",
+"name_en": "Wasted Opportunities",
+"name_zh": "錯失良機",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：賦予我方手牌中最左邊的3張卡牌飛逝。"
+},
+{
+"code": "P0868",
+"name_en": "Flustered",
+"name_zh": "心煩意亂",
+"rarity": "RARE",
+"desc_zh": "牌局開始：玩家與仇敵交換牌組。"
+},
+{
+"code": "P0869",
+"name_en": "Distrustful",
+"name_zh": "疑神疑鬼",
+"rarity": "COMMON",
+"desc_zh": "負傷友軍單位無法進行格擋。"
+},
+{
+"code": "P0870",
+"name_en": "Meek",
+"name_zh": "溫順",
+"rarity": "COMMON",
+"desc_zh": "回合結束：沉默玩家的最強單位。 "
+},
+{
+"code": "P0871",
+"name_en": "Unmotivated",
+"name_zh": "欲振乏力",
+"rarity": "RARE",
+"desc_zh": "召喚友軍單位時，將其擊暈。"
+},
+{
+"code": "P0872",
+"name_en": "Inadequate",
+"name_zh": "不夠格！",
+"rarity": "RARE",
+"desc_zh": "使我方法術與技能造成的傷害減少3點。"
+},
+{
+"code": "P0873",
+"name_en": "Resentful",
+"name_zh": "忿忿不平",
+"rarity": "RARE",
+"desc_zh": "每有1個友軍單位陣亡，便對我方主堡造成2點傷害。"
+},
+{
+"code": "P0874",
+"name_en": "Apprehensive",
+"name_zh": "惴惴不安",
+"rarity": "COMMON",
+"desc_zh": "召喚友軍單位時，將其凍傷。"
+},
+{
+"code": "P0875",
+"name_en": "Isolated",
+"name_zh": "孤立無援",
+"rarity": "RARE",
+"desc_zh": "回合結束：擊殺我方除了最強單位外的所有其他單位。"
+},
+{
+"code": "P0876",
+"name_en": "Paralyzing Doubt",
+"name_zh": "出師不利",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始時我方無法抽牌。"
+},
+{
+"code": "P0877",
+"name_en": "Unprepared",
+"name_zh": "措手不及",
+"rarity": "RARE",
+"desc_zh": "回合開始：我方失去所有法術魔力。"
+},
+{
+"code": "P0878",
+"name_en": "Clumsy",
+"name_zh": "笨手笨腳",
+"rarity": "COMMON",
+"desc_zh": "我方打出法術時，對我方主堡造成2點傷害。"
+},
+{
+"code": "P0879",
+"name_en": "Obsequious Fool",
+"name_zh": "低聲下氣",
+"rarity": "LEGENDARY",
+"desc_zh": "使敵方擁有隱密和吸血。"
+},
+{
+"code": "P0880",
+"name_en": "Unrequited Love",
+"name_zh": "單相思",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：仇敵隨機魅惑1個友軍單位。"
+},
+{
+"code": "P0881",
+"name_en": "Confrontational",
+"name_zh": "咄咄逼人",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：仇敵從其牌組召喚最弱單位。"
+},
+{
+"code": "P0882",
+"name_en": "Overconfident",
+"name_zh": "過度自信",
+"rarity": "RARE",
+"desc_zh": "召喚友軍單位時，將其生命值設為1。"
+},
+{
+"code": "P0883",
+"name_en": "All-Consuming Burnout",
+"name_zh": "蠟炬成灰",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出卡牌時，對我方主堡造成等同該卡牌魔耗值的傷害。"
+},
+{
+"code": "P0884",
+"name_en": "Fraud",
+"name_zh": "詐欺",
+"rarity": "RARE",
+"desc_zh": "我方生成的卡牌魔耗值為10。"
+},
+{
+"code": "P0885",
+"name_en": "Ignorant",
+"name_zh": "無知",
+"rarity": "RARE",
+"desc_zh": "牌局開始：棄置3張隨機卡牌。"
+},
+{
+"code": "P0886",
+"name_en": "Jealous",
+"name_zh": "善妒",
+"rarity": "RARE",
+"desc_zh": "仇敵永久魅惑本牌局打出的首個友軍單位。"
+},
+{
+"code": "P0887",
+"name_en": "Final Lesson",
+"name_zh": "煉獄鬼斬",
+"rarity": "LEGENDARY",
+"desc_zh": "我方使用卡牌以友軍單位為目標時，賦予該單位等同該卡牌魔耗值的能力值。"
+},
+{
+"code": "P0888",
+"name_en": "Lesson Two",
+"name_zh": "第二課",
+"rarity": "EPIC",
+"desc_zh": "我方打出僅以友軍單位為目標的法術牌時，賦予其生機。"
+},
+{
+"code": "P0889",
+"name_en": "Lesson One",
+"name_zh": "第一課",
+"rarity": "RARE",
+"desc_zh": "每回合我方首次打出僅以友軍單位為目標的法術牌時，賦予其生機。"
+},
+{
+"code": "P0890",
+"name_en": "Fruits of Wisdom",
+"name_zh": "智慧果實",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。每回合我方首次打出法術牌時，恢復1點法術魔力。"
+},
+{
+"code": "P0891",
+"name_en": "Secrets of the Spirits",
+"name_zh": "靈魂祕辛",
+"rarity": "LEGENDARY",
+"desc_zh": "閃靈友軍單位能力值增加時，增加量翻倍。"
+},
+{
+"code": "P0892",
+"name_en": "Gifts from Beyond: Master Yi",
+"name_zh": "彼方餽贈：易大師",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成一張魔耗值為1的悲傷教誨。"
+},
+{
+"code": "P0893",
+"name_en": "Gifts from Beyond: Master Yi II",
+"name_zh": "彼方餽贈：<nobr>易大師II</nobr>",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成一張魔耗值為1的悲傷教誨。"
+},
+{
+"code": "P0894",
+"name_en": "Gifts from Beyond: Yasuo II",
+"name_zh": "彼方餽贈：犽宿II",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：我方有20%機率在手牌生成一張掀起風暴。"
+},
+{
+"code": "P0895",
+"name_en": "Gifts from Beyond: Yasuo",
+"name_zh": "彼方餽贈：犽宿",
+"rarity": "RARE",
+"desc_zh": "牌局開始：我方有10%機率在手牌生成一張掀起風暴。"
+},
+{
+"code": "P0896",
+"name_en": "Shurima's Legacy",
+"name_zh": "蘇瑞瑪遺跡",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：在我方牌組中生成一張雷尼克頓和CardRef，然後將所有CardRef的道具賦予我方牌組及手牌中的其他英雄。"
+},
+{
+"code": "P0897",
+"name_en": "The Darkin Blade",
+"name_zh": "冥血劍魔",
+"rarity": "EPIC",
+"desc_zh": "我方打出或幻化冥血族時，使其打擊最弱敵軍單位。"
+},
+{
+"code": "P0899",
+"name_en": "Emperor's Assault II",
+"name_zh": "帝王猛襲II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。我方每回合召喚第二個單位時，賦予所有友軍單位+2|+2。"
+},
+{
+"code": "P0900",
+"name_en": "Sandstone Scout",
+"name_zh": "砂褐先遣",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：召喚1張躍岩者。"
+},
+{
+"code": "P0901",
+"name_en": "Call of the Brood",
+"name_zh": "群龍召喚",
+"rarity": "LEGENDARY",
+"desc_zh": "我方攻擊時，抽1張單位牌。若為龍族，則以攻擊中狀態召喚之。 "
+},
+{
+"code": "P0907",
+"name_en": "Recurring Nightmare",
+"name_zh": "不息夢魘",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：在敵方牌組中以CardRef的形式植入3張威洛魔。我方有蜘蛛友軍單位陣亡時，在敵方牌組中以CardRef的形式植入其複製牌。我方打出蜘蛛時，恐懼1。"
+},
+{
+"code": "P0908",
+"name_en": "Adaptation",
+"name_zh": "因時制宜",
+"rarity": "COMMON",
+"desc_zh": "我方召喚英雄時，賦予其2個尚未由友軍單位持有的隨機特性。"
+},
+{
+"code": "P0909",
+"name_en": "Queen's Embrace",
+"name_zh": "女王的懷抱",
+"rarity": "EPIC",
+"desc_zh": "威嚇友軍單位只能被力量值為5以上的單位格擋。"
+},
+{
+"code": "P0910",
+"name_en": "Snaxplosion",
+"name_zh": "點心爆破",
+"rarity": "LEGENDARY",
+"desc_zh": "我方打出普羅時，在手牌生成1張隨機的特別點心。若手牌中已有該牌，則使其魔耗值-1。在每場牌局中，我方打出第10張點心時，將所有敵軍幻化成隨機普羅。"
+},
+{
+"code": "P0911",
+"name_en": "Preparation",
+"name_zh": "有備無患",
+"rarity": "RARE",
+"desc_zh": "回合結束：賦予手牌中魔耗值不高於我方魔力寶石數量的友軍單位+2|+2。"
+},
+{
+"code": "P0912",
+"name_en": "Ascension",
+"name_zh": "飛昇帝國",
+"rarity": "COMMON",
+"desc_zh": "第5回合起，友軍單位獲得+3|+3。"
+},
+{
+"code": "P0913",
+"name_en": "Little Buddies",
+"name_zh": "小小夥伴",
+"rarity": "COMMON",
+"desc_zh": "我方召喚魔耗值為3以下的友軍單位時，賦予我方各處魔耗值5以上的友軍單位+1|+1。"
+},
+{
+"code": "P0914",
+"name_en": "Cybernetic Implants",
+"name_zh": "模控機械移植",
+"rarity": "EPIC",
+"desc_zh": "友軍單位每有1件道具，便獲得+1|+1（最多3件）。"
+},
+{
+"code": "P0915",
+"name_en": "Clear Mind",
+"name_zh": "思緒清晰",
+"rarity": "RARE",
+"desc_zh": "回合結束：若我方場上沒有單位，則獲得1顆魔力寶石。"
+},
+{
+"code": "P0916",
+"name_en": "Pandora's Items",
+"name_zh": "潘朵拉的道具",
+"rarity": "EPIC",
+"desc_zh": "回合結束：隨機賦予1張我方卡牌1件隨機普通道具（每張牌最多3件）。"
+},
+{
+"code": "P0917",
+"name_en": "BRB",
+"name_zh": "馬上回來",
+"rarity": "RARE",
+"desc_zh": "此牌不得於第一回合打出。之後，賦予我方牌組和手牌中的每張卡牌各1件史詩道具。"
+},
+{
+"code": "P0918",
+"name_en": "Cluttered Mind",
+"name_zh": "思緒雜亂",
+"rarity": "RARE",
+"desc_zh": "回合結束：若我方後排全滿，則獲得1顆魔力寶石。"
+},
+{
+"code": "P0919",
+"name_en": "Pilfer",
+"name_zh": "盜取",
+"rarity": "COMMON",
+"desc_zh": "每回合我方首次擊殺敵軍單位時，在手牌生成1張該牌的1|1複製牌，其魔耗值為1。"
+},
+{
+"code": "P0920",
+"name_en": "Pair of Fours",
+"name_zh": "四個一組",
+"rarity": "COMMON",
+"desc_zh": "我方打出魔耗值為4的單位時，從我方牌組召喚1個魔耗值為4的不同單位。"
+},
+{
+"code": "P0922",
+"name_en": "Evidence Gathering",
+"name_zh": "蒐集證據",
+"rarity": "EPIC",
+"desc_zh": "仇敵抽出5張卡牌時，其單位獲得+2|+2與銳目。"
+},
+{
+"code": "P0923",
+"name_en": "Captain's Crew",
+"name_zh": "船長的水手",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：仇敵召喚2張神射海盜。"
+},
+{
+"code": "P0925",
+"name_en": "Creeps",
+"name_zh": "芸芸眾生",
+"rarity": "LEGENDARY",
+"desc_zh": "使仇敵的單位擁有+0|+4、弱勢與2次衝擊。"
+},
+{
+"code": "P0926",
+"name_en": "Double Trouble",
+"name_zh": "雙倍麻煩",
+"rarity": "COMMON",
+"desc_zh": "我方擁有2個完全相同的單位時，使其獲得+3|+3。"
+},
+{
+"code": "P0927",
+"name_en": "Wither",
+"name_zh": "枯萎",
+"rarity": "LEGENDARY",
+"desc_zh": "玩家主堡在戰鬥遭遇戰中無法接受治療。"
+},
+{
+"code": "P0928",
+"name_en": "Trait Affinity",
+"name_zh": "特性親和力",
+"rarity": "EPIC",
+"desc_zh": "任一方若有3個以上的單位具備相同的卡牌次類，則這些單位獲得+2|+2。若單位達到5個以上，則改為獲得+3|+3。"
+},
+{
+"code": "P0929",
+"name_en": "The Pit",
+"name_zh": "競技場",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵召喚巴龍納什。巴龍納什陣亡時，我方獲勝。"
+},
+{
+"code": "P0930",
+"name_en": "Star Up",
+"name_zh": "升星",
+"rarity": "EPIC",
+"desc_zh": "任一方的手牌包含3張以上相同卡牌時，棄置這些卡牌，但保留其中1張並使其能力值翻倍。回合開始：仇敵生成其手牌中1個單位的複製牌。"
+},
+{
+"code": "P0931",
+"name_en": "Flourish",
+"name_zh": "生機勃勃",
+"rarity": "COMMON",
+"desc_zh": "我方治療負傷友軍單位時，賦予其+1|+1。"
+},
+{
+"code": "P0932",
+"name_en": "Flourish II",
+"name_zh": "生機勃勃II",
+"rarity": "EPIC",
+"desc_zh": "我方治療負傷友軍單位時，每治癒1點，賦予其+1|+1（最多+3|+3）。"
+},
+{
+"code": "P0933",
+"name_en": "The Stars Answer",
+"name_zh": "群星迴響",
+"rarity": "EPIC",
+"desc_zh": "回合開始：在手牌生成1張星體擴散。若手牌中已有該牌，則改為使其魔耗值-2。"
+},
+{
+"code": "P0934",
+"name_en": "Team Building",
+"name_zh": "建立團隊",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：在手牌生成1張英雄複製裝置。"
+},
+{
+"code": "P0935",
+"name_en": "Last Second Save",
+"name_zh": "救命關頭",
+"rarity": "RARE",
+"desc_zh": "友軍單位承受傷害後若以剛好1點生命值存活，則治癒該牌。"
+},
+{
+"code": "P0937",
+"name_en": "Mutant",
+"name_zh": "異能者",
+"rarity": "COMMON",
+"desc_zh": "所有友軍單位獲得相同的隨機特性。該特性每場牌局都會改變。"
+},
+{
+"code": "P0938",
+"name_en": "Pandora's Board",
+"name_zh": "潘朵拉的盤面",
+"rarity": "EPIC",
+"desc_zh": "回合結束：將每個友軍單位幻化成魔耗值+2的隨機單位。"
+},
+{
+"code": "P0939",
+"name_en": "Titanic Titan",
+"name_zh": "巨型泰坦",
+"rarity": "COMMON",
+"desc_zh": "主堡生命值+30。"
+},
+{
+"code": "P0940",
+"name_en": "Vampiric Vitality",
+"name_zh": "吸血活力",
+"rarity": "RARE",
+"desc_zh": "友軍單位獲得吸血。我方主堡生命值上限減少60%。"
+},
+{
+"code": "P0943",
+"name_en": "Flourish III",
+"name_zh": "生機勃勃III",
+"rarity": "LEGENDARY",
+"desc_zh": "我方治療負傷友軍單位時，每治癒1點，賦予其+1|+1。每治癒6點，在手牌生成1張魔耗值為0的飛逝彗星墜擊。"
+},
+{
+"code": "P0950",
+"name_en": "Stance Mastery II",
+"name_zh": "形意專精II",
+"rarity": "EPIC",
+"desc_zh": "使用四形之喚指定友軍單位為目標時，賦予他們+1|+1。每回合，我方首次對1個友軍單位使用四形之喚時，該友軍單位會打擊最弱的敵軍單位。"
+},
+{
+"code": "P0951",
+"name_en": "Stance Mastery I",
+"name_zh": "形意專精I",
+"rarity": "COMMON",
+"desc_zh": "使用四形之喚指定友軍單位為目標時，賦予其+1|+1。"
+},
+{
+"code": "P0952",
+"name_en": "Focused Mind",
+"name_zh": "全神貫注",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方四形之喚加速為專注。 我方獲得攻擊主動權時，在手牌生成1張四形之喚。 "
+},
+{
+"code": "P0953",
+"name_en": "Yeti Magic",
+"name_zh": "雪怪魔法",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。牌局開始：將5張雪球洗入我方牌組。"
+},
+{
+"code": "P0954",
+"name_en": "Call of the Freljord",
+"name_zh": "弗雷爾卓德之喚",
+"rarity": "COMMON",
+"desc_zh": "我方打出一個單位時，賦予牌組中的友軍單位+1|+0。若該單位是雪怪或魔耗值為5以上的卡牌，改為賦予牌組中的友軍單位+1|+1（如果同時符合兩者，則賦予+2|+2）。"
+},
+{
+"code": "P0955",
+"name_en": "Call of the Freljord II",
+"name_zh": "弗雷爾卓德之喚II",
+"rarity": "EPIC",
+"desc_zh": "我方打出一個單位時，賦予牌組中的友軍單位+1|+1。若該單位是雪怪或魔耗值為5以上的卡牌，改為賦予牌組中的友軍單位+2|+2（如果同時符合兩者，則賦予+3|+3）。"
+},
+{
+"code": "P0956",
+"name_en": "Biggest Snowball Ever!",
+"name_zh": "巨無霸雪球！",
+"rarity": "LEGENDARY",
+"desc_zh": "友軍單位陣亡時，將等同其力量值的能力值賦予牌組最上方的單位。每回合，友軍雪球在攻擊時首次陣亡，進行備戰。"
+},
+{
+"code": "P0957",
+"name_en": "Mortality I",
+"name_zh": "終將一逝I",
+"rarity": "COMMON",
+"desc_zh": "停用我方最高階的星辰能力。"
+},
+{
+"code": "P0958",
+"name_en": "Taxing II",
+"name_zh": "負擔沉重II",
+"rarity": "RARE",
+"desc_zh": "玩家的卡牌魔耗值不能低於3。"
+},
+{
+"code": "P0959",
+"name_en": "Disarming III",
+"name_zh": "繳械III",
+"rarity": "EPIC",
+"desc_zh": "我方英雄無法裝備聖物。"
+},
+{
+"code": "P0960",
+"name_en": "Mortality III",
+"name_zh": "終將一逝III",
+"rarity": "EPIC",
+"desc_zh": "停用我方最高階的7項星辰能力。"
+},
+{
+"code": "P0962",
+"name_en": "Omniscient II",
+"name_zh": "全知全能II",
+"rarity": "RARE",
+"desc_zh": "仇敵起始魔力+2，起始手牌數+2。"
+},
+{
+"code": "P0963",
+"name_en": "Unforgiving III",
+"name_zh": "不留情面III",
+"rarity": "EPIC",
+"desc_zh": "玩家主堡在冒險中無法接受治療。"
+},
+{
+"code": "P0964",
+"name_en": "Taxing IV",
+"name_zh": "負擔沉重IV",
+"rarity": "LEGENDARY",
+"desc_zh": "玩家的卡牌魔耗值不能低於5。"
+},
+{
+"code": "P0967",
+"name_en": "Taxing III",
+"name_zh": "負擔沉重III",
+"rarity": "EPIC",
+"desc_zh": "玩家的卡牌魔耗值不能低於4。"
+},
+{
+"code": "P0968",
+"name_en": "Toxic I",
+"name_zh": "惡意滿滿I",
+"rarity": "COMMON",
+"desc_zh": "玩家打出卡牌時，對其主堡造成1點傷害。"
+},
+{
+"code": "P0969",
+"name_en": "Toxic III",
+"name_zh": "惡意滿滿III",
+"rarity": "EPIC",
+"desc_zh": "玩家打出卡牌時，對其主堡造成3點傷害。"
+},
+{
+"code": "P0970",
+"name_en": "Mortality II",
+"name_zh": "終將一逝II",
+"rarity": "RARE",
+"desc_zh": "停用我方最高階的3項星辰能力。"
+},
+{
+"code": "P0971",
+"name_en": "Unending Siege II",
+"name_zh": "無盡圍城II",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵召喚3個海王號。（取代無盡圍城）"
+},
+{
+"code": "P0972",
+"name_en": "Relentless I",
+"name_zh": "殘虐I",
+"rarity": "COMMON",
+"desc_zh": "使仇敵的單位擁有蠻力。"
+},
+{
+"code": "P0973",
+"name_en": "Unforgiving I",
+"name_zh": "不留情面I",
+"rarity": "COMMON",
+"desc_zh": "玩家主堡在戰鬥遭遇戰中無法接受治療。"
+},
+{
+"code": "P0974",
+"name_en": "Omniscient IV",
+"name_zh": "全知全能IV",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵起始魔力+4，起始手牌數+4。"
+},
+{
+"code": "P0975",
+"name_en": "Taxing I",
+"name_zh": "負擔沉重I",
+"rarity": "COMMON",
+"desc_zh": "玩家的卡牌魔耗值不能低於2。"
+},
+{
+"code": "P0976",
+"name_en": "Disarming I",
+"name_zh": "繳械I",
+"rarity": "COMMON",
+"desc_zh": "我方英雄無法裝備超過2個聖物。"
+},
+{
+"code": "P0977",
+"name_en": "Augmented I",
+"name_zh": "強化I",
+"rarity": "COMMON",
+"desc_zh": "使仇敵的單位擁有+1|+1。"
+},
+{
+"code": "P0978",
+"name_en": "Augmented III",
+"name_zh": "強化III",
+"rarity": "EPIC",
+"desc_zh": "使仇敵的單位擁有+6|+6。"
+},
+{
+"code": "P0980",
+"name_en": "Toxic IV",
+"name_zh": "惡意滿滿IV",
+"rarity": "LEGENDARY",
+"desc_zh": "玩家打出卡牌時，對其主堡造成4點傷害。"
+},
+{
+"code": "P0981",
+"name_en": "Augmented II",
+"name_zh": "強化II",
+"rarity": "RARE",
+"desc_zh": "使仇敵的單位擁有+3|+3。"
+},
+{
+"code": "P0982",
+"name_en": "Omniscient I",
+"name_zh": "全知全能I",
+"rarity": "COMMON",
+"desc_zh": "仇敵起始魔力+1，起始手牌數+1。"
+},
+{
+"code": "P0983",
+"name_en": "Augmented IV",
+"name_zh": "強化IV",
+"rarity": "LEGENDARY",
+"desc_zh": "使仇敵的單位擁有+10|+10。"
+},
+{
+"code": "P0984",
+"name_en": "Unforgiving II",
+"name_zh": "不留情面II",
+"rarity": "RARE",
+"desc_zh": "玩家主堡無法接受治療，治療師遭遇戰除外。"
+},
+{
+"code": "P0985",
+"name_en": "Disarming II",
+"name_zh": "繳械II",
+"rarity": "RARE",
+"desc_zh": "我方英雄無法裝備超過1個聖物。"
+},
+{
+"code": "P0987",
+"name_en": "Relentless III",
+"name_zh": "殘虐III",
+"rarity": "EPIC",
+"desc_zh": "使仇敵的單位擁有蠻力和先遣。回合開始：仇敵進行備戰。"
+},
+{
+"code": "P0988",
+"name_en": "Evasive II",
+"name_zh": "趨利避害II",
+"rarity": "RARE",
+"desc_zh": "使仇敵的單位擁有隱密。"
+},
+{
+"code": "P0989",
+"name_en": "Mortality IV",
+"name_zh": "終將一逝IV",
+"rarity": "LEGENDARY",
+"desc_zh": "停用我方所有星辰能力（經驗值加成除外）。"
+},
+{
+"code": "P0990",
+"name_en": "Toxic II",
+"name_zh": "惡意滿滿II",
+"rarity": "RARE",
+"desc_zh": "玩家打出卡牌時，對其主堡造成2點傷害。"
+},
+{
+"code": "P0991",
+"name_en": "Relentless II",
+"name_zh": "殘虐II",
+"rarity": "RARE",
+"desc_zh": "使仇敵的單位擁有蠻力和先遣。"
+},
+{
+"code": "P0992",
+"name_en": "Withstand II",
+"name_zh": "堅守陣地II",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：賦予仇敵的單位+0|+1。使所有單位擁有重壓。（取代堅守陣地）"
+},
+{
+"code": "P0993",
+"name_en": "Evasive I",
+"name_zh": "趨利避害I",
+"rarity": "COMMON",
+"desc_zh": "使仇敵的單位擁有威嚇和硬派。"
+},
+{
+"code": "P0994",
+"name_en": "Omniscient III",
+"name_zh": "全知全能III",
+"rarity": "EPIC",
+"desc_zh": "仇敵起始魔力+3，起始手牌數+3。"
+},
+{
+"code": "P0995",
+"name_en": "Stance Mastery III",
+"name_zh": "形意專精III",
+"rarity": "LEGENDARY",
+"desc_zh": "我方CardRef替換為精通四形之喚。我方精通四形之喚加速為疾速"
+},
+{
+"code": "P0996",
+"name_en": "Time for Friendship",
+"name_zh": "情誼時光",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：仇敵以魔耗值為1的普羅填滿其後排。若後排已滿，賦予其各處單位+1|+1和一個隨機特性。"
+},
+{
+"code": "P0997",
+"name_en": "Innervating Locket",
+"name_zh": "支配寶匣",
+"rarity": "EPIC",
+"desc_zh": "我方打出四形之喚時，治療我方主堡2點生命值，並恢復1點法術魔力。"
+},
+{
+"code": "P0999",
+"name_en": "Ruinous",
+"name_zh": "毀天滅地",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵召喚單位時，使其能力值變為三倍。\r\n仇敵的法術和技能造成三倍傷害。"
+},
+{
+"code": "P1000",
+"name_en": "Forever",
+"name_zh": "歷久不衰",
+"rarity": "LEGENDARY",
+"desc_zh": "只要仇敵擁有2名以上的英雄，其主堡就免疫傷害。"
+},
+{
+"code": "P1001",
+"name_en": "Best Friends",
+"name_zh": "摯友",
+"rarity": "LEGENDARY",
+"desc_zh": "回合結束：將仇敵的普羅侍從轉化為所屬地區的新英雄。"
+},
+{
+"code": "P1002",
+"name_en": "Durability",
+"name_zh": "續戰力",
+"rarity": "LEGENDARY",
+"desc_zh": "牌局開始：仇敵召喚額外鍍層。每當玩家完成一張地圖，其倒數值增加1。"
+},
+{
+"code": "P1006",
+"name_en": "Renewing Power",
+"name_zh": "新生之力",
+"rarity": "EPIC",
+"desc_zh": "每回合我方首次打出魔耗值6以上的法術牌時，恢復等同於其魔耗值的魔力。"
+},
+{
+"code": "P1007",
+"name_en": "Ranger's Command",
+"name_zh": "遊俠指令",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則隨機賦予1個友軍單位先遣。"
+},
+{
+"code": "P1010",
+"name_en": "Rhythms of Despair",
+"name_zh": "絕望節拍",
+"rarity": "EPIC",
+"desc_zh": "使友軍單位擁有「夜臨：賦予最弱敵軍單位2層無望。」"
+},
+{
+"code": "P1011",
+"name_en": "Price of Retribution",
+"name_zh": "復仇代價",
+"rarity": "EPIC",
+"desc_zh": "每有1個友軍單位陣亡，便對敵方主堡造成1點傷害。"
+},
+{
+"code": "P1014",
+"name_en": "Time For Friendship III",
+"name_zh": "情誼時光III",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：仇敵以普羅填滿其後排。若後排已滿，賦予其各處單位+5|+5和一個隨機特性。"
+},
+{
+"code": "P1015",
+"name_en": "Time For Friendship II",
+"name_zh": "情誼時光II",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：仇敵以普羅填滿其後排。若後排已滿，賦予其各處單位+3|+3和一個隨機特性。"
+},
+{
+"code": "P1018",
+"name_en": "Winds of Change",
+"name_zh": "變革之風",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：若我方沒有颶歌燕，則在手牌中生成一張魔耗值為1的飛逝CardRef。力量值為15以上的我方英雄和鳥族擁有「攻擊：吹升最強敵軍單位。」"
+},
+{
+"code": "P1019",
+"name_en": "Leap of Faith",
+"name_zh": "虔信一躍",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次海祭時，會召喚一個娜葛卡布爾的觸手。有3%機率改為召喚CardRef，且該機率每回合都會增加。"
+},
+{
+"code": "P1020",
+"name_en": "Celestial Herald",
+"name_zh": "天界信使",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方祈望或顯化時，賦予所有友軍單位+1|+0。"
+},
+{
+"code": "P1021",
+"name_en": "More Sparkles! II",
+"name_zh": "閃耀星火II",
+"rarity": "EPIC",
+"desc_zh": "冒險開始：本次冒險中，每張天界卡牌會獲得2個隨機道具。"
+},
+{
+"code": "P1022",
+"name_en": "Whoa, Cool Star Power!",
+"name_zh": "哇噢，耀眼星力！",
+"rarity": "LEGENDARY",
+"desc_zh": "我方祈願或顯化而來的卡牌，其魔耗值會減少一半（以原始魔耗值計算，採無條件進位）。"
+},
+{
+"code": "P1023",
+"name_en": "More Sparkles!",
+"name_zh": "閃耀星火",
+"rarity": "COMMON",
+"desc_zh": "冒險開始：本次冒險中，每張天界卡牌會獲得1個隨機道具。"
+},
+{
+"code": "P1024",
+"name_en": "Soul Harvest",
+"name_zh": "靈魂收割",
+"rarity": "RARE",
+"desc_zh": "每回合我方打出的第一張卡牌，其魔耗值會因本牌局已陣亡的每個單位-1。"
+},
+{
+"code": "P1025",
+"name_en": "Sea's Revenge",
+"name_zh": "海之復仇",
+"rarity": "RARE",
+"desc_zh": "回合結束：我方海祭，次數等同本回合我方主堡受到的傷害。"
+},
+{
+"code": "P1026",
+"name_en": "Agility in Numbers",
+"name_zh": "人多好辦事",
+"rarity": "RARE",
+"desc_zh": "仇敵擁有3個以上1費單位時，這些單位獲得先遣。"
+},
+{
+"code": "P1027",
+"name_en": "Press the Attack!",
+"name_zh": "強攻！",
+"rarity": "RARE",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，則其最強的1費單位會發動額外攻擊。"
+},
+{
+"code": "P1028",
+"name_en": "Great Mother’s Might",
+"name_zh": "母神之力",
+"rarity": "EPIC",
+"desc_zh": "仇敵的其中一個單位發動觸手攻擊時，使其威力加倍。"
+},
+{
+"code": "P1029",
+"name_en": "BEHOLD!",
+"name_zh": "掌控！",
+"rarity": "EPIC",
+"desc_zh": "非觸手侍從單位附有閃靈。回合開始：若玩家沒有英雄，則從其手牌或牌組中召喚能力最弱的一張。無法召喚該英雄時，則摧毀該玩家主堡。"
+},
+{
+"code": "P1030",
+"name_en": "Call of the Serpent",
+"name_zh": "巨蛇之喚",
+"rarity": "RARE",
+"desc_zh": "我方打出單位時，便海祭，次數等同其魔耗值。"
+},
+{
+"code": "P1031",
+"name_en": "Final Ordeal",
+"name_zh": "最終試煉",
+"rarity": "LEGENDARY",
+"desc_zh": "力量為3以下的觸手附有隱密。力量為12以上的觸手附有蠻力。回合開始：仇敵召喚3個觸手。"
+},
+{
+"code": "P1032",
+"name_en": "Goddess of Motion",
+"name_zh": "戰勢女神",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若我方擁有攻擊主動權，則海祭，次數等同仇敵的手牌數量。"
+},
+{
+"code": "P1033",
+"name_en": "The Last Ferry",
+"name_zh": "終航號",
+"rarity": "EPIC",
+"desc_zh": "仇敵的其中一個非觸手單位陣亡時，其海祭次數等同於其力量值。"
+},
+{
+"code": "P1035",
+"name_en": "Devastating Charge ",
+"name_zh": "毀滅衝刺 ",
+"rarity": "RARE",
+"desc_zh": "閃靈友軍發動攻擊時，處於攻擊狀態的閃靈友軍在本回合獲得+1|+0。"
+},
+{
+"code": "P1036",
+"name_en": "Devastating Charge II",
+"name_zh": "毀滅衝刺II",
+"rarity": "EPIC",
+"desc_zh": "閃靈友軍發動攻擊時，賦予各處的閃靈友軍+1|+0。"
+},
+{
+"code": "P1037",
+"name_en": "Onslaught of Shadows",
+"name_zh": "暗影的逆襲",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。回合開始：在手牌生成1張暗影的逆襲。若手牌中已有該牌，則改為使其魔耗值-1。"
+},
+{
+"code": "P1038",
+"name_en": "Portal Jump",
+"name_zh": "星界躍動",
+"rarity": "RARE",
+"desc_zh": "我方的慢速天界法術會加速為快速。"
+},
+{
+"code": "P1039",
+"name_en": "Celestial Herald II",
+"name_zh": "天界信使II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。我方祈望或顯化時，賦予所有友軍單位+1|+1。"
+},
+{
+"code": "P1040",
+"name_en": "Test of Spirit II",
+"name_zh": "祖靈之試II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。回合開始：賦予最弱敵軍單位弱勢，並賦予各處友軍觸手+1|+1。"
+},
+{
+"code": "P1041",
+"name_en": "Rampage",
+"name_zh": "逸騎刃擊",
+"rarity": "LEGENDARY",
+"desc_zh": "每回合我方首次打出單位時，召喚1個與之相同的攻擊中閃靈複製單位。"
+},
+{
+"code": "P1042",
+"name_en": "Gale Gauntlet",
+"name_zh": "狂風試煉",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：若此牌為珍娜，則在手牌生成1張神恩浩蕩。"
+},
+{
+"code": "P1051",
+"name_en": "Kinkou Tutelage II",
+"name_zh": "均衡傳承II",
+"rarity": "EPIC",
+"desc_zh": "當1個友軍單位獲得光盾時，賦予友軍單位光盾+1|+0。當1個友軍單位獲得支援，賦予其+0|+2。若該牌擁有光盾，則改賦予其+2|+2。"
+},
+{
+"code": "P1052",
+"name_en": "Kinkou Tutelage",
+"name_zh": "均衡傳承",
+"rarity": "RARE",
+"desc_zh": "當1個友軍單位獲得光盾時，賦予友軍單位光盾+1|+0。 "
+},
+{
+"code": "P1053",
+"name_en": "Watchful Eye",
+"name_zh": "凝視之眼",
+"rarity": "EPIC",
+"desc_zh": "+1起始魔力。回合開始以及當你打出非精神支持的法術時：若手牌中沒有精神支持，則生成一張。"
+},
+{
+"code": "P1054",
+"name_en": "Twilight Assault",
+"name_zh": "暮光強襲",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：若手牌中沒有影襲，則在手牌生成1張。當擁有光盾的友軍單位在格擋時發動打擊，該牌將打擊敵方主堡。"
+},
+{
+"code": "P1055",
+"name_en": "Striking Lessons",
+"name_zh": "打擊課程",
+"rarity": "RARE",
+"desc_zh": "每回合，我方首次指定或支援一個非閃靈友軍單位時，該牌會打擊最弱敵軍單位。"
+},
+{
+"code": "P1056",
+"name_en": "Elite Succession",
+"name_zh": "菁英傳承",
+"rarity": "RARE",
+"desc_zh": "每回合，友軍單位首次死亡時，在手牌隨機生成1張菁英侍從牌。該牌魔耗值-3。"
+},
+{
+"code": "P1057",
+"name_en": "Decisive Strike",
+"name_zh": "致命打擊",
+"rarity": "LEGENDARY",
+"desc_zh": "我方召喚一個力量值為5以上的友軍單位時，該牌會打擊最強敵軍單位。若該牌為菁英，則本回合賦予其+2|+0。若該牌為英雄，則本回合沉默該敵軍單位。"
+},
+{
+"code": "P1058",
+"name_en": "Goddess of Motion II",
+"name_zh": "戰勢女神II",
+"rarity": "LEGENDARY",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，其海祭次數等同於該玩家手牌數量的三倍。"
+},
+{
+"code": "P1059",
+"name_en": "Justice II",
+"name_zh": "正義II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。回合開始：若手牌中沒有，則在手牌生成1張單挑。我方打出單挑時，賦予各處友軍菁英單位+1|+0。"
+},
+{
+"code": "P1060",
+"name_en": "Eye of the Storm II",
+"name_zh": "風暴之眼II",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+2。每當打出魔耗值降低的牌，賦予最弱友軍單位+1|+1。若該單位是法術牌，則賦予其+2|+2。 "
+},
+{
+"code": "P1062",
+"name_en": "The Hunt Begins",
+"name_zh": "狩獵開始",
+"rarity": "RARE",
+"desc_zh": "回合開始：本回合標記一個隨機敵軍單位。我方屠殺被標記單位時，賦予各處我方英雄+1|+1。"
+},
+{
+"code": "P1063",
+"name_en": "Yet Always in the Shadow, the Hunter Lies",
+"name_zh": "然而，獵人始終潛伏於陰影之中",
+"rarity": "LEGENDARY",
+"desc_zh": "我方召喚友軍單位時，若該牌為本回合召喚的第一個友軍單位，或我方已在本牌局擊殺6個以上被標記單位時，則該牌會打擊最弱的被標記敵軍單位。"
+},
+{
+"code": "P1067",
+"name_en": "Another Round",
+"name_zh": "再來一場",
+"rarity": "RARE",
+"desc_zh": "每回合仇敵打出的第一張生成卡牌魔耗值-3。任何生成卡牌被打出時，將仇敵的單位完全治療。"
+},
+{
+"code": "P1068",
+"name_en": "Dead or Alive",
+"name_zh": "生死不論",
+"rarity": "EPIC",
+"desc_zh": "每回合仇敵首次攻擊時，在其手牌生成1張魔耗值為0的飛逝搜索令。"
+},
+{
+"code": "P1069",
+"name_en": "Sheriff's Mark",
+"name_zh": "執法者印記",
+"rarity": "RARE",
+"desc_zh": "玩家的單位獲得弱勢時，賦予該單位-2|-0，並使仇敵回復2點魔力。"
+},
+{
+"code": "P1070",
+"name_en": "Captive's Chains",
+"name_zh": "囚徒鎖鏈",
+"rarity": "RARE",
+"desc_zh": "回合結束：以枷鎖詛咒玩家的最強單位。仇敵詛咒玩家時，賦予仇敵單位+2|+0。"
+},
+{
+"code": "P1071",
+"name_en": "Apprehend on Sight",
+"name_zh": "現場逮捕",
+"rarity": "EPIC",
+"desc_zh": "仇敵單位俘虜其他單位時，賦予俘虜者被俘虜單位的能力值。"
+},
+{
+"code": "P1072",
+"name_en": "No Escape",
+"name_zh": "無所遁逃",
+"rarity": "RARE",
+"desc_zh": "回合結束：仇敵每俘虜1個單位，便對玩家主堡造成5點傷害。"
+},
+{
+"code": "P1073",
+"name_en": "Smothering Cell",
+"name_zh": "窒息牢房",
+"rarity": "RARE",
+"desc_zh": "玩家抽到的卡牌本回合魔耗值+2。仇敵抽到的卡牌本回合魔耗值-1。"
+},
+{
+"code": "P1074",
+"name_en": "Search Order",
+"name_zh": "搜查令",
+"rarity": "RARE",
+"desc_zh": "每回合玩家首次以非出牌方式召喚單位時，將其召回。"
+},
+{
+"code": "P1075",
+"name_en": "Manhunt",
+"name_zh": "追捕",
+"rarity": "RARE",
+"desc_zh": "每回合仇敵首次俘虜單位時，便備戰，且本回合給予仇敵單位快速攻擊。"
+},
+{
+"code": "P1076",
+"name_en": "Admissible Evidence",
+"name_zh": "可信證據",
+"rarity": "RARE",
+"desc_zh": "回合結束：泯滅所有被仇敵單位俘虜的卡牌。"
+},
+{
+"code": "P1077",
+"name_en": "Blood Pays",
+"name_zh": "鮮血代價",
+"rarity": "RARE",
+"desc_zh": "仇敵以友軍單位為目標時，賦予其+2|+1及1個隨機特性。"
+},
+{
+"code": "P1078",
+"name_en": "On the Trail",
+"name_zh": "窮追不捨",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵俘虜單位時，賦予各處仇敵單位+2|+2。"
+},
+{
+"code": "P1080",
+"name_en": "I'M NOT TINY, YOU ARE!!!",
+"name_zh": "我不小，你才小！！！",
+"rarity": "LEGENDARY",
+"desc_zh": "我方黑暗擁有蠻力。使用黑暗屠殺敵軍單位時，賦予我方各處黑暗額外1點傷害，並賦予各處友軍CardRef+1|+1。"
+},
+{
+"code": "P1081",
+"name_en": "Pocket Materializer",
+"name_zh": "隨身實體化器",
+"rarity": "RARE",
+"desc_zh": "回合開始：若本牌局曾使用法術屠殺敵軍單位，則從我方牌組中隨機選擇1個約德爾人侍從單位，召喚其閃靈分身。"
+},
+{
+"code": "P1084",
+"name_en": "Hunter's Armaments",
+"name_zh": "狩獵者武裝",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵裝備中的單位擁有先遣。牌局開始：在仇敵手牌生成1張魔耗值為0的飛逝黃金鍋鏟。"
+},
+{
+"code": "P1085",
+"name_en": "Ranger's Wingman",
+"name_zh": "遊俠夥伴",
+"rarity": "Missing Translation",
+"desc_zh": "牌局開始：賦予仇敵的威洛1個隨機稀有道具。仇敵獲得攻擊主動權時，召喚1個威洛。"
+},
+{
+"code": "P1086",
+"name_en": "Ranger's Outpost",
+"name_zh": "遊俠前哨",
+"rarity": "Missing Translation",
+"desc_zh": "牌局開始：仇敵召喚偉大廣場。"
+},
+{
+"code": "P1087",
+"name_en": "Ranger's Bounty",
+"name_zh": "遊俠賞金",
+"rarity": "Missing Translation",
+"desc_zh": "使仇敵的單位擁有聖化與衝擊。"
+},
+{
+"code": "P1088",
+"name_en": "Hunter’s Focus",
+"name_zh": "獵人專注",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵攻擊時，鑄煉其攻擊中單位。"
+},
+{
+"code": "P1089",
+"name_en": "Hunter's Pursuit",
+"name_zh": "獵手追擊",
+"rarity": "Missing Translation",
+"desc_zh": "回合開始：在仇敵手牌中生成翻滾瞄準。若仇敵手中已有該牌，則使其魔耗值-2。"
+},
+{
+"code": "P1090",
+"name_en": "Terraformation",
+"name_zh": "地貌重塑",
+"rarity": "RARE",
+"desc_zh": "回合開始：若我方沒有地標，則從所屬區域隨機召喚1個魔耗值不高於持有魔力寶石數量的地標。"
+},
+{
+"code": "P1091",
+"name_en": "Arcane Mastery",
+"name_zh": "奧術專精",
+"rarity": "EPIC",
+"desc_zh": "起始魔力+1。我方召喚地標時，若手牌中沒有魔導法典，則在手牌生成1張。"
+},
+{
+"code": "P1092",
+"name_en": "Upstart Ascendent",
+"name_zh": "新銳飛昇者",
+"rarity": "COMMON",
+"desc_zh": "我方摧毀友軍地標或魔力寶石時，對最強敵軍單位造成3點傷害；若場上無敵軍單位，則對敵方主堡造成3點傷害。"
+},
+{
+"code": "P1093",
+"name_en": "Rite of Ascension",
+"name_zh": "昇華儀式",
+"rarity": "LEGENDARY",
+"desc_zh": "我方儀式會被昇華儀式取代。當我方復原烈日巨環，獲得10個魔力寶石，並恢復我方所有魔力。"
+},
+{
+"code": "P1094",
+"name_en": "Upstart Ascendent II<br>",
+"name_zh": "新銳飛昇者II<br>",
+"rarity": "EPIC",
+"desc_zh": "我方摧毀友軍地標或魔力寶石時，對最強敵軍單位造成3點傷害；若場上無敵軍單位，則對敵方主堡造成3點傷害。我方摧毀友軍地標或魔力寶石共8次後，復原烈日巨環。"
+},
+{
+"code": "P1095",
+"name_en": "Undercover Ruse",
+"name_zh": "匿蹤詭計",
+"rarity": "RARE",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，則棄置玩家牌組最上方的1張牌，並觸發陷阱。若無，則將6張閃光炸彈陷阱隨機植入玩家牌組最上方的8張牌中 。"
+},
+{
+"code": "P1096",
+"name_en": "Rider Acceleration",
+"name_zh": "騎士加速",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵的正義騎士魔耗值-2，並擁有蠻力，被召喚時會立即發動額外攻擊。"
+},
+{
+"code": "P1097",
+"name_en": "Rider Maneuver",
+"name_zh": "騎士出擊",
+"rarity": "Missing Translation",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，則從其牌組中召喚1個正義騎士。"
+},
+{
+"code": "P1098",
+"name_en": "Swift Justice",
+"name_zh": "快打部隊",
+"rarity": "RARE",
+"desc_zh": "每回合仇敵首次施放的法術魔耗值-2。"
+},
+{
+"code": "P1099",
+"name_en": "Rider Flashlight",
+"name_zh": "騎士強光",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵的正義騎士獲得+4|+0，並於被召喚時隨機將6張CardRef隨機植入玩家牌組最上方8張牌中。"
+},
+{
+"code": "P1100",
+"name_en": "Patrol Initiative",
+"name_zh": "巡邏行動",
+"rarity": "Missing Translation",
+"desc_zh": "回合開始：仇敵抽1張牌，並將2張CardRef植入玩家牌組最上方的8張牌中。"
+},
+{
+"code": "P1101",
+"name_en": "Patrol Tactics",
+"name_zh": "巡邏戰術",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵打出巡邏員警時，賦予其各處的巡邏員警+1|+1。"
+},
+{
+"code": "P1102",
+"name_en": "Patrol Shortcut",
+"name_zh": "巡邏捷徑",
+"rarity": "Missing Translation",
+"desc_zh": "使仇敵的巡邏員警魔耗值-2，並擁有快速攻擊。"
+},
+{
+"code": "P1103",
+"name_en": "Chase",
+"name_zh": "追逐",
+"rarity": "COMMON",
+"desc_zh": "回合開始：仇敵在其牌組最上方8張牌中生成巡邏員警與CardRef。接著，他們抽1張牌。"
+},
+{
+"code": "P1104",
+"name_en": "Little Rascals",
+"name_zh": "小小淘氣鬼",
+"rarity": "COMMON",
+"desc_zh": "牌局開始：我方召喚2個廢料河蟹，並賦予他們1件隨機普通道具。"
+},
+{
+"code": "P1111",
+"name_en": "Imprisoned's Chains",
+"name_zh": "囚者之鏈",
+"rarity": "Missing Translation",
+"desc_zh": "回合開始：仇敵召喚1個上回合陣亡的最強侍從單位的閃靈複製單位。"
+},
+{
+"code": "P1112",
+"name_en": "Imprisoned's Riposte",
+"name_zh": "囚者之辯駁",
+"rarity": "Missing Translation",
+"desc_zh": "回合結束：若仇敵本回合失去30點以上主堡生命值，則擊殺所有侍從單位。若無則改為擊殺最弱侍從單位。"
+},
+{
+"code": "P1113",
+"name_en": "Ritual of Sacrifice",
+"name_zh": "獻祭儀式",
+"rarity": "LEGENDARY",
+"desc_zh": "仇敵主堡生命值首次降至0，或進入第5回合時，主堡會完全恢復生命，接著CardRef背棄我方。"
+},
+{
+"code": "P1114",
+"name_en": "Imprisoned's Resilience",
+"name_zh": "囚者之韌",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵主堡生命值+20，且其單位獲得+2|+0。"
+},
+{
+"code": "P1115",
+"name_en": "Taarosh's Influence",
+"name_zh": "塔魯錫的迴響",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：在我方手牌中生成1個冥血戟，並賦予其1個隨機道具。"
+},
+{
+"code": "P1116",
+"name_en": "Matron's Aura",
+"name_zh": "主母靈氣",
+"rarity": "Missing Translation",
+"desc_zh": "仇敵發動攻擊時，擊殺玩家場上最弱侍從單位。若仇敵有已裝備的單位，重複此效果。"
+},
+{
+"code": "P1117",
+"name_en": "Coarse and Rough",
+"name_zh": "狂莽突進",
+"rarity": "EPIC",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權， 泯滅3個隨機侍從單位。玩家盤面每有1個空位，便對玩家主堡造成1點傷害。"
+},
+{
+"code": "P1118",
+"name_en": "Xolaani's Grasp",
+"name_zh": "修蘭妮之攫",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：在仇敵的手牌生成1張魔耗值為0的冥血骨鋸，並賦予其各處的CardRef+3|+2。"
+},
+{
+"code": "P1119",
+"name_en": "Matron's Impact",
+"name_zh": "主母衝擊",
+"rarity": "Missing Translation",
+"desc_zh": "使仇敵的單位擁有快速攻擊和蠻力。"
+},
+{
+"code": "P1120",
+"name_en": "Matron's Growth",
+"name_zh": "主母的茁壯",
+"rarity": "Missing Translation",
+"desc_zh": "回合開始：若仇敵擁有攻擊主動權，則鑄煉其所有單位2次。"
+},
+{
+"code": "P1122",
+"name_en": "Breakout!",
+"name_zh": "一鳴驚人",
+"rarity": "EPIC",
+"desc_zh": "牌局開始：在我方手牌生成1張一鳴驚人。"
+},
+{
+"code": "P1125",
+"name_en": "Taarosh's Betrayal",
+"name_zh": "塔魯錫的背叛",
+"rarity": "LEGENDARY",
+"desc_zh": "CardRef背棄我方時， 仇敵泯滅場上、手牌與牌組中的所有修蘭妮、 CardRef與CardRef單位，同時擊殺所有侍從單位，且召喚CardRef並進行備戰。"
+}
+]

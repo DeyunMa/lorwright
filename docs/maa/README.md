@@ -13,7 +13,7 @@ MAA（MaaAssistantArknights）和 MaaFramework 是成熟的手游自动化项目
 | [03-recognition](03-recognition.md) | 识别是一等公民：`roi` / `box` / `target` 三分 + `order_by` + `index`，「第几个」变成参数 |
 | [04-screencap](04-screencap.md) | 截图通道决定循环节奏；`screencap -p` 是最慢的一档，帧时间戳比换通道更能防「点落在旧画面上」 |
 | [05-resource-packs](05-resource-packs.md) | 模板与流程是数据；覆盖靠「加载顺序」而不是复制，版本标记放在包级而不是每张图 |
-| 06-debugging | （待补）失败时留下能复现的证据：每帧落盘 + 识别框 + 决策 + 耗时，用历史截图重跑 |
+| [06-debugging](06-debugging.md) | 失败时留下能复现的证据：失败必存图、识别框画在图上、决策理由落盘、历史截图能回放 |
 
 ## 已经采纳的
 
@@ -31,7 +31,7 @@ MAA（MaaAssistantArknights）和 MaaFramework 是成熟的手游自动化项目
 | **帧时间戳 + 动作前 `max_age_ms` 校验** | 比换截图通道更能防「状态不明还点」：超龄就重截或退 `NO_OP` | 小 |
 | **`screencap()` 打耗时日志** | 零成本，先量再优化 | 极小 |
 | **`order_by` + `index`** | 把「手牌第几张」变成参数，而不是硬编码排序 | 小 |
-| **debug 落盘**（每帧图 + 识别框 + 动作 + 耗时） | 现在调一次手势要几分钟手工截图 | 小 |
+| **debug 落盘 + 回放**（每帧图 + 识别框 + 动作 + 耗时，`ReplayDevice` 用历史截图跑真实循环） | 现在调一次手势要几分钟手工截图；有了回放就能 `pytest` 式回归 | 小 |
 
 ## 不采纳的
 

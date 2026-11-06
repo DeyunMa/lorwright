@@ -1,0 +1,87 @@
+{
+ "ok": true,
+ "failures": [],
+ "decks": {
+  "elise": [
+   {
+    "code": "01SI002",
+    "name_zh_tw": "小蜘蛛",
+    "cost": 1,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "06SI037",
+    "name_zh_tw": "闇影島泰爾石",
+    "cost": 1,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01SI053",
+    "name_zh_tw": "伊莉絲",
+    "cost": 2,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "06NX013",
+    "name_zh_tw": "蜘術士",
+    "cost": 2,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01NX046",
+    "name_zh_tw": "蜘蛛哨兵",
+    "cost": 3,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01SI056",
+    "name_zh_tw": "發狂疾行蛛",
+    "cost": 3,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "04NX016",
+    "name_zh_tw": "尖嘯蜘蛛",
+    "cost": 4,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01NX023",
+    "name_zh_tw": "群蛛之主",
+    "cost": 5,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01SI050",
+    "name_zh_tw": "傾巢而出",
+    "cost": 6,
+    "name_ok": true,
+    "cost_ok": true
+   }
+  ],
+  "jinx": [
+   {
+    "code": "01PZ028",
+    "name_zh_tw": "應急裝置",
+    "cost": 1,
+    "name_ok": true,
+    "cost_ok": true
+   },
+   {
+    "code": "01PZ040",
+    "name_zh_tw": "吉茵珂絲",
+    "cost": 4,
+    "name_ok": true,
+    "cost_ok": true
+   }
+  ]
+ }
+}

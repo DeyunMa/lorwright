@@ -27,6 +27,9 @@ SPELL_PREFERENCES: tuple[Preference, ...] = ()
 class JinxPack:
     name = "jinx"
     display_name = "金克丝"
+    # 卡码出处（2026-11-06 对 07.11.015 GamePlayData ClientCardData 验证）：
+    # 應急裝置 = 01PZ028（cost 1）；吉茵珂絲 = 01PZ040（4/4/3，cost 4）。
+    # 注意 PoC 数据里没有经典 04SI006——引用卡码必须用 01PZ040。
     deck = (
         CardDef("應急裝置", "Jury-Rig", cost=1, kind=CardKind.SPELL),
         CardDef("吉茵珂絲", "Jinx", cost=4, kind=CardKind.CHAMPION),

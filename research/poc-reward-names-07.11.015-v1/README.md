@@ -36,6 +36,18 @@
   Shadow Totem/闇影圖騰 = **I0012（道具）**；Stabilize/分身術 =
   power_summon_stabilize。
 
+## 审计（2026-11-06，verify-not-infer 标准）
+
+- 全集校验内置：缺繁中名/缺 code/重复 code != 0 时提取器直接拒绝交付；
+- 牌表交叉审计（tools/audit_deck_cards.py，产出 data/deck-audit.json）：
+  Elise 9 张 + Jinx 2 张的名字与 cost 对 07.11.015 ClientCardData 全部一致；
+- **Jinx PoC 卡码 = 01PZ040**（4/4/3）；经典 04SI006 在当前数据中不存在；
+- powers 缺繁中名的 15 条全部是 `ReforgedCampaigns/FoePowers/`（敌方
+  能力，不进奖励选择，已加 foe_power 标记）；玩家侧 841 条缺名 = 0；
+- 修正记录：闇影圖騰最初被误标为「Jinx 初始圣物」——实际是道具 I0012
+  （ReforgedCampaigns/Items/ShadowTotem）；被漏原因是 loc 键大小写
+  （_Name vs _name），已改大小写不敏感并用路径统计定范围。
+
 ## 已知边界
 
 - `rarity_raw` 枚举含义未与 UI 品质框颜色对齐，品质优先规则落地时

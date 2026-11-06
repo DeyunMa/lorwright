@@ -141,6 +141,8 @@ def powers_from_adventure(path: Path) -> list[dict]:
             out.append(
                 {
                     "ability_code": e.get("ability_code") or (e.get("name_key") or "").removeprefix("ability_").removesuffix("_Name"),
+                    # FoePowers = 敌方能力（不进奖励选择）；15 条缺名条目全部属于此类
+                    "foe_power": "FoePowers" in (e.get("rgds_path") or ""),
                     "dev_name": e.get("dev_name"),
                     "name_key": e.get("name_key"),
                     "rarity_raw": e.get("rarity_raw"),
@@ -183,12 +185,18 @@ def main() -> None:
     zh = loc_dict(args.locale_dir / "LocalizedText_zh_tw" / "entries.jsonl")
     en = loc_dict(args.locale_dir / "LocalizedText_en_us" / "entries.jsonl")
 
-    def decorate(rows: list[dict]) -> list[dict]:
+    def decorate(rows: list[dict], keep_existing: bool = False) -> list[dict]:
         for r in rows:
             nk, dk = r.get("name_key"), r.get("description_key")
-            r["name_zh_tw"] = zh.get(nk or "")
-            r["name_en"] = en.get(nk or "")
-            r["description_zh_tw"] = zh.get(dk or "")
+            loc_zh, loc_en = zh.get(nk or ""), en.get(nk or "")
+            # powers.jsonl 自带 localized_name_zh_tw；本地化子集缺键时
+            # 保留原值，不让空查询覆盖（2026-11-06 全集校验发现）。
+            if loc_zh or not (keep_existing and r.get("name_zh_tw")):
+                r["name_zh_tw"] = loc_zh
+            r["name_en"] = loc_en
+            loc_dzh = zh.get(dk or "")
+            if loc_dzh or not (keep_existing and r.get("description_zh_tw")):
+                r["description_zh_tw"] = loc_dzh
             r["description_en"] = en.get(dk or "")
         return rows
 
@@ -203,7 +211,7 @@ def main() -> None:
     # 且 code 唯一的条目。
     items, excluded_items = _split_named(raw_items, "items")
     relics, excluded_relics = _split_named(raw_relics, "relics")
-    powers = decorate(powers_from_adventure(args.powers))
+    powers = decorate(powers_from_adventure(args.powers), keep_existing=True)
 
     gameplay_sha = hashlib.sha256(args.gameplay.read_bytes()).hexdigest() if args.gameplay.stat().st_size < 64 * 1024 * 1024 else None
     payload = {

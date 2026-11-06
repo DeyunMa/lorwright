@@ -98,6 +98,24 @@ WebSocket 静态链路，但不是 PoC API，禁止接入，ADR-0002 继续成�
 - data/elise-progression-source.json 139 个成长/星力对象+338 条双语
   文本 → 星级/成长链研究用。
 
+### 2026-11-06：数据集按 verify-not-infer 标准重查完毕
+
+- **牌表审计**（tools/audit_deck_cards.py → data/deck-audit.json）：
+  Elise 9 张 + Jinx 2 张名字/cost 对 07.11.015 ClientCardData 全一致。
+  **Jinx PoC 卡码 = 01PZ040**（4/4/3），经典 04SI006 当前数据不存在——
+  引用卡码必须用 01PZ040（jinx/__init__.py 已注）。
+- **奖励名称表修正**：闇影圖騰是道具 I0012（不是 Jinx 初始圣物——
+  用户纠错）；loc 键大小写不统一（_Name/_name），匹配必须不敏感；
+  范围按路径统计实锤；无显示名变体进 excluded；全集校验内置提取器。
+  最终 178 道具 + 153 圣物 + 1291 能力（15 缺名全是 FoePowers 敌方
+  能力，已加 foe_power 标记，玩家侧 841 缺名 = 0）。
+- **REA 项目交接文档**：`../lorwright-artifacts/analysis/
+  INTEGRATION-STATUS-lorwright-2026-11-06.md`——已消费产物、验证
+  标准、深挖建议排序（PoC 卡名本地化源 > 图标提取 > 品质映射 >
+  adventure 未解），给后续分析对话的入口。
+- 反面教训已入 memory（feedback_verify-not-infer）：推断污染系统，
+  锚点抽样不能代替全集校验。
+
 ### 2026-11-05：Jinx 起手与月度挑战 2
 
 **2026-11-05 晚：本轮新增（已测 238 项全绿）**：

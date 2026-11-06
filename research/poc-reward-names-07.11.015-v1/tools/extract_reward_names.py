@@ -24,6 +24,15 @@ from pathlib import Path
 ITEM_TYPE_HEX = "75890ae2"
 RELIC_TYPE_HEX = "d50c7f54"
 
+# 范围过滤（2026-11-06 按全量路径统计定，非推断）：
+#   CardStickerData 中只有 ReforgedCampaigns/Items/ 前缀的是道具节点奖励
+#   （Mods/Power_4/Stickers 是 power 贴图变体、Mods/Power_XP1 与 XP1 是
+#   活动贴纸、CardProfiles 是美术条目——全排除）；RelicData 同理只取
+#   Loot/…/Relics 前缀（CardProfiles/Illustrations 是美术变体）。
+ITEM_PATH_PREFIX = "ReforgedCampaigns/Items/"
+RELIC_PATH_PREFIX = "Loot/CardMetaProgression/Relics"
+CODE_TOKEN = __import__("re").compile(r"^[A-Z]\d{4}$")
+
 ARTIFACTS = Path("/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/01-prop/parsed")
 ADVENTURE = Path("/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/03-adventure")
 
@@ -71,20 +80,37 @@ def extract_definitions(entries_path: Path, type_hex: str) -> list[dict]:
             if e["type_hex"] != type_hex:
                 continue
             strings = entry_strings(e)
-            # 约定（实测 2026-11-06）：name_key = sticker_<code>_Name 形态；
-            # RelicData 有 DevName（紧跟首 BOOL 后的第一个非 key 字符串）；
-            # 代码是最短的全大写字母数字串（I0148 / R0153 / ephemeralcopy）。
-            name_key = next((s for s in strings if s.endswith("_Name") and "_UpperCase" not in s), None)
-            desc_key = next((s for s in strings if s.endswith("_Description")), None)
-            code = ""
-            if name_key:
-                code = name_key.removeprefix("sticker_").removesuffix("_Name")
-            path = next((s for s in strings if "/" in s), "")
+            # 条目里有两个带 / 的字符串：图标路径（Assets/…png，先出现）
+            # 和数据路径（ReforgedCampaigns/Items/… 或 Loot/…/Relics/…）。
+            # 各按前缀取，不能拿“第一个带 / 的”凑合——那是图标路径。
+            prefix = ITEM_PATH_PREFIX if type_hex == ITEM_TYPE_HEX else RELIC_PATH_PREFIX
+            path = next((s for s in strings if s.startswith(prefix)), None)
+            if not path:
+                continue
+            icon_path = next((s for s in strings if s.startswith("Assets/AssetLibrary")), None)
+            # 键名大小写不统一：Heavy Hands 用 _Name/_Name_UpperCase，
+            # Shadow Totem(I0012) 用 _name/_name_caps —— 必须大小写不敏感，
+            # 否则会漏掉整条奖励（2026-11-06 用户纠错：闇影圖騰被漏）。
+            def is_name_key(s: str) -> bool:
+                low = s.lower()
+                return low.endswith("_name") and "_uppercase" not in low and "_caps" not in low
+
+            def is_desc_key(s: str) -> bool:
+                return s.lower().endswith("_description")
+
+            name_key = next((s for s in strings if is_name_key(s)), None)
+            desc_key = next((s for s in strings if is_desc_key(s)), None)
+            # code 是独立的 I####/R#### token；不从 name_key 推导
+            # （键名大小写不一，且 ephemeralcopy 这类命名键不含 code）。
+            code = next((s for s in strings if CODE_TOKEN.match(s)), None)
             dev_name = ""
             for s in strings:
-                if s == name_key or s == desc_key or s.endswith("_UpperCase") or "/" in s or s == code:
+                low = s.lower()
+                if s == name_key or s == desc_key or s == code or "/" in s:
                     continue
-                if s.startswith("sticker_"):
+                if low.startswith("sticker_") or low.endswith("_name") or low.endswith("_caps") or low.endswith("_description"):
+                    continue
+                if CODE_TOKEN.match(s):
                     continue
                 dev_name = s
                 break
@@ -97,6 +123,7 @@ def extract_definitions(entries_path: Path, type_hex: str) -> list[dict]:
                     "rarity_raw": s32[0] if s32 else None,
                     "dev_name": dev_name,
                     "data_path": path,
+                    "icon_path": icon_path,
                     "entry_sha256": e["entry_sha256"],
                 }
             )
@@ -125,6 +152,26 @@ def powers_from_adventure(path: Path) -> list[dict]:
     return out
 
 
+def _split_named(rows: list[dict], cat: str) -> tuple[list[dict], list[dict]]:
+    """按「name_key 能解析出名字且 code 唯一」收录；其余进 excluded。"""
+    named, excluded = [], []
+    seen: set[str] = set()
+    for r in rows:
+        if r.get("name_zh_tw") and r.get("code") and r["code"] not in seen:
+            seen.add(r["code"])
+            named.append(r)
+        else:
+            reasons = []
+            if not r.get("name_zh_tw"):
+                reasons.append("name_key 不在 LocalizedText（Equipment 子变体/事件贴纸）")
+            if not r.get("code"):
+                reasons.append("无 code token")
+            if r.get("code") in seen:
+                reasons.append("code 重复")
+            excluded.append({**r, "exclude_reason": "；".join(reasons) or "unknown"})
+    return named, excluded
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--gameplay", type=Path, default=ARTIFACTS / "GamePlayData" / "entries.jsonl")
@@ -145,10 +192,17 @@ def main() -> None:
             r["description_en"] = en.get(dk or "")
         return rows
 
-    # 只保留有 name_key 的真实奖励条目；其余是无 name_key 的开发残留
-    # （Labs/Items 路径、图标占位等），对识别无用且污染计数。
-    items = [r for r in decorate(extract_definitions(args.gameplay, ITEM_TYPE_HEX)) if r["name_key"]]
-    relics = [r for r in decorate(extract_definitions(args.gameplay, RELIC_TYPE_HEX)) if r["name_key"]]
+    raw_items = decorate(extract_definitions(args.gameplay, ITEM_TYPE_HEX))
+    raw_relics = decorate(extract_definitions(args.gameplay, RELIC_TYPE_HEX))
+
+    # 收录规则（数据证据，2026-11-06）：范围过滤后仍有两类条目没有
+    # 可显示名——Equipment 子变体（Sheen/TitansAxe/ChaliceofHarmony 等
+    # 双形态道具的部件贴纸，显示名来自父道具）、8A_ITEMS 事件贴纸与
+    # 关键词贴纸（name_key 不在 LocalizedText）。这些不是独立奖励选项，
+    # 单独放进 excluded（不静默丢弃）；收录体 = name_key 能解析出名字
+    # 且 code 唯一的条目。
+    items, excluded_items = _split_named(raw_items, "items")
+    relics, excluded_relics = _split_named(raw_relics, "relics")
     powers = decorate(powers_from_adventure(args.powers))
 
     gameplay_sha = hashlib.sha256(args.gameplay.read_bytes()).hexdigest() if args.gameplay.stat().st_size < 64 * 1024 * 1024 else None
@@ -159,6 +213,7 @@ def main() -> None:
         "items": items,
         "relics": relics,
         "powers": powers,
+        "excluded_no_display_name": {"items": excluded_items, "relics": excluded_relics},
         "source": {
             "gameplay_entries_sha256": gameplay_sha,
             "locale_dir": str(args.locale_dir),

@@ -117,3 +117,94 @@ def test_attack_declares_all_then_confirms():
     assert policy.decide(no_token) is None
     assert policy.decide(state(my_units=[], has_attack_token=True)) is None
 
+
+
+def test_blocking_respects_fearsome_threshold():
+    # 恐惧攻击者：攻击力 ≤3 的单位挡不住（原生规则组件验证，门槛=3）。
+    # 4/1 才能互换 4/3 恐惧单位（损失 5 < 挨 4 点脸折 8）；1/1 不许挡。
+    policy = BlockingPolicy()
+    blockers = [unit_at(0, 900, 1, 1), unit_at(1, 910, 4, 1)]
+    attackers = [Unit("", 4, 3, Rect(0, 350, 10, 10), keywords=frozenset({"Fearsome"}))]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    action = policy.decide(s)
+    assert action.type is ActionType.BLOCK
+    assert action.raw["pairs"] == [(1, 0)]
+
+
+def test_fearsome_leaves_no_eligible_blocker_passes():
+    # 全员攻击力 ≤3：恐惧攻击者无人能挡 → 无指派 → 直接确认
+    policy = BlockingPolicy()
+    blockers = [unit_at(0, 900, 3, 3), unit_at(1, 910, 2, 2)]
+    attackers = [Unit("", 5, 5, Rect(0, 350, 10, 10), keywords=frozenset({"Fearsome"}))]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    action = policy.decide(s)
+    assert action.type is ActionType.CONFIRM
+
+
+def test_exhaustive_path_skips_stunned_blockers():
+    # 击晕单位不能格挡（StatePreventsBlock）：大价值击晕单位不许被指派
+    policy = BlockingPolicy()
+    stunned_big = Unit("", 5, 5, Rect(0, 900, 10, 10), stunned=True)
+    blockers = [stunned_big, unit_at(1, 910, 2, 2)]
+    attackers = [unit_at(0, 350, 3, 2)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    action = policy.decide(s)
+    assert action.type is ActionType.BLOCK
+    assert action.raw["pairs"] == [(1, 0)]
+
+
+def test_immobile_keyword_blocker_ineligible():
+    # Immobile 关键词同样禁止格挡（StatePreventsBlock 组件）
+    policy = BlockingPolicy()
+    immobile = Unit("", 5, 5, Rect(0, 900, 10, 10), keywords=frozenset({"Immobile"}))
+    blockers = [immobile, unit_at(1, 910, 2, 2)]
+    attackers = [unit_at(0, 350, 3, 2)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    action = policy.decide(s)
+    assert action.raw["pairs"] == [(1, 0)]
+
+
+def test_fearsome_unknown_attack_still_blocks():
+    # blocker 攻击力未识别（-1）时按「能挡就挡」处理（用户规则 1）
+    policy = BlockingPolicy()
+    blockers = [unit_at(0, 900, -1, 3)]
+    attackers = [Unit("", 2, 3, Rect(0, 350, 10, 10), keywords=frozenset({"Fearsome"}))]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    action = policy.decide(s)
+    assert action.type is ActionType.BLOCK
+
+
+def test_greedy_fallback_respects_fearsome():
+    # 超限走贪心时恐惧资格同样生效：1/1 永远不被指派给恐惧攻击者
+    blockers = [unit_at(i, 900, 1, 1) for i in range(9)]
+    attackers = [
+        Unit("", 3, 3, Rect(i * 10, 350, 10, 10), keywords=frozenset({"Fearsome"}))
+        for i in range(8)
+    ]
+    pairs = plan_blocks(blockers, attackers)
+    assert pairs == []  # 全是 1/1，没人能挡恐惧

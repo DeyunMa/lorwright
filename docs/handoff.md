@@ -72,6 +72,32 @@ diag 里的 jpg 有压缩失真，测试基准在 jpg 上标定的阈值在运�
 4. 基准全绿 + pytest 全绿后提交；handoff 卡点记录 1（坐标空间）随迁移失效，
    更新该条目。
 
+### 2026-11-06：research 逆向资料包接入
+
+**资料包**：research/lor-client-07.10.013-v1/（43 文件，verify.py 全过）。
+来源：lorwright-artifacts/analysis/stages/05-native-ai/round2/（完整
+AI 算法未恢复，Round2 结论见其 findings.md——合法动作列表存在
+WebSocket 静态链路，但不是 PoC API，禁止接入，ADR-0002 继续成立）。
+
+**已接入（本次）**：
+- **格挡资格规则**（decide/generic.py）：恐惧门槛=3（原生
+  GetFearsomeBlockingValue 恒返 3，data/native-rule-components.json）、
+  击晕/Immobile/Reclless 不能格挡（StatePreventsBlock）。穷举候选按
+  攻击者预过滤，贪心同规则；攻击力未识别（-1）按能挡就挡。
+  +6 条测试（273 全绿）。
+- **牌表交叉核验**：elise-starter.json（Data Dragon 7_10_0）
+  9 种 18 张与 champions/elise/deck.py 逐张比对，费用/攻血全一致。
+
+**已入库待用（不要现在接）**：
+- images/cards/ 9 张繁中 680×1024 卡面 → 手牌身份识别素材
+  （不能直接当透视遮挡后的手牌模板，需截图回归）；
+- images/keywords/ 18 个透明关键词图标 → 场面识别素材（issue #10；
+  Stunned 同帧曾误报，不能用统一阈值）；
+- data/keyword-ai-weights.json 34 关键词 AI 倍率 → 未来评分校准
+  参考，**不要**替换穷举求解器；
+- data/elise-progression-source.json 139 个成长/星力对象+338 条双语
+  文本 → 星级/成长链研究用。
+
 ### 2026-11-05：Jinx 起手与月度挑战 2
 
 **2026-11-05 晚：本轮新增（已测 238 项全绿）**：

@@ -45,6 +45,10 @@ class BlockingPolicy(Policy):
     3. 其次「互换」：blocker 会死但能带走攻击者，在能互换的候选里
        选价值最低的（例：对面 3/1，用 1/1 换，不用 2/2 送）；
     4. 挡了必死且杀不死对方 → 不挡这个攻击者，宁可挨脸。
+    5. 格挡资格（REA 已验证规则组件，2026-11-06）：击晕/不可移动/
+       鲁莽的单位不能格挡；恐惧攻击者，攻击力 ≤3 的单位挡不住
+       （research/lor-client-07.10.013-v1/data/native-rule-components.json，
+       GetFearsomeBlockingValue 原生返回 3）。
     声明后下一 tick 确认。
     """
 
@@ -81,6 +85,27 @@ def _pair_loss(blocker, attacker):
     return lost, remaining
 
 
+# 恐惧格挡门槛：blocker 攻击力必须 > 3 才能挡恐惧攻击者。
+# 来源：Shared.Cards.CardState.GetFearsomeBlockingValue 原生函数恒返 3
+# （research/lor-client-07.10.013-v1/data/native-rule-components.json，
+#  evidence ev_a5d7d7b2…，2026-11-06 接入）。
+FEARSOME_THRESHOLD = 3
+
+#: 这些关键词存在时单位不能格挡（StatePreventsBlock：非 Creature、
+#  Immobile(3)、Reckless(1)、Stunned(80) 阻止格挡；击晕另有专用字段）。
+NO_BLOCK_KEYWORDS = frozenset({"Immobile", "Reckless"})
+
+
+def _can_block(blocker, attacker) -> bool:
+    """格挡资格。攻击力未识别（-1）按能挡就挡处理（用户规则 1）。"""
+    if blocker.stunned or NO_BLOCK_KEYWORDS & set(blocker.keywords):
+        return False
+    if "Fearsome" in attacker.keywords:
+        if blocker.attack >= 0 and blocker.attack <= FEARSOME_THRESHOLD:
+            return False
+    return True
+
+
 def plan_blocks(my_units, attackers):
     # 穷举全部指派，按用户格挡原则取总损失最小：
     # 脸伤（未挡攻击者的攻击力 x FACE_DAMAGE_WEIGHT）
@@ -95,15 +120,21 @@ def plan_blocks(my_units, attackers):
 
     import itertools
 
+    # 每个攻击者的合法候选先过滤（恐惧/击晕等资格规则），
+    # 穷举空间随之缩小。
+    options_per_attacker = [
+        [None] + [i for i, u in enumerate(my_units) if _can_block(u, attacker)]
+        for attacker in attackers
+    ]
+
     total = 1
-    for _ in range(len(my_units)):
-        total *= max(1, len(attackers) + 1)
+    for opts in options_per_attacker:
+        total *= max(1, len(opts))
         if total > MAX_ASSIGNMENT_COMBINATIONS:
             return _greedy_blocks(my_units, attackers)
 
     best = None
-    options = [None] + list(range(len(my_units)))
-    for assignment in itertools.product(*[options] * len(attackers)):
+    for assignment in itertools.product(*options_per_attacker):
         used = [b for b in assignment if b is not None]
         if len(set(used)) != len(used):
             continue
@@ -149,7 +180,7 @@ def _greedy_blocks(my_units, attackers):
             continue
         best = None
         for b_idx, blocker in enumerate(my_units):
-            if b_idx in used or blocker.stunned:
+            if b_idx in used or not _can_block(blocker, attacker):
                 continue
             if blocker.attack < attacker.health:
                 continue

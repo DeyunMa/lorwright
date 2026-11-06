@@ -138,6 +138,18 @@ class LayoutConfig(BaseModel):
 
 
 @dataclass
+class AdventureCoords:
+    """AdventureLoop 用的运行时坐标（Rect），由 to_coords() 转换而来。"""
+
+    travel: Rect | None = None
+    battle_confirm: Rect | None = None
+    victory_continue: Rect | None = None
+    shop_leave: Rect | None = None
+    rest_first_option: Rect | None = None
+    battle_max_ticks: int = 400
+
+
+@dataclass
 class AdventureConfig:
     # 节点面板：旅行/戰鬥按钮共用区域（1920x1080 实测）
     travel: list[int] | None = None
@@ -151,6 +163,21 @@ class AdventureConfig:
     rest_first_option: list[int] | None = None
     # 一场战斗的引擎 tick 预算
     battle_max_ticks: int = 400
+
+    def to_coords(self) -> AdventureCoords:
+        """yaml 的 list[int] 转 Rect。与 LayoutConfig.to_layout() 同一约定。"""
+
+        def rect(v: list[int] | None) -> Rect | None:
+            return None if not v else Rect(*v)
+
+        return AdventureCoords(
+            travel=rect(self.travel),
+            battle_confirm=rect(self.battle_confirm),
+            victory_continue=rect(self.victory_continue),
+            shop_leave=rect(self.shop_leave),
+            rest_first_option=rect(self.rest_first_option),
+            battle_max_ticks=self.battle_max_ticks,
+        )
 
 
 

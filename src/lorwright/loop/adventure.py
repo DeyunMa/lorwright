@@ -39,7 +39,7 @@ class AdventureLoop:
         self.settings = settings
         self.engine = engine
         self.device = device
-        self.coords = settings.adventure
+        self.coords = settings.adventure.to_coords()
         self.rng = random.Random()
 
     def run(self, max_nodes: int = 30) -> None:
@@ -89,9 +89,9 @@ class AdventureLoop:
             return
         # 旅行后不是战斗 → 商店或休息：先点第一个选项（休息=加血；
         # 商店界面点这里多半是空白/第一件商品，下面的离开兜底）。
-        self._tap_rect(self.coords.first_option)
+        self._tap_rect(self.coords.rest_first_option)
         time.sleep(2)
-        self._tap_rect(self.coords.leave)
+        self._tap_rect(self.coords.shop_leave)
         time.sleep(3)
 
     def _tap_rect(self, rect) -> None:

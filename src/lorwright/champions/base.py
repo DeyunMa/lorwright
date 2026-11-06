@@ -19,10 +19,24 @@ core 负责机制，resource pack 负责某个具体对象的知识。
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from lorwright.decide.base import Policy
 from lorwright.decide.card import CardDef
+
+
+@dataclass(frozen=True)
+class Preference:
+    """奖励节点上的一条英雄偏好。
+
+    `names` 是这个对象已知的全部写法（英文 + 繁中对照，来自游戏
+    本地化数据），识别层拿到展示名后按元组内容匹配；`note` 记录
+    用户给这条偏好的理由，供文档和后续调优用。
+    """
+
+    names: tuple[str, ...]
+    note: str = ""
 
 
 @runtime_checkable
@@ -37,6 +51,23 @@ class ChampionPack(Protocol):
 
     #: 牌表（感知层采模板、文档生成都可以用它）
     deck: tuple[CardDef, ...]
+
+    # ---- 奖励节点偏好（2026-11-05 用户确认）----
+    # 默认规则：偏好未命中时按「品质优先，其次费用」排序；
+    # 英雄包里的偏好永远压过默认规则。偏好只是数据，
+    # 节点 UI 自动化建好后由奖励决策读取。
+
+    #: 圣物：英雄开局自带的装备（选择/替换圣物时按此偏好）
+    relic_preferences: tuple[Preference, ...]
+
+    #: 道具节点：给卡组里已有卡牌选道具
+    item_preferences: tuple[Preference, ...]
+
+    #: 法术节点：新选一个法术进卡组
+    spell_preferences: tuple[Preference, ...]
+
+    #: 能力（菱形节点）：选择星力/能力
+    power_preferences: tuple[Preference, ...]
 
     def make_policy(self) -> Policy:
         """构造这个英雄的 L1 规则层策略。"""

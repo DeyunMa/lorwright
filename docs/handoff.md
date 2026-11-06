@@ -24,6 +24,31 @@
   休息点第一个选项（待实机校准坐标）→ 回地图。坐标在 settings.adventure。
 - 顶层「打月本/打周本」= lorwright adventure（后续按冒险类型分化）。
 
+**2026-11-05 深夜：英雄奖励偏好规则（已落数据，237 全绿，含 3 条新测试）**：
+
+- **默认规则（用户确认）**：奖励选择未命中英雄偏好时，按「品质优先，
+  其次费用」排序；英雄包里的偏好永远压过默认规则。
+- **节点类型**：圣物 = 英雄开局自带的装备；道具节点 = 给卡组已有卡牌
+  选道具；法术节点 = 新选一个法术；能力节点 = 菱形节点（选星力）。
+  道具/法术节点的 UI 自动化等遇到节点再做，先落偏好数据。
+- **Jinx**：遗物「闇影圖騰」(Shadow Totem) 高优先；能力「分身術」
+  (Stabilize) 高优先。
+- **Elise**：遗物「重拳出擊」(Heavy Hands) 最优先（雙重攻擊；
+  已有双攻/閃靈/不可移动的卡不吃）。
+- **数据位置**：`champions/base.py` 的 `Preference`（names=中英对照,
+  note=理由）+ `ChampionPack` 协议的 relic/item/spell/power_preferences
+  四个属性；偏好常量在各英雄包 `__init__.py`。
+- **名字来源（官方本地化数据，以后查译名照这个方法）**：
+  `../lorwright-artifacts/game/downloaded/PatcherData/PatchableFiles/
+  GamePlayData/LocalizedText_<locale>.bin`，格式 = 键名 + 2 字节小端
+  长度 + UTF-8 值，直接顺序拼接。遗物/能力名字在 `sticker_*` /
+  `power_*` 键下（如 sticker_ephemeralcopy=闇影圖騰、
+  power_summon_stabilize=分身術、sticker_I0130=重拳出擊）。
+- **素材情况**：遗物/道具/能力节点的真实截图已有
+  （diagnostics/2026-11-05-pie64-restart/ 的 hero-item-open.jpg、
+  power-node.jpg、take-item-confirmed.jpg、monthly2-spell-pick.jpg 等），
+  做识别时直接从截图裁模板，不用解析 AssetBundles。
+
 **2026-11-05 卡点记录（后续不要再犯）**：
 
 1. **坐标空间**：mapnav 在 960x540 预览图上算出的节点坐标，直接拿去

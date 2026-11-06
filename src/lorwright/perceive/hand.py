@@ -92,6 +92,8 @@ def find_badges(
         return []
 
     res = cv2.matchTemplate(sub, tpl, cv2.TM_CCORR_NORMED, mask=_ring_mask(h))
+    # 空白区域分母为零会得到 NaN/Inf；NaN < threshold 为 False，会造出假徽章。
+    np.nan_to_num(res, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
     found: list[Badge] = []
     while True:
         _, score, _, loc = cv2.minMaxLoc(res)
@@ -191,6 +193,7 @@ def find_badges_expanded(
         return []
 
     res = cv2.matchTemplate(sub, tpl, cv2.TM_CCORR_NORMED, mask=_ring_mask(h))
+    np.nan_to_num(res, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
     found: list[Badge] = []
     while True:
         _, score, _, loc = cv2.minMaxLoc(res)

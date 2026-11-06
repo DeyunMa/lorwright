@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -27,6 +29,8 @@ class LoopConfig(BaseModel):
     tick_ms: int = 200
     stuck_threshold: int = 3
     action_timeout_s: float = 8.0
+    #: 设计尺寸内单位声明攻击/格挡的最小上移量，过滤定位抖动。
+    combat_row_min_move_px: int = 80
     #: 帧时效上限（秒）。截图+决策耗时超过它就放弃本帧（退 NO_OP），
     #: 避免拿着已经过时的画面去点。见 docs/maa/04-screencap.md
     max_frame_age_s: float = 2.0
@@ -56,6 +60,7 @@ class AdbConfig(BaseModel):
     serial: str | None = None      # 留空 = 自动选第一个
     adb_path: str = "adb"
     package: str = "com.riotgames.legendsofruneterra"
+    launch_mode: Literal["standard", "pie64_trace"] = "standard"
 
 
 class ActConfig(BaseModel):
@@ -83,21 +88,19 @@ class LayoutConfig(BaseModel):
     play_area: list[int] | None = None
     # 场上单位：靠卡面攻击力徽章定位（perceive/units.py）
     my_board: list[int] | None = None
+    my_combat: list[int] | None = None
     enemy_board: list[int] | None = None
     # 攻击声明落点：把单位拖到分隔线上方这一带，单位会吸附到攻击行
     attack_row: list[int] | None = None
     # 攻击令牌箭头（动作按钮左侧的橙色箭头）
     attack_token: list[int] | None = None
-    # 取消选目标：点战场左侧空白，已选的牌会收回手上
+    enemy_combat: list[int] | None = None
     cancel_point: list[int] | None = None
     hand_region: list[int] | None = None
-    # 展开态手牌（tap 一下手牌后卡片平铺在屏幕下方，比收起态大得多）
     hand_expanded: list[int] | None = None
-    # 数字区域：水晶血量、法力
     enemy_hp: list[int] | None = None
     my_hp: list[int] | None = None
     mana: list[int] | None = None
-    # 登录界面
     login_splash: list[int] | None = None
     login_username: list[int] | None = None
     login_password: list[int] | None = None
@@ -116,9 +119,11 @@ class LayoutConfig(BaseModel):
             my_nexus=self._rect(self.my_nexus),
             play_area=self._rect(self.play_area),
             my_board=self._rect(self.my_board),
+            my_combat=self._rect(self.my_combat),
             enemy_board=self._rect(self.enemy_board),
             attack_row=self._rect(self.attack_row),
             attack_token=self._rect(self.attack_token),
+            enemy_combat=self._rect(self.enemy_combat),
             cancel_point=self._rect(self.cancel_point),
             hand_region=self._rect(self.hand_region),
             hand_expanded=self._rect(self.hand_expanded),
@@ -132,6 +137,23 @@ class LayoutConfig(BaseModel):
         )
 
 
+@dataclass
+class AdventureConfig:
+    # 节点面板：旅行/戰鬥按钮共用区域（1920x1080 实测）
+    travel: list[int] | None = None
+    # Boss 面板右下的戰鬥按钮
+    battle_confirm: list[int] | None = None
+    # 战斗胜利后的继续按钮
+    victory_continue: list[int] | None = None
+    # 商店左下離開
+    shop_leave: list[int] | None = None
+    # 休息面板第一个选项（待实机校准）
+    rest_first_option: list[int] | None = None
+    # 一场战斗的引擎 tick 预算
+    battle_max_ticks: int = 400
+
+
+
 class Settings(BaseModel):
     #: 英雄包名，对应 `champions/<name>/` 目录
     champion: str = "elise"
@@ -143,13 +165,9 @@ class Settings(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     layout: LayoutConfig = Field(default_factory=LayoutConfig)
     adb: AdbConfig = Field(default_factory=AdbConfig)
+    adventure: AdventureConfig = Field(default_factory=AdventureConfig)
 
     # 可选外部服务（来自环境变量）
-    vlm_base_url: str | None = None
-    vlm_api_key: str | None = None
-    vlm_model: str | None = None
-    jev_base_url: str | None = None
-    jev_api_key: str | None = None
 
     # 游戏账号（来自环境变量，仅用于自动登录；不入库）
     lor_username: str | None = None
@@ -190,11 +208,6 @@ def load_settings(path: str | Path = "config/settings.yaml") -> Settings:
     if p.exists():
         data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 
-    data.setdefault("vlm_base_url", _env("VLM_BASE_URL"))
-    data.setdefault("vlm_api_key", _env("VLM_API_KEY"))
-    data.setdefault("vlm_model", _env("VLM_MODEL"))
-    data.setdefault("jev_base_url", _env("JEV_BASE_URL"))
-    data.setdefault("jev_api_key", _env("JEV_API_KEY"))
     data.setdefault("lor_username", _env("LOR_USERNAME"))
     data.setdefault("lor_password", _env("LOR_PASSWORD"))
 

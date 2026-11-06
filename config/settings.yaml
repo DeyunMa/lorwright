@@ -40,6 +40,8 @@ loop:
   stuck_threshold: 3
   # 单次动作后等待状态变化的最长时间（秒）
   action_timeout_s: 8
+  # 声明攻击/格挡后，单位在设计尺寸内至少上移多少像素才算换行
+  combat_row_min_move_px: 80
   # 帧时效上限（秒）：截图+决策超时就不动，避免点在被过时的画面上
   max_frame_age_s: 2.0
 
@@ -64,6 +66,9 @@ layout:
   play_area:    [860, 555, 200, 170]    # 我方出牌落点（分隔线以下）
   # 场上单位（perceive/units.py 靠攻击力徽章定位；两个模板各管一边）
   my_board:     [200, 820, 1500, 260]   # 我方单位卡面（徽章在左上角）
+  # 我方声明行。独立于待命区；仅在战斗可交互且手牌收起时识别，
+  # 避免把展开手牌/选目标时的预览大卡认成场上单位。待新版本实机验收。
+  my_combat:    [200, 560, 1500, 260]
   # 敌方单位卡面。范围必须覆盖**攻击行**（y≈300–420）—— 对手声明攻击后，
   # 它的攻击单位会从待命位（y≈100–300）下移到攻击行。只覆盖待命位的话，
   # 格挡阶段 enemy_units 里看不到正在攻击的单位，BLOCK 的 attacker_index
@@ -73,6 +78,8 @@ layout:
   attack_row:   [700, 470, 520, 70]
   # 攻击令牌：动作按钮左侧的橙色箭头（实测有令牌 8446px / 无 30px）
   attack_token: [1640, 700, 140, 130]
+  # 敌方攻击行：BLOCKING 时在这里的单位视为攻击者（对手声明后下移到这一带）
+  enemy_combat: [520, 300, 900, 180]
   # 取消选目标：战场左侧空白（点这里会把手上的牌收回去）
   cancel_point: [140, 280, 60, 60]
   hand_region:  [1420, 855, 500, 225]   # 右下扇形手牌（收起态）；框要包住最上面那张卡的徽章
@@ -88,9 +95,25 @@ layout:
   # 右侧有两个法力指示器：上排是对手，下排是我们。读错排会让 bot 以为没费而空过。
   mana:         [1650, 640, 50, 45]     # 我方当前法力（动作按钮下方）
 
+# 对局外地图循环（AdventureLoop）；按钮坐标为 1920x1080 实测/待校准
+adventure:
+  # 节点面板：旅行/戰鬥按钮共用区域
+  travel: [1180, 230, 260, 110]
+  # Boss 面板右下的戰鬥按钮
+  battle_confirm: [1450, 950, 180, 120]
+  # 战斗胜利后的继续按钮
+  victory_continue: [880, 920, 160, 80]
+  # 商店左下離開
+  shop_leave: [600, 970, 120, 60]
+  # 休息面板第一个选项（待实机校准）
+  rest_first_option: [1180, 400, 260, 110]
+  battle_max_ticks: 400
+
 adb:
   enabled: true
   # BlueStacks Pie64 的端口；emulator-5554 是同一个实例的别名
-  serial: 127.0.0.1:5555
-  adb_path: adb
+  serial: 127.0.0.1:5556
+  # 当前 f1 / Pie64 / LoR 07.11.015 的已验证启动方式；手机用 standard。
+  launch_mode: pie64_trace
+  adb_path: 'C:/Program Files/BlueStacks_nxt/HD-Adb.exe'
   package: com.riotgames.legendsofruneterra

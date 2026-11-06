@@ -236,7 +236,7 @@ def test_unplayable_card_is_skipped_on_retry() -> None:
         CardInHand(index=0, name="", cost=1, rect=RECT),
         CardInHand(index=1, name="", cost=3, rect=RECT),
     ]
-    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand)
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand, hand_expanded=True)
 
     first = policy.decide(state)
     assert first is not None and first.type is ActionType.PLAY_CARD
@@ -250,7 +250,7 @@ def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
     """全都拖不动时不能死循环，要落到结束回合。"""
     policy = SpiderAggroPolicy()
     hand = [CardInHand(index=0, name="", cost=1, rect=RECT)]
-    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand)
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand, hand_expanded=True)
 
     assert policy.decide(state).type is ActionType.PLAY_CARD
     assert policy.decide(state).type is ActionType.END_TURN
@@ -348,3 +348,16 @@ def test_tellstones_rank_last_behind_units() -> None:
     assert tellstones is not None and spiderling is not None
     kwargs = {"spiders_on_board": 0, "enemy_max_attack": 0}
     assert score(tellstones, **kwargs) < score(spiderling, **kwargs)
+
+
+def test_expanding_hand_does_not_blacklist_the_selected_card() -> None:
+    from dataclasses import replace
+
+    policy = SpiderAggroPolicy()
+    cards = [CardInHand(0, "小蜘蛛", 1, RECT)]
+    collapsed = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand=cards)
+    assert policy.decide(collapsed).card_index == 0
+    action = policy.decide(replace(collapsed, hand_expanded=True))
+    assert action.type is ActionType.PLAY_CARD
+    assert action.card_index == 0
+    assert policy._unplayable == set()

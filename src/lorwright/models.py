@@ -74,6 +74,18 @@ class Unit:
     stunned: bool = False
 
 
+@dataclass(frozen=True)
+class Reading:
+    """数值的最近观测；None 表示从未读到，age_frames=0 才是本帧。"""
+
+    value: int | None = None
+    age_frames: int | None = None
+
+    @property
+    def fresh(self) -> bool:
+        return self.value is not None and self.age_frames == 0
+
+
 @dataclass
 class GameState:
     ui_state: UIState = UIState.UNKNOWN
@@ -86,11 +98,18 @@ class GameState:
     hand_expanded: bool = False
     my_units: list[Unit] = field(default_factory=list)
     enemy_units: list[Unit] = field(default_factory=list)
+    # 格挡阶段站在敌方攻击行里的单位（perceive 按区域过滤）
+    enemy_attackers: list[Unit] = field(default_factory=list)
     nexus_hp: int = 20
     enemy_nexus_hp: int = 20
     has_attack_token: bool = False
     # 伊莉丝升级后我方全体蜘蛛获得挑战者，攻击声明由攻方指定格挡者
     my_units_have_challenger: bool = False
+    #: 数字字段的观测证据；旧值仅供展示，不代表本帧仍然有效。
+    readings: dict[str, Reading] = field(default_factory=dict)
+
+    def has_fresh_readings(self, *names: str) -> bool:
+        return all(name in self.readings and self.readings[name].fresh for name in names)
 
     def summary(self) -> str:
         return (
@@ -111,11 +130,14 @@ class Layout:
     play_area: Rect | None = None
     # 场上单位区域（靠攻击力徽章定位）
     my_board: Rect | None = None
+    my_combat: Rect | None = None
     enemy_board: Rect | None = None
     # 攻击声明落点（分隔线上方）
     attack_row: Rect | None = None
     # 攻击令牌箭头（动作按钮左侧）
     attack_token: Rect | None = None
+    # 敌方攻击行（BLOCKING 时在这里的单位视为攻击者）
+    enemy_combat: Rect | None = None
     # 取消选目标的落点：战场左侧空白，点这里会把手上的牌收回去
     cancel_point: Rect | None = None
     hand_region: Rect | None = None

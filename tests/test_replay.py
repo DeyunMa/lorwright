@@ -56,7 +56,7 @@ class _Router:
         return {}
 
 
-def test_engine_runs_on_replay_device(tmp_path: Path) -> None:
+def test_engine_does_not_click_unknown_replay_even_with_unsafe_router(tmp_path: Path) -> None:
     _png(tmp_path / "001.png", 0)
     settings = Settings()
     settings.loop.tick_ms = 0
@@ -68,4 +68,4 @@ def test_engine_runs_on_replay_device(tmp_path: Path) -> None:
 
     engine.run(max_ticks=2)
 
-    assert dev.taps == [(20, 20), (20, 20)]
+    assert dev.taps == []

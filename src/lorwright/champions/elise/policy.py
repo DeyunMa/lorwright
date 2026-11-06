@@ -186,7 +186,8 @@ class SpiderAggroPolicy(Policy):
         ]
         if ranked:
             card, _definition, _score = ranked[0]
-            self._pending_play = card.index
+            # 收起态的 PLAY_CARD 只展开手牌，尚未拖牌，不能记作一次出牌失败。
+            self._pending_play = card.index if state.hand_expanded else None
             self._pending_cost = card.cost
             return Action(type=ActionType.PLAY_CARD, card_index=card.index)
 

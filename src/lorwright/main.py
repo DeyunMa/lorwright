@@ -32,6 +32,7 @@ def _make_device(kind: str):
     return AdbDevice(
         serial=settings.adb.serial or None,
         adb=settings.adb.adb_path,
+        launch_mode=settings.adb.launch_mode,
     )
 
 
@@ -324,6 +325,12 @@ def state(device: str = typer.Option("adb", help="adb | desktop")) -> None:
     table.add_row("法力", f"{st.mana}/{st.max_mana}")
     table.add_row("我方水晶", str(st.nexus_hp))
     table.add_row("敌方水晶", str(st.enemy_nexus_hp))
+    for field_name, label in [("mana", "法力观测"), ("nexus_hp", "我方血量观测"),
+                              ("enemy_nexus_hp", "敌方血量观测")]:
+        reading = st.readings[field_name]
+        detail = ("本帧读到" if reading.fresh else
+                  f"缓存，{reading.age_frames} 帧前" if reading.value is not None else "未知，未读到")
+        table.add_row(label, detail)
     table.add_row("手牌", str(len(st.hand)))
     if st.hand:
         table.add_row("手牌费用", ", ".join(str(c.cost) for c in st.hand))
@@ -347,6 +354,43 @@ def doctor() -> None:
 
 
 @app.command()
+def adventure(
+    max_nodes: int = typer.Option(30, help="max nodes"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+) -> None:
+    """adventure entry: map loop + battle engine."""
+    from lorwright.champions import load as load_champion
+    from lorwright.decide.card import CardKind
+    from lorwright.decide.generic import (
+        AttackWhenTokenPolicy,
+        BlockingPolicy,
+        HeroFirstPolicy,
+    )
+    from lorwright.decide.router import Router
+    from lorwright.loop.adventure import AdventureLoop
+    from lorwright.loop.engine import Engine
+
+    settings = load_settings()
+    pack = load_champion(settings.champion)
+    dev = _make_device(device)
+    layers = [pack.make_policy()]
+    champion_names = frozenset(
+        card.name for card in pack.deck if card.kind is CardKind.CHAMPION
+    )
+    layers.append(HeroFirstPolicy(champion_names))
+    layers.append(AttackWhenTokenPolicy())
+    layers.append(BlockingPolicy())
+    engine = Engine(settings, Router(layers), dev,
+        card_recognizer=getattr(pack, "recognize_hand", None))
+    try:
+        AdventureLoop(settings, engine, dev).run(max_nodes=max_nodes)
+    except KeyboardInterrupt:
+        console.print("[yellow]adventure stopped[/yellow]")
+    finally:
+        dev.close()
+
+
+@app.command()
 def run(
     max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限"),
     device: str = typer.Option("adb", help="adb | desktop"),
@@ -358,9 +402,8 @@ def run(
     适合离线调感知/决策（docs/maa/06-debugging.md）。
     """
     from lorwright.champions import load as load_champion
-    from lorwright.decide.jev import JevClient
-    from lorwright.decide.jev_policy import JevPolicy, LlmPolicy
-    from lorwright.decide.llm import LlmClient
+    from lorwright.decide.card import CardKind
+    from lorwright.decide.generic import AttackWhenTokenPolicy, HeroFirstPolicy, PassBlockPolicy
     from lorwright.decide.router import Router
     from lorwright.loop.engine import Engine
 
@@ -369,12 +412,13 @@ def run(
     console.print(f"英雄包：[bold]{pack.name}[/bold]（{pack.display_name}，{len(pack.deck)} 张牌）")
 
     layers: list = [pack.make_policy()]
-    if settings.jev_base_url:
-        layers.append(JevPolicy(JevClient(settings.jev_base_url, settings.jev_api_key)))
-    if settings.vlm_base_url and settings.vlm_model:
-        layers.append(
-            LlmPolicy(LlmClient(settings.vlm_base_url, settings.vlm_api_key, settings.vlm_model))
-        )
+    champion_names = frozenset(
+        card.name for card in pack.deck if card.kind is CardKind.CHAMPION
+    )
+    # 通用机制层：英雄优先 > 攻击/格挡序列。英雄包弃权时才接手。
+    layers.append(HeroFirstPolicy(champion_names))
+    layers.append(AttackWhenTokenPolicy())
+    layers.append(PassBlockPolicy())
 
     if replay:
         from lorwright.device.replay import ReplayDevice
@@ -384,7 +428,8 @@ def run(
     else:
         dev = _make_device(device)
 
-    engine = Engine(settings, Router(layers), dev)
+    engine = Engine(settings, Router(layers), dev,
+                    card_recognizer=getattr(pack, "recognize_hand", None))
     try:
         engine.run(max_ticks=max_ticks or None)
     except KeyboardInterrupt:

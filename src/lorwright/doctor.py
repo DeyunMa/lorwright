@@ -105,10 +105,6 @@ def run_checks(settings: Settings, root: str | Path = ".") -> list[Check]:
                         "在 config/settings.yaml 的 layout 段填 [x,y,w,h]，见 issue #2"))
 
     # 可选服务
-    checks.append(Check("JEV 已配置", bool(settings.jev_base_url),
-                        settings.jev_base_url or "未配置", "可选；不配就只用规则层", optional=True))
-    checks.append(Check("LLM 已配置", bool(settings.vlm_base_url and settings.vlm_model),
-                        settings.vlm_model or "未配置", "可选；不配就只用规则层", optional=True))
 
     return checks
 

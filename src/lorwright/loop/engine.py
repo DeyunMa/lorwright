@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import time
+from dataclasses import asdict
 
 from lorwright.act.translate import ActionTranslator
 from lorwright.config import Settings
 from lorwright.decide.router import Router
 from lorwright.device.base import Device
+from lorwright.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
-from lorwright.models import ClickPlan, GameState, Layout
+from lorwright.models import ActionType, ClickPlan, GameState, Layout, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.normalize import Normalizer, Scale
 from lorwright.perceive.state import StateParser
@@ -29,6 +31,7 @@ class Engine:
         layout: Layout | None = None,
         ui_detector: UIStateDetector | None = None,
         recovery: RecoveryPolicy | None = None,
+        card_recognizer=None,
     ) -> None:
         self.settings = settings
         self.router = router
@@ -53,11 +56,13 @@ class Engine:
             ui=self.ui_detector,
             digits=DigitReader(),
             threshold=settings.perception.match_threshold,
+            card_recognizer=card_recognizer,
         )
         self._last_plan: ClickPlan | None = None
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self._scale = Scale(1.0, 1.0)
         self._skipped_stale = 0
+        self._pending: ActionOutcome | None = None
 
     def run(self, max_ticks: int | None = None) -> None:
         self.parser.load()
@@ -102,10 +107,71 @@ class Engine:
                         action="no_op", clicks=0, stuck=False,
                         ms=round((time.time() - t0) * 1000),
                     )
+                    if self._pending is not None and time.monotonic() >= self._pending.deadline:
+                        emit(
+                            tick=ticks, event="action_outcome",
+                            action=self._pending.action.type.value, status="timed_out",
+                            reason="no_fresh_frame_before_deadline", clicks=0,
+                        )
+                        save_snapshot(frame.image, self.settings.perception.snapshot_dir, tag="action_timeout")
+                        break
+                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    continue
+
+                # 已发送的输入先等新帧证明结果，不能每 tick 重放同一个手势。
+                if self._pending is not None:
+                    outcome = self._pending.observe(state, time.monotonic())
+                    emit(
+                        tick=ticks, event="action_outcome",
+                        action=self._pending.action.type.value,
+                        status=outcome.status.value, reason=outcome.reason, clicks=0,
+                        before=self._pending.before.summary(), after=state.summary(),
+                        readings={name: asdict(reading) for name, reading in state.readings.items()},
+                    )
+                    if outcome.status is OutcomeStatus.TIMED_OUT:
+                        save_snapshot(
+                            frame.image, self.settings.perception.snapshot_dir,
+                            tag="action_timeout",
+                        )
+                        logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
+                        break
+                    if outcome.status is OutcomeStatus.WAITING:
+                        time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                        continue
+                    if outcome.status is OutcomeStatus.SUCCEEDED:
+                        for layer in self.router.layers:
+                            callback = getattr(layer, "on_action_outcome", None)
+                            if callback is not None:
+                                callback(self._pending.action, self._pending.before, state)
+                    self._pending = None
+                    self.watchdog.reset()
+                    self.recovery.reset()
+
+                # 安全约束由执行入口保障，不能依赖每一个英雄包都正确弃权。
+                if state.ui_state is UIState.UNKNOWN:
+                    emit(tick=ticks, layer="unknown", action="no_op", clicks=0)
+                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    continue
+
+                # 普通决策会比较费用和水晶血量，禁止把缓存值作为当前事实。
+                if state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING) and not state.has_fresh_readings(
+                    "mana", "nexus_hp", "enemy_nexus_hp"
+                ):
+                    emit(
+                        tick=ticks, layer="unreadable", action="no_op", clicks=0,
+                        readings={name: asdict(reading) for name, reading in state.readings.items()},
+                    )
                     time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
                 result = self.router.decide(state)
+                # 网络决策也可能耗时；执行前必须再次确认这张图仍然新鲜。
+                if frame.age_s() > self.settings.loop.max_frame_age_s:
+                    self._skipped_stale += 1
+                    emit(tick=ticks, layer="stale", action="no_op", clicks=0,
+                         reason="frame_expired_during_decision")
+                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    continue
                 # NO_OP 不计入卡死：对手回合状态本来就不变
                 stuck = self.watchdog.observe(state, result.action.type)
                 if self.watchdog.progressed:
@@ -121,6 +187,12 @@ class Engine:
                         break
                 else:
                     clicks = self._execute(self.translator.translate(result.action, state))
+                    if clicks and result.action.type is not ActionType.NO_OP:
+                        self._pending = ActionOutcome(
+                            result.action, state,
+                            time.monotonic() + self.settings.loop.action_timeout_s,
+                            combat_row_min_move_px=self.settings.loop.combat_row_min_move_px,
+                        )
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(
@@ -134,6 +206,7 @@ class Engine:
                     # 决策依据：事后能看出「为什么没出牌」，不然只能靠复现
                     mana=state.mana,
                     hand=[c.cost for c in state.hand],
+                    readings={name: asdict(reading) for name, reading in state.readings.items()},
                 )
 
                 time.sleep(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))

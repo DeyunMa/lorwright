@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "source": {
+    "device": "BlueStacks Pie64 / Android 9",
+    "game_version": "07.10.013 (historical fixtures; not validated on 07.11.015)",
+    "capture_date": "unknown; fixtures already present before 2026-11-05",
+    "evidence": "tests/test_perception.py and tests/test_units.py; docs/status.md historical environment",
+    "sequence": "independent screenshots, not a continuous gameplay recording"
+  },
+  "profiles": {
+    "pie64-1080p": {
+      "capture_size": [
+        1920,
+        1080
+      ],
+      "design_size": [
+        1920,
+        1080
+      ],
+      "layout": {
+        "end_turn": [
+          1680,
+          470,
+          132,
+          132
+        ],
+        "enemy_nexus": [
+          91,
+          353,
+          128,
+          114
+        ],
+        "my_nexus": [
+          74,
+          626,
+          123,
+          100
+        ],
+        "play_area": [
+          860,
+          555,
+          200,
+          170
+        ],
+        "my_board": [
+          200,
+          820,
+          1500,
+          260
+        ],
+        "enemy_board": [
+          200,
+          80,
+          1500,
+          420
+        ],
+        "attack_row": [
+          700,
+          470,
+          520,
+          70
+        ],
+        "attack_token": [
+          1640,
+          700,
+          140,
+          130
+        ],
+        "cancel_point": [
+          140,
+          280,
+          60,
+          60
+        ],
+        "hand_region": [
+          1420,
+          855,
+          500,
+          225
+        ],
+        "hand_expanded": [
+          200,
+          700,
+          1600,
+          380
+        ],
+        "enemy_hp": [
+          215,
+          390,
+          56,
+          40
+        ],
+        "my_hp": [
+          216,
+          646,
+          56,
+          40
+        ],
+        "mana": [
+          1650,
+          640,
+          50,
+          45
+        ]
+      }
+    },
+    "legacy-720p": {
+      "capture_size": [
+        1280,
+        720
+      ],
+      "design_size": [
+        1280,
+        720
+      ],
+      "layout": {
+        "end_turn": [
+          1120,
+          315,
+          88,
+          88
+        ],
+        "enemy_nexus": [
+          60,
+          230,
+          95,
+          90
+        ],
+        "play_area": [
+          520,
+          330,
+          240,
+          160
+        ],
+        "hand_region": [
+          940,
+          580,
+          340,
+          140
+        ],
+        "enemy_hp": [
+          145,
+          262,
+          45,
+          23
+        ],
+        "my_hp": [
+          147,
+          433,
+          45,
+          23
+        ],
+        "mana": [
+          1112,
+          259,
+          22,
+          24
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "mulligan",
+      "image": "1080p_mulligan.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "ui_state": "mulligan"
+      }
+    },
+    {
+      "id": "battle-numbers",
+      "image": "1080p_battle_turn2.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "ui_state": "my_turn_idle",
+        "mana": 3,
+        "nexus_hp": 50,
+        "enemy_nexus_hp": 30
+      }
+    },
+    {
+      "id": "hand-collapsed",
+      "image": "1080p_hand_fan.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "hand_costs": [
+          3,
+          2,
+          5,
+          2,
+          6,
+          3
+        ],
+        "hand_expanded": false
+      }
+    },
+    {
+      "id": "hand-expanded",
+      "image": "1080p_hand_expanded.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "hand_costs": [
+          1,
+          4,
+          3,
+          3,
+          2,
+          0
+        ],
+        "hand_expanded": true
+      }
+    },
+    {
+      "id": "blocking",
+      "image": "1080p_block_phase.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "ui_state": "blocking"
+      }
+    },
+    {
+      "id": "combat-resolution",
+      "image": "1080p_commit_phase.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "ui_state": "combat_resolving"
+      }
+    },
+    {
+      "id": "targeting",
+      "image": "1080p_targeting.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "ui_state": "targeting"
+      }
+    },
+    {
+      "id": "units-idle",
+      "image": "1080p_units_idle.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "my_unit_count": 2
+      }
+    },
+    {
+      "id": "units-combat",
+      "image": "1080p_units_combat.png",
+      "profile": "pie64-1080p",
+      "expected": {
+        "my_unit_count": 6
+      }
+    },
+    {
+      "id": "menu-is-not-battle",
+      "image": "720p_main_menu.png",
+      "profile": "legacy-720p",
+      "expected": {
+        "ui_state": "unknown"
+      }
+    }
+  ]
+}

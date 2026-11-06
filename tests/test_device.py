@@ -48,7 +48,7 @@ class _Router:
 
 def test_engine_uses_device(monkeypatch, tmp_path) -> None:
     from lorwright.config import Settings
-    from lorwright.models import Layout, Rect
+    from lorwright.models import GameState, Layout, Rect, UIState
 
     settings = Settings()
     settings.layout.end_turn = [10, 10, 20, 20]
@@ -59,16 +59,17 @@ def test_engine_uses_device(monkeypatch, tmp_path) -> None:
     layout = Layout(end_turn=Rect(10, 10, 20, 20), play_area=Rect(0, 0, 10, 10))
 
     engine = Engine(settings, _Router(), dev, layout=layout)
+    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(ui_state=UIState.MULLIGAN))
     engine.run(max_ticks=2)
 
-    # 结束回合按钮中心 = (20, 20)，跑 2 轮应点 2 次
-    assert dev.taps == [(20, 20), (20, 20)]
+    # 输入只发一次，第二帧仍未看到结果，不能重复点击。
+    assert dev.taps == [(20, 20)]
 
 
-def test_engine_scales_coordinates_to_device_resolution() -> None:
+def test_engine_scales_coordinates_to_device_resolution(monkeypatch) -> None:
     """非设计尺寸时，动作坐标要按比例换成设备像素（分辨率解耦）。"""
     from lorwright.config import Settings
-    from lorwright.models import Layout, Rect
+    from lorwright.models import GameState, Layout, Rect, UIState
 
     settings = Settings()
     settings.layout.end_turn = [10, 10, 20, 20]
@@ -76,7 +77,9 @@ def test_engine_scales_coordinates_to_device_resolution() -> None:
 
     dev = FakeDevice(size=(960, 540))
     layout = Layout(end_turn=Rect(10, 10, 20, 20))
-    Engine(settings, _Router(), dev, layout=layout).run(max_ticks=1)
+    engine = Engine(settings, _Router(), dev, layout=layout)
+    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(ui_state=UIState.MULLIGAN))
+    engine.run(max_ticks=1)
 
     # 设计坐标 (20,20) → 设备像素 (10,10)
     assert dev.taps == [(10, 10)]

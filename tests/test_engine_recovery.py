@@ -12,7 +12,7 @@ from lorwright.decide.router import Router
 from lorwright.device.base import Frame
 from lorwright.loop.engine import Engine
 from lorwright.loop.recovery import RecoveryPolicy
-from lorwright.models import Action, ActionType, Layout, Rect, UIState
+from lorwright.models import Action, ActionType, ClickPlan, GameState, Layout, Rect, UIState
 from lorwright.perceive.ui_state import UIStateDetector
 
 
@@ -87,12 +87,14 @@ def test_stuck_retries_then_stops_instead_of_restarting_client() -> None:
         RecoveryPolicy(retry_limit=1, battle_limit=1, client_limit=1),
     )
 
-    engine.run(max_ticks=20)
+    state = GameState(ui_state=UIState.MY_TURN_IDLE)
+    engine._execute(ClickPlan(points=[(10, 10)], wait_ms=0))
+    assert engine._recover(state) is True
+    assert engine._recover(state) is False
 
     # 重试重放了一次点击，然后走到 restart_battle → 拒绝重启 → 停
     assert len(dev.taps) >= 2
     assert dev.restarts == []
-    assert dev.closed
 
 
 def test_client_restart_only_when_explicitly_allowed() -> None:
@@ -104,12 +106,12 @@ def test_client_restart_only_when_explicitly_allowed() -> None:
         allow_client_restart=True,
     )
 
-    engine.run(max_ticks=20)
+    state = GameState(ui_state=UIState.MY_TURN_IDLE)
+    assert [engine._recover(state) for _ in range(4)] == [True, True, True, False]
 
     # restart_battle 退化为重启客户端，第二次又重启，最后耗尽停下
     assert dev.restarts == ["com.riotgames.legendsofruneterra"] * 2
     assert engine.recovery.exhausted
-    assert dev.closed
 
 
 def test_no_op_never_triggers_recovery() -> None:

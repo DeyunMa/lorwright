@@ -42,6 +42,7 @@ class ActionType(StrEnum):
     SELECT_TARGET = "select_target"  # 「選擇目標」：点一个单位完成选择
     CANCEL = "cancel"        # 退出「選擇目標」：点战场空白处收回已选的牌
     MULLIGAN_REPLACE = "mulligan_replace"  # 起手换牌：点若干张「替換」
+    CONTINUE = "continue"            # 点击当前画面中已识别的「继续」
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
 
@@ -110,6 +111,8 @@ class GameState:
     my_units_have_challenger: bool = False
     #: 数字字段的观测证据；旧值仅供展示，不代表本帧仍然有效。
     readings: dict[str, Reading] = field(default_factory=dict)
+    #: 已识别的「继续」按钮区域；按钮不明确时为 None，是否点击由流程判断。
+    continue_button: Rect | None = None
 
     def has_fresh_readings(self, *names: str) -> bool:
         return all(name in self.readings and self.readings[name].fresh for name in names)

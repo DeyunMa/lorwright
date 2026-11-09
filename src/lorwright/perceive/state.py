@@ -12,6 +12,7 @@ from lorwright.models import GameState, Layout, Reading, UIState
 from lorwright.perceive import attack_token
 from lorwright.perceive import hand as hand_perceive
 from lorwright.perceive import units as units_perceive
+from lorwright.perceive.buttons import find_continue_button
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.ui_state import UIStateDetector
 from lorwright.util.logger import logger
@@ -51,7 +52,8 @@ class StateParser:
 
     def parse(self, image: np.ndarray) -> GameState:
         lay = self.layout
-        state = GameState(ui_state=self.ui.detect(image))
+        state = GameState(ui_state=self.ui.detect(image),
+                          continue_button=find_continue_button(image))
         if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:
             state.mulligan_cards = self.mulligan_recognizer(image)
         # 起手换牌是新对局边界，不能沿用上一场血量/法力。

@@ -18,20 +18,33 @@ from __future__ import annotations
 import random
 import time
 
+import cv2
+import numpy as np
+
+from lorwright.act.translate import ActionTranslator
 from lorwright.decide.rewards import pick_reward
 from lorwright.device.base import Device
-from lorwright.models import UIState
+from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
     button_is,
     is_battle_detail,
     is_completed_panel,
     is_map,
 )
+from lorwright.perceive.buttons import find_continue_button
 from lorwright.perceive.mapnav import empty_point, next_node, panel_open
 from lorwright.perceive.panels import action_button
 from lorwright.perceive.reward_screen import is_power_screen, recognize_powers
 from lorwright.util import snapshot
 from lorwright.util.logger import logger
+
+
+def _continue_view(image):
+    """记录按钮上方的内容，用于区分同位置的连续结果页。"""
+    height, width = image.shape[:2]
+    content = image[int(height * 0.15):int(height * 0.8),
+                    int(width * 0.2):int(width * 0.8)]
+    return cv2.resize(content, (100, 60), interpolation=cv2.INTER_AREA)
 
 
 class AdventureLoop:
@@ -50,21 +63,49 @@ class AdventureLoop:
         self.device = device
         self.pack = pack
         self.coords = settings.adventure.to_coords()
+        self.translator = ActionTranslator(settings.layout.to_layout())
         self.rng = random.Random()
 
     def run(self, max_nodes: int = 30) -> None:
         self.engine.parser.load()
+        last_continue = None
+        last_continue_view = None
         for _ in range(max_nodes):
             image = self._frame()
             ui = self.engine.parser.ui.detect(image)
             if ui in self.BATTLE_STATES:
+                last_continue = None
                 logger.info("adventure: 进入战斗，引擎接管")
                 self.engine.run(max_ticks=self.coords.battle_max_ticks)
                 continue
             if ui is UIState.BATTLE_END:
-                self._tap_rect(self.coords.victory_continue)
+                button = find_continue_button(image)
+                if button is None:
+                    snapshot.save_snapshot(
+                        image, self.settings.perception.snapshot_dir, tag="continue_missing"
+                    )
+                    return
+                x, y = button.center
+                if last_continue is not None and (
+                    abs(x - last_continue[0]) <= 40 and abs(y - last_continue[1]) <= 40
+                ) and last_continue_view is not None and (
+                    np.mean(cv2.absdiff(_continue_view(image), last_continue_view)) < 15
+                ):
+                    snapshot.save_snapshot(
+                        image, self.settings.perception.snapshot_dir, tag="continue_unchanged"
+                    )
+                    return
+                plan = self.translator.translate(
+                    Action(ActionType.CONTINUE), GameState(continue_button=button)
+                )
+                if plan is None:
+                    return
+                self.device.tap(*plan.points[0])
+                last_continue = (x, y)
+                last_continue_view = _continue_view(image)
                 time.sleep(3)
                 continue
+            last_continue = None
             if is_power_screen(image):
                 self._preview_power(image)
                 return
@@ -185,13 +226,6 @@ class AdventureLoop:
             tag="panel_no_action_button" if last_action else "panel_unknown",
         )
         return False
-
-    def _tap_rect(self, rect) -> None:
-        if rect is None:
-            return
-        x, y = rect.center
-        self.device.tap(x, y)
-        logger.info("adventure: tap ({}, {})", x, y)
 
     def _frame(self):
         frame = self.device.screencap()

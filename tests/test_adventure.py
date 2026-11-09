@@ -151,17 +151,66 @@ def test_battle_takeover_runs_engine(adventure):
     assert device.taps == []
 
 
-def test_battle_end_taps_victory_continue(adventure):
-    # 结算屏：点继续按钮，不触发引擎
+def test_battle_end_taps_recognized_continue(adventure):
+    # 已知结算状态下，点截图里识别到的位置。
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
     loop, device, engine, _, coords = adventure(
-        [_blank(), _blank()],
+        [image, _blank()],
         [UIState.BATTLE_END, UIState.UNKNOWN],
     )
     loop.run(max_nodes=2)
-    vc = coords.victory_continue
-    assert vc is not None
-    assert device.taps[0] == tuple(vc.center)
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 1272) < 15
+    assert abs(device.taps[0][1] - 990) < 15
     assert engine.run_calls == []
+
+
+def test_battle_end_without_continue_does_not_tap(adventure):
+    loop, device, _, saved, _ = adventure([_blank()], [UIState.BATTLE_END])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["continue_missing"]
+
+
+def test_unknown_screen_with_continue_does_not_tap(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "challenge_result.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["unknown_scene"]
+
+
+def test_battle_end_with_unchanged_continue_does_not_tap_twice(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "challenge_result.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
+    loop, device, _, saved, _ = adventure(
+        [image, image], [UIState.BATTLE_END, UIState.BATTLE_END],
+    )
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert saved == ["continue_unchanged"]
+
+
+def test_different_result_pages_can_have_continue_in_same_place(adventure):
+    images = [
+        cv2.imread(str(FIXTURES.parent / "continue" / name))
+        for name in ("challenge_result.png", "challenge_experience.png")
+    ]
+    assert all(image is not None for image in images)
+    images = [cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
+              for image in images]
+    loop, device, _, saved, _ = adventure(
+        images, [UIState.BATTLE_END, UIState.BATTLE_END],
+    )
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 2
+    assert abs(device.taps[0][0] - device.taps[1][0]) < 40
+    assert saved == []
 
 
 def test_node_panel_travel_then_fight(adventure):

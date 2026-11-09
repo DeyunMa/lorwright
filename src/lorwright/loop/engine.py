@@ -128,6 +128,11 @@ class Engine:
                     time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
+                # 对局结束后由外层流程处理结果界面。
+                if state.ui_state is UIState.BATTLE_END:
+                    self._pending = None
+                    break
+
                 # 已发送的输入先等新帧证明结果，不能每 tick 重放同一个手势。
                 if self._pending is not None:
                     outcome = self._pending.observe(state, time.monotonic())

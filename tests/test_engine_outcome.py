@@ -145,6 +145,18 @@ def test_timeout_saves_evidence_and_stops_without_retry_or_restart(monkeypatch):
     assert device.closed and device.frames == 2
 
 
+def test_battle_end_returns_to_outer_loop_without_repeating_pending_action(monkeypatch):
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [ready(), ready(ui_state=UIState.BATTLE_END)],
+        [Action(ActionType.END_TURN)],
+    )
+    engine.run(max_ticks=5)
+    assert device.taps == [(20, 20)]
+    assert device.frames == 2
+    assert router.calls == 1
+    assert engine._pending is None
+
+
 def test_old_readings_block_decision_then_resume_when_fresh(monkeypatch):
     current = ready()
     stale = replace(current, readings={**current.readings, "mana": Reading(3, 1)})

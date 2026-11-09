@@ -34,6 +34,11 @@ class ActionTranslator:
         if action.type is ActionType.NO_OP:
             return None
 
+        if action.type is ActionType.CONTINUE:
+            if state.continue_button is None:
+                return None
+            return ClickPlan(points=[state.continue_button.center], wait_ms=self.tap_wait_ms)
+
         if action.type is ActionType.MULLIGAN_REPLACE:
             points = action.raw.get("points") if action.raw else None
             if not points:

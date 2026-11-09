@@ -85,6 +85,9 @@ class ActionOutcome:
             elif kind in (ActionType.SELECT_TARGET, ActionType.CANCEL):
                 if before.ui_state is UIState.TARGETING and after.ui_state is not UIState.TARGETING:
                     reason = "targeting_closed"
+            elif kind is ActionType.CONTINUE:
+                if after.ui_state is not before.ui_state:
+                    reason = "ui_transition"
             elif kind in (ActionType.CONFIRM, ActionType.END_TURN, ActionType.PASS):
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"

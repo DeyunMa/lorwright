@@ -98,6 +98,14 @@ def test_unknown_transition_is_not_confirmation(kind):
     assert pending.observe(state(ui_state=UIState.ENEMY_TURN), 2).status is OutcomeStatus.SUCCEEDED
 
 
+def test_continue_requires_a_known_transition():
+    before = state(continue_button=Rect(450, 900, 50, 30))
+    pending = ActionOutcome(Action(ActionType.CONTINUE), before, 8)
+    assert pending.observe(before, 1).status is OutcomeStatus.WAITING
+    assert pending.observe(state(ui_state=UIState.UNKNOWN), 2).status is OutcomeStatus.WAITING
+    assert pending.observe(state(ui_state=UIState.ENEMY_TURN), 3).status is OutcomeStatus.SUCCEEDED
+
+
 def test_timeout_is_unverified_not_success():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)

@@ -226,6 +226,54 @@ def test_node_click_that_stays_on_map_does_not_tap_travel(adventure):
     assert engine.run_calls == []
 
 
+def test_jinx_map_taps_next_node_and_checks_the_result(adventure):
+    image = _img("1080p_jinx_map.png")
+    loop, device, _, saved, _ = adventure([image, image], [UIState.UNKNOWN, UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 982) <= 20
+    assert abs(device.taps[0][1] - 334) <= 20
+    # 下一帧仍是地图，不能猜面板已打开或盲点旅行。
+    assert saved == ["map_panel_not_open"]
+
+
+def test_jinx_node_opens_travel_then_battle_panel(adventure):
+    # 不同来源截图拼接，只验证程序分支，不宣称真实连续操作。
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_jinx_map.png"), _img("1080p_node_panel.png"),
+         _img("1080p_battle_detail.png"), _img("1080p_zoommax.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN, UIState.MULLIGAN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 3
+    assert abs(device.taps[0][0] - 982) <= 20
+    assert abs(device.taps[0][1] - 334) <= 20
+    assert device.taps[1:] == [(817, 485), (1581, 1010)]
+    assert engine.run_calls == [400]
+    assert saved == []
+
+
+def test_jinx_unrecognized_panel_does_not_navigate(adventure):
+    image = _img("1080p_jinx_map.png").copy()
+    # 合成深色面板：仍能看到头像及路径，但不应再点地图。
+    cv2.rectangle(image, (1050, 180), (1550, 400), (28, 28, 28), -1)
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["map_no_next"]
+
+
+def test_jinx_unrecognized_map_avatar_does_not_navigate(adventure):
+    loop, device, _, saved, _ = adventure([_img("1080p_zoommax.png")], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["map_no_next"]
+
+
 def test_open_panel_is_closed_by_clicking_empty_map(adventure):
     # 能力/详情面板打开：没有可走节点，点右下空白处关闭，不把它当旅行面板。
     loop, device, engine, saved, coords = adventure(

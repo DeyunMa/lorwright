@@ -1,4 +1,4 @@
-"""對局外地圖感知：英雄固定在畫面中心，沿發光線找下一個節點。
+"""對局外地圖感知：根據英雄位置沿發光線找下一個節點。
 
 坐標空間：**1920×1080 設計尺寸**。模擬器原生 1280×720 由
 `perceive/normalize.py` 歸一化；地圖不再使用 960×540 分析空間，
@@ -56,13 +56,16 @@ def center_hero(image: np.ndarray) -> MapNode:
 
 
 def hero_node(image: np.ndarray, nodes: list[MapNode] | None = None) -> MapNode:
-    """当前英雄节点：离画面中心最近的真实节点；没有就退回中心。"""
+    """当前英雄节点：画面中心附近的节点；附近没有就退回中心。"""
     if nodes is None:
         nodes = detect_nodes(image)
     cx, cy = image.shape[1] // 2, image.shape[0] // 2
     if not nodes:
         return MapNode(cx, cy, 60)
-    return min(nodes, key=lambda n: (n.x - cx) ** 2 + (n.y - cy) ** 2)
+    nearest = min(nodes, key=lambda n: (n.x - cx) ** 2 + (n.y - cy) ** 2)
+    if (nearest.x - cx) ** 2 + (nearest.y - cy) ** 2 > 200 ** 2:
+        return MapNode(cx, cy, 60)
+    return nearest
 
 
 def glow_mask(image: np.ndarray) -> np.ndarray:
@@ -200,14 +203,21 @@ def _reachable_nodes(
     return reachable
 
 
-#: 大塊藍色 UI（節點面板/支援英雄卡）打開時 blue_glow 像素數門檻。
-#: 1080p 實測：地圖態 ~3760，面板態 4789–6787（動畫中會波動）。
-_PANEL_BLUE_MIN = 4500
-
-
 def panel_open(image: np.ndarray) -> bool:
-    """地圖上是否打開了藍色面板（能力/獎勵/節點詳情）。"""
-    return int(blue_glow_mask(image).sum()) >= _PANEL_BLUE_MIN
+    """检测地图上大型深色节点面板，避免将节点蓝色光效误当面板。
+
+    实测完成面板和旅行面板都有大块深色背景；只接受地图主体范围内
+    足够大的连通区域，边缘状态栏及零散阴影不能算面板。
+    """
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, np.array((0, 0, 8)), np.array((180, 120, 48)))
+    mask[:120, :] = 0
+    mask[820:, :] = 0
+    mask[:, :240] = 0
+    mask[:, 1700:] = 0
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((21, 21), np.uint8))
+    _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    return any(w >= 350 and h >= 160 and area >= 50000 for _, _, w, h, area in stats[1:])
 
 
 def empty_point(image: np.ndarray) -> tuple[int, int] | None:
@@ -246,10 +256,10 @@ def next_node(
         return None
     mask = glow_mask(image)
     nodes = detect_nodes(image)
-    hero = hero_node(image, nodes)
-    reachable = _reachable_nodes(image, hero, nodes, mask)
+    current = MapNode(*hero, 60) if hero is not None else hero_node(image, nodes)
+    reachable = _reachable_nodes(image, current, nodes, mask)
     if not reachable:
-        return next_node_by_path(image, hero=hero, rng=rng)
+        return next_node_by_path(image, hero=current.center, rng=rng)
     return (rng or random).choice(reachable)
 
 

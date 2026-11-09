@@ -93,6 +93,12 @@ class AdventureLoop:
                 return
 
     def _find_next(self, image):
+        recognize_hero = getattr(self.pack, "recognize_map_hero", None)
+        if recognize_hero is not None:
+            hero = recognize_hero(image)
+            if hero is None:
+                return None
+            return next_node(image, rng=self.rng, hero=hero)
         return next_node(image, rng=self.rng)
 
     def _preview_power(self, image) -> None:

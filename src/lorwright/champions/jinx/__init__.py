@@ -3,7 +3,7 @@
 from lorwright.champions.base import Preference
 from lorwright.champions.jinx.deck import JINX_DECK, lookup
 from lorwright.champions.jinx.policy import JinxOpeningPolicy
-from lorwright.champions.jinx.vision import recognize_hand, recognize_mulligan
+from lorwright.champions.jinx.vision import recognize_hand, recognize_hero, recognize_mulligan
 
 # 奖励偏好（用户确认，2026-11-05）。未命中走默认「品质>费用」。
 # 名字对照来自游戏本地化数据（LocalizedText_zh_tw.bin 的
@@ -31,6 +31,7 @@ class JinxPack:
     deck = JINX_DECK
     lookup = staticmethod(lookup)
     recognize_hand = staticmethod(recognize_hand)
+    recognize_map_hero = staticmethod(recognize_hero)
     recognize_mulligan = staticmethod(recognize_mulligan)
 
     relic_preferences = RELIC_PREFERENCES

@@ -116,8 +116,13 @@ def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     orb, template_keypoints, template_descriptors = _hero_template()
     if template_descriptors is None:
         return None
+    # 左下固定状态栏也有 Jinx 头像；只搜索地图区域，不能把它当当前位置。
+    x0, y0 = 240, 60
+    map_area = image[y0:min(image.shape[0], 820), x0:min(image.shape[1], 1750)]
+    if map_area.size == 0:
+        return None
     keypoints, descriptors = orb.detectAndCompute(
-        cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), None
+        cv2.cvtColor(map_area, cv2.COLOR_BGR2GRAY), None
     )
     if descriptors is None:
         return None
@@ -135,7 +140,7 @@ def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     if template is None:
         return None
     height, width = template.shape[:2]
-    return (int(round(dx + width / 2)), int(round(dy + height / 2)))
+    return (int(round(x0 + dx + width / 2)), int(round(y0 + dy + height / 2)))
 
 
 def recognize_mulligan(image: np.ndarray) -> list[CardInHand]:

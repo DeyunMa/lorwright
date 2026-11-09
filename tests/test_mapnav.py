@@ -90,6 +90,50 @@ def test_jinx_hero_portrait_is_found() -> None:
     assert abs(hero[1] - 285) <= 8
 
 
+def test_jinx_portrait_finds_map_avatar_instead_of_fixed_hud() -> None:
+    image = _load("1080p_map.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert abs(hero[0] - 960) <= 15
+    assert abs(hero[1] - 445) <= 15
+    # 最大视角图中地图头像太小，当前匹配不足，应拒识而不是返回左下角。
+    assert recognize_hero(_load("1080p_zoommax.png")) is None
+
+
+def test_jinx_second_map_next_node() -> None:
+    image = _load("1080p_map.png")
+    nxt = next_node(image, hero=recognize_hero(image))
+    assert nxt is not None
+    assert abs(nxt.x - 1252) <= 20
+    assert abs(nxt.y - 322) <= 20
+
+
+def test_map_panels_are_not_navigable() -> None:
+    for name in ("1080p_panel.png", "1080p_node_panel.png", "1080p_gold_node_panel.png"):
+        image = _load(name)
+        assert panel_open(image), name
+        assert next_node(image, hero=recognize_hero(image)) is None
+
+
+def test_jinx_map_next_node_uses_observed_hero_and_is_not_a_panel() -> None:
+    image = _load("1080p_jinx_map.png")
+    assert not panel_open(image)
+    nxt = next_node(image, hero=recognize_hero(image))
+    assert nxt is not None
+    assert abs(nxt.x - 982) <= 20
+    assert abs(nxt.y - 334) <= 20
+
+
+def test_map_fallback_accepts_detected_hero_node() -> None:
+    image = _load("1080p_map.png")
+    # 此图旧代码将 MapNode 当作 tuple，在路径回退时报 TypeError；
+    # 唯一检出的远处节点是下一节点，不能将其误判为当前位置。
+    nxt = next_node(image)
+    assert nxt is not None
+    assert abs(nxt.x - 1252) <= 20
+    assert abs(nxt.y - 322) <= 20
+
+
 def test_path_endpoint_finds_next_node_when_rings_fail() -> None:
     image = _load("1080p_jinx_map.png")
     nxt = next_node_by_path(image, hero=(735, 285))

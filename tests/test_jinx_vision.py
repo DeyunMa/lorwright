@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 
 from lorwright.champions.jinx.deck import BY_NAME
+from lorwright.champions.jinx.policy import JinxOpeningPolicy
 from lorwright.champions.jinx.vision import recognize_hand, recognize_mulligan
-from lorwright.models import Rect
+from lorwright.models import ActionType, GameState, Rect, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.hand import recognize_expanded
 
@@ -73,3 +74,6 @@ def test_mulligan_cards_are_recognized():
     assert [card.rect.center for card in cards] == [
         (438, 820), (756, 820), (1068, 817), (1386, 817),
     ]
+    action = JinxOpeningPolicy().decide(GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards))
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["points"] == [card.rect.center for card in cards]

@@ -61,7 +61,7 @@ def test_unknown_wrong_cost_and_expansion_do_not_advance():
 def test_new_mulligan_resets_opening():
     policy = load("jinx").make_policy()
     policy.step = 2
-    assert policy.decide(GameState(ui_state=UIState.MULLIGAN)).type is ActionType.CONFIRM
+    assert policy.decide(GameState(ui_state=UIState.MULLIGAN)).type is ActionType.NO_OP
     assert policy.step == 0
 
 
@@ -100,7 +100,40 @@ def test_mulligan_keeps_combo_cards_and_confirms():
     assert policy.decide(mulligan).type is ActionType.CONFIRM
 
 
-def test_mulligan_replaces_cards_missing_from_combo():
+def test_mulligan_keeps_other_cards_when_one_jinx_is_present():
+    policy = load("jinx").make_policy()
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=[
+        card(0, "其他牌", 1), card(1, "吉茵珂絲", 2),
+        card(2, "其他牌", 3), card(3, "其他牌", 3),
+    ])
+    assert policy.decide(mulligan).type is ActionType.CONFIRM
+
+
+def test_mulligan_only_replaces_duplicate_jinx():
+    policy = load("jinx").make_policy()
+    cards = [
+        CardInHand(i, name, 1, Rect(i * 100, 0, 8, 8))
+        for i, name in enumerate(["其他牌", "吉茵珂絲", "其他牌", "吉茵珂絲"])
+    ]
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards)
+    action = policy.decide(mulligan)
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["points"] == [cards[3].rect.center]
+    unknown = replace(cards[0], name="")
+    assert policy.decide(replace(mulligan, mulligan_cards=[unknown, *cards[1:]])).type is ActionType.NO_OP
+    assert policy.decide(mulligan).type is ActionType.CONFIRM
+
+
+def test_mulligan_waits_if_any_card_is_unknown_or_missing():
+    policy = load("jinx").make_policy()
+    cards = [card(0, "吉茵珂絲", 2), card(1, "", -1),
+             card(2, "其他牌", 1), card(3, "吉茵珂絲", 2)]
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards)
+    assert policy.decide(mulligan).type is ActionType.NO_OP
+    assert policy.decide(replace(mulligan, mulligan_cards=cards[:3])).type is ActionType.NO_OP
+
+
+def test_mulligan_replaces_all_cards_when_jinx_missing():
     policy = load("jinx").make_policy()
     mulligan = GameState(
         ui_state=UIState.MULLIGAN,
@@ -111,7 +144,7 @@ def test_mulligan_replaces_cards_missing_from_combo():
     )
     action = policy.decide(mulligan)
     assert action.type is ActionType.MULLIGAN_REPLACE
-    assert len(action.raw["points"]) == 3
+    assert len(action.raw["points"]) == 4
     # 换牌动作发出后，下一次决策直接確認，不能反复换牌。
     assert policy.decide(mulligan).type is ActionType.CONFIRM
 

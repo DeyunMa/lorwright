@@ -42,19 +42,22 @@ class JinxOpeningPolicy:
                 self._rockets_played = 0
                 self._mulligan_replaced = False
             self._mulligan = True
-            if not self._mulligan_replaced and state.mulligan_cards:
-                names = {card.name for card in state.mulligan_cards if card.name}
-                if not {"應急裝置", "吉茵珂絲"} <= names:
-                    points = [
-                        card.rect.center for card in state.mulligan_cards
-                        if card.name not in {"應急裝置", "吉茵珂絲"}
-                    ]
-                    if points:
-                        self._mulligan_replaced = True
-                        return Action(
-                            type=ActionType.MULLIGAN_REPLACE,
-                            raw={"points": points},
-                        )
+            cards = state.mulligan_cards
+            if len(cards) != 4 or any(not card.name for card in cards):
+                return Action(type=ActionType.NO_OP)
+            if not self._mulligan_replaced:
+                heroes = [card for card in cards if card.name == "吉茵珂絲"]
+                if heroes:
+                    # 用户确认：有 Jinx 时保留其他牌，仅替换多余的 Jinx。
+                    points = [card.rect.center for card in heroes[1:]]
+                else:
+                    points = [card.rect.center for card in cards]
+                if points:
+                    self._mulligan_replaced = True
+                    return Action(
+                        type=ActionType.MULLIGAN_REPLACE,
+                        raw={"points": points},
+                    )
             self._mulligan_replaced = True
             return Action(type=ActionType.CONFIRM)
         self._mulligan = False

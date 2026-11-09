@@ -127,6 +127,12 @@ class DigitReader:
             img = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
             if img is None:
                 continue
+            # 模板可以带黑边（例如用字体渲染的整张画布）；先裁到笔画外框，
+            # 否则缩放到 16×24 时数字会被黑边压小，相似度直接掉到噪声。
+            ys, xs = np.where(img > 0)
+            if len(xs) == 0:
+                continue
+            img = img[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
             if img.shape != (GLYPH_SIZE[1], GLYPH_SIZE[0]):
                 img = cv2.resize(img, GLYPH_SIZE, interpolation=cv2.INTER_AREA)
             self._templates.append(

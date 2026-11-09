@@ -38,7 +38,8 @@ def unit(name: str, attack: int, health: int, **kwargs) -> Unit:
 def test_no_priority_returns_no_op_not_none():
     """没有优先权时答案唯一，必须返回 NO_OP。
 
-    返回 None（弃权）会把请求送去 JEV，对手回合每一帧都白烧一次网络调用。
+    返回 None（弃权）会让路由继续往下走；对手回合没有可做的动作，
+    明确返回 NO_OP 比让每层重新决策更清楚。
     """
     state = GameState(ui_state=UIState.ENEMY_TURN, hand=[hand(0, "小蜘蛛", 1)], mana=3)
     action = POLICY.decide(state)

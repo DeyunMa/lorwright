@@ -7,10 +7,10 @@ from lorwright.decide.rewards import RewardCandidate, pick_reward
 def test_preference_beats_quality():
     pack = load("jinx")
     candidates = [
-        RewardCandidate(name="傳說聖物", quality="legendary"),
+        RewardCandidate(name="傳說道具", quality="legendary"),
         RewardCandidate(name="闇影圖騰", quality="rare"),
     ]
-    pick = pick_reward(candidates, pack.relic_preferences)
+    pick = pick_reward(candidates, pack.item_preferences)
     assert pick.candidate.name == "闇影圖騰"
     assert "偏好" in pick.reason
 
@@ -18,10 +18,10 @@ def test_preference_beats_quality():
 def test_english_alias_matches_too():
     pack = load("elise")
     candidates = [
-        RewardCandidate(name="某遺物", quality="epic"),
+        RewardCandidate(name="某道具", quality="epic"),
         RewardCandidate(name="Heavy Hands", quality="rare"),
     ]
-    pick = pick_reward(candidates, pack.relic_preferences)
+    pick = pick_reward(candidates, pack.item_preferences)
     assert pick.candidate.name == "Heavy Hands"
 
 

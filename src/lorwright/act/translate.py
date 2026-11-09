@@ -34,6 +34,12 @@ class ActionTranslator:
         if action.type is ActionType.NO_OP:
             return None
 
+        if action.type is ActionType.MULLIGAN_REPLACE:
+            points = action.raw.get("points") if action.raw else None
+            if not points:
+                return None
+            return ClickPlan(points=[tuple(p) for p in points], wait_ms=self.tap_wait_ms)
+
         if action.type is ActionType.END_TURN:
             if not self.layout.end_turn:
                 return None
@@ -45,6 +51,15 @@ class ActionTranslator:
             # 「選擇目標」阶段点一个单位完成选择。敌方/我方的选择由决策层给，
             # 因为同一个「選擇目標」按钮下面可能是「擊暈1個敵軍單位」（点敌方）
             # 也可能是「選擇1個單位或地標進行替換」（点我方），模板区分不了。
+            if action.raw.get("hand"):
+                index = int(action.raw.get("index", 0))
+                if index >= len(state.hand):
+                    return None
+                return ClickPlan(points=[state.hand[index].rect.center], wait_ms=self.tap_wait_ms)
+            if action.raw.get("nexus"):
+                if self.layout.enemy_nexus is None:
+                    return None
+                return ClickPlan(points=[self.layout.enemy_nexus.center], wait_ms=self.tap_wait_ms)
             enemy = bool(action.raw.get("enemy")) if action.raw else False
             index = int(action.raw.get("index", 0)) if action.raw else 0
             units = state.enemy_units if enemy else state.my_units
@@ -113,14 +128,18 @@ class ActionTranslator:
             pairs = action.raw.get("pairs") if action.raw else None
             if not pairs:
                 return None
+            # pairs 的下标来自 BlockingPolicy：优先指向 enemy_attackers；
+            # 没有攻击行识别时才回退到全部敌方单位。两处必须用同一个列表，
+            # 否则会把格挡拖到待命单位上。
+            attackers = state.enemy_attackers or state.enemy_units
             drags = []
             for blocker_index, attacker_index in pairs:
-                if blocker_index >= len(state.my_units) or attacker_index >= len(state.enemy_units):
+                if blocker_index >= len(state.my_units) or attacker_index >= len(attackers):
                     continue
                 drags.append(
                     (
                         state.my_units[blocker_index].rect.center,
-                        state.enemy_units[attacker_index].rect.center,
+                        attackers[attacker_index].rect.center,
                     )
                 )
             if not drags:

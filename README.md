@@ -16,11 +16,11 @@
 ## 它是什么
 
 - 用 **ADB** 从手机/模拟器截图，用**模板匹配 / 颜色探针**识别界面
-- 用**穷举**解决战斗决策（格挡分配、攻击声明、斩杀判定），用**规则 + 评分**解决出牌
-- 可选接入 **JEV**（有界选择）处理需要读懂卡牌效果的场合
-- 用 `adb input` 点击 / 拖拽执行动作
+- 战斗和出牌使用规则与评分；通用格挡在条件满足时穷举分配，信息不足时使用贪心规则
+- 纯脚本决策（MAA 式），不接 LLM / 外部决策服务（见 ADR-0004）
+- 用 ADB 点击，出牌等手势通过事件级触控后端执行
 
-**当前目标牌组**：伊莉絲（Elise）蜘蛛快攻，18 张。牌表已核实，见
+**当前英雄包**：伊莉絲（Elise）与金克丝（Jinx）。伊莉絲牌表见
 [`docs/champions/elise.md`](docs/champions/elise.md)。
 
 ## 它不是什么
@@ -40,15 +40,14 @@
 
 ```
 A. 决策链 —— 现在该做什么
-   L1 穷举/规则  →  L2 JEV 有界选择  →  L3 LLM 有界分类  →  NO_OP
-   空间小、规则已知   选项已知、需读文本   连界面都不认识     不点屏幕
+   英雄包规则  →  通用规则/穷举  →  安全兜底
 
 B. 监督器 —— 是不是卡住了（不经过决策层）
    Watchdog（画面/摘要不变） → RecoveryPolicy（重试→重开→重启→停）
 ```
 
-**每一层的输出都必须是受约束的**：L1 输出 `Action` 枚举、L2 输出 `choice ∈ options`、
-L3 输出 `label ∈ 已知界面标签`。任何一层都不允许「自由文本 → 直接执行」。
+**输出必须是受约束的**：规则层输出 `Action`；战斗中不认识的状态返回
+`NO_OP`；全部策略弃权且确认处于 `MY_TURN_IDLE` 时结束回合。
 
 「卡住」由程序判定（像素 hash 不变），不调模型 —— 画面不动是像素问题，不是语义问题。
 
@@ -63,7 +62,7 @@ git clone git@github.com:DeyunMa/lorwright.git
 cd lorwright
 pip install -e ".[dev]"
 
-pytest                      # 143 个单测，不需要游戏
+pytest                      # 单测，不需要游戏
 ruff check src tests tools
 
 lorwright devices           # 列出 ADB 设备
@@ -99,9 +98,13 @@ src/lorwright/
 ├── decide/           # 决策机制（不认识任何英雄）
 │   ├── card.py       #   卡牌通用词汇
 │   ├── combat.py     #   战斗求解器（穷举）
+│   ├── generic.py    #   通用规则：英雄优先 / 攻击 / 格挡
+│   ├── rewards.py    #   奖励三选一
 │   └── router.py     #   分层路由
 ├── champions/        # 英雄包：一个英雄 = 一个目录
-│   └── elise/        #   牌表 + 策略
+│   ├── elise/        #   牌表 + 策略 + 识别
+│   └── jinx/         #   牌表 + 策略 + 识别
+├── perceive/unit_stats.py # 单位攻击/生命数字
 ├── act/              # 语义动作 → 坐标
 └── loop/             # 主循环、看门狗、恢复
 ```
@@ -116,12 +119,13 @@ src/lorwright/
 |---|---|---|
 | M0 | 骨架 + 规则 + 单测 + CI | ✅ 完成 |
 | **M1** | 自动打完一场 PoC 战斗 | 🚧 进行中 |
-| M2 | 自动选奖励（三选一） | 待做 |
-| M3 | 自动走地图 | 待做 |
+| M2 | 自动选奖励（三选一） | 🚧 偏好/排序已落，UI 识别待实机 |
+| M3 | 自动走地图 | 🚧 mapnav + AdventureLoop 已落，待实机验收 |
 | M4 | 跑完一个完整副本 | 待做 |
 
-**当前阻塞**：`Engine._build_state()` 只填了 `ui_state`，手牌恒为空，
-策略永远只会「结束回合」。状态解析没做完之前不要接 JEV / LLM。
+**当前阻塞**：仍需完整自动战斗和起手换牌的连续实战复验；能力奖励仅支持
+已采集的三种名称并输出推荐，选择/确认及其他奖励界面待素材。敌方攻击行
+真实帧和生命遮挡样本也待补充。
 
 细节见 [`docs/status.md`](docs/status.md)。
 
@@ -134,11 +138,12 @@ src/lorwright/
 | [`docs/handoff.md`](docs/handoff.md) | **交接入口** |
 | [`docs/architecture.md`](docs/architecture.md) | 核心设计 |
 | [`docs/status.md`](docs/status.md) | 当前状态 |
-| [`docs/decision-l1-rules.md`](docs/decision-l1-rules.md) | 决策层分层、精确解边界、加英雄检查清单 |
-| [`docs/decision-l2-jev.md`](docs/decision-l2-jev.md) | JEV 契约与验证 |
+| [`docs/decision-l1-rules.md`](docs/decision-l1-rules.md) | 历史规则设计与加英雄检查清单 |
+| [`docs/decision-l2-jev.md`](docs/decision-l2-jev.md) | 历史设计（ADR-0004 已废弃） |
 | [`docs/champions/elise.md`](docs/champions/elise.md) | 伊莉絲牌组与专属规则 |
 | [`docs/reference-prior-art.md`](docs/reference-prior-art.md) | MAA / ALAS 参考 |
 | [`docs/adr/`](docs/adr/) | 架构决策记录 |
+| [`tools/f1/`](tools/f1/) | f1 网络/游戏看门狗与 Pie64 启动脚本 |
 | [`AGENTS.md`](AGENTS.md) | 给 AI agent 的硬约束 |
 
 ---

@@ -51,6 +51,35 @@ def test_play_card_expands_collapsed_hand_first() -> None:
     assert plan.points == [(1670, 967)]
 
 
+def test_select_target_hand_card_uses_hand_position() -> None:
+    state = GameState(
+        hand=[CardInHand(0, "砰砰", 1, Rect(100, 1000, 80, 120))],
+        hand_expanded=True,
+    )
+    plan = ActionTranslator(LAYOUT).translate(
+        Action(type=ActionType.SELECT_TARGET, raw={"hand": True, "index": 0}), state
+    )
+    assert plan is not None
+    assert plan.points == [(140, 1060)]
+
+
+def test_select_target_enemy_nexus() -> None:
+    plan = ActionTranslator(LAYOUT).translate(
+        Action(type=ActionType.SELECT_TARGET, raw={"nexus": True}), GameState()
+    )
+    assert plan is not None
+    assert plan.points == [(960, 260)]
+
+
+def test_mulligan_replace_taps_each_replace_point() -> None:
+    plan = ActionTranslator(LAYOUT).translate(
+        Action(type=ActionType.MULLIGAN_REPLACE, raw={"points": [(10, 20), (30, 40)]}),
+        GameState(),
+    )
+    assert plan is not None
+    assert plan.points == [(10, 20), (30, 40)]
+
+
 def test_attack_uses_first_available_unit() -> None:
     state = GameState(my_units=[Unit("s", 2, 2, Rect(400, 890, 80, 80))])
     t = ActionTranslator(LAYOUT)
@@ -60,6 +89,22 @@ def test_attack_uses_first_available_unit() -> None:
     assert plan.points[0] == (440, 930)
     assert plan.points[1] == (960, 505)
     assert plan.drag
+
+
+def test_block_targets_enemy_attackers_not_idle_enemies() -> None:
+    decoy = Unit("decoy", 2, 2, Rect(100, 100, 80, 80))
+    attacker = Unit("attacker", 2, 2, Rect(500, 300, 80, 80))
+    blocker = Unit("blocker", 2, 2, Rect(700, 900, 80, 80))
+    state = GameState(
+        my_units=[blocker],
+        enemy_units=[decoy, attacker],
+        enemy_attackers=[attacker],
+    )
+    plan = ActionTranslator(LAYOUT).translate(
+        Action(type=ActionType.BLOCK, raw={"pairs": [(0, 0)]}), state
+    )
+    assert plan is not None
+    assert plan.points[1] == attacker.rect.center
 
 
 def test_missing_layout_returns_none() -> None:

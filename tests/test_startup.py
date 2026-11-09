@@ -96,6 +96,6 @@ def test_standard_device_launch_remains_standard(monkeypatch):
 def test_device_trace_mode_uses_shared_workflow(monkeypatch):
     calls = []
     monkeypatch.setattr("lorwright.device.startup.launch_pie64", lambda *args: calls.append(args))
-    device = AdbDevice(serial="127.0.0.1:5556", launch_mode="pie64_trace")
+    device = AdbDevice(serial="127.0.0.1:5555", launch_mode="pie64_trace")
     device.launch(PACKAGE)
     assert calls == [(device._adb, PACKAGE)]

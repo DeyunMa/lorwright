@@ -1,5 +1,18 @@
 # 项目状态
 
+> 2026-11-09：Jinx 首局实战获胜（引擎起手/出牌 + 人工弃牌与水晶斩杀）。
+> 地图导航补齐：Jinx 头像 ORB、发光路径端点找下一节点（边缘密度选圆）、
+> 金色节点误报收紧；TargetingPolicy 支持弃牌提示与水晶目标；起手换牌
+> 可识别并替换找组件。`logs/` 清理到 215M。详见 [`handoff.md`](handoff.md)。
+> 奖励排序已接入有限的能力截图识别：三项全认识时输出推荐，尚不自动点击
+> 或确认。冒险循环对地图/详情增加画面与按钮文字识别，未知画面停止；
+> 以上均为离线验证，覆盖范围和后续素材见 `handoff.md`。
+
+> 2026-11-07：Jinx 起手补上第三步——下场后手牌变成最左侧 2 张飞逝
+> 「超威能死亡火箭！」+ 右侧 4 张「砰砰」，火箭必须当回合打掉。
+> 修复 PoC 减费牌被误认成 Jinx、0 费法力读不出导致主循环卡死。
+> 详情见 [`handoff.md`](handoff.md) 的最新 Jinx 记录。
+
 > 2026-11-05：新增 Jinx 两步起手和两张牌的展开态模板。月度挑战 2 中
 > 已识别 2 费 Jinx，但程序误以为必须在手牌看到应急装置才可继续；
 > 用户指出开场时法术已打出。尚需补足前后连续证据并修正接续逻辑。
@@ -10,7 +23,12 @@
 > 新版 LoR 的真实连续场景尚未验收。Pie64 已为 4C4G，但 07.11.015 在 Pie64 /
 > Player 3 都启动闪退，根因未定。下面保留此前历史状态，不能作为新版兼容性保证。
 
-> 更新：2026-11-04
+> 2026-11-06 离线补充：格挡链路修复（`run` 的 `PassBlockPolicy` 接线错误、
+> 伊莉絲包抢在通用格挡层前、未知攻血时不格挡），并补上伊莉絲展开态
+> 手牌身份识别（真实 1080p 截图 6/6）。详见 `handoff.md` 最新一节。
+
+> 以下环境、完成情况和待办保留 2026-11-04 的历史记录；较新的记录见本页顶部
+> 和 `handoff.md`，issue 的实时状态以 GitHub 为准。
 >
 > **要接手开发，先读 [`docs/handoff.md`](handoff.md)。** 这份只记状态，不记行动计划。
 
@@ -20,8 +38,8 @@
 |---|---|---|
 | M0 | 骨架 + 规则 + 单测 + CI | ✅ 完成 |
 | **M1** | 自动打完一场 PoC 战斗 | 🚧 进行中 |
-| M2 | 自动选奖励（三选一） | 待做 |
-| M3 | 自动走地图 | 待做 |
+| M2 | 自动选奖励（三选一） | 🚧 排序已实现，识别与接线待完成 |
+| M3 | 自动走地图 | 🚧 已实现部分流程，待补场景与验收 |
 | M4 | 跑完一个完整副本 | 待做 |
 
 ## 运行环境（2026-11-04 实测）
@@ -59,22 +77,27 @@
 | `perceive/login.py` | 登录界面检测（`login_splash` / `login_form`） |
 | `device/touch.py` | 输入原语：`TouchSurface.can_hold`、`EvdevSurface`（事件级手势）、`AdbInputSurface`（退化） |
 | `perceive/hand.py` | 手牌徽章 / 费用识别（收起态 48px、展开态 56px 两套模板） |
+| `perceive/unit_stats.py` | 单位攻击/生命数字：字体模板 + 颜色掩膜，读不出返回 -1 |
 | `champions/elise/` | 伊莉絲英雄包：牌表 + 蜘蛛快攻规则 |
+| `champions/elise/vision.py` | 展开态手牌身份：ORB 卡面匹配，低置信度保留空名 |
+| `champions/jinx/` | 金克丝英雄包：牌表、起手策略与卡面识别 |
 | `decide/combat.py` | 战斗求解器：精确枚举格挡分配与攻击声明 |
+| `decide/generic.py` | 通用规则：英雄优先 / 攻击令牌 / 格挡资格与配对 |
+| `decide/rewards.py` | 奖励三选一：英雄偏好 > 品质 > 费用 |
 | `decide/card.py` | 卡牌通用词汇（CardKind / CardDef） |
 | `champions/` | 英雄包注册表（加英雄 = 加目录，不改核心） |
 | `decide/candidates.py` | 局面 → 候选动作 |
-| `decide/jev.py` / `llm.py` | HTTP 客户端，未配置自动降级 |
 | `decide/router.py` | 分层路由 + 覆盖率统计 |
 | `act/translate.py` | 语义动作 → 点击序列 |
 | `loop/engine.py` | 主循环（含事件发射） |
 | `loop/watchdog.py` | 卡住检测 |
 | `loop/recovery.py` | 分级恢复状态机 |
+| `tools/f1/` | f1 网络看门狗、游戏看门狗、Pie64 交互式启动脚本 |
 | `util/logger.py` / `events.py` | 按日期分目录 + JSONL |
 | `tools/analyze.py` | 复盘摘要 |
 | `doctor.py` | 环境自检 |
 
-**143 个单测，ruff 全绿。**
+测试结果随代码变化；以当前运行结果为准。
 
 **已在真机验证**（BlueStacks `Pie64`，Android 9，横屏 1920×1080）：
 
@@ -85,8 +108,8 @@
 - 动作按钮文字可判：`略過` / `略過格擋` / `結算` → `MY_TURN_IDLE` / `BLOCKING` / `COMBAT_RESOLVING`
 - 账号密码从 `.env` 读取，`lorwright login` 可用
 - **出牌手势**：展开态真机成功（蜘蛛上场、法力 3→2、手牌 6→5）；收起态拖不动，改「先 tap 展开再拖」（`handoff.md` §4.6）
-- 手牌费用：收起态 6/6，展开态 4/6（待修）
-- **未跑通**：两帧出牌的端到端（issue #9）、场面识别（issue #10）
+- 手牌费用：收起态 6/6；展开态历史实测 4/6，现有 1080p fixtures 6/6（失败样本未保留）
+- 场面识别还有敌方攻击行、生命遮挡和词条等待补充验证（issue #10）。
 
 ### 一个容易误判的现象
 
@@ -105,26 +128,26 @@ adb shell dumpsys power | grep mState            # 屏幕是否 ON
 
 HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ... 1`），别怀疑坐标。
 
-## Stub（需要真实画面才能做）
+## 历史缺口清单（2026-11-04，部分已完成）
 
 | 位置 | 缺什么 | Issue |
 |---|---|---|
-| `perceive/cards.py:recognize_hand` | 手牌切分 + 模板匹配 | #3 |
-| `loop/engine.py:_build_state` | 法力/血量/场面解析 | #4 |
-| `perceive/ui_state.py` | 真实按钮模板 | #2 |
-| `config/settings.yaml:layout` | 四个矩形坐标 | #2 |
-| `loop/engine.py` | `RecoveryPolicy` 未接入主循环；`NO_OP` 会计入卡死 | #6 |
+| `perceive/cards.py:recognize_hand` | 收起态手牌身份（展开态已由英雄包 vision 覆盖） | #3 |
+| `loop/engine.py:_build_state` | 敌方攻击行真实帧、生命遮挡样本（单位攻血已接入） | #4 |
+| `perceive/ui_state.py` | 地图/节点面板/商店/休息等对局外状态 | #2 |
+| `config/settings.yaml:adventure` | 休息/商店按钮的真实坐标 | #2 |
+| `loop/adventure.py` | 节点点击后仍在地图/旅行后仍在地图时已停止盲点；更细的面板类型识别仍缺 | #6 |
 
 ## 素材清单
 
 | 素材 | 数量 | 位置 | 状态 |
 |---|---|---|---|
 | 按钮模板 | 3–5 | `assets/buttons/` | 🚧 有 `action_button.png`（手机版） |
-| 卡牌图库 | **9**（伊莉絲牌组只有 9 种） | `assets/cards/` | ❌ 空 |
+| 卡牌图库 | **9**（伊莉絲牌组只有 9 种） | `champions/elise/assets/` | ✅ 0.35× 卡面模板 |
 | 起手换牌「確定」 | 1 | `assets/buttons/` | ❌ 空（**P0**） |
 | 挑战者 / 击晕图标 | 2 | `assets/buttons/` | ❌ 空 |
 
-## 打开的 Issue
+## 历史 issue 列表（非实时）
 
 | # | 优先级 | 标题 |
 |---|---|---|
@@ -134,16 +157,16 @@ HOME 生效但游戏不响应 → 重启游戏（`am force-stop` + `monkey -p ..
 | 4 | P0 | 状态解析：法力 / 血量 / 场面 |
 | 5 | P1 | 端到端：自动打完一场战斗 |
 | 6 | P1 | 异常恢复：分级策略 |
-| 8 | P2 | JEV / LLM 接入验证 |
+| 8 | P2 | JEV / LLM 接入验证（已按 ADR-0004 移除，不再做） |
 
-## 下一步
+## 历史行动顺序（非当前待办）
 
 **见 [`docs/handoff.md`](handoff.md) §2。** 顺序：接口 → 底层最小集 → 英雄规则。
 
 ```
 #9  出牌两帧流程进 run + 展开态费用 4/6 → 6/6（收起态已打通，见 handoff §4.6）
   ↓
-#11 攻击声明 / 格挡手势
+#11 攻击声明 / 格挡手势（✅ 手势已通，通用格挡规则已接线）
   ↓
 #10 场面识别（单位 / 攻血 / 挑战者 / 击晕）
   ↓

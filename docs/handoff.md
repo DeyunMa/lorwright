@@ -6,6 +6,202 @@
 
 ## 当前接手入口：先离线完善基础场景
 
+> **阅读顺序**：本节按日期记录较新的进展；后面 §1–§2、§4 的旧进度和
+> §9 的旧 issue 列表是历史记录，不作为当前待办。以本节、`status.md`
+> 和 GitHub Issues 的实时状态为准。
+>
+### 2026-11-09：冒险画面安全边界与能力推荐（离线）
+
+- 战斗 UI 检测器不认识地图，因此地图帧会得到战斗意义上的 `UNKNOWN`。
+  `AdventureLoop` 现在另行识别地图返回键和缩放控件，或战斗详情标题；
+  无法识别的画面保存快照并停止。旅行/战斗按钮还须匹配文字，只有
+  识别到「遭遇戰已完成」的面板才尝试点空白关闭，且重试前重新识别。
+  这些是现有截图的离线回归，尚未在 f1 复验；其他语言、遮挡和新界面
+  可能被保守拒绝，不能把模板匹配视为所有未知画面的完备证明。
+- `1080p_ability_select.png` 的三个能力名称与品质可由截图模板识别，
+  已接 `pick_reward` 和当前英雄包能力偏好。任一候选或品质未知就弃权。
+  目前只记录推荐并保存快照：没有选择后/确认后的连续实机画面，
+  尚不能验证选中与确认，也未覆盖其他能力名称、道具、法术或支援英雄界面。
+- 用户确认：圣物是英雄开局携带的装备；战斗中获得的道具是通用道具，
+  不分英雄专属和单位专属。`闇影圖騰`可用于符合条件的英雄牌或单位牌。
+  `闇影圖騰`（I0012）与 `重拳出擊`（I0130）
+  是道具，已从对应英雄包的圣物偏好移至道具偏好；偏好不表示开局已拥有。
+- 法力读数连续丢失 5 帧不再直接猜为 0：仅在同一优先权内此前新鲜读到
+  0、且此后未发生操作或状态切换时沿用；否则保持 `NO_OP`。下文 11-07
+  记载的无条件按 0 处理已被这一约束取代。
+- 下方首局记录引用的 `logs/2026-11-09/events.jsonl` 在当前工作区不存在；
+  首局过程暂以此前交接记录为依据，日志内容尚未在此工作区复核。
+
+### 2026-11-09：Jinx 首局实战 + 地图导航修复 + 起手换牌
+
+**首局实战**（每月挑战挑戰4 · 神射海盗，敌方水晶 16 血）：引擎完成
+mulligan 確定、手牌展开、两张单位牌下场；`汙水坑疏濬機器人` 触发
+「棄置1張牌」时 `TargetingPolicy` 只会选单位/取消导致超时停机（已修），
+人工接管弃牌 + 火箭指向水晶斩杀获胜。全程事件在
+`logs/2026-11-09/events.jsonl`（81 行）。
+
+**地图导航**（协作模式逐屏审计校准）：
+- `champions/jinx/vision.py: recognize_hero()`：Jinx 头像 ORB 模板
+  （`assets/hero_portrait.png`，110×110，nfeatures=8000），地图帧返回
+  头像中心，修复「英雄节点找不到只能回退画面中心」。
+- `perceive/mapnav.py: next_node_by_path()`：`detect_nodes` 的圆环判据
+  在部分地图会漏检，改取最大发光路径、选离英雄最远的端点，端点附近
+  低阈值 Hough 找圆，按 **Canny 边缘密度 × 半径** 选整圆（节点
+  0.22–0.27 vs 背景 0.11，阈值 0.18）。
+- `perceive/mapnav.py: detect_ability_nodes()` 收紧：要求「金环 + 深色
+  中心」（中心 1/3 金色占比 <0.3），尺寸限 30–90px；同色地形/装饰
+  都是实心金块，此前一张图误报 10 个、现在只剩真节点。
+- 已知缺口：`panel_open` 用蓝色像素总量判断，部分地图态会被误判成
+  面板打开（`next_node` 因此返回 None）；本轮实测直接调
+  `next_node_by_path()` 绕过，待收紧。
+
+**TargetingPolicy**（`decide/generic.py`）：手牌展开 = 弃牌提示，点第一张
+手牌；手牌收起时先敌方单位 → 我方单位 → 敌方水晶（法术可直接点
+水晶斩杀）。`act/translate.py` 支持 `raw={"hand"|"nexus"}`。
+
+**起手换牌**：`vision.recognize_mulligan()` 按 4 个「替換」按钮坐标
+（438/756/1068/1386, ~820）识别卡面；`JinxOpeningPolicy` 保留
+`應急裝置`/`吉茵珂絲`，其余发 `MULLIGAN_REPLACE`（多点点击，outcome
+直接按已发送成功，下一 tick 確定）。起手没有这两张时会主动换牌找组件。
+
+**仓库清理**：`logs/` 散图裁剪到 11-08/09 会话（569M→215M），保留
+`f1-material-20261106/` 素材目录；删除其重复 zip（116M）、
+`docs/handoff-windows.md`（已废弃、git 可找回）、无引用的
+`champions/jinx/assets/legacy/` 旧模板（旧路径 git 可找回）。
+
+### 2026-11-07 补充：Jinx 下场后的飞逝火箭
+
+用户确认 Jinx 下场会把所有手牌替换成最左侧 2 张飞逝牌
+「超威能死亡火箭！」（简中：超究极死神飞弹）和右侧 4 张「砰砰」。
+两张火箭是飞逝牌，回合结束还在手牌就会自动弃掉；所以起手第三步是
+**当回合打掉两张火箭**，不能先结束回合。
+
+- `champions/jinx/policy.py`：`step 2` 优先打火箭（最多 2 张），再打砰砰；
+  名字认不出时只对 ≤2 张手牌按最左兜底，中局大手牌不猜。
+- `champions/jinx/vision.py`：费用过滤改为 `definition.cost >= card.cost`，
+  修复 PoC 减费砰砰（2→1）被误认成 Jinx 的问题；新增 `01PZ040T1` 火箭模板。
+- `loop/engine.py`：0 费时法力数字整段读不出来；连续 5 帧读不出后按 0 费
+  处理，允许结束回合，避免整局卡死。
+- CLI：`--jinx-summoned` 用于中局恢复（Jinx 已下场，直接从打飞逝牌开始）。
+
+### 2026-11-07：Jinx 完整牌表 + 9 张手牌识别 + 通用下单位层
+
+**Jinx 牌表**：`champions/jinx/deck.py` 现在是完整 9 种 ×2 = 18 张：
+`01PZ040 吉茵珂絲(4/4/3)`、`99PZ130 砰砰(2 法术)`、`01PZ054 爆破幫菜鳥(2/1/3)`、
+`01PZ009 懸浮飛板初學者(3/2/3)`、`99PZ104 火箭滑板(2/3/3)`、
+`01PZ019 勤奮的學徒(2/2/1)`、`01PZ045 佐恩小乞丐(1/2/1)`、
+`01PZ038 汙水坑疏濬機器人(3/4/3)`、`01PZ028 應急裝置(1 法术)`。
+数据源：`lorwright-artifacts/research/champion-progression/data/champions.jsonl`
+（Jinx 行，已对 07.11.015 ClientCardData 交叉核验）。
+
+**手牌识别**：`champions/jinx/vision.py` 改为 9 张卡面 ORB 匹配 + 费用过滤：
+- 卡面模板在 `champions/jinx/assets/<code>.png`（01PZ* 来自 Data Dragon，
+  99PZ* 从 AssetBundle 提取）；
+- 费用只排除「显示费用高于基础费用」的候选；PoC 道具可给任意牌减费
+  （实测砰砰 2→1，Jinx 4→2）；
+- 真实 8 张手牌截图 `live-8cards.png` 命名 7/8（未知的是牌组外的 5 费牌）。
+
+**通用层**（`decide/generic.py` + `main._battle_layers`）：
+- `expand_hand`：我方回合手牌收起时先展开；
+- `play_unit`：场面 <6 时按费用从低到高打已知单位，跳过法术/未知牌；
+- `targeting`：TARGETING 时先点敌方单位，再点我方，最后取消；
+- `combat_confirm`：COMBAT_RESOLVING 点确认；
+- `blocking`：沿用通用格挡。
+
+**CLI**：`run` / `adventure` 新增 `--champion`（覆盖配置英雄包）和
+`--spell-already-played`（Jinx 恢复中局跳过起手法术）。
+
+**f1 回放验证**：`--champion jinx --replay` 喂真实 8 张手牌帧，路由为
+`jinx_opening → expand_hand → play_unit → hero_first → targeting → attack_when_token → combat_confirm → blocking`，
+动作是 `play_card`，拖拽起点落在應急裝置。
+
+**对局素材**：`logs/f1-material-20261106/`（48 张，47 张可读 1920×1080；
+1 张连续截图损坏），含手动出牌/选目标/卡牌详情/地图/战斗接管截图。
+
+### 2026-11-06：单位攻血识别 + f1 最外层看门狗（f1 已恢复）
+
+**单位攻血（#10 的数值部分）**：
+
+- `perceive/unit_stats.py`：橙色攻击徽章里的白/绿数字 + 红色生命徽章里的
+  白数字；用游戏资源 `BeaufortforLOL-Bold` 预渲染的 0–9 模板分类
+  （`assets/digits_unit/`，140 张小图）。
+- `perceive/units.py:to_units(..., image=...)` 现在会填 `attack/health`；
+  `StateParser` 传入当前帧。读不出或置信度 <0.80 仍保留 `-1`。
+- `perceive/digits.py` 的模板加载先裁到笔画外框，否则带黑边的字体模板
+  缩到 16×24 后相似度会掉到噪声。
+- 真实截图回归：`1080p_units_idle.png` 我方攻击 `[4,6]`、敌方 `[8,2]`；
+  `1080p_units_combat.png` 我方 `[1,7,7,1,1,1]`、敌方 `[12,5,3,3,12]`。
+  生命被红色高光遮住时返回 `-1`，不猜。
+- `plan_blocks` 在攻/血任一为 `-1` 时退回贪心，避免把 `-1` 代进阵亡价值公式。
+- `loop/adventure.py`：节点点击后仍能看到地图节点、或旅行后仍在地图时，
+  存快照并停止，不再盲点旅行/休息/商店；新增真实面板 fixture 回归。
+
+**f1 运维（已部署）**：
+
+- `F1NetWatchdog` 仍是网络专用；TUN 试开改为“稳定 30 分钟后试开 60 秒，
+  HTTP+DNS 正常就保留，失败立即关回并等 60 分钟”。
+- 新增 `F1GameWatchdog`（每 5 分钟，SYSTEM）：网络看门狗失败/退避时跳过；
+  检查 `HD-Player`、ADB、LoR `pidof`；缺模拟器 2 次 → 运行 `F1StartPie64`；
+  缺 LoR 1–2 次 → `lorwright launch`；第 3 次 → force-stop + launch + login；
+  ADB 连续 6 次失败才重启模拟器。
+- `F1StartPie64` 是 Administrator + Interactive 任务，已在模拟器运行时验证
+  只记日志、不重启。脚本已收进 `tools/f1/`。
+- **配置错误已修**：`config/settings.yaml` 的 `adb.serial` 从 5556 改为 5555；
+  f1 上实际监听 5555（`emulator-5554` 是同一实例）。
+- 当前 f1：TUN 已由用户手动打开，网络 3/3；LoR PID 4583 前台；`lorwright state`
+  仍为 `unknown`（主页/加载页不是战斗状态）。
+
+### 2026-11-06：格挡链路修复 + 伊莉絲手牌身份识别（离线，未动 f1）
+
+**格挡链路（三个会让规则静默失效的接线点）**：
+
+1. `lorwright run` 曾 import `PassBlockPolicy`（不存在）→ 启动即
+   `ImportError`。`run` / `adventure` 现在共用 `main._battle_layers()`，
+   两条路径都装配 `BlockingPolicy`。
+2. 伊莉絲包在 `BLOCKING` 返回 `NO_OP`，抢在通用格挡层前面；现在改为
+   弃权 `None`，由 `BlockingPolicy` 接管。
+3. 感知层单位攻击/生命恒为 `-1` 时，`plan_blocks` 的贪心退路原来会
+   `continue` 掉所有攻击者 → 整轮不格挡。现在未知数值按「能挡就挡」
+   配对，至少不会因为读数缺失直接放行。
+4. `act/translate.py` 的 BLOCK 原来按下标查 `enemy_units`，而
+   `BlockingPolicy` 现在按下标查 `enemy_attackers`；两者不一致会把格挡
+   拖到待命单位上。翻译层已改为 `enemy_attackers or enemy_units`，
+   和决策层同源。
+
+**规则补齐**（`decide/generic.py` 与 `decide/combat.py` 同步）：
+
+| 规则 | 判定 | 证据 |
+|---|---|---|
+| Fearsome | blocker 攻击 `< 3` 才失败（攻击 3 可挡） | 原生 `GetFearsomeBlockingValue`=3 |
+| Elusive | blocker 需有 `Elusive` 或 `BlockElusive` | 原生 `NoStealthBlock(41)` |
+| Brash | blocker 生命 `< 3` 才失败（生命 3 可挡） | 官方关键词文本 `globals-en_us.json` |
+| Reckless / Immobile | 不能格挡 | 原生 `StatePreventsBlock` |
+
+回归：`tests/test_generic_rules.py`、`tests/test_combat.py`、
+`tests/test_battle_layers.py`。其中 `test_battle_layers.py` 同时锁住
+「run/adventure 必须装 BlockingPolicy」和「英雄包在 BLOCKING 必须弃权」。
+
+**伊莉絲手牌身份（#3 的展开态部分）**：
+
+- `champions/elise/vision.py` 用 ORB 匹配 9 张卡面模板，模板在
+  `champions/elise/assets/`（Data Dragon 680×1024 缩到 0.35，共 1.1MB）。
+- 真实截图 `tests/fixtures/screens/1080p_hand_expanded.png` 6/6 命中：
+  小蜘蛛(1)、尖嘯蜘蛛(4)、蜘蛛哨兵(3)、發狂疾行蛛(3)、伊莉絲(2)、
+  闇影島泰爾石(0)。
+- 回放验证：`lorwright run --replay` 喂这张图，命中 `elise_spider_aggro`，
+  动作是 `play_card`（拖拽起点落在 2 费伊莉絲），说明名字已进入评分链。
+- 低置信度（匹配数 <20 或第一名领先 <10）保留空名，不猜；收起态扇形
+  仍只有费用，身份识别只覆盖展开态。
+
+**仍未解决（需要 f1 实机帧）**：
+
+- `GameState.enemy_attackers` 已接 `layout.enemy_combat` 区域（合成图测试）；
+  真实 BLOCKING 帧还没标定，识别不到时 `BlockingPolicy` 回退到 `enemy_units`。
+- 单位攻击/生命已由 `unit_stats.py` 接入；敌方攻击行真实帧和生命遮挡样本
+  仍未验证，这是 #10 剩下的部分。
+- mapnav 已切到 1080p-only（英雄=画面中心，点击不再 ×2）；已换 2 张实机
+  1080p 帧，剩余场景的 20 帧回归仍待补采。
+
 ### 2026-11-06：地图识别基准与 mapnav v2（离线迭代，未动 f1）
 
 **语义链（本轮用 20 张实机截图 + 连续帧移动链确认）**：
@@ -19,7 +215,7 @@
 - 金色菱形 = 能力/辅助节点的**类型图标**，不是位置标记
   （此前误当过位置标记）。
 
-**mapnav v2 改动**（perceive/mapnav.py）：
+**mapnav v2 改动**（960×540 历史空间；现已迁移到 1080p）：
 1. has_checkmark 换青绿判据（旧纯绿判据 0 命中，导致已完成节点
    不被排除、回走旧线）；
 2. _reachable_nodes 采样 dist/12→dist/8、窗口 ±10→±12、阈值
@@ -28,15 +224,13 @@
    地图态 ≤1832）直接返回 None，面板打开时不导航；
 4. 英雄指标丢失时用金色菱形关联 fallback（re2-map2 缩放态实测找回）。
 
-**离线基准**：tests/fixtures/mapnav/ 20 张图（1.6MB），14 张地图态
+**历史离线基准**：旧 tests/fixtures/mapnav/ 20 张 960×540 图（1.6MB），14 张地图态
 断言 hero+next 精确坐标、6 张门控态断言不导航不崩溃、对勾用移动链
 断言。此前 16 张只有 6 张完全识别成功，现在 14 张地图态全部命中。
 
 **素材问题结论（用户问）**：截图全部是程序产物（f1 上 adb screencap，
-与运行时同一管线）；地图图 960x540 与 AdventureLoop 运行时喂 mapnav
-的尺寸一致（run 时 1920x1080 缩半），对局内模板用 1920x1080 原帧。
-diag 里的 jpg 有压缩失真，测试基准在 jpg 上标定的阈值在运行时 PNG
-上只会更稳。
+与运行时同一管线）。旧地图图是 960×540；2026-11-06 起 mapnav 直接用
+1920×1080 原帧，旧图已归档到 `tests/fixtures/mapnav_960_legacy/`。
 
 ### 2026-11-06：奖励决策模块落地（decide/rewards.py）
 
@@ -57,20 +251,19 @@ diag 里的 jpg 有压缩失真，测试基准在 jpg 上标定的阈值在运�
    （对应 tests/test_mapnav.py 的 CASES + GATED_CASES），供 mapnav
    迁移到统一 1080p 设计空间用。
 
-**任务：mapnav 统一 1080p 设计空间（依赖上面第 4 项，2026-11-06 确认）**
+**任务：mapnav 统一 1080p 设计空间（2026-11-06 已执行代码迁移）**
 
 背景：AdventureLoop 目前把 1080p 帧缩到 960x540 喂 mapnav、点击 ×2
 还原——第二套坐标空间已造成过『忘 ×2 点空处』的坑（卡点记录 1）。
 地图分析尺寸不是性能需要（mapnav 低频运行），是历史包袱。
 
-步骤（采到 1080p 帧后执行）：
-1. 在真 1080p 帧上重新标定 detect_nodes 半径范围（现 18-42 → 预计 ×2）
-   与发光/面板阈值，基准图先跑分再改代码；
-2. 删 _find_next 的缩半逻辑与 x2 点击换算，next_node 直接吃 1080p 帧；
-3. fixtures/mapnav 20 张换成 1080p PNG，CASES 坐标按新帧重标（移动链
-   语义不变）；
-4. 基准全绿 + pytest 全绿后提交；handoff 卡点记录 1（坐标空间）随迁移失效，
-   更新该条目。
+执行状态：
+1. ✅ 在真 1080p 帧上重新标定 detect_nodes（半径 36–84、param2=40）、
+   发光采样（dist/16、窗口 ±24）与面板阈值（blue ≥5000）；
+2. ✅ 删除 `_find_next` 缩半与 ×2，`next_node` 直接吃 1080p，英雄=画面中心；
+3. 🚧 fixtures 已换 2 张实机 1080p 帧（`1080p_map.png` / `1080p_panel.png`），
+   旧 960 图归档到 `mapnav_960_legacy/`；剩余 18 个场景待补采；
+4. 🚧 当前 1080p 基准 + pytest 全绿；完整 20 帧回归待补采后收尾。
 
 ### 2026-11-06：research 逆向资料包接入
 
@@ -264,7 +457,7 @@ Firebase/LoRActivity/UnityPlayerActivity初始化方法结构与小型原生库�
 支持ART间接调用到0的调用点推断，但未确定Java方法或根因；不能套用于Pie64。
 记录DEX片段在新版两DEX均未匹配；Pie64对应DropBox为contents lost，本轮未重新启动游戏。
 后续已完成Pie64独立重启：Windows进程9584→12112，新boot_id为
-`ff86618f-8437-4f11-ab9c-e4a1f995b3af`，4C4G、Android9、ADB5556、07.11.015确认。
+`ff86618f-8437-4f11-ab9c-e4a1f995b3af`，4C4G、Android9、ADB5555、07.11.015确认。
 单次启动LoR仍闪退（PID4207，设备时间2026-11-05 14:20:03），但普通ADB bugreport成功取得完整
 `tombstone_10`，无需root。主线程展开仍仅PC0；栈顶值0x44ff26a6落在JIT代码缓存，
 不能套用Android11的ART解释器调用点。libcf53已映射，未见Unity具名模块；具体调用者尚未定位。
@@ -279,7 +472,7 @@ artMethod=0x70b70568、dexMethodIndex=0x2241。尚未确认它是故障调用目
 不要继续盲建实例，也不要将单图回归通过称作新版实机验证。
 
 下面是此前历史记录，其中“手牌恒为空”、测试数和环境兼容结论已有过期内容；
-当前 StateParser 已解析费用，仍缺卡牌身份、单位攻血和词条。
+当前 StateParser 已解析费用与单位攻血，仍缺卡牌身份和词条。
 
 ## 0.0 历史状态（2026-11-04 深夜）
 
@@ -344,12 +537,11 @@ C:\ProgramData\BlueStacks_nxt\bluestacks.conf   （备份：bluestacks.conf.bak-
 
 **目标牌组**：伊莉絲（Elise）蜘蛛快攻，18 张（9 种 × 2）。牌表已核实。
 
-**现在卡在哪**：`Engine._build_state()` **只填了 `ui_state`**，手牌恒为空，
-所以策略永远只会「结束回合」。**这是 P0，不修则下游全部无法验证。**
+**现在卡在哪**：单位攻血已接入；仍缺敌方攻击行真实帧、生命遮挡样本、
+出牌两帧端到端和奖励面板识别。
 
 **核心设计一句话**：能穷举的穷举（战斗），穷举不了的按分数排（出牌），
-分数分不清的交给 JEV，连界面都不认识的交给 LLM 做**分类**——
-但任何一层都不允许「自由文本 → 直接点屏幕」。
+状态不明就 `NO_OP`；任何一层都不允许「自由文本 → 直接点屏幕」。
 
 ### 先花 5 分钟确认环境
 
@@ -575,7 +767,7 @@ adb logcat -d -t 300 | grep -i "client config|firestore"
 是**交替优先权**。大蓝按钮 = 我持有优先权（不管名义上是谁的回合）。
 没有蓝按钮时**没有合法动作**，返回 `NO_OP`，不是 `None`。
 
-返回 `None`（弃权）会让路由把请求送去 JEV，对手回合每帧白烧一次调用。
+返回 `None`（弃权）会让路由继续遍历后续通用策略。
 
 ### 4.6 出牌手势：收起态拖不动，展开态可行（2026-11-04 打通）
 
@@ -624,7 +816,7 @@ adb logcat -d -t 300 | grep -i "client config|firestore"
 | `input motionevent` | **Android 9 没有这个命令** |
 | 收起态下调 hold / 步数 / 两套输入通道 | 全部无效（卡片斜叠，落点在卡外） |
 
-#### 还剩什么
+#### 当时还剩什么（2026-11-04 历史记录）
 
 - **展开态费用识别 4/6**：`_tilt` 主轴角符号已修（1/6 → 4/6），还差 2 张。
   根因是 `atan2` 以 180° 为周期，同一方向可能算出 -87° 或 +93°，`rotate_glyph` 会朝反方向转。
@@ -729,14 +921,14 @@ adb logcat -d -t 300 | grep -i "client config|firestore"
 | `docs/architecture.md` | 核心设计：决策链 + 监督器、为什么 LLM 不能直接点屏幕 |
 | `docs/status.md` | 当前状态、真机验证结果、已知问题 |
 | `docs/environment.md` | **F1 + BlueStacks 环境**：哪个实例能用、Android 11 崩溃的排查结论、ADB 的坑 |
-| `docs/decision-l1-rules.md` | 决策层怎么分层、精确解边界、**加英雄的检查清单** |
+| `docs/decision-l1-rules.md` | 历史规则设计与加英雄检查清单；当前实现以代码和 ADR-0004 为准 |
 
 **按需深入**：
 
 | 文档 | 什么时候看 |
 |---|---|
 | `docs/champions/elise.md` | 改伊莉絲的规则/评分时。含牌表、星力、v1 八条规则的体检结论 |
-| `docs/decision-l2-jev.md` | 要接 JEV 时。含契约、上下文格式、四阶段验证 |
+| `docs/decision-l2-jev.md` | 已废弃的 JEV 历史设计，见 ADR-0004 |
 | `docs/reference-prior-art.md` | 想知道 MAA/ALAS 哪些能学、哪些学不了时 |
 | `docs/adr/` | 想推翻某个决策时，先看当时的理由 |
 
@@ -744,17 +936,15 @@ adb logcat -d -t 300 | grep -i "client config|firestore"
 
 ## 8. 不要做
 
-- ❌ **不要先接 JEV / LLM。** 状态解析没做，候选生成是空的，接了也是空转。
+- ❌ **不要接 JEV / LLM。** 当前决策采用 ADR-0004 的纯脚本路线。
 - ❌ **不要先做插件化。** `champions/` 已经是插件形态了，够了。
-- ❌ **不要为了「覆盖率」调规则。** 覆盖率只用来发现异常（比如 L3 突然涨到 30%
-  说明感知层坏了），不是 KPI。
-- ❌ **不要让 LLM 决定点哪里。** 它只做界面分类，动作由确定性逻辑执行。
+- ❌ **不要为了「覆盖率」调规则。** 覆盖率用于发现异常，不是 KPI。
 - ❌ **不要用启发式替换穷举。** 战斗空间小到 6v6 只要 24ms，穷举更准。
 - ❌ **不要在 `decide/` 里 import `champions/`。** 核心层不认识任何英雄。
 
 ---
 
-## 9. 当前打开的问题
+## 9. 历史 issue 列表（截至 2026-11-04）
 
 **以 GitHub Issues 为准**（标签 `p0` / `p1` / `p2`）。截至 2026-11-04：
 

@@ -263,3 +263,17 @@ adb shell input keyevent 3        # HOME 能生效 → 系统正常，是游戏�
 4. 启动 `am start -n com.riotgames.legendsofruneterra/.LoRActivity`
 5. 等资源下载完 → `lorwright login`（账号从 `.env` 读，或手动登录一次）
 6. 从 `docs/handoff.md` §2 第 1 步开始
+
+## 9. f1 上的独立看门狗
+
+| 任务 | 频率/身份 | 职责 |
+|---|---|---|
+| `F1NetWatchdog` | 2 分钟 / SYSTEM | HTTP、DNS、Tailscale；Clash/TUN/WiFi/Tailscale 分级恢复 |
+| `F1GameWatchdog` | 5 分钟 / SYSTEM | `HD-Player`、ADB、LoR `pidof`；最外层重启 |
+| `F1StartPie64` | 手动/被调用 / Administrator + Interactive | 在交互桌面启动 Pie64；已在跑时只记日志 |
+
+脚本在 `tools/f1/`，远端副本在 `C:\Windows\Temp\`，日志分别是
+`netwatchdog.log`、`gamewatchdog.log`、`start-pie64.log`。
+
+`F1GameWatchdog` 不判断游戏内 UI，也不点击；它只保证模拟器/ADB/LoR 进程活着。
+网络看门狗关闭 TUN 后，会按“稳定 30 分钟试开 60 秒，失败关回并等 60 分钟”重试。

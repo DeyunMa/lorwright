@@ -1,7 +1,7 @@
 """AdventureLoop 流程回归：假设备 + 假引擎，锁住地图循环的行为。
 
-地图帧用 tests/fixtures/mapnav 的真截图（960x540，与运行时 mapnav
-输入同尺寸）。坐标空间断言：mapnav 坐标 ×2 后才下发点击。
+地图帧用 tests/fixtures/mapnav 的 1080p 实机截图；运行时与测试都在
+1920×1080 设计空间，点击不再 ×2。
 2026-11-06 建立：本测试抓到过 coords 字段名错配（first_option vs
 rest_first_option），第一次进商店/休息面板就会 AttributeError。
 """
@@ -12,9 +12,11 @@ import cv2
 import numpy as np
 import pytest
 
+from lorwright.champions import load
 from lorwright.config import load_settings
 from lorwright.loop.adventure import AdventureLoop
 from lorwright.models import UIState
+from lorwright.perceive.mapnav import empty_point
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
 
@@ -23,6 +25,10 @@ def _img(name: str) -> np.ndarray:
     img = cv2.imread(str(FIXTURES / name))
     assert img is not None, name
     return img
+
+
+def _blank() -> np.ndarray:
+    return np.zeros((1080, 1920, 3), np.uint8)
 
 
 class FakeDevice:
@@ -35,7 +41,7 @@ class FakeDevice:
     def screencap(self):
         from lorwright.device.base import Frame
 
-        img = self._frames.pop(0) if self._frames else self._frames[-1] if self._frames else np.zeros((540, 960, 3), np.uint8)
+        img = self._frames.pop(0) if self._frames else self._frames[-1] if self._frames else _blank()
         return Frame(image=img)
 
     def tap(self, x: int, y: int) -> None:
@@ -77,7 +83,7 @@ def adventure(monkeypatch):
     def make(frames, ui_script):
         device = FakeDevice(frames)
         engine = FakeEngine(ui_script)
-        loop = AdventureLoop(settings, engine, device)
+        loop = AdventureLoop(settings, engine, device, pack=load(settings.champion))
         coords = settings.adventure.to_coords()
         monkeypatch.setattr("lorwright.loop.adventure.time.sleep", lambda _: None)
         saved = []
@@ -91,18 +97,53 @@ def adventure(monkeypatch):
 
 
 def test_no_next_node_saves_snapshot_and_stops(adventure):
-    # m3-g6：商店事件未完成，全图无可走线 → 快照 + 停止，不点击任何东西
-    loop, device, engine, saved, coords = adventure([_img("m3-g6.jpg")], [UIState.UNKNOWN])
+    # 空白画面不能识别为地图 → 快照 + 停止，不点击任何东西
+    loop, device, engine, saved, coords = adventure([_blank()], [UIState.UNKNOWN])
     loop.run(max_nodes=3)
     assert device.taps == []
-    assert saved == ["map_no_next"]
+    assert saved == ["unknown_scene"]
     assert engine.run_calls == []
+
+
+def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
+    # 蓝色内容本身不足以证明画面是地图面板。
+    image = _blank()
+    image[100:200, 100:200, 0] = 255
+    loop, device, engine, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved
+    assert engine.run_calls == []
+
+
+@pytest.mark.parametrize("name", [
+    "1080p_login_splash.png",
+    "1080p_login_form.png",
+    "1080p_hand_expanded.png",
+    "1080p_targeting.png",
+])
+def test_unknown_non_map_screens_never_trigger_a_tap(adventure, name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["unknown_scene"]
+
+
+def test_unknown_after_panel_close_is_not_clicked_again(adventure):
+    loop, device, _, saved, _ = adventure(
+        [_img("1080p_panel.png"), _blank()], [UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.run(max_nodes=1)
+    assert device.taps == [empty_point(_img("1080p_panel.png"))]
+    assert saved == ["panel_no_empty_point"]
 
 
 def test_battle_takeover_runs_engine(adventure):
     # 主循环帧直接是战斗画面（进入战斗节点后）→ 引擎接管，不点任何东西
     loop, device, engine, _, coords = adventure(
-        [_img("m3-g7.jpg")],
+        [_img("1080p_zoommax.png")],
         [UIState.MULLIGAN, UIState.UNKNOWN],
     )
     loop.run(max_nodes=1)
@@ -113,7 +154,7 @@ def test_battle_takeover_runs_engine(adventure):
 def test_battle_end_taps_victory_continue(adventure):
     # 结算屏：点继续按钮，不触发引擎
     loop, device, engine, _, coords = adventure(
-        [_img("m3-g6.jpg"), _img("m3-g6.jpg")],
+        [_blank(), _blank()],
         [UIState.BATTLE_END, UIState.UNKNOWN],
     )
     loop.run(max_nodes=2)
@@ -123,39 +164,87 @@ def test_battle_end_taps_victory_continue(adventure):
     assert engine.run_calls == []
 
 
-def test_node_panel_travel_first_option_leave(adventure):
-    # 商店/休息面板：点节点 → 面板 → 旅行 → 非战斗 → 第一选项 → 离开
-    loop, device, engine, saved, coords = adventure(
+def test_node_panel_travel_then_fight(adventure):
+    # 节点面板「旅行」→ 战斗详情「戰鬥」→ 引擎接管。
+    loop, device, engine, saved, _ = adventure(
         [
-            _img("m3-g7.jpg"),  # 地图：找下一节点
-            _img("m3-g7.jpg"),  # 面板：UNKNOWN → tap travel
-            _img("m3-g7.jpg"),  # 旅行后仍非战斗 → 第一选项 + 离开
-            _img("m3-g6.jpg"),  # 回地图：无下一节点 → 停止
+            _img("1080p_zoommax.png"),  # 地图：找下一节点
+            _img("1080p_node_panel.png"),  # 节点面板：旅行 (817,485)
+            _img("1080p_battle_detail.png"),  # 战斗详情：戰鬥 (1581,1010)
+            _img("1080p_zoommax.png"),  # 战斗帧
         ],
-        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN],
+        [
+            UIState.UNKNOWN,
+            UIState.UNKNOWN,
+            UIState.UNKNOWN,
+            UIState.MULLIGAN,
+            UIState.MULLIGAN,
+        ],
     )
     loop.run(max_nodes=2)
-    travel = coords.travel
-    rest = coords.rest_first_option
-    leave = coords.shop_leave
-    assert device.taps == [
-        (538 * 2, 177 * 2),  # 下一节点
-        tuple(travel.center),
-        tuple(rest.center),
-        tuple(leave.center),
-    ]
-    assert engine.run_calls == []
-    assert saved == ["map_no_next"]
-
-
-def test_travel_into_battle_skips_shop_flow(adventure):
-    # 旅行后直接进战斗：不再点第一选项/离开，引擎接管
-    loop, device, engine, _, coords = adventure(
-        [_img("m3-g7.jpg"), _img("m3-g7.jpg"), _img("m3-g7.jpg")],
-        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN, UIState.MULLIGAN],
-    )
-    loop.run(max_nodes=2)
+    assert device.taps == [(1189, 370), (817, 485), (1581, 1010)]
     assert engine.run_calls == [400]
-    # 只有节点点击和旅行点击，没有 rest/shop 的点击
-    assert len(device.taps) == 2
-    assert tuple(coords.travel.center) in device.taps
+    assert saved == []
+
+
+def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monkeypatch):
+    # 识别三项并调用奖励规则；尚无选中后的截图，不盲点卡片/确认。
+    from lorwright.champions.base import Preference
+    from lorwright.decide.rewards import pick_reward
+
+    selected = []
+
+    def record(candidates, preferences):
+        pick = pick_reward(candidates, preferences)
+        selected.append(pick.candidate.name)
+        return pick
+
+    monkeypatch.setattr("lorwright.loop.adventure.pick_reward", record)
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_zoommax.png"), _img("1080p_ability_select.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.pack = type("Pack", (), {
+        "power_preferences": (Preference(("準備過度",)),),
+    })()
+    loop.run(max_nodes=1)
+    assert device.taps == [(1189, 370)]
+    assert selected == ["準備過度"]  # 英雄偏好压过其他两项稀有品质
+    assert saved == ["power_choice"]
+    assert engine.run_calls == []
+
+
+def test_node_click_that_stays_on_map_does_not_tap_travel(adventure):
+    # 节点点击没打开面板（坐标/动画/网络问题）：仍能看到地图节点，禁止盲点旅行。
+    loop, device, engine, saved, coords = adventure(
+        [_img("1080p_zoommax.png"), _img("1080p_zoommax.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.run(max_nodes=1)
+    assert device.taps == [(1189, 370)]
+    assert saved == ["map_panel_not_open"]
+    assert engine.run_calls == []
+
+
+def test_open_panel_is_closed_by_clicking_empty_map(adventure):
+    # 能力/详情面板打开：没有可走节点，点右下空白处关闭，不把它当旅行面板。
+    loop, device, engine, saved, coords = adventure(
+        [_img("1080p_panel.png"), _img("1080p_map.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.run(max_nodes=1)
+    assert device.taps == [empty_point(_img("1080p_panel.png"))]
+    assert saved == []
+    assert engine.run_calls == []
+
+
+def test_panel_close_retries_once_if_animation_is_slow(adventure):
+    # 第一次点击后仍看到面板（关闭动画/未命中），再点一次 A 点。
+    loop, device, engine, saved, coords = adventure(
+        [_img("1080p_panel.png"), _img("1080p_panel.png"), _img("1080p_map.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.run(max_nodes=1)
+    expected = empty_point(_img("1080p_panel.png"))
+    assert device.taps == [expected, expected]
+    assert saved == []

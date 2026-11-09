@@ -1,4 +1,4 @@
-"""决策接口：每一层（规则 / JEV / LLM）都实现同一个 Protocol。"""
+"""决策接口：每一层（英雄包 / 通用规则）都实现同一个 Protocol。"""
 
 from __future__ import annotations
 

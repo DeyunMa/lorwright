@@ -32,6 +32,7 @@ class Engine:
         ui_detector: UIStateDetector | None = None,
         recovery: RecoveryPolicy | None = None,
         card_recognizer=None,
+        mulligan_recognizer=None,
     ) -> None:
         self.settings = settings
         self.router = router
@@ -57,11 +58,16 @@ class Engine:
             digits=DigitReader(),
             threshold=settings.perception.match_threshold,
             card_recognizer=card_recognizer,
+            mulligan_recognizer=mulligan_recognizer,
         )
         self._last_plan: ClickPlan | None = None
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self._scale = Scale(1.0, 1.0)
         self._skipped_stale = 0
+        #: 连续多少帧读不出法力。0 费时法力数字会整段消失，需要靠这个
+        #: 计数器区分「动画遮挡」和「真的没费」。
+        self._unreadable_mana_frames = 0
+        self._confirmed_zero_mana = False
         self._pending: ActionOutcome | None = None
 
     def run(self, max_ticks: int | None = None) -> None:
@@ -84,6 +90,8 @@ class Engine:
             logger.warning("layout 未标定，动作会被跳过。先跑 `lorwright shot` 量坐标。")
 
         ticks = 0
+        self._confirmed_zero_mana = False
+        self._unreadable_mana_frames = 0
         try:
             while max_ticks is None or ticks < max_ticks:
                 ticks += 1
@@ -92,6 +100,8 @@ class Engine:
                 frame = self.device.screencap()
                 image, self._scale = self.normalizer.fit(frame.image)
                 state = self._build_state(image)
+                if state.ui_state is not UIState.MY_TURN_IDLE:
+                    self._confirmed_zero_mana = False
 
                 # 帧时效：截图 + 识别 + 决策如果已经花了太久，画面可能早变了。
                 # 拿旧帧去点就是「状态不明还点」，宁可这一轮什么都不做。
@@ -153,9 +163,38 @@ class Engine:
                     time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
-                # 普通决策会比较费用和水晶血量，禁止把缓存值作为当前事实。
-                if state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING) and not state.has_fresh_readings(
-                    "mana", "nexus_hp", "enemy_nexus_hp"
+                # 法力/我方血量必须新鲜；敌方血量被特效遮住时不能卡住整局，
+                # 它只影响斩杀判断，缺省时按保守策略处理。
+                # 例外：0 费时法力数字常常整段消失（读不出来），但上一帧
+                # 已经确认是 0；这时允许继续，否则会卡在 0 费永远结束不了回合。
+                mana_reading = state.readings.get("mana")
+                if mana_reading is not None and mana_reading.fresh:
+                    self._unreadable_mana_frames = 0
+                    self._confirmed_zero_mana = (
+                        state.ui_state is UIState.MY_TURN_IDLE and mana_reading.value == 0
+                    )
+                elif state.ui_state is UIState.MY_TURN_IDLE:
+                    self._unreadable_mana_frames += 1
+                else:
+                    self._unreadable_mana_frames = 0
+                unreadable = [
+                    name for name in ("mana", "nexus_hp")
+                    if not (state.readings.get(name) and state.readings[name].fresh)
+                ]
+                zero_mana_stall = (
+                    unreadable == ["mana"]
+                    and self._unreadable_mana_frames >= 5
+                    and state.ui_state is UIState.MY_TURN_IDLE
+                    and self._confirmed_zero_mana
+                )
+                if zero_mana_stall:
+                    # 同一优先权中已确认 0，之后连续 5 帧读不出：按 0 费处理，
+                    # 让路由走结束回合，而不是整局卡死。
+                    state.mana = 0
+                    state.max_mana = 0
+                if (
+                    state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING)
+                    and unreadable and not zero_mana_stall
                 ):
                     emit(
                         tick=ticks, layer="unreadable", action="no_op", clicks=0,
@@ -188,6 +227,7 @@ class Engine:
                 else:
                     clicks = self._execute(self.translator.translate(result.action, state))
                     if clicks and result.action.type is not ActionType.NO_OP:
+                        self._confirmed_zero_mana = False
                         self._pending = ActionOutcome(
                             result.action, state,
                             time.monotonic() + self.settings.loop.action_timeout_s,

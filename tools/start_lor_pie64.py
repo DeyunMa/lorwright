@@ -3,7 +3,7 @@
 Requires an installed lorwright project and a running Pie64 instance.
 This compatibility workaround does not change the APK or system properties.
 Example on f1, from the project directory:
-  .venv/Scripts/python.exe tools/start_lor_pie64.py --serial 127.0.0.1:5556
+  .venv/Scripts/python.exe tools/start_lor_pie64.py --serial 127.0.0.1:5555
 Use --restart only to intentionally stop an existing client. Otherwise it is
 only brought to the foreground. The same workflow is used by lorwright launch
 when adb.launch_mode is pie64_trace. A live foreground process is not proof of

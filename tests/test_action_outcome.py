@@ -29,6 +29,16 @@ def test_expanding_is_a_separate_step_from_playing():
     assert pending.observe(state(), 2).reason == "hand_expanded"
 
 
+def test_mulligan_replace_is_sent_without_waiting_for_state_change():
+    before = state(ui_state=UIState.MULLIGAN)
+    pending = ActionOutcome(
+        Action(ActionType.MULLIGAN_REPLACE, raw={"points": [(10, 20)]}), before, 8,
+    )
+    outcome = pending.observe(before, 1)
+    assert outcome.status is OutcomeStatus.SUCCEEDED
+    assert outcome.reason == "mulligan_replace_sent"
+
+
 def test_play_waits_for_correlated_evidence():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
@@ -51,7 +61,8 @@ def test_free_unit_uses_board_change_but_not_hand_representation_change():
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
     after = replace(before, hand=before.hand[:1], my_units=units(900))
     assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
-    assert pending.observe(replace(after, hand_expanded=False), 1).status is OutcomeStatus.WAITING
+    # 手牌打空后展开态会变成 False；手牌减少 + 场面增加仍是成功证据。
+    assert pending.observe(replace(after, hand_expanded=False), 1).status is OutcomeStatus.SUCCEEDED
 
 
 def test_targeting_requires_input_instead_of_repeating_drag():
@@ -114,3 +125,15 @@ def test_free_spell_without_correlated_evidence_stays_unverified():
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)
     # 单独手牌数量变化仍可能是漏识别；在缺身份/法术效果识别时宁可停。
     assert pending.observe(replace(before, hand=before.hand[:1]), 1).status is OutcomeStatus.WAITING
+
+
+def test_play_card_can_succeed_while_ui_is_unknown():
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)
+    after = replace(
+        before,
+        ui_state=UIState.UNKNOWN,
+        hand=[],
+        my_units=units(900),
+    )
+    assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED

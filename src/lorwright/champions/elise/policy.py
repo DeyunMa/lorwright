@@ -141,10 +141,11 @@ class SpiderAggroPolicy(Policy):
 
     def decide(self, state: GameState) -> Action | None:
         # P0 守卫：没有优先权时，唯一合法的动作就是不动。
-        # 返回 NO_OP 而不是 None —— 弃权会把请求送去 JEV，
-        # 对手回合每一帧都白烧一次网络调用。
+        # 其余状态返回 NO_OP；BLOCKING 例外，必须弃权给通用格挡层。
         if state.ui_state is UIState.BLOCKING:
-            return self._block(state)
+            # 格挡交给通用 BlockingPolicy（资格规则 + 穷举配对）。
+            # 这里必须弃权，不能返回 NO_OP，否则路由不会继续往下走。
+            return None
 
         # 起手换牌：「確定」按钮和动作按钮同位置同颜色，点一下保留整手牌。
         # 蜘蛛快攻的起手本来就都是低费单位，换牌收益低于「卡住不出牌」的代价。
@@ -228,20 +229,6 @@ class SpiderAggroPolicy(Policy):
             self._pending_play = None
         self._target_attempt = 0
         return Action(type=ActionType.CANCEL)
-
-    def _block(self, state: GameState) -> Action:
-        """对手攻击中。已经挡好了就确认，否则一挡一。"""
-        if _units_in_attack_row(state):
-            return Action(type=ActionType.CONFIRM)
-        if not state.my_units or not state.enemy_units:
-            # 没兵可挡：只能放行（点「略過格擋」= 结束回合按钮）
-            return Action(type=ActionType.END_TURN)
-        # 从后往前配：先用攻击力最高的挡，剩小的挡剩下的
-        pairs = [
-            (i, i)
-            for i in range(min(len(state.my_units), len(state.enemy_units)))
-        ]
-        return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
 
     def _attack(self, state: GameState) -> Action | None:
         if not state.has_attack_token:

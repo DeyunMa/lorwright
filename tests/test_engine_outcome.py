@@ -158,6 +158,46 @@ def test_old_readings_block_decision_then_resume_when_fresh(monkeypatch):
     assert events[0]["readings"]["mana"] == {"value": 3, "age_frames": 1}
 
 
+def test_zero_mana_unreadable_still_allows_ending_turn(monkeypatch):
+    # 同一段优先权中先确认 0 费，再连续 5 帧读不出时允许结束回合。
+    state = ready(
+        mana=0,
+        readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0),
+                  "enemy_nexus_hp": Reading(20, 0)},
+    )
+    confirmed = replace(state, readings={**state.readings, "mana": Reading(0, 0)})
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [confirmed, *([state] * 5)],
+        [Action(ActionType.NO_OP), Action(ActionType.END_TURN)], timeout=0,
+    )
+    engine.run(max_ticks=6)
+    assert router.calls == 2
+    assert len(device.taps) == 1
+
+
+def test_unreadable_mana_is_not_assumed_zero_without_confirmation(monkeypatch):
+    state = ready(readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0)})
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [state] * 5, [Action(ActionType.END_TURN)],
+    )
+    engine.run(max_ticks=5)
+    assert router.calls == 0
+    assert device.taps == []
+
+
+def test_zero_mana_confirmation_does_not_cross_priority_change(monkeypatch):
+    confirmed = ready(mana=0, readings={"mana": Reading(0, 0), "nexus_hp": Reading(20, 0)})
+    enemy = ready(ui_state=UIState.ENEMY_TURN)
+    unreadable = ready(readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0)})
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [confirmed, enemy, *([unreadable] * 5)],
+        [Action(ActionType.NO_OP), Action(ActionType.NO_OP), Action(ActionType.END_TURN)],
+    )
+    engine.run(max_ticks=7)
+    assert router.calls == 2
+    assert device.taps == []
+
+
 def test_unknown_state_never_reaches_a_strategy(monkeypatch):
     engine, device, router, _, _ = engine_for(monkeypatch, [GameState()], [])
     engine.run(max_ticks=1)

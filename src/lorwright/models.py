@@ -41,6 +41,7 @@ class ActionType(StrEnum):
     END_TURN = "end_turn"
     SELECT_TARGET = "select_target"  # 「選擇目標」：点一个单位完成选择
     CANCEL = "cancel"        # 退出「選擇目標」：点战场空白处收回已选的牌
+    MULLIGAN_REPLACE = "mulligan_replace"  # 起手换牌：点若干张「替換」
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
 
@@ -93,6 +94,8 @@ class GameState:
     mana: int = 0
     max_mana: int = 0
     hand: list[CardInHand] = field(default_factory=list)
+    #: 起手换牌界面的 4 张牌；rect 是「替換」按钮中心，用于点选。
+    mulligan_cards: list[CardInHand] = field(default_factory=list)
     #: 手牌是否处于展开态。收起态卡片斜叠、只露左边缘，**拖不动**；
     #: 必须先 tap 展开才能拖出牌（2026-11-04 实测）
     hand_expanded: bool = False

@@ -28,12 +28,14 @@ class StateParser:
         digits: DigitReader | None = None,
         threshold: float = 0.85,
         card_recognizer=None,
+        mulligan_recognizer=None,
     ) -> None:
         self.layout = layout
         self.ui = ui
         self.digits = digits or DigitReader()
         self.threshold = threshold
         self.card_recognizer = card_recognizer
+        self.mulligan_recognizer = mulligan_recognizer
         #: 上次读成功的血量。数字被特效遮住时沿用旧值，比跳回默认值安全。
         self._my_hp = DEFAULT_NEXUS_HP
         self._enemy_hp = DEFAULT_NEXUS_HP
@@ -50,6 +52,8 @@ class StateParser:
     def parse(self, image: np.ndarray) -> GameState:
         lay = self.layout
         state = GameState(ui_state=self.ui.detect(image))
+        if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:
+            state.mulligan_cards = self.mulligan_recognizer(image)
         # 起手换牌是新对局边界，不能沿用上一场血量/法力。
         if state.ui_state is UIState.MULLIGAN and self._previous_ui is not UIState.MULLIGAN:
             self._readings.clear()
@@ -97,11 +101,21 @@ class StateParser:
                     and state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING, UIState.COMBAT_RESOLVING)):
                 badges += units_perceive.find_unit_badges(image, lay.my_combat)
             badges.sort(key=lambda badge: badge.center[0])
-            state.my_units = units_perceive.to_units(badges)
+            state.my_units = units_perceive.to_units(badges, image=image)
         if lay.enemy_board is not None:
             state.enemy_units = units_perceive.to_units(
                 units_perceive.find_unit_badges(image, lay.enemy_board, enemy=True),
                 enemy=True,
+                image=image,
+            )
+        # BLOCKING 时只有攻击行里的敌人才是攻击者；enemy_board 里的待命单位
+        # 不能拿来分配格挡。区域识别不到时留空，由 BlockingPolicy 回退到
+        # enemy_units（宁可多挡，不要因为区域没标定就整轮放行）。
+        if state.ui_state is UIState.BLOCKING and lay.enemy_combat is not None:
+            state.enemy_attackers = units_perceive.to_units(
+                units_perceive.find_unit_badges(image, lay.enemy_combat, enemy=True),
+                enemy=True,
+                image=image,
             )
 
         # 只有轮到自己行动时令牌才有意义；对手攻击时的箭头长一样，但那时是 BLOCKING

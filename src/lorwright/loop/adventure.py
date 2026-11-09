@@ -8,8 +8,9 @@
 - 节点内操作完成后英雄不自动离开，必须点击下一节点移动；
 - 分叉多条线时随机选一条（mapnav 已实现）。
 
-坐标空间：本类在 960x540 半尺寸图上跑 mapnav，点击时 x2 回真实分辨率。
-节点面板按钮坐标来自 settings.adventure，实机校准后更新。
+坐标空间：1920×1080 设计尺寸。mapnav 直接吃设计帧，点击不再 x2。
+节点面板的金色按钮（旅行／战斗）由 perceive.panels.action_button 动态检测，
+不再依赖固定坐标；2026-11-07 实机校准。
 """
 
 from __future__ import annotations
@@ -17,11 +18,19 @@ from __future__ import annotations
 import random
 import time
 
-import cv2
-
+from lorwright.decide.rewards import pick_reward
 from lorwright.device.base import Device
 from lorwright.models import UIState
-from lorwright.perceive.mapnav import next_node
+from lorwright.perceive.adventure_scene import (
+    button_is,
+    is_battle_detail,
+    is_completed_panel,
+    is_map,
+)
+from lorwright.perceive.mapnav import empty_point, next_node, panel_open
+from lorwright.perceive.panels import action_button
+from lorwright.perceive.reward_screen import is_power_screen, recognize_powers
+from lorwright.util import snapshot
 from lorwright.util.logger import logger
 
 
@@ -35,10 +44,11 @@ class AdventureLoop:
         UIState.ENEMY_TURN,
     }
 
-    def __init__(self, settings, engine, device: Device) -> None:
+    def __init__(self, settings, engine, device: Device, *, pack) -> None:
         self.settings = settings
         self.engine = engine
         self.device = device
+        self.pack = pack
         self.coords = settings.adventure.to_coords()
         self.rng = random.Random()
 
@@ -55,44 +65,116 @@ class AdventureLoop:
                 self._tap_rect(self.coords.victory_continue)
                 time.sleep(3)
                 continue
+            if is_power_screen(image):
+                self._preview_power(image)
+                return
+            if not is_map(image):
+                logger.warning("adventure: 未识别地图画面，停止（保存快照）")
+                snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="unknown_scene")
+                return
             nxt = self._find_next(image)
             if nxt is None:
+                if is_completed_panel(image):
+                    if self._close_panel(image):
+                        continue
+                    logger.warning("adventure: 面板打开但找不到空白点，停止")
+                    snapshot.save_snapshot(
+                        image, self.settings.perception.snapshot_dir, tag="panel_no_empty_point"
+                    )
+                    return
                 logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
                 from lorwright.util.snapshot import save_snapshot
                 save_snapshot(image, self.settings.perception.snapshot_dir, tag="map_no_next")
                 return
-            # mapnav 坐标在半尺寸图上，点击 x2 回真实分辨率
-            self.device.tap(nxt.x * 2, nxt.y * 2)
+            # mapnav 返回的是输入帧像素坐标；_find_next 已统一换算到设计尺寸。
+            self.device.tap(nxt.x, nxt.y)
             time.sleep(3)
-            self._handle_node_panel()
+            if not self._handle_node_panel():
+                return
 
     def _find_next(self, image):
-        small = image
-        if image.shape[1] >= 1920:
-            small = cv2.resize(image, (960, 540))
-        return next_node(small, rng=self.rng)
+        return next_node(image, rng=self.rng)
 
-    def _handle_node_panel(self) -> None:
-        """节点面板：旅行 → 按类型处理；处理不了的存快照停下。"""
+    def _preview_power(self, image) -> None:
+        candidates = recognize_powers(image)
+        if candidates is not None:
+            picked = pick_reward(candidates, self.pack.power_preferences)
+            if picked is not None:
+                logger.info("adventure: 能力推荐 {}（{}），等待确认流程素材",
+                            picked.candidate.name, picked.reason)
+        else:
+            logger.warning("adventure: 能力候选无法完整识别，停止")
+        snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="power_choice")
+
+    def _close_panel(self, image) -> bool:
+        # 动态找“非节点”的空白区域，不固定某个坐标。
+        point = empty_point(image)
+        if point is None:
+            return False
+        for _ in range(2):
+            self.device.tap(*point)
+            logger.info("adventure: 点击空白处关闭面板 ({}, {})", *point)
+            time.sleep(4)
+            image = self._frame()
+            if is_map(image) and not panel_open(image):
+                return True
+            if not is_completed_panel(image):
+                return False
+        return False
+
+    def _handle_node_panel(self) -> bool:
+        """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         image = self._frame()
         ui = self.engine.parser.ui.detect(image)
         if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
-            return  # 有些节点直接进战斗
-        # 面板上的「旅行」「戰鬥」按钮共用一个区域（实测 2026-11-05）
-        self._tap_rect(self.coords.travel)
-        time.sleep(4)
-        image = self._frame()
-        ui = self.engine.parser.ui.detect(image)
-        if ui in self.BATTLE_STATES:
-            return
-        if ui is UIState.BATTLE_END:
-            return
-        # 旅行后不是战斗 → 商店或休息：先点第一个选项（休息=加血；
-        # 商店界面点这里多半是空白/第一件商品，下面的离开兜底）。
-        self._tap_rect(self.coords.rest_first_option)
-        time.sleep(2)
-        self._tap_rect(self.coords.shop_leave)
-        time.sleep(3)
+            return True  # 有些节点直接进战斗
+        if is_power_screen(image):
+            self._preview_power(image)
+            return False
+        if not is_map(image) and not is_battle_detail(image):
+            logger.warning("adventure: 未识别节点面板，停止（保存快照）")
+            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="panel_unknown")
+            return False
+        # 点了节点但还在地图：说明这次点击没打开面板（坐标/动画/网络问题）。
+        # 此时不能再盲点「旅行」，否则会把地图上的空白当成按钮。
+        if is_map(image) and self._find_next(image) is not None:
+            logger.warning("adventure: 节点点击后仍在地图，停止盲点（保存快照）")
+            snapshot.save_snapshot(
+                image, self.settings.perception.snapshot_dir, tag="map_panel_not_open"
+            )
+            return False
+        # 节点面板「旅行」→ 战斗详情「戰鬥」是同一种金色按钮；最多点两次。
+        tapped = 0
+        for _ in range(2):
+            button = action_button(image)
+            if button is None or not (
+                (is_map(image) and button_is(image, button, "travel"))
+                or (is_battle_detail(image) and button_is(image, button, "battle"))
+            ):
+                break
+            self.device.tap(*button.center)
+            tapped += 1
+            logger.info("adventure: 面板按钮 ({}, {})", *button.center)
+            time.sleep(4)
+            image = self._frame()
+            ui = self.engine.parser.ui.detect(image)
+            if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
+                return True
+            if is_power_screen(image):
+                self._preview_power(image)
+                return False
+            if not is_map(image) and not is_battle_detail(image):
+                break
+        # 旅行后回到地图：说明这个节点只是移动，继续下一轮找节点。
+        if is_map(image) and self._find_next(image) is not None:
+            return True
+        # 没有金色按钮（能力三选一／商店／信息面板）：不盲点，存快照停下。
+        logger.warning("adventure: 面板上没有金色按钮，停止盲点（保存快照）")
+        snapshot.save_snapshot(
+            image, self.settings.perception.snapshot_dir,
+            tag="panel_no_action_button" if tapped else "panel_unknown",
+        )
+        return False
 
     def _tap_rect(self, rect) -> None:
         if rect is None:

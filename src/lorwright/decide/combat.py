@@ -23,6 +23,15 @@ class Keyword(StrEnum):
     OVERWHELM = "overwhelm"        # 碾压：对格挡者的溢出伤害穿透到水晶
     QUICK_ATTACK = "quick_attack"  # 快速攻击：先手伤害足以击杀则不受伤
     TOUGH = "tough"                # 坚韧：受到的伤害 -1
+    BLOCK_ELUSIVE = "block_elusive"  # 可挡灵巧：与灵巧一样能挡灵巧攻击者
+    BRASH = "brash"                # 硬派：只能被生命 >= 3 的单位格挡
+    RECKLESS = "reckless"          # 鲁莽：不能格挡
+    IMMOBILE = "immobile"          # 不可移动：不能格挡
+
+
+#: 恐惧/硬派的格挡门槛。来源见 decide/generic.py 的同名常量。
+FEARSOME_THRESHOLD = 3
+BRASH_THRESHOLD = 3
 
 
 @dataclass(frozen=True)
@@ -91,11 +100,24 @@ class AttackPlan:
 
 def can_block(blocker: Combatant, attacker: Combatant) -> bool:
     """格挡者能否挡住这个攻击者。"""
-    if blocker.stunned:
+    if blocker.stunned or blocker.keywords & {Keyword.RECKLESS, Keyword.IMMOBILE}:
         return False
-    if Keyword.ELUSIVE in attacker.keywords and Keyword.ELUSIVE not in blocker.keywords:
+    if (
+        Keyword.ELUSIVE in attacker.keywords
+        and not (blocker.keywords & {Keyword.ELUSIVE, Keyword.BLOCK_ELUSIVE})
+    ):
         return False
-    if Keyword.FEARSOME in attacker.keywords and blocker.attack < 3:
+    if (
+        Keyword.FEARSOME in attacker.keywords
+        and blocker.attack >= 0
+        and blocker.attack < FEARSOME_THRESHOLD
+    ):
+        return False
+    if (
+        Keyword.BRASH in attacker.keywords
+        and blocker.health >= 0
+        and blocker.health < BRASH_THRESHOLD
+    ):
         return False
     return True
 

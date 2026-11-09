@@ -1,6 +1,6 @@
 """候选动作生成：把局面变成「可选动作列表」。
 
-规则层可以直接选，JEV / LLM 需要候选集来做「有界决策」。
+规则层直接选；候选集用于调试/复盘和未来的有界决策。
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def generate(state: GameState) -> list[Action]:
 
 
 def describe(action: Action, state: GameState) -> str:
-    """把动作翻译成人类可读字符串（给 JEV / LLM 看）。"""
+    """把动作翻译成人类可读字符串（日志/复盘用）。"""
     if action.type is ActionType.PLAY_CARD and action.card_index is not None:
         card = next((c for c in state.hand if c.index == action.card_index), None)
         if card:

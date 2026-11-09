@@ -66,6 +66,7 @@ def test_overwhelm_tramples_excess_to_nexus():
 def test_elusive_cannot_be_blocked_by_plain_unit():
     assert not can_block(unit(2, 2), unit(3, 2, Keyword.ELUSIVE))
     assert can_block(unit(2, 2, Keyword.ELUSIVE), unit(3, 2, Keyword.ELUSIVE))
+    assert can_block(unit(2, 2, Keyword.BLOCK_ELUSIVE), unit(3, 2, Keyword.ELUSIVE))
 
 
 def test_fearsome_needs_three_attack_to_block():
@@ -77,6 +78,24 @@ def test_fearsome_attacker_goes_face_when_no_legal_blocker():
     plan = best_blocking([unit(4, 2, Keyword.FEARSOME)], [unit(2, 3)])
     assert plan.nexus_damage == 4
     assert plan.pairs == ()
+
+
+def test_brash_needs_three_health_to_block():
+    attacker = unit(3, 3, Keyword.BRASH)
+    assert not can_block(unit(3, 2), attacker)
+    assert can_block(unit(3, 3), attacker)
+
+
+def test_reckless_and_immobile_cannot_block():
+    attacker = unit(3, 3)
+    assert not can_block(unit(3, 3, Keyword.RECKLESS), attacker)
+    assert not can_block(unit(3, 3, Keyword.IMMOBILE), attacker)
+
+
+def test_unknown_stats_do_not_reject_fearsome_or_brash():
+    # 感知层读不出数值时（-1）不猜；和 generic 的「能挡就挡」保持一致。
+    assert can_block(unit(-1, -1), unit(4, 2, Keyword.FEARSOME))
+    assert can_block(unit(3, -1), unit(3, 3, Keyword.BRASH))
 
 
 # ---------- 守方最优格挡 ----------

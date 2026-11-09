@@ -112,7 +112,7 @@ adventure:
 adb:
   enabled: true
   # BlueStacks Pie64 的端口；emulator-5554 是同一个实例的别名
-  serial: 127.0.0.1:5556
+  serial: 127.0.0.1:5555
   # 当前 f1 / Pie64 / LoR 07.11.015 的已验证启动方式；手机用 standard。
   launch_mode: pie64_trace
   adb_path: 'C:/Program Files/BlueStacks_nxt/HD-Adb.exe'

@@ -9,7 +9,7 @@
 **接手开发先读 [`docs/handoff.md`](docs/handoff.md)** —— 里面写了现在卡在哪、
 按什么顺序做、有哪些踩过的坑。
 
-## 三条硬约束（先读这个，否则会走错方向）
+## 硬约束（先读这个，否则会走错方向）
 
 1. **英雄之路没有官方 API。** `localhost:21337` 只覆盖收藏/构筑/PvP，
    PoC 至今无 API（见 `docs/adr/0002`）。**不要尝试接 API 做 PoC 状态。**
@@ -19,23 +19,22 @@
    **按住 → 停顿 → 拖 → 松手**。`input swipe` 是原子手势、从第 0 ms 就插值移动，
    表达不了停顿，会被 LoR 判成长按预览；所以出牌走 `device/touch.py` 的事件级后端
    （`EvdevSurface.drag(hold_ms, drag_ms)`）。不是「点卡 → 点地面」两次点击。
-5. **UI 状态 UNKNOWN 时绝不点击。** 兜底动作是 `NO_OP`，不是「结束回合」。
+4. **UI 状态 UNKNOWN 时绝不点击。** 兜底动作是 `NO_OP`，不是「结束回合」。
    2026-11-02 因为盲点，机器人点进了设定菜单。
-4. **坐标和模板按「设计尺寸」标定，不按物理分辨率。** 设计尺寸写在 `config.screen`
+5. **坐标和模板按「设计尺寸」标定，不按物理分辨率。** 设计尺寸写在 `config.screen`
    （现 1920×1080），`perceive/normalize.py` 负责把实际截图归一化过去、动作坐标再反算回设备像素。
    Pie64 原生 720p 读不出数字，用 `adb shell wm size 1920x1080` 抬高。环境细节见 `docs/environment.md`。
 
 ## 目标牌组
 
-PoC 目前只跑**一个**牌组：伊莉絲（Elise）英雄之路起始牌组，18 张。
-完整牌表、每张牌的效果、星力、以及「哪些规则因为这套牌而删掉」
-全在 `docs/champions/elise.md`。改决策逻辑前先看那份。
+现有伊莉絲（Elise）与金克丝（Jinx）英雄包；具体完成度和实战证据见
+`docs/handoff.md`。修改伊莉絲决策逻辑前先读 `docs/champions/elise.md`。
 
 ## 命令
 
 ```bash
 pip install -e ".[dev]"     # 安装
-pytest                      # 143 个单测（不需要游戏）
+pytest                      # 单测，不需要游戏
 ruff check src tests tools  # 静态检查
 lorwright doctor            # 环境自检
 lorwright devices           # 列出 ADB 设备
@@ -47,8 +46,10 @@ lorwright run --max-ticks 50 --device adb
 ## 架构
 
 ```
-device（adb / desktop）→ perceive（模板匹配/OCR） → decide（规则→JEV→LLM） → act（坐标翻译） → loop
+device（adb / desktop）→ perceive（模板匹配/OCR） → decide（英雄包→通用规则→兜底，纯脚本） → act（坐标翻译） → loop
 ```
+
+策略全部弃权时，确认处于 `MY_TURN_IDLE` 则结束回合；其他状态返回 `NO_OP`。
 
 | 目录 | 职责 | 关键约定 |
 |---|---|---|
@@ -82,10 +83,10 @@ champions/elise/
 - **英雄专属的东西全在自己的目录里。** 牌表、评分、取舍规则不进 `decide/`，
   也不进 `models.py`（不要再出现 `spider_count` 这种字段）。
 - **每层都能弃权。** 但「答案唯一」的情况不能弃权——没优先权时返回 `NO_OP`，
-  不是 `None`，否则路由会在对手回合每帧白烧一次 JEV 调用。
+  不是 `None`，否则路由会在对手回合每帧白跑一次通用层决策。
 - **配置优先于硬编码。** 坐标放 `config/settings.yaml` 的 `layout` 段，
   英雄放 `champion:` 段。
-- **测试不依赖游戏。** 用合成图像（`test_locate.py`）和 mock HTTP（`test_jev_fallback.py`）。
+- **测试不依赖游戏。** 使用合成图像与已保存的截图等 fixture。
 
 ## 不要做
 
@@ -100,6 +101,4 @@ champions/elise/
 
 见 `docs/status.md`。打开的 issue 在 GitHub Issues，标签 `p0/p1/p2`。
 
-**关键路径**：`Engine._build_state()` 只填了 `ui_state`，手牌恒为空，
-所以策略永远只会「结束回合」。**不修这个，下游全部无法验证。**
-详见 `docs/handoff.md` §2。
+当前进展、实战验证范围及待办见 `docs/handoff.md`、`docs/status.md` 和 GitHub Issues。

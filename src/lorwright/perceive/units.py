@@ -15,8 +15,8 @@ buff 光效、装备图标、选中高亮都会改变像素，同一张截图里
 下落到卡身才抓得住（`MY_DRAG_OFFSET`）；敌方单位卡被屏幕下缘裁切，
 攻击力方块就在**卡面底部**，方块中心本身就是落点（`ENEMY_DRAG_OFFSET`）。
 
-攻击力/生命值数字暂不读：位置够攻击和格挡用了，读数留给战斗求解器
-（`perceive/digits.py` 的字形库已经支持白/绿两套）。
+攻击力/生命值数字由 `perceive/unit_stats.py` 读取：橙色攻击徽章的白/绿数字、
+红色生命徽章的白数字；读不出或置信度不足时保留 `-1`，由策略层保守处理。
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ import cv2
 import numpy as np
 
 from lorwright.models import Rect, Unit
+from lorwright.perceive.unit_stats import UnitStatsReader
 
 __all__ = [
     "ATTACK_BLOCK_MIN_AREA",
@@ -57,7 +58,7 @@ ATTACK_BLOCK_MIN_AREA = 1400
 #:
 #: 另有一种情况这个窗口管不了：单位整圈套着「攻击中」橙色高亮时，
 #: 高亮和攻击力方块连通成一个 150×250 的大块（实测 7|9 那只）。
-#: 那需要单独按「高亮框」处理，见 `_find_highlighted`。
+#: 那需要单独按「高亮框」处理；当前没有实现，宁可漏检一个单位。
 ATTACK_BLOCK_SIZE = (50, 90, 35, 70)
 #: 同一单位卡上会出现第二个橙色元素（buff 图标），实测间距 68-95px；
 #: 正常单位间距 163px。100 能在两者之间干净切开。
@@ -71,6 +72,8 @@ UNIT_MIN_DIST = 100
 MY_DRAG_OFFSET = (40, 55)
 #: 敌方方块就在卡面下缘，方块中心即落点
 ENEMY_DRAG_OFFSET = (0, 0)
+
+_DEFAULT_STATS = UnitStatsReader()
 
 
 @dataclass(frozen=True)
@@ -135,16 +138,28 @@ def find_unit_badges(
     return kept
 
 
-def to_units(badges: list[UnitBadge], *, enemy: bool = False) -> list[Unit]:
+def to_units(
+    badges: list[UnitBadge],
+    *,
+    enemy: bool = False,
+    image: np.ndarray | None = None,
+    stats_reader: UnitStatsReader | None = None,
+) -> list[Unit]:
     """方块 → `Unit`。数值未识别时留 -1，策略层据此判断「不知道」。"""
     dx, dy = ENEMY_DRAG_OFFSET if enemy else MY_DRAG_OFFSET
-    return [
-        Unit(
+    reader = stats_reader or (_DEFAULT_STATS if image is not None else None)
+    units = []
+    for badge in badges:
+        attack = health = -1
+        if image is not None and reader is not None and badge.rect is not None:
+            read_attack, read_health = reader.read(image, badge.rect)
+            attack = -1 if read_attack is None else read_attack
+            health = -1 if read_health is None else read_health
+        units.append(Unit(
             name="",
-            attack=-1,
-            health=-1,
+            attack=attack,
+            health=health,
             # rect 是 8×8 的拖拽点，中心即落指坐标（和手牌同一个约定）
             rect=Rect(badge.center[0] + dx - 4, badge.center[1] + dy - 4, 8, 8),
-        )
-        for badge in badges
-    ]
+        ))
+    return units

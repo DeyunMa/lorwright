@@ -88,6 +88,29 @@ def test_empty_board_yields_no_units() -> None:
     assert find_unit_badges(blank, ENEMY_BOARD, enemy=True) == []
 
 
+def test_reads_attack_values_from_idle_units() -> None:
+    img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
+    mine = to_units(find_unit_badges(img, MY_BOARD), image=img)
+    theirs = to_units(find_unit_badges(img, ENEMY_BOARD, enemy=True), enemy=True, image=img)
+    assert [u.attack for u in mine] == [4, 6]
+    assert [u.attack for u in theirs] == [8, 2]
+
+
+def test_reads_attack_values_from_combat_units() -> None:
+    img = cv2.imread(str(SCREENS / "1080p_units_combat.png"))
+    mine = to_units(find_unit_badges(img, MY_BOARD), image=img)
+    theirs = to_units(find_unit_badges(img, ENEMY_BOARD, enemy=True), enemy=True, image=img)
+    assert [u.attack for u in mine] == [1, 7, 7, 1, 1, 1]
+    assert [u.attack for u in theirs] == [12, 5, 3, 3, 12]
+
+
+def test_reads_visible_health_but_keeps_obscured_health_unknown() -> None:
+    img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
+    units = to_units(find_unit_badges(img, MY_BOARD), image=img)
+    # 第一个单位的生命徽章被红色高光盖住，不能猜；第二个清晰可读。
+    assert [u.health for u in units] == [-1, 6]
+
+
 def test_attack_token_detected() -> None:
     """有令牌：按钮左侧橙色箭头，实测最大连通域 8446px。"""
     from lorwright.perceive.attack_token import has_attack_token

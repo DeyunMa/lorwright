@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 
 from lorwright.config import load_settings
@@ -55,6 +56,35 @@ def _load(name: str):
     img = cv2.imread(str(SCREENS / name))
     assert img is not None, f"缺截图 {name}"
     return img
+
+
+class _BlockingUI:
+    def load(self) -> None:
+        pass
+
+    def detect(self, image) -> UIState:
+        return UIState.BLOCKING
+
+
+def test_blocking_reads_enemy_attackers_from_enemy_combat() -> None:
+    """BLOCKING 时只把攻击行里的敌人放进 enemy_attackers。"""
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    cv2.rectangle(image, (600, 320), (662, 364), (0, 165, 255), -1)
+    parser = StateParser(
+        layout=Layout(enemy_combat=Rect(520, 300, 900, 180)),
+        ui=_BlockingUI(),
+        digits=DigitReader(),
+    )
+    state = parser.parse(image)
+    assert state.ui_state is UIState.BLOCKING
+    assert len(state.enemy_attackers) == 1
+    assert state.enemy_attackers[0].rect.center == (631, 342)
+
+
+def test_state_parser_reads_unit_attack_values() -> None:
+    state = _parser().parse(_load("1080p_units_idle.png"))
+    assert [unit.attack for unit in state.my_units] == [4, 6]
+    assert [unit.attack for unit in state.enemy_units] == [8, 2]
 
 
 def test_assets_exist() -> None:
@@ -129,6 +159,12 @@ def test_block_phase_is_not_my_turn() -> None:
 def test_commit_phase_is_not_my_turn() -> None:
     """「結算」= 提交格挡/攻击声明，同样不能出牌。"""
     state = _parser().parse(_load("1080p_commit_phase.png"))
+    assert state.ui_state is UIState.COMBAT_RESOLVING
+
+
+def test_confirm_phase_is_not_my_turn() -> None:
+    """2026-11-07 实机：结算按钮文案是「確認」（旧图是「結算」）。"""
+    state = _parser().parse(_load("1080p_confirm_phase.png"))
     assert state.ui_state is UIState.COMBAT_RESOLVING
 
 

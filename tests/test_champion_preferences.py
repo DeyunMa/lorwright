@@ -23,10 +23,12 @@ def test_all_packs_expose_reward_preferences() -> None:
 
 def test_jinx_prefers_shadow_totem_and_stabilize() -> None:
     pack = load("jinx")
-    assert pack.relic_preferences[0].names == ("Shadow Totem", "闇影圖騰")
+    assert pack.item_preferences[0].names == ("Shadow Totem", "闇影圖騰")
+    assert not pack.relic_preferences
     assert pack.power_preferences[0].names == ("Stabilize", "分身術")
 
 
-def test_elise_top_relic_is_heavy_hands() -> None:
+def test_elise_top_item_is_heavy_hands() -> None:
     pack = load("elise")
-    assert pack.relic_preferences[0].names == ("Heavy Hands", "重拳出擊")
+    assert pack.item_preferences[0].names == ("Heavy Hands", "重拳出擊")
+    assert not pack.relic_preferences

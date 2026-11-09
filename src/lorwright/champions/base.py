@@ -60,7 +60,7 @@ class ChampionPack(Protocol):
     #: 圣物：英雄开局自带的装备（选择/替换圣物时按此偏好）
     relic_preferences: tuple[Preference, ...]
 
-    #: 道具节点：给卡组里已有卡牌选道具
+    #: 道具选择偏好；偏好不表示已经获得该道具
     item_preferences: tuple[Preference, ...]
 
     #: 法术节点：新选一个法术进卡组

@@ -58,6 +58,7 @@ class UIStateDetector:
     ACTION_TEXTS = {
         "action_block": UIState.BLOCKING,
         "action_commit": UIState.COMBAT_RESOLVING,
+        "action_confirm": UIState.COMBAT_RESOLVING,
         "action_pass": UIState.MY_TURN_IDLE,
         "action_target": UIState.TARGETING,
     }

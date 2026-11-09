@@ -353,37 +353,77 @@ def doctor() -> None:
     )
 
 
-@app.command()
-def adventure(
-    max_nodes: int = typer.Option(30, help="max nodes"),
-    device: str = typer.Option("adb", help="adb | desktop"),
-) -> None:
-    """adventure entry: map loop + battle engine."""
-    from lorwright.champions import load as load_champion
+def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
+    """对局内共用的决策层：英雄包 → 英雄优先 → 攻击 → 格挡。"""
     from lorwright.decide.card import CardKind
     from lorwright.decide.generic import (
         AttackWhenTokenPolicy,
         BlockingPolicy,
+        CombatConfirmPolicy,
+        ExpandHandPolicy,
         HeroFirstPolicy,
+        PlayUnitPolicy,
+        TargetingPolicy,
     )
+
+    champion_names = frozenset(
+        card.name for card in pack.deck if card.kind is CardKind.CHAMPION
+    )
+    policy = pack.make_policy(**(policy_kwargs or {})) if policy_kwargs else pack.make_policy()
+    layers = [policy, ExpandHandPolicy()]
+    lookup = getattr(pack, "lookup", None)
+    if lookup is not None:
+        layers.append(PlayUnitPolicy(lookup))
+    layers.extend(
+        [
+            HeroFirstPolicy(champion_names),
+            TargetingPolicy(),
+            AttackWhenTokenPolicy(),
+            CombatConfirmPolicy(),
+            BlockingPolicy(),
+        ]
+    )
+    return layers
+
+
+def _jinx_policy_kwargs(
+    pack, *, spell_already_played: bool, jinx_summoned: bool,
+) -> dict | None:
+    if pack.name != "jinx":
+        return None
+    kwargs = {}
+    if spell_already_played:
+        kwargs["spell_already_played"] = True
+    if jinx_summoned:
+        kwargs["jinx_summoned"] = True
+    return kwargs or None
+
+
+@app.command()
+def adventure(
+    max_nodes: int = typer.Option(30, help="max nodes"),
+    device: str = typer.Option("adb", help="adb | desktop"),
+    champion: str = typer.Option("", help="覆盖 config 的 champion（如 jinx）"),
+    spell_already_played: bool = typer.Option(False, help="Jinx 恢复中局：起手法术已打出"),
+    jinx_summoned: bool = typer.Option(False, help="Jinx 恢复中局：Jinx 已下场，直接打飞逝牌"),
+) -> None:
+    """adventure entry: map loop + battle engine."""
+    from lorwright.champions import load as load_champion
     from lorwright.decide.router import Router
     from lorwright.loop.adventure import AdventureLoop
     from lorwright.loop.engine import Engine
 
     settings = load_settings()
-    pack = load_champion(settings.champion)
+    pack = load_champion(champion or settings.champion)
     dev = _make_device(device)
-    layers = [pack.make_policy()]
-    champion_names = frozenset(
-        card.name for card in pack.deck if card.kind is CardKind.CHAMPION
+    kwargs = _jinx_policy_kwargs(
+        pack, spell_already_played=spell_already_played, jinx_summoned=jinx_summoned,
     )
-    layers.append(HeroFirstPolicy(champion_names))
-    layers.append(AttackWhenTokenPolicy())
-    layers.append(BlockingPolicy())
-    engine = Engine(settings, Router(layers), dev,
-        card_recognizer=getattr(pack, "recognize_hand", None))
+    engine = Engine(settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
+        card_recognizer=getattr(pack, "recognize_hand", None),
+        mulligan_recognizer=getattr(pack, "recognize_mulligan", None))
     try:
-        AdventureLoop(settings, engine, dev).run(max_nodes=max_nodes)
+        AdventureLoop(settings, engine, dev, pack=pack).run(max_nodes=max_nodes)
     except KeyboardInterrupt:
         console.print("[yellow]adventure stopped[/yellow]")
     finally:
@@ -395,6 +435,9 @@ def run(
     max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限"),
     device: str = typer.Option("adb", help="adb | desktop"),
     replay: str = typer.Option("", help="回放目录：用历史截图跑，不碰设备"),
+    champion: str = typer.Option("", help="覆盖 config 的 champion（如 jinx）"),
+    spell_already_played: bool = typer.Option(False, help="Jinx 恢复中局：起手法术已打出"),
+    jinx_summoned: bool = typer.Option(False, help="Jinx 恢复中局：Jinx 已下场，直接打飞逝牌"),
 ) -> None:
     """运行主循环。
 
@@ -402,23 +445,12 @@ def run(
     适合离线调感知/决策（docs/maa/06-debugging.md）。
     """
     from lorwright.champions import load as load_champion
-    from lorwright.decide.card import CardKind
-    from lorwright.decide.generic import AttackWhenTokenPolicy, HeroFirstPolicy, PassBlockPolicy
     from lorwright.decide.router import Router
     from lorwright.loop.engine import Engine
 
     settings = load_settings()
-    pack = load_champion(settings.champion)
+    pack = load_champion(champion or settings.champion)
     console.print(f"英雄包：[bold]{pack.name}[/bold]（{pack.display_name}，{len(pack.deck)} 张牌）")
-
-    layers: list = [pack.make_policy()]
-    champion_names = frozenset(
-        card.name for card in pack.deck if card.kind is CardKind.CHAMPION
-    )
-    # 通用机制层：英雄优先 > 攻击/格挡序列。英雄包弃权时才接手。
-    layers.append(HeroFirstPolicy(champion_names))
-    layers.append(AttackWhenTokenPolicy())
-    layers.append(PassBlockPolicy())
 
     if replay:
         from lorwright.device.replay import ReplayDevice
@@ -428,8 +460,12 @@ def run(
     else:
         dev = _make_device(device)
 
-    engine = Engine(settings, Router(layers), dev,
-                    card_recognizer=getattr(pack, "recognize_hand", None))
+    kwargs = _jinx_policy_kwargs(
+        pack, spell_already_played=spell_already_played, jinx_summoned=jinx_summoned,
+    )
+    engine = Engine(settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
+                    card_recognizer=getattr(pack, "recognize_hand", None),
+                    mulligan_recognizer=getattr(pack, "recognize_mulligan", None))
     try:
         engine.run(max_ticks=max_ticks or None)
     except KeyboardInterrupt:

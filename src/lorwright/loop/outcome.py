@@ -42,20 +42,27 @@ class ActionOutcome:
             return Outcome(OutcomeStatus.TIMED_OUT, "no_verified_result_before_deadline")
         before = self.before
         kind = self.action.type
+        if kind is ActionType.MULLIGAN_REPLACE:
+            # 换牌点击没有稳定的「成功」画面；点击已按计划发出，下一步由
+            # 策略点「確定」，不能再等一个不存在的状态变化。
+            return Outcome(OutcomeStatus.SUCCEEDED, "mulligan_replace_sent")
         known = after.ui_state is not UIState.UNKNOWN
         reason = ""
-        if known:
+        # 出牌动画期间 UI 可能短暂 UNKNOWN，但手牌减少 + 场面增加/费用下降
+        # 仍是可验证的可见结果；不能让动画把动作拖到超时。
+        if known or kind is ActionType.PLAY_CARD:
             if kind is ActionType.PLAY_CARD:
                 if not before.hand_expanded:
-                    if after.hand_expanded:
+                    if known and after.hand_expanded:
                         reason = "hand_expanded"
                 elif after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
                 elif len(after.hand) < len(before.hand) and (
                     (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")
                      and after.mana < before.mana)
-                    or (after.hand_expanded == before.hand_expanded
-                        and len(after.my_units) > len(before.my_units))
+                    # 手牌打空后展开态会变成 False；只要手牌减少且场面增加，
+                    # 仍是“打出了单位”，不能因为手牌收起就判失败。
+                    or len(after.my_units) > len(before.my_units)
                 ):
                     reason = "hand_reduced_and_mana_or_board_changed"
             elif kind in (ActionType.ATTACK, ActionType.BLOCK):

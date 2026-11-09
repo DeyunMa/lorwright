@@ -1,111 +1,98 @@
-"""mapnav 在真实地图截图上的回归验证。
-
-Fixtures 是 2026-11-05/06 月度挑战的实机截图（960x540，与
-AdventureLoop 运行时喂给 mapnav 的尺寸一致）。
-
-标注依据（2026-11-06 搭基准时确认的语义链）：
-- 英雄头像所在节点 = 当前节点（glow 指标跟随头像）；
-- 节点中心的青绿徽章 = 已完成（用连续帧的移动链验证：
-  m3-g7 英雄在 (406,237) → m3-g6 英雄在 (535,174)，(406,237)
-  在 g6 里带徽章）；
-- 亮白蓝发光线 = 当前可走（节点事件完成后才点亮；
-  m3-g6 商店事件未完成时全图无可走线，shopD 完成后 (240,373) 亮起）；
-- 金色菱形 = 能力/辅助节点类型图标，不是位置标记。
-"""
+"""mapnav 1080p 回归：最大视角，英雄节点 C3，下一关 C4。"""
 
 from pathlib import Path
 
 import cv2
-import pytest
+import numpy as np
 
+from lorwright.champions.jinx.vision import recognize_hero
 from lorwright.perceive.mapnav import (
-    _hero_by_gold,
-    blue_glow_mask,
+    detect_ability_nodes,
     detect_nodes,
-    glow_mask,
-    has_checkmark,
+    empty_point,
     hero_node,
     next_node,
+    next_node_by_path,
+    panel_open,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
 
-#: (图, 当前节点, 期望 next 或 None)。None = 事件未完成/面板态/无图。
-CASES = {
-    "m3-g7.jpg": ((406, 237), (538, 177)),
-    "m3-g6.jpg": ((535, 174), None),
-    "m3-re.jpg": ((535, 174), None),
-    "m3-shopD.jpg": ((508, 174), (240, 373)),
-    "m3-zoom.jpg": ((535, 174), None),
-    "m3-green.jpg": ((535, 174), None),
-    "m3-node3.jpg": ((535, 174), None),
-    "n-green.jpg": ((546, 167), (256, 381)),
-    "m3-heroicon.jpg": ((616, 174), None),
-    "m3-node1.jpg": ((479, 331), None),
-    "m3-node2.jpg": ((479, 331), None),
-    "monthly2-map.jpg": ((478, 226), None),
-    "monthly2-event-node.jpg": ((545, 204), (647, 275)),
-    "re2-map2.jpg": ((513, 438), (390, 459)),
-}
 
-#: 面板打开/非地图画面：不导航、不崩溃。
-GATED_CASES = ["poppy-node.jpg", "item-chest-travel.jpg", "monthly2-boss-node.jpg", "re2-map.jpg", "m3-map.jpg", "r2-map.jpg"]
-
-
-def load(name):
+def _load(name: str) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / name))
-    assert image is not None, f"missing fixture {name}"
+    assert image is not None, name
     return image
 
 
-def test_hero_node_detected_legacy_region():
-    # 旧断言保留：三张图英雄节点都在上半屏中部区域
-    for name in ["m3-re", "m3-g7", "m3-shopD"]:
-        image = load(f"{name}.jpg")
-        mask = blue_glow_mask(image)
-        nodes = detect_nodes(image)
-        assert nodes, name
-        hero = hero_node(nodes, mask)
-        assert hero is not None, name
-        assert 400 < hero.x < 700, (name, hero)
-        assert 100 < hero.y < 260, (name, hero)
+def test_hero_node_is_nearest_center_real_node() -> None:
+    image = _load("1080p_zoommax.png")
+    hero = hero_node(image)
+    assert (hero.x, hero.y) == (1011, 507)
 
 
-@pytest.mark.parametrize("name", sorted(CASES))
-def test_hero_and_next(name):
-    want_hero, want_next = CASES[name]
-    image = load(name)
+def test_only_two_real_circle_nodes_survive_filters() -> None:
+    image = _load("1080p_zoommax.png")
+    nodes = {(n.x, n.y) for n in detect_nodes(image)}
+    assert nodes == {(1011, 507), (1189, 370)}
+
+
+def test_next_node_is_jhin_stage() -> None:
+    image = _load("1080p_zoommax.png")
     nxt = next_node(image)
-    nodes = detect_nodes(image)
-    hero = hero_node(nodes, glow_mask(image)) or _hero_by_gold(image, nodes)
-    assert hero is not None, name
-    assert (hero.x, hero.y) == want_hero, (name, hero, want_hero)
-    if want_next is None:
-        assert nxt is None, (name, nxt)
-    else:
-        assert nxt is not None, name
-        assert (nxt.x, nxt.y) == want_next, (name, nxt, want_next)
+    assert nxt is not None
+    assert (nxt.x, nxt.y) == (1189, 370)
 
 
-@pytest.mark.parametrize("name", GATED_CASES)
-def test_gated_cases_never_navigate(name):
-    image = load(name)
-    assert next_node(image) is None, name
+def test_open_panel_does_not_navigate() -> None:
+    image = _load("1080p_panel.png")
+    assert panel_open(image)
+    assert next_node(image) is None
 
 
-def test_checkmark_follows_movement_chain():
-    # g7 里英雄在 (406,237)（事件已完成，带徽章）；g6 里英雄已走到
-    # (535,174)，(406,237) 徽章保留，(535,174) 尚未完成
-    g7 = load("m3-g7.jpg")
-    g6 = load("m3-g6.jpg")
-    g7_nodes = {(n.x, n.y): n for n in detect_nodes(g7)}
-    g6_nodes = {(n.x, n.y): n for n in detect_nodes(g6)}
-    assert has_checkmark(g7, g7_nodes[(406, 237)])
-    assert not has_checkmark(g7, g7_nodes[(538, 177)])
-    assert has_checkmark(g6, g6_nodes[(399, 228)])
-    assert not has_checkmark(g6, g6_nodes[(535, 174)])
-    # shopD：离开商店节点后，来路 (372,227) 带徽章，前方 (240,373) 没有
-    shop = load("m3-shopD.jpg")
-    shop_nodes = {(n.x, n.y): n for n in detect_nodes(shop)}
-    assert has_checkmark(shop, shop_nodes[(372, 227)])
-    assert not has_checkmark(shop, shop_nodes[(240, 373)])
+def test_empty_point_is_far_from_nodes() -> None:
+    image = _load("1080p_zoommax.png")
+    point = empty_point(image)
+    assert point is not None
+    nodes = detect_nodes(image) + detect_ability_nodes(image)
+    assert all(
+        ((point[0] - n.x) ** 2 + (point[1] - n.y) ** 2) ** 0.5 >= 150
+        for n in nodes
+    )
+
+
+def test_gold_diamond_ability_node_is_not_next() -> None:
+    image = _load("1080p_zoommax.png")
+    abilities = detect_ability_nodes(image)
+    assert any(abs(n.x - 824) <= 10 and abs(n.y - 635) <= 10 for n in abilities)
+    nxt = next_node(image)
+    assert nxt is not None and (nxt.x, nxt.y) == (1189, 370)
+
+
+def test_blank_frame_has_no_next() -> None:
+    blank = np.zeros((1080, 1920, 3), np.uint8)
+    assert next_node(blank) is None
+
+
+def test_solid_gold_terrain_is_not_an_ability_node() -> None:
+    # 节点面板打开时的真实截图：只有 (1110,326) 是金环+深色中心的辅助英雄节点，
+    # 其余同色地形/装饰都是实心金块，不能算能力节点。
+    image = _load("1080p_gold_node_panel.png")
+    nodes = detect_ability_nodes(image)
+    assert [(n.x, n.y) for n in nodes] == [(1110, 326)]
+
+
+def test_jinx_hero_portrait_is_found() -> None:
+    image = _load("1080p_jinx_map.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert abs(hero[0] - 735) <= 8
+    assert abs(hero[1] - 285) <= 8
+
+
+def test_path_endpoint_finds_next_node_when_rings_fail() -> None:
+    image = _load("1080p_jinx_map.png")
+    nxt = next_node_by_path(image, hero=(735, 285))
+    assert nxt is not None
+    assert abs(nxt.x - 982) <= 20
+    assert abs(nxt.y - 334) <= 20

@@ -219,4 +219,4 @@ def test_post_jinx_does_not_play_unknown_large_hand():
     policy = load("jinx").make_policy()
     policy.step = 2
     before = state([card(i, "", 1) for i in range(5)], mana=5)
-    assert policy.decide(before) is None
+    assert policy.decide(before).type is ActionType.NO_OP

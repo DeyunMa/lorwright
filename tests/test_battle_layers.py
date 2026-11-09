@@ -22,6 +22,7 @@ def test_battle_layers_include_blocking_policy():
         "expand_hand",
         "play_unit",
         "hero_first",
+        "unknown_card",
         "targeting",
         "attack_when_token",
         "combat_confirm",
@@ -51,6 +52,34 @@ def test_jinx_router_plays_cheapest_known_unit():
     assert result.layer == "play_unit"
     assert result.action.type is ActionType.PLAY_CARD
     assert result.action.card_index == 1
+
+
+def test_jinx_router_uses_cost_for_unnamed_cards():
+    router = Router(_battle_layers(load("jinx")))
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[
+            CardInHand(0, "", 3, Rect(0, 900, 8, 8)),
+            CardInHand(1, "", 1, Rect(100, 900, 8, 8)),
+            CardInHand(2, "", -1, Rect(200, 900, 8, 8)),
+            CardInHand(3, "", 4, Rect(300, 900, 8, 8)),
+        ],
+    )
+    result = router.decide(state)
+    assert result.layer == "unknown_card"
+    assert result.action.type is ActionType.PLAY_CARD
+    assert result.action.card_index == 1
+
+
+def test_unknown_card_does_not_override_jinx_rocket_opening():
+    router = Router(_battle_layers(load("jinx"), policy_kwargs={"jinx_summoned": True}))
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[CardInHand(i, "", 1, Rect(i * 100, 900, 8, 8)) for i in range(5)],
+    )
+    result = router.decide(state)
+    assert result.layer == "jinx_opening"
+    assert result.action.type is ActionType.NO_OP
 
 
 def test_elise_blocking_delegates_to_generic_policy():

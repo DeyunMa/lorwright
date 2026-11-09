@@ -109,6 +109,9 @@ class JinxOpeningPolicy:
             rockets = [card for card in playable if card.name in ROCKET_NAMES]
             if rockets:
                 return Action(type=ActionType.PLAY_CARD, card_index=rockets[0].index)
+            # 大手牌里认不出火箭时不能让通用层按费用打其他牌。
+            if len(state.hand) > 2:
+                return Action(type=ActionType.NO_OP)
         pows = [card for card in playable if card.name in POW_POW_NAMES]
         if pows:
             return Action(type=ActionType.PLAY_CARD, card_index=pows[0].index)

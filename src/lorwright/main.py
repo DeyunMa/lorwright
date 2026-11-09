@@ -364,6 +364,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
         HeroFirstPolicy,
         PlayUnitPolicy,
         TargetingPolicy,
+        UnknownCardPolicy,
     )
 
     champion_names = frozenset(
@@ -377,6 +378,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
     layers.extend(
         [
             HeroFirstPolicy(champion_names),
+            UnknownCardPolicy(),
             TargetingPolicy(),
             AttackWhenTokenPolicy(),
             CombatConfirmPolicy(),

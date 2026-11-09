@@ -8,6 +8,7 @@ from lorwright.decide.generic import (
     HeroFirstPolicy,
     PlayUnitPolicy,
     TargetingPolicy,
+    UnknownCardPolicy,
     plan_blocks,
 )
 from lorwright.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
@@ -53,6 +54,15 @@ def test_play_unit_stops_at_six_units():
     policy = PlayUnitPolicy(load("jinx").lookup)
     s = state(hand=[card(0, "佐恩小乞丐", 1)], my_units=[unit_at(i, 900, 1, 1) for i in range(6)])
     assert policy.decide(s) is None
+
+
+def test_unknown_card_only_uses_known_affordable_costs_in_my_expanded_hand():
+    policy = UnknownCardPolicy()
+    s = state(hand=[card(0, "", -1), card(1, "", 4), card(2, "", 0)])
+    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=2)
+    assert policy.decide(replace(s, hand_expanded=False)) is None
+    assert policy.decide(replace(s, ui_state=UIState.MULLIGAN)) is None
+    assert policy.decide(replace(s, hand=s.hand[:2])) is None
 
 
 def test_targeting_hand_then_enemy_then_ally_then_nexus_then_cancel():

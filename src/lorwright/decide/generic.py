@@ -89,6 +89,22 @@ class PlayUnitPolicy(Policy):
         return Action(type=ActionType.PLAY_CARD, card_index=playable[0][2].index)
 
 
+class UnknownCardPolicy(Policy):
+    """牌名未识别时，按已读费用从低到高尝试；英雄策略可先处理或等待。"""
+
+    name = "unknown_card"
+    version = "1.0.0"
+
+    def decide(self, state: GameState) -> Action | None:
+        if state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded:
+            return None
+        affordable = [card for card in state.hand if not card.name and 0 <= card.cost <= state.mana]
+        if not affordable:
+            return None
+        card = min(affordable, key=lambda item: (item.cost, item.index))
+        return Action(type=ActionType.PLAY_CARD, card_index=card.index)
+
+
 class TargetingPolicy(Policy):
     """通用选目标：手牌展开时先选手牌（弃牌提示），再敌方单位、我方单位、敌方水晶。"""
 

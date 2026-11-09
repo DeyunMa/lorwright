@@ -13,7 +13,9 @@ from lorwright.decide.combat import (
     is_lethal,
     max_nexus_damage,
     strike,
+    to_combatant,
 )
+from lorwright.models import Rect, Unit
 
 
 def unit(attack: int, health: int, *keywords: Keyword, name: str = "", stunned: bool = False) -> Combatant:
@@ -67,6 +69,18 @@ def test_elusive_cannot_be_blocked_by_plain_unit():
     assert not can_block(unit(2, 2), unit(3, 2, Keyword.ELUSIVE))
     assert can_block(unit(2, 2, Keyword.ELUSIVE), unit(3, 2, Keyword.ELUSIVE))
     assert can_block(unit(2, 2, Keyword.BLOCK_ELUSIVE), unit(3, 2, Keyword.ELUSIVE))
+
+
+def test_observed_keyword_names_reach_combat_solver_without_confusing_sharpsight():
+    def perceived(keyword):
+        return to_combatant(Unit("", 2, 2, Rect(0, 0, 1, 1), keywords=frozenset({keyword})))
+
+    elusive = perceived("Elusive")
+    sharpsight = perceived("BlockElusive")
+    plain = unit(2, 2)
+    assert can_block(sharpsight, elusive)
+    assert not can_block(plain, elusive)
+    assert can_block(plain, sharpsight)
 
 
 def test_fearsome_needs_three_attack_to_block():

@@ -17,13 +17,13 @@ MAX_BOARD = 6
 
 
 class Keyword(StrEnum):
-    ELUSIVE = "elusive"            # 灵巧：只能被灵巧单位格挡
+    ELUSIVE = "elusive"            # 隐秘：只能被隐秘或锐目单位格挡
     FEARSOME = "fearsome"          # 恐惧：只能被攻击力 >= 3 的单位格挡
     CHALLENGER = "challenger"      # 挑战者：攻方指定格挡者（暂不建模）
     OVERWHELM = "overwhelm"        # 碾压：对格挡者的溢出伤害穿透到水晶
     QUICK_ATTACK = "quick_attack"  # 快速攻击：先手伤害足以击杀则不受伤
     TOUGH = "tough"                # 坚韧：受到的伤害 -1
-    BLOCK_ELUSIVE = "block_elusive"  # 可挡灵巧：与灵巧一样能挡灵巧攻击者
+    BLOCK_ELUSIVE = "block_elusive"  # 锐目：可以格挡隐秘单位，不让攻击获得隐秘
     BRASH = "brash"                # 硬派：只能被生命 >= 3 的单位格挡
     RECKLESS = "reckless"          # 鲁莽：不能格挡
     IMMOBILE = "immobile"          # 不可移动：不能格挡
@@ -309,7 +309,9 @@ def to_combatant(unit, *, challenger: bool = False) -> Combatant:
 
     感知层可能返回任意字符串当关键词，未知的一律忽略，不抛异常。
     """
-    keywords = {Keyword(k) for k in unit.keywords if k in set(Keyword)}
+    aliases = {"Elusive": Keyword.ELUSIVE, "BlockElusive": Keyword.BLOCK_ELUSIVE}
+    keywords = {aliases[k] if k in aliases else Keyword(k)
+                for k in unit.keywords if k in aliases or k in set(Keyword)}
     if challenger:
         keywords.add(Keyword.CHALLENGER)
     return Combatant(

@@ -122,8 +122,8 @@ class BlockingPolicy(Policy):
     5. 格挡资格（REA 已验证规则组件，2026-11-06）：击晕/不可移动/
        鲁莽的单位不能格挡；恐惧攻击者，攻击力 <3 的单位挡不住
        （research/lor-client-07.10.013-v1/data/native-rule-components.json，
-       GetFearsomeBlockingValue 原生返回 3）；灵巧攻击者只能被灵巧或
-       BlockElusive 单位格挡；硬派攻击者只能被生命 >=3 的单位格挡
+       GetFearsomeBlockingValue 原生返回 3）；隐秘攻击者只能被隐秘或
+       锐目（BlockElusive）单位格挡；硬派攻击者只能被生命 >=3 的单位格挡
        （官方关键词文本，globals-en_us.json "Brash"）。
     声明后下一 tick 确认。
     """
@@ -172,7 +172,7 @@ FEARSOME_THRESHOLD = 3
 # （analysis/full-resource/globals-en_us.json，name=Brash，2026-11-06 核对）。
 BRASH_THRESHOLD = 3
 
-#: 能挡灵巧攻击者的关键词（任一即可）。
+#: 能挡隐秘攻击者的关键词（任一即可）；锐目不使攻击获得隐秘。
 ELUSIVE_BLOCK_KEYWORDS = frozenset({"Elusive", "BlockElusive"})
 
 #: 这些关键词存在时单位不能格挡（StatePreventsBlock：非 Creature、

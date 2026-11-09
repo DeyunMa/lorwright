@@ -156,6 +156,24 @@ def test_block_phase_is_not_my_turn() -> None:
     assert state.ui_state is UIState.BLOCKING
 
 
+def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> None:
+    from dataclasses import replace
+
+    from lorwright.decide.generic import BlockingPolicy, plan_blocks
+    from lorwright.models import ActionType
+
+    state = _parser().parse(_load("1080p_block_phase.png"))
+    assert len(state.enemy_attackers) == 6
+    assert all("Elusive" in unit.keywords for unit in state.enemy_attackers)
+    assert len(state.my_units) == 3
+    assert all("Elusive" not in unit.keywords for unit in state.my_units)
+    assert plan_blocks(state.my_units, state.enemy_attackers) == []
+    assert BlockingPolicy().decide(state).type is ActionType.CONFIRM
+    # 锐目仅在规则层注入：现有截图没有锐目正例，尚不能验证视觉识别。
+    sharpsight = replace(state.my_units[0], keywords=frozenset({"BlockElusive"}))
+    assert plan_blocks([sharpsight], state.enemy_attackers)
+
+
 def test_commit_phase_is_not_my_turn() -> None:
     """「結算」= 提交格挡/攻击声明，同样不能出牌。"""
     state = _parser().parse(_load("1080p_commit_phase.png"))

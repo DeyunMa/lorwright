@@ -55,11 +55,11 @@ def test_idle_state_units_are_found() -> None:
 
 
 def test_combat_state_units_are_found() -> None:
-    """攻击声明后：我方 6 个、敌方 5 个。"""
+    """攻击声明后：我方 6 个、敌方 6 个，含粉色数值框的隐秘单位。"""
     img = cv2.imread(str(SCREENS / "1080p_units_combat.png"))
     assert img is not None, "缺少 fixture 1080p_units_combat.png"
     assert len(find_unit_badges(img, MY_BOARD)) == 6
-    assert len(find_unit_badges(img, ENEMY_BOARD, enemy=True)) == 5
+    assert len(find_unit_badges(img, ENEMY_BOARD, enemy=True)) == 6
 
 
 def test_buff_icon_on_same_card_is_suppressed() -> None:
@@ -101,7 +101,11 @@ def test_reads_attack_values_from_combat_units() -> None:
     mine = to_units(find_unit_badges(img, MY_BOARD), image=img)
     theirs = to_units(find_unit_badges(img, ENEMY_BOARD, enemy=True), enemy=True, image=img)
     assert [u.attack for u in mine] == [1, 7, 7, 1, 1, 1]
-    assert [u.attack for u in theirs] == [12, 5, 3, 3, 12]
+    assert [u.attack for u in theirs] == [12, 5, 3, -1, 3, 12]
+    assert [u.keywords for u in theirs] == [
+        frozenset(), frozenset(), frozenset(), frozenset({"Elusive"}),
+        frozenset(), frozenset(),
+    ]
 
 
 def test_reads_visible_health_but_keeps_obscured_health_unknown() -> None:

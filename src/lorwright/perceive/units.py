@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -76,6 +78,60 @@ ENEMY_DRAG_OFFSET = (0, 0)
 _DEFAULT_STATS = UnitStatsReader()
 
 
+@lru_cache(maxsize=1)
+def _elusive_template() -> np.ndarray | None:
+    # 截自 1080p_block_phase.png 的斜线眼，不包括左侧的蛮力图标。
+    return cv2.imread(str(Path("assets/keywords/elusive_board.png")), cv2.IMREAD_GRAYSCALE)
+
+
+def _elusive_icons(image: np.ndarray, region: Rect) -> list[tuple[int, int]]:
+    template = _elusive_template()
+    if template is None:
+        return []
+    x0, y0 = max(0, region.x - 80), max(0, region.y - 180)
+    x1 = min(image.shape[1], region.x + region.w + 80)
+    y1 = min(image.shape[0], region.y + region.h + 180)
+    sub = image[y0:y1, x0:x1]
+    if sub.shape[0] < template.shape[0] or sub.shape[1] < template.shape[1]:
+        return []
+    scores = cv2.matchTemplate(cv2.cvtColor(sub, cv2.COLOR_BGR2GRAY), template, cv2.TM_CCOEFF_NORMED)
+    found = []
+    while True:
+        _, score, _, (x, y) = cv2.minMaxLoc(scores)
+        if score < 0.90:
+            break
+        found.append((x0 + x + template.shape[1] // 2, y0 + y + template.shape[0] // 2))
+        scores[max(0, y - 30):y + 31, max(0, x - 40):x + 41] = 0
+    return found
+
+
+def _pink_enemy_badges(image: np.ndarray, region: Rect, icons: list[tuple[int, int]]) -> list[UnitBadge]:
+    """斜线眼下方的粉色数值框可补回橙色定位器漏掉的敌方单位。"""
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    badges = []
+    for ix, iy in icons:
+        x0, x1 = max(region.x, ix - 116), min(region.x + region.w, ix + 104)
+        y0, y1 = max(region.y, iy + 86), min(region.y + region.h, iy + 166)
+        candidates = []
+        # 待命位的粉色边框可能与数值框连通；第二次只查看数值行。
+        for top in (y0, max(y0, iy + 126)):
+            sub = hsv[max(0, top):min(image.shape[0], y1), max(0, x0):min(image.shape[1], x1)]
+            if sub.size == 0:
+                continue
+            mask = cv2.inRange(sub, np.array((135, 30, 70)), np.array((179, 255, 255)))
+            _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+            for x, y, w, h, area in stats[1:]:
+                if area >= 800 and 55 <= w <= 150 and 30 <= h <= 55:
+                    candidates.append((abs((top + y) - (iy + 119)), int(x0 + x), int(top + y), int(h)))
+            if candidates:
+                break
+        if candidates:
+            _, x, y, h = min(candidates)
+            rect = Rect(x, y, 65, h)
+            badges.append(UnitBadge(rect.center, 1.0, rect))
+    return badges
+
+
 @dataclass(frozen=True)
 class UnitBadge:
     """一个被检出的攻击力方块。`center` 是方块中心，不是拖拽点。"""
@@ -125,6 +181,8 @@ def find_unit_badges(
                 rect=Rect(region.x + x, region.y + y, w, h),
             )
         )
+    if enemy:
+        candidates.extend(_pink_enemy_badges(image, region, _elusive_icons(image, region)))
 
     # 间距抑制：同卡上的 buff 图标紧挨着真方块，留面积大的那个
     candidates.sort(key=lambda b: -b.score)
@@ -148,6 +206,11 @@ def to_units(
     """方块 → `Unit`。数值未识别时留 -1，策略层据此判断「不知道」。"""
     dx, dy = ENEMY_DRAG_OFFSET if enemy else MY_DRAG_OFFSET
     reader = stats_reader or (_DEFAULT_STATS if image is not None else None)
+    icons = []
+    if image is not None and badges:
+        xs = [b.center[0] for b in badges]
+        ys = [b.center[1] for b in badges]
+        icons = _elusive_icons(image, Rect(min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1))
     units = []
     for badge in badges:
         attack = health = -1
@@ -155,11 +218,19 @@ def to_units(
             read_attack, read_health = reader.read(image, badge.rect)
             attack = -1 if read_attack is None else read_attack
             health = -1 if read_health is None else read_health
+        x, y = badge.center
+        elusive = any(
+            -45 <= ix - x <= 110 and (
+                -180 <= iy - y <= -95 if enemy else 95 <= iy - y <= 180
+            )
+            for ix, iy in icons
+        )
         units.append(Unit(
             name="",
             attack=attack,
             health=health,
             # rect 是 8×8 的拖拽点，中心即落指坐标（和手牌同一个约定）
             rect=Rect(badge.center[0] + dx - 4, badge.center[1] + dy - 4, 8, 8),
+            keywords=frozenset({"Elusive"}) if elusive else frozenset(),
         ))
     return units

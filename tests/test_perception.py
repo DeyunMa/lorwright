@@ -165,6 +165,7 @@ def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> 
     state = _parser().parse(_load("1080p_block_phase.png"))
     assert len(state.enemy_attackers) == 6
     assert all("Elusive" in unit.keywords for unit in state.enemy_attackers)
+    assert all("Overwhelm" in unit.keywords for unit in state.enemy_attackers)
     assert len(state.my_units) == 3
     assert all("Elusive" not in unit.keywords for unit in state.my_units)
     assert plan_blocks(state.my_units, state.enemy_attackers) == []
@@ -172,6 +173,15 @@ def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> 
     # 锐目仅在规则层注入：现有截图没有锐目正例，尚不能验证视觉识别。
     sharpsight = replace(state.my_units[0], keywords=frozenset({"BlockElusive"}))
     assert plan_blocks([sharpsight], state.enemy_attackers)
+
+
+def test_overwhelm_icon_in_other_frame_and_ordinary_units() -> None:
+    positive = _parser().parse(_load("1080p_commit_phase.png"))
+    # 现有定位只找回其中 4 个；不能将缺失的两个说成识别成功。
+    assert len(positive.enemy_units) == 4
+    assert all("Overwhelm" in unit.keywords for unit in positive.enemy_units)
+    negative = _parser().parse(_load("1080p_units_combat.png"))
+    assert all("Overwhelm" not in unit.keywords for unit in negative.enemy_units)
 
 
 def test_commit_phase_is_not_my_turn() -> None:

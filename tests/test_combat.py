@@ -62,6 +62,13 @@ def test_overwhelm_tramples_excess_to_nexus():
     assert trample == 3
 
 
+def test_perceived_overwhelm_reaches_solver():
+    observed = Unit("", 5, 5, Rect(0, 0, 1, 1), keywords=frozenset({"Overwhelm"}))
+    trample, _, blocker_dies = strike(to_combatant(observed), unit(2, 2))
+    assert blocker_dies
+    assert trample == 3
+
+
 # ---------- 格挡合法性 ----------
 
 

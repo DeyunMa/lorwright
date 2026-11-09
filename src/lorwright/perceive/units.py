@@ -78,14 +78,14 @@ ENEMY_DRAG_OFFSET = (0, 0)
 _DEFAULT_STATS = UnitStatsReader()
 
 
-@lru_cache(maxsize=1)
-def _elusive_template() -> np.ndarray | None:
-    # 截自 1080p_block_phase.png 的斜线眼，不包括左侧的蛮力图标。
-    return cv2.imread(str(Path("assets/keywords/elusive_board.png")), cv2.IMREAD_GRAYSCALE)
+@lru_cache(maxsize=2)
+def _keyword_template(name: str) -> np.ndarray | None:
+    # 截自 1080p_block_phase.png 的战场特性图标。
+    return cv2.imread(str(Path("assets/keywords") / f"{name}_board.png"), cv2.IMREAD_GRAYSCALE)
 
 
-def _elusive_icons(image: np.ndarray, region: Rect) -> list[tuple[int, int]]:
-    template = _elusive_template()
+def _keyword_icons(image: np.ndarray, region: Rect, name: str) -> list[tuple[int, int]]:
+    template = _keyword_template(name)
     if template is None:
         return []
     x0, y0 = max(0, region.x - 80), max(0, region.y - 180)
@@ -182,7 +182,7 @@ def find_unit_badges(
             )
         )
     if enemy:
-        candidates.extend(_pink_enemy_badges(image, region, _elusive_icons(image, region)))
+        candidates.extend(_pink_enemy_badges(image, region, _keyword_icons(image, region, "elusive")))
 
     # 间距抑制：同卡上的 buff 图标紧挨着真方块，留面积大的那个
     candidates.sort(key=lambda b: -b.score)
@@ -206,11 +206,14 @@ def to_units(
     """方块 → `Unit`。数值未识别时留 -1，策略层据此判断「不知道」。"""
     dx, dy = ENEMY_DRAG_OFFSET if enemy else MY_DRAG_OFFSET
     reader = stats_reader or (_DEFAULT_STATS if image is not None else None)
-    icons = []
+    icons: dict[str, list[tuple[int, int]]] = {}
     if image is not None and badges:
         xs = [b.center[0] for b in badges]
         ys = [b.center[1] for b in badges]
-        icons = _elusive_icons(image, Rect(min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1))
+        region = Rect(min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1)
+        icons = {keyword: _keyword_icons(image, region, name) for keyword, name in (
+            ("Elusive", "elusive"), ("Overwhelm", "overwhelm"),
+        )}
     units = []
     for badge in badges:
         attack = health = -1
@@ -219,18 +222,17 @@ def to_units(
             attack = -1 if read_attack is None else read_attack
             health = -1 if read_health is None else read_health
         x, y = badge.center
-        elusive = any(
+        keywords = frozenset(keyword for keyword, positions in icons.items() if any(
             -45 <= ix - x <= 110 and (
                 -180 <= iy - y <= -95 if enemy else 95 <= iy - y <= 180
-            )
-            for ix, iy in icons
-        )
+            ) for ix, iy in positions
+        ))
         units.append(Unit(
             name="",
             attack=attack,
             health=health,
             # rect 是 8×8 的拖拽点，中心即落指坐标（和手牌同一个约定）
             rect=Rect(badge.center[0] + dx - 4, badge.center[1] + dy - 4, 8, 8),
-            keywords=frozenset({"Elusive"}) if elusive else frozenset(),
+            keywords=keywords,
         ))
     return units

@@ -147,6 +147,24 @@ def test_plan_blocks_covers_multiple_attackers():
     assert len(pairs) == 2
 
 
+def test_overwhelm_blocking_accounts_for_damage_to_nexus():
+    blockers = [unit_at(0, 900, 1, 1), unit_at(1, 910, 1, 4)]
+    attacker = unit_at(0, 350, 5, 1)
+    overwhelm = replace(attacker, keywords=frozenset({"Overwhelm"}))
+    # 两个都能换掉攻击者，但 1/4 只让 1 点伤害溢出，1/1 则溢出 4 点。
+    assert plan_blocks(blockers, [overwhelm]) == [(1, 0)]
+    # 没有蛮力时没有溢出，按既有规则用更便宜的 1/1。
+    assert plan_blocks(blockers, [attacker]) == [(0, 0)]
+
+
+def test_overwhelm_greedy_fallback_accounts_for_damage_to_nexus(monkeypatch):
+    monkeypatch.setattr("lorwright.decide.generic.MAX_ASSIGNMENT_COMBINATIONS", 0)
+    blockers = [unit_at(0, 900, 1, 1), unit_at(1, 910, 1, 4)]
+    attacker = replace(unit_at(0, 350, 5, 1), keywords=frozenset({"Overwhelm"}))
+    assert plan_blocks(blockers, [attacker]) == [(1, 0)]
+    assert plan_blocks(blockers, [replace(attacker, keywords=frozenset())]) == [(0, 0)]
+
+
 def test_blocking_confirms_once_declared():
     policy = BlockingPolicy()
     blockers = [unit_at(0, 900, 2, 2)]

@@ -309,7 +309,11 @@ def to_combatant(unit, *, challenger: bool = False) -> Combatant:
 
     感知层可能返回任意字符串当关键词，未知的一律忽略，不抛异常。
     """
-    aliases = {"Elusive": Keyword.ELUSIVE, "BlockElusive": Keyword.BLOCK_ELUSIVE}
+    aliases = {
+        "Elusive": Keyword.ELUSIVE,
+        "BlockElusive": Keyword.BLOCK_ELUSIVE,
+        "Overwhelm": Keyword.OVERWHELM,
+    }
     keywords = {aliases[k] if k in aliases else Keyword(k)
                 for k in unit.keywords if k in aliases or k in set(Keyword)}
     if challenger:

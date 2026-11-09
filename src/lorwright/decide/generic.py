@@ -125,6 +125,7 @@ class BlockingPolicy(Policy):
        GetFearsomeBlockingValue 原生返回 3）；隐秘攻击者只能被隐秘或
        锐目（BlockElusive）单位格挡；硬派攻击者只能被生命 >=3 的单位格挡
        （官方关键词文本，globals-en_us.json "Brash"）。
+    6. 蛮力攻击者被格挡时，超过格挡者生命值的伤害计入主堡伤害。
     声明后下一 tick 确认。
     """
 
@@ -199,7 +200,7 @@ def _can_block(blocker, attacker) -> bool:
 
 def plan_blocks(my_units, attackers):
     # 穷举全部指派，按用户格挡原则取总损失最小：
-    # 脸伤（未挡攻击者的攻击力 x FACE_DAMAGE_WEIGHT）
+    # 脸伤（未挡攻击者的攻击力以及蛮力的溢出伤害 x FACE_DAMAGE_WEIGHT）
     # + 阵亡单位价值 + 被打残但存活的攻击者残留威胁。
     # 组合超上限退回贪心；攻击力未识别（-1）按能挡就挡处理。
     attackers = list(attackers)
@@ -245,6 +246,8 @@ def plan_blocks(my_units, attackers):
             # 用户规则：白死（blocker 死但杀不死对面）直接禁止这个配对
             if blocker.health <= attacker.attack and blocker.attack < attacker.health:
                 break
+            if "Overwhelm" in attacker.keywords:
+                face += max(0, attacker.attack - blocker.health)
             lost_part, remaining = _pair_loss(blocker, attacker)
             lost += lost_part
             threat += remaining
@@ -285,13 +288,18 @@ def _greedy_blocks(my_units, attackers):
                 and blocker.attack < attacker.health
             ):
                 continue
+            overflow = (
+                max(0, attacker.attack - blocker.health)
+                if "Overwhelm" in attacker.keywords
+                and attacker.attack >= 0 and blocker.health >= 0 else 0
+            )
             if attacker.attack < 0:
                 # 不知道对方攻击力：优先选能活下来的低价值单位。
                 rank = (0 if blocker.health > 0 else 1,
                         blocker.attack + blocker.health)
             else:
                 rank = (0 if blocker.health > attacker.attack else 1,
-                        blocker.attack + blocker.health)
+                        blocker.attack + blocker.health + overflow * FACE_DAMAGE_WEIGHT)
             if best is None or rank < best[0]:
                 best = (rank, b_idx)
         if best is not None:

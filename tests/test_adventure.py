@@ -255,6 +255,50 @@ def test_jinx_node_opens_travel_then_battle_panel(adventure):
     assert saved == []
 
 
+def test_jinx_sharpshooter_node_travel_and_battle(adventure):
+    # 同一地图和敌人的三个截图；最终战斗 UI 状态由假引擎模拟。
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_jinx_map.png"), _img("1080p_jinx_travel.png"),
+         _img("1080p_jinx_battle_detail.png"), _img("1080p_zoommax.png")],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN, UIState.MULLIGAN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert device.taps == [(982, 334), (978, 482), (1581, 1010)]
+    assert engine.run_calls == [400]
+    assert saved == []
+
+
+@pytest.mark.parametrize("panel, button", [
+    ("1080p_node_panel.png", (817, 485)),
+    ("1080p_battle_detail.png", (1581, 1010)),
+])
+def test_panel_that_does_not_transition_is_not_clicked_twice(adventure, panel, button):
+    image = _img(panel)
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_jinx_map.png"), image, image],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [(982, 334), button]
+    assert saved == ["panel_no_action_button"]
+    assert engine.run_calls == []
+
+
+def test_battle_button_returning_to_map_stops(adventure):
+    image = _img("1080p_jinx_map.png")
+    loop, device, engine, saved, _ = adventure(
+        [image, _img("1080p_battle_detail.png"), image],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.UNKNOWN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert device.taps == [(982, 334), (1581, 1010)]
+    assert saved == ["panel_no_action_button"]
+    assert engine.run_calls == []
+
+
 def test_jinx_unrecognized_panel_does_not_navigate(adventure):
     image = _img("1080p_jinx_map.png").copy()
     # 合成深色面板：仍能看到头像及路径，但不应再点地图。

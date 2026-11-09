@@ -149,17 +149,21 @@ class AdventureLoop:
                 image, self.settings.perception.snapshot_dir, tag="map_panel_not_open"
             )
             return False
-        # 节点面板「旅行」→ 战斗详情「戰鬥」是同一种金色按钮；最多点两次。
-        tapped = 0
+        # 每个阶段只点一次；下一帧必须进入下一阶段，不能重复点同一按钮。
+        last_action = None
         for _ in range(2):
             button = action_button(image)
-            if button is None or not (
-                (is_map(image) and button_is(image, button, "travel"))
-                or (is_battle_detail(image) and button_is(image, button, "battle"))
+            if button is not None and last_action is None and is_map(image) and button_is(
+                image, button, "travel"
             ):
+                action = "travel"
+            elif (button is not None and last_action != "battle" and is_battle_detail(image)
+                  and button_is(image, button, "battle")):
+                action = "battle"
+            else:
                 break
             self.device.tap(*button.center)
-            tapped += 1
+            last_action = action
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
             time.sleep(4)
             image = self._frame()
@@ -172,13 +176,13 @@ class AdventureLoop:
             if not is_map(image) and not is_battle_detail(image):
                 break
         # 旅行后回到地图：说明这个节点只是移动，继续下一轮找节点。
-        if is_map(image) and self._find_next(image) is not None:
+        if last_action == "travel" and is_map(image) and self._find_next(image) is not None:
             return True
         # 没有金色按钮（能力三选一／商店／信息面板）：不盲点，存快照停下。
-        logger.warning("adventure: 面板上没有金色按钮，停止盲点（保存快照）")
+        logger.warning("adventure: 面板未进入预期的下一阶段，停止（保存快照）")
         snapshot.save_snapshot(
             image, self.settings.perception.snapshot_dir,
-            tag="panel_no_action_button" if tapped else "panel_unknown",
+            tag="panel_no_action_button" if last_action else "panel_unknown",
         )
         return False
 

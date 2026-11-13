@@ -116,6 +116,8 @@ class UIStateDetector:
         return best[1]
 
     def detect(self, frame: np.ndarray) -> UIState:
+        from lorwright.perceive.result_screen import result_screen
+
         # 1. 起手换牌。它的「確定」按钮和动作按钮**同位置同颜色**
         #    （实测蓝色占比 0.89 vs 0.88），必须先判掉，
         #    否则开局第一帧就被当成「我方优先权」去点牌。
@@ -123,6 +125,8 @@ class UIStateDetector:
             return UIState.MULLIGAN
 
         # 2. 对局结束
+        if result_screen(frame) is not None:
+            return UIState.BATTLE_END
         t = self._tpl
         if "victory" in t and exists(frame, t["victory"], self.threshold):
             return UIState.BATTLE_END

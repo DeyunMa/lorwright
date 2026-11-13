@@ -99,7 +99,9 @@ class AdventureLoop:
                 if not self._handle_card_reward(image):
                     return
                 continue
-            ui = self.engine.parser.ui.detect(image)
+            normalized = self._reward_design(image)
+            design = normalized[0] if normalized is not None else image
+            ui = self.engine.parser.ui.detect(design)
             if ui in self.BATTLE_STATES:
                 last_continue = None
                 logger.info("adventure: 进入战斗，引擎接管")

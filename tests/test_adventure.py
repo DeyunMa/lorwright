@@ -118,6 +118,92 @@ def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
     assert engine.run_calls == []
 
 
+def _support_fixture(name: str) -> np.ndarray:
+    image = cv2.imread(str(FIXTURES.parent / "support" / name))
+    assert image is not None
+    return image
+
+
+def _support_middle_choice_frames() -> tuple[np.ndarray, np.ndarray]:
+    """真实选中帧加费用合成：让已选的中间组成为唯一最低费。"""
+    from lorwright.perceive.normalize import Normalizer
+
+    normalizer = Normalizer((1920, 1080))
+    before = normalizer.fit(_support_fixture("m3-travel.jpg"))[0]
+    selected = normalizer.fit(_support_fixture("m3-supp1.jpg"))[0]
+    six = before[584:614, 1264:1293].copy()
+    for image in (before, selected):
+        image[584:614, 328:357] = six
+        image[512:542, 1264:1293] = six
+    return before, selected
+
+
+def test_support_wrong_group_is_not_confirmed(adventure):
+    # 原图右侧英雄最便宜，而真实选中帧是中间组，不能点确认。
+    before = _support_fixture("m3-travel.jpg")
+    selected = _support_fixture("m3-supp1.jpg")
+    loop, device, _, saved, _ = adventure([before, selected], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == [(639, 264)]
+    assert saved == ["support_selection_failed"]
+
+
+def test_current_support_screen_chooses_elise_and_waits_for_selection(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_jinx_support_selection.jpg"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == [(342, 456)]
+    assert saved == ["support_selection_failed"]
+
+
+def test_already_selected_support_screen_does_not_guess_prior_choice(adventure):
+    image = _support_fixture("m3-supp1.jpg")
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["support_unknown"]
+
+
+def test_support_selects_confirms_and_stops_when_reward_unverified(adventure):
+    before, selected = _support_middle_choice_frames()
+    after = _support_fixture("m3-supp2.jpg")
+    loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
+    loop.run(max_nodes=2)
+    assert device.taps == [(812, 599), (960, 1003)]
+    assert saved == ["support_reward_unverified"]
+
+
+def test_support_screen_after_travel_uses_same_selection_flow(adventure):
+    before, selected = _support_middle_choice_frames()
+    after = _support_fixture("m3-supp2.jpg")
+    loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
+    assert not loop._handle_node_panel()
+    assert device.taps == [(812, 599), (960, 1003)]
+    assert saved == ["support_reward_unverified"]
+
+
+def test_support_selection_or_confirmation_not_repeated(adventure):
+    before, selected = _support_middle_choice_frames()
+    loop, device, _, saved, _ = adventure([before, before], [UIState.UNKNOWN])
+    loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == ["support_selection_failed"]
+    loop, device, _, saved, _ = adventure([before, selected, selected], [UIState.UNKNOWN])
+    loop.run(max_nodes=3)
+    assert len(device.taps) == 2
+    assert saved == ["support_confirm_unchanged"]
+
+
+def test_support_does_not_confirm_when_selected_cards_are_obscured(adventure):
+    before, selected = _support_middle_choice_frames()
+    selected[428:466, 800:1100] = 0
+    loop, device, _, saved, _ = adventure([before, selected], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == [(812, 599)]
+    assert saved == ["support_selection_failed"]
+
+
 @pytest.mark.parametrize("name", ["1080p_home_adventure_entry.png", "720p_main_menu.png"])
 def test_home_adventure_entry_taps_once_and_saves_next_frame(adventure, name):
     image = cv2.imread(str(FIXTURES.parent / "screens" / name))

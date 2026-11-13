@@ -23,6 +23,7 @@ import numpy as np
 
 from lorwright.act.translate import ActionTranslator
 from lorwright.decide.rewards import pick_card_reward, pick_reward
+from lorwright.decide.support import pick_support_group
 from lorwright.device.base import Device
 from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
@@ -44,6 +45,13 @@ from lorwright.perceive.reward_screen import (
     is_power_screen,
     recognize_card_rewards,
     recognize_powers,
+)
+from lorwright.perceive.support_screen import (
+    is_support_screen,
+    recognize_support_choices,
+    same_support_choices,
+    support_confirm_button,
+    support_selection,
 )
 from lorwright.util import snapshot
 from lorwright.util.logger import logger
@@ -83,6 +91,10 @@ class AdventureLoop:
         last_continue_view = None
         for _ in range(max_nodes):
             image = self._frame()
+            if self._is_support(image):
+                if not self._handle_support(image):
+                    return
+                continue
             if self._is_card_reward(image):
                 if not self._handle_card_reward(image):
                     return
@@ -194,6 +206,67 @@ class AdventureLoop:
         normalized = self._reward_design(image)
         return normalized is not None and is_card_reward_screen(normalized[0])
 
+    def _is_support(self, image) -> bool:
+        normalized = self._reward_design(image)
+        return normalized is not None and is_support_screen(normalized[0])
+
+    def _handle_support(self, image) -> bool:
+        """选择援军并核对选中状态；确认后无法验证到账则停止。"""
+        normalized = self._reward_design(image)
+        if normalized is None:
+            return False
+        design, scale = normalized
+        choices = recognize_support_choices(design)
+        if choices is None:
+            snapshot.save_snapshot(
+                image, self.settings.perception.snapshot_dir, tag="support_unknown"
+            )
+            return False
+        index = pick_support_group([choice.group for choice in choices])
+        if index is None:
+            logger.warning("adventure: 辅助英雄费用不足以排序，停止")
+            snapshot.save_snapshot(
+                image, self.settings.perception.snapshot_dir, tag="support_undecided"
+            )
+            return False
+        logger.info("adventure: 选择第 {} 组辅助英雄（英雄 {} 费）", index + 1,
+                    choices[index].group.hero_cost)
+        self.device.tap(*scale.to_device(*choices[index].target.center))
+        time.sleep(3)
+        selected_image = self._frame()
+        selected = self._reward_design(selected_image)
+        if (selected is None or support_selection(selected[0]) != index
+                or not same_support_choices(design, selected[0], index)):
+            snapshot.save_snapshot(
+                selected_image, self.settings.perception.snapshot_dir, tag="support_selection_failed"
+            )
+            return False
+        button = support_confirm_button(selected[0])
+        if button is None:
+            snapshot.save_snapshot(
+                selected_image, self.settings.perception.snapshot_dir, tag="support_confirm_missing"
+            )
+            return False
+        self.device.tap(*selected[1].to_device(*button.center))
+        time.sleep(3)
+        next_image = self._frame()
+        next_design = self._reward_design(next_image)
+        if next_design is None or is_support_screen(next_design[0]):
+            snapshot.save_snapshot(
+                next_image, self.settings.perception.snapshot_dir, tag="support_confirm_unchanged"
+            )
+            return False
+        if not is_map(next_design[0]):
+            snapshot.save_snapshot(
+                next_image, self.settings.perception.snapshot_dir, tag="support_after_unknown"
+            )
+            return False
+        logger.warning("adventure: 辅助英雄确认后已转场，但尚无法验证卡牌到账，停止")
+        snapshot.save_snapshot(
+            next_image, self.settings.perception.snapshot_dir, tag="support_reward_unverified"
+        )
+        return False
+
     def _handle_card_reward(self, image) -> bool:
         """逐步选牌并核对转场；到账尚不可验证时停止。"""
         normalized = self._reward_design(image)
@@ -276,6 +349,8 @@ class AdventureLoop:
     def _handle_node_panel(self) -> bool:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         image = self._frame()
+        if self._is_support(image):
+            return self._handle_support(image)
         if self._is_card_reward(image):
             return self._handle_card_reward(image)
         ui = self.engine.parser.ui.detect(image)
@@ -314,6 +389,8 @@ class AdventureLoop:
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
             time.sleep(4)
             image = self._frame()
+            if self._is_support(image):
+                return self._handle_support(image)
             if self._is_card_reward(image):
                 return self._handle_card_reward(image)
             ui = self.engine.parser.ui.detect(image)

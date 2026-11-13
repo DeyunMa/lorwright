@@ -157,6 +157,17 @@ def test_current_support_screen_chooses_elise_and_waits_for_selection(adventure)
     assert saved == ["support_selection_failed"]
 
 
+def test_native_1080_support_selection_confirms_after_real_selected_frame(adventure):
+    before = _support_fixture("jinx-1080-before.jpg")
+    selected = _support_fixture("jinx-1080-selected-left.jpg")
+    # 后续地图来自历史素材，仅验证确认后的控制流。
+    after = _support_fixture("m3-supp2.jpg")
+    loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == [(342, 456), (960, 1003)]
+    assert saved == ["support_reward_unverified"]
+
+
 def test_already_selected_support_screen_does_not_guess_prior_choice(adventure):
     image = _support_fixture("m3-supp1.jpg")
     loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])

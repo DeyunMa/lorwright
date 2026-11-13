@@ -89,6 +89,35 @@ def test_real_selected_group_and_confirm_button():
     assert recognize_support_choices(selected) is None
 
 
+def test_native_1080_selected_group_and_confirm_button():
+    before = _image("support/jinx-1080-before.jpg")
+    selected = _image("support/jinx-1080-selected-left.jpg")
+    choices = recognize_support_choices(before)
+    assert choices is not None
+    assert pick_support_group([choice.group for choice in choices]) == 0
+    assert support_selection(selected) == 0
+    assert same_support_choices(before, selected, 0)
+    assert support_confirm_button(selected).center == (960, 1003)
+
+
+def test_native_1080_selected_button_must_remain_visible_and_enabled():
+    before = _image("support/jinx-1080-before.jpg")
+    selected = _image("support/jinx-1080-selected-left.jpg")
+    dimmed = selected.copy()
+    dimmed[984:1022, 916:1004] //= 2
+    assert support_selection(dimmed) == 0
+    assert support_confirm_button(dimmed) is None
+
+    obscured = selected.copy()
+    obscured[984:1022, 916:960] = 0
+    assert support_selection(obscured) == 0
+    assert support_confirm_button(obscured) is None
+
+    disabled = selected.copy()
+    disabled[960:1045, 800:1120] = before[960:1045, 800:1120]
+    assert support_confirm_button(disabled) is None
+
+
 def test_uncertain_or_changed_selection_is_not_confirmed():
     before = _image("support/m3-travel.jpg")
     selected = _image("support/m3-supp1.jpg")

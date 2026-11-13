@@ -141,14 +141,18 @@ def support_confirm_button(image: np.ndarray) -> Rect | None:
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     bounds = (800, 960, 1120, 1045)
-    template = _template("support_choose")
-    if template is None or _visible_match(gray, "support_choose", bounds) < 0.90:
-        return None
     x1, y1, x2, y2 = bounds
-    scores = cv2.matchTemplate(gray[y1:y2, x1:x2], template, cv2.TM_CCOEFF_NORMED)
-    _, _, _, (x, y) = cv2.minMaxLoc(scores)
-    height, width = template.shape
-    return Rect(x1 + x, y1 + y, width, height)
+    matches = []
+    for name in ("support_choose", "support_choose_1080"):
+        template = _template(name)
+        score = _visible_match(gray, name, bounds)
+        if template is None or score < 0.90:
+            continue
+        scores = cv2.matchTemplate(gray[y1:y2, x1:x2], template, cv2.TM_CCOEFF_NORMED)
+        _, _, _, (x, y) = cv2.minMaxLoc(scores)
+        height, width = template.shape
+        matches.append((score, Rect(x1 + x, y1 + y, width, height)))
+    return max(matches, key=lambda match: match[0])[1] if matches else None
 
 
 def same_support_choices(before: np.ndarray, after: np.ndarray, selected: int) -> bool:

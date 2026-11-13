@@ -16,7 +16,9 @@ from lorwright.champions import load
 from lorwright.config import load_settings
 from lorwright.loop.adventure import AdventureLoop
 from lorwright.models import UIState
+from lorwright.perceive.adventure_scene import find_home_adventure_entry
 from lorwright.perceive.mapnav import empty_point
+from lorwright.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
 
@@ -116,11 +118,76 @@ def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
     assert engine.run_calls == []
 
 
+@pytest.mark.parametrize("name", ["1080p_home_adventure_entry.png", "720p_main_menu.png"])
+def test_home_adventure_entry_taps_once_and_saves_next_frame(adventure, name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    assert image is not None
+    # 复用相同帧模拟网络慢或未切换，必须只点一次并停止。
+    loop, device, engine, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=3)
+    height, width = image.shape[:2]
+    assert len(device.taps) == 1
+    x, y = device.taps[0]
+    assert abs(x - width * 0.855) < 20 * width / 1920
+    assert abs(y - height * 0.805) < 20 * height / 1080
+    assert saved == ["home_entry_after"]
+    assert engine.run_calls == []
+
+
+@pytest.mark.parametrize("name", ["1080p_home_adventure_entry.png", "720p_main_menu.png"])
+def test_home_entry_reaches_tap_with_real_ui_detector(adventure, name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    assert image is not None
+    loop, device, engine, saved, _ = adventure([image, image], [])
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert saved == ["home_entry_after"]
+    assert engine.run_calls == []
+
+
+def test_home_entry_ignores_service_error_overlay(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_home_service_error.png"))
+    assert image is not None
+    assert find_home_adventure_entry(image) is None
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["unknown_scene"]
+
+
+def test_home_entry_rejects_partially_dimmed_label():
+    image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_home_adventure_entry.png"))
+    assert image is not None
+    # 模拟遮罩仅盖住最后一个字，余下金色文字仍清晰。
+    image[857:884, 1760:1770] //= 2
+    assert find_home_adventure_entry(image) is None
+
+
+def test_home_entry_clicks_visible_label_when_card_center_is_covered(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_home_adventure_entry.png"))
+    assert image is not None
+    # 卡片中间可能被覆盖，但标签仍可见；点击必须落在已识别的标签上。
+    image[650:820, 1450:1830] = 20
+    label = find_home_adventure_entry(image)
+    assert label is not None
+    loop, device, _, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == [label.center]
+    assert saved == ["home_entry_after"]
+
+
 @pytest.mark.parametrize("name", [
     "1080p_login_splash.png",
     "1080p_login_form.png",
     "1080p_hand_expanded.png",
     "1080p_targeting.png",
+    "1080p_home_service_error.png",
 ])
 def test_unknown_non_map_screens_never_trigger_a_tap(adventure, name):
     image = cv2.imread(str(FIXTURES.parent / "screens" / name))

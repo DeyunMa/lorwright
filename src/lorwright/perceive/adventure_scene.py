@@ -18,6 +18,15 @@ def _template(name: str) -> np.ndarray | None:
     return cv2.imread(str(_ASSETS / f"{name}.png"), cv2.IMREAD_GRAYSCALE)
 
 
+@cache
+def _home_label_gold_mask() -> np.ndarray | None:
+    template = cv2.imread(str(_ASSETS / "home_poc_label.png"))
+    if template is None:
+        return None
+    return cv2.inRange(cv2.cvtColor(template, cv2.COLOR_BGR2HSV),
+                       (8, 80, 145), (40, 255, 255))
+
+
 def _matches(image: np.ndarray, name: str, rect: tuple[int, int, int, int],
              threshold: float = 0.85) -> bool:
     tpl = _template(name)
@@ -28,6 +37,51 @@ def _matches(image: np.ndarray, name: str, rect: tuple[int, int, int, int],
     if region.shape[0] < tpl.shape[0] or region.shape[1] < tpl.shape[1]:
         return False
     return float(cv2.matchTemplate(region, tpl, cv2.TM_CCOEFF_NORMED).max()) >= threshold
+
+
+def find_home_adventure_entry(image: np.ndarray) -> Rect | None:
+    """定位主页卡片的「快來玩 英雄之路」文字；不明确时弃权。
+
+    输入输出均为 1920×1080 设计坐标。只匹配卡片文字而不依赖经常
+    变化的宣传画；文字必须仍有明亮的金色，避免弹窗遮罩下误点击。
+    调用方点击已识别文字的位置，而不是可能被遮挡的卡片中心。
+    """
+    if image.ndim != 3 or image.shape != (1080, 1920, 3):
+        return None
+    template = _template("home_poc_label")
+    if template is None:
+        return None
+    x1, y1, x2, y2 = 1485, 835, 1799, 904
+    region = image[y1:y2, x1:x2]
+    if template.shape[0] > region.shape[0] or template.shape[1] > region.shape[1]:
+        return None
+    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+    scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    _, score, _, (x, y) = cv2.minMaxLoc(scores)
+    if score < 0.83:
+        return None
+    h, w = template.shape
+    hsv = cv2.cvtColor(region[y:y + h, x:x + w], cv2.COLOR_BGR2HSV)
+    bright_gold = cv2.inRange(hsv, (8, 80, 145), (40, 255, 255))
+    if np.count_nonzero(bright_gold) / bright_gold.size < 0.08:
+        return None
+    # 检查模板实际字迹的位置，避免弹窗遮暗后被另一层明亮金色装饰蒙混。
+    gold_mask = _home_label_gold_mask()
+    if gold_mask is None or gold_mask.shape != (h, w) or not np.any(gold_mask):
+        return None
+    if cv2.mean(hsv[:, :, 2], mask=gold_mask)[0] < 140:
+        return None
+    # 检查每条字迹有足够的亮色，避免文字局部被遮挡时点击。
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(gold_mask)
+    for component_id in range(1, count):
+        cx, cy, cw, ch, area = stats[component_id]
+        if area < 12:
+            continue
+        component = (labels[cy:cy + ch, cx:cx + cw] == component_id).astype(np.uint8)
+        value = hsv[cy:cy + ch, cx:cx + cw, 2]
+        if cv2.mean(value, mask=component)[0] < 130:
+            return None
+    return Rect(x1 + x, y1 + y, w, h)
 
 
 def is_map(image: np.ndarray) -> bool:

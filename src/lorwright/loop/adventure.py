@@ -27,12 +27,14 @@ from lorwright.device.base import Device
 from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
     button_is,
+    find_home_adventure_entry,
     is_battle_detail,
     is_completed_panel,
     is_map,
 )
 from lorwright.perceive.buttons import find_continue_button
 from lorwright.perceive.mapnav import empty_point, next_node, panel_open
+from lorwright.perceive.normalize import Normalizer
 from lorwright.perceive.panels import action_button
 from lorwright.perceive.reward_screen import is_power_screen, recognize_powers
 from lorwright.util import snapshot
@@ -64,6 +66,7 @@ class AdventureLoop:
         self.pack = pack
         self.coords = settings.adventure.to_coords()
         self.translator = ActionTranslator(settings.layout.to_layout())
+        self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self.rng = random.Random()
 
     def run(self, max_nodes: int = 30) -> None:
@@ -109,6 +112,20 @@ class AdventureLoop:
             if is_power_screen(image):
                 self._preview_power(image)
                 return
+            # 主页属于独立识别场景，不把战斗 UNKNOWN 当作点击授权。
+            height, width = image.shape[:2]
+            if width and height and abs(width / height - 16 / 9) <= 0.02:
+                design_image, scale = self.normalizer.fit(image)
+                entry = find_home_adventure_entry(design_image)
+                if entry is not None:
+                    self.device.tap(*scale.to_device(*entry.center))
+                    time.sleep(3)
+                    next_image = self._frame()
+                    snapshot.save_snapshot(
+                        next_image, self.settings.perception.snapshot_dir, tag="home_entry_after"
+                    )
+                    logger.info("adventure: 已点击英雄之路入口，等待下一场景识别")
+                    return
             if not is_map(image):
                 logger.warning("adventure: 未识别地图画面，停止（保存快照）")
                 snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="unknown_scene")

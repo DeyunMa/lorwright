@@ -45,6 +45,16 @@ def test_real_reward_candidates_keep_card_quality_separate_from_item():
     assert pick is not None and pick.candidate.card.name == "生物編目員"
 
 
+def test_new_reward_frame_ranks_cards_by_verified_card_quality_and_cost():
+    candidates = recognize_card_rewards(_image("f1-reward-20261113.jpg"))
+    assert candidates is not None
+    assert [(c.card.name, c.card.quality, c.card.cost) for c in candidates] == [
+        ("普羅大砲", "common", 1), ("穿針引線", "common", 2),
+        ("靈魂黑矛", "common", 3),
+    ]
+    assert pick_card_reward(candidates).candidate.card.name == "普羅大砲"
+
+
 def test_real_selected_state_and_confirm_button():
     before, selected, after = (_image(name) for name in ("before.png", "selected-left.png", "after.png"))
     assert card_reward_selection(before) == -1

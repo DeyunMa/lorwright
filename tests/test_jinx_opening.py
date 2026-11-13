@@ -2,11 +2,24 @@ from dataclasses import replace
 
 from lorwright.champions import load
 from lorwright.champions.jinx.policy import JinxOpeningPolicy
-from lorwright.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.models import (
+    Action,
+    ActionType,
+    CardInHand,
+    GameState,
+    MulliganCard,
+    Rect,
+    UIState,
+    Unit,
+)
 
 
 def card(index, name, cost):
     return CardInHand(index, name, cost, Rect(0, 0, 8, 8))
+
+
+def mulligan_card(index, name, cost=0):
+    return MulliganCard(index, None if not name else name == "吉茵珂絲", Rect(0, 0, 8, 8))
 
 
 def state(cards, units=(), expanded=True, mana=3):
@@ -92,9 +105,10 @@ def test_mulligan_keeps_combo_cards_and_confirms():
     policy = load("jinx").make_policy()
     mulligan = GameState(
         ui_state=UIState.MULLIGAN,
+        mulligan_selected=(False, False, False, False),
         mulligan_cards=[
-            card(0, "應急裝置", 1), card(1, "吉茵珂絲", 2),
-            card(2, "其他牌", 3), card(3, "其他牌", 3),
+            mulligan_card(0, "應急裝置"), mulligan_card(1, "吉茵珂絲"),
+            mulligan_card(2, "其他牌"), mulligan_card(3, "其他牌"),
         ],
     )
     assert policy.decide(mulligan).type is ActionType.CONFIRM
@@ -102,9 +116,9 @@ def test_mulligan_keeps_combo_cards_and_confirms():
 
 def test_mulligan_keeps_other_cards_when_one_jinx_is_present():
     policy = load("jinx").make_policy()
-    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=[
-        card(0, "其他牌", 1), card(1, "吉茵珂絲", 2),
-        card(2, "其他牌", 3), card(3, "其他牌", 3),
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4, mulligan_cards=[
+        mulligan_card(0, "其他牌"), mulligan_card(1, "吉茵珂絲"),
+        mulligan_card(2, "其他牌"), mulligan_card(3, "其他牌"),
     ])
     assert policy.decide(mulligan).type is ActionType.CONFIRM
 
@@ -112,23 +126,30 @@ def test_mulligan_keeps_other_cards_when_one_jinx_is_present():
 def test_mulligan_only_replaces_duplicate_jinx():
     policy = load("jinx").make_policy()
     cards = [
-        CardInHand(i, name, 1, Rect(i * 100, 0, 8, 8))
+        MulliganCard(i, name == "吉茵珂絲", Rect(i * 100, 0, 8, 8))
         for i, name in enumerate(["其他牌", "吉茵珂絲", "其他牌", "吉茵珂絲"])
     ]
-    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards)
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4,
+                         mulligan_cards=cards)
     action = policy.decide(mulligan)
     assert action.type is ActionType.MULLIGAN_REPLACE
     assert action.raw["points"] == [cards[3].rect.center]
-    unknown = replace(cards[0], name="")
+    unknown = replace(cards[0], matches_target=None)
     assert policy.decide(replace(mulligan, mulligan_cards=[unknown, *cards[1:]])).type is ActionType.NO_OP
-    assert policy.decide(mulligan).type is ActionType.CONFIRM
+    assert policy.decide(mulligan).type is ActionType.MULLIGAN_REPLACE
+    selected_cards = [*cards[:3], replace(cards[3], matches_target=None)]
+    assert policy.decide(replace(mulligan, mulligan_cards=selected_cards,
+                                 mulligan_selected=(False, False, False, True))).type is (
+        ActionType.CONFIRM
+    )
 
 
 def test_mulligan_waits_if_any_card_is_unknown_or_missing():
     policy = load("jinx").make_policy()
-    cards = [card(0, "吉茵珂絲", 2), card(1, "", -1),
-             card(2, "其他牌", 1), card(3, "吉茵珂絲", 2)]
-    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards)
+    cards = [mulligan_card(0, "吉茵珂絲"), mulligan_card(1, ""),
+             mulligan_card(2, "其他牌"), mulligan_card(3, "吉茵珂絲")]
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4,
+                         mulligan_cards=cards)
     assert policy.decide(mulligan).type is ActionType.NO_OP
     assert policy.decide(replace(mulligan, mulligan_cards=cards[:3])).type is ActionType.NO_OP
 
@@ -137,16 +158,43 @@ def test_mulligan_replaces_all_cards_when_jinx_missing():
     policy = load("jinx").make_policy()
     mulligan = GameState(
         ui_state=UIState.MULLIGAN,
+        mulligan_selected=(False, False, False, False),
         mulligan_cards=[
-            card(0, "應急裝置", 1), card(1, "其他牌", 2),
-            card(2, "其他牌", 3), card(3, "其他牌", 3),
+            mulligan_card(0, "應急裝置"), mulligan_card(1, "其他牌"),
+            mulligan_card(2, "其他牌"), mulligan_card(3, "其他牌"),
         ],
     )
     action = policy.decide(mulligan)
     assert action.type is ActionType.MULLIGAN_REPLACE
-    assert len(action.raw["points"]) == 4
-    # 换牌动作发出后，下一次决策直接確認，不能反复换牌。
-    assert policy.decide(mulligan).type is ActionType.CONFIRM
+    assert action.raw["mulligan_index"] == 0
+    assert len(action.raw["points"]) == 1
+    # 先确认一张已选，才能继续处理下一张。
+    second = replace(mulligan, mulligan_selected=(True, False, False, False))
+    assert policy.decide(second).raw["mulligan_index"] == 1
+    assert policy.decide(replace(mulligan, mulligan_selected=(True,) * 4)).type is ActionType.CONFIRM
+
+
+def test_mulligan_does_not_confirm_without_observed_replacement():
+    policy = load("jinx").make_policy()
+    mulligan = GameState(
+        ui_state=UIState.MULLIGAN,
+        mulligan_selected=(False,) * 4,
+        mulligan_cards=[mulligan_card(i, "其他牌") for i in range(4)],
+    )
+    assert policy.decide(mulligan).type is ActionType.MULLIGAN_REPLACE
+    assert policy.decide(mulligan).type is ActionType.MULLIGAN_REPLACE
+
+
+def test_mulligan_waits_for_known_selection_and_corrects_unwanted_selection():
+    policy = load("jinx").make_policy()
+    cards = [mulligan_card(i, name) for i, name in enumerate(["吉茵珂絲", "其他牌", "其他牌", "其他牌"])]
+    mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards,
+                         mulligan_selected=(False, None, False, False))
+    assert policy.decide(mulligan).type is ActionType.NO_OP
+    policy.decide(replace(mulligan, mulligan_selected=(False,) * 4))
+    action = policy.decide(replace(mulligan, mulligan_selected=(True, False, False, False)))
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["mulligan_index"] == 0 and action.raw["selected"] is False
 
 
 def test_existing_unit_is_not_mistaken_for_new_crab():

@@ -29,14 +29,23 @@ def test_expanding_is_a_separate_step_from_playing():
     assert pending.observe(state(), 2).reason == "hand_expanded"
 
 
-def test_mulligan_replace_is_sent_without_waiting_for_state_change():
-    before = state(ui_state=UIState.MULLIGAN)
+def test_mulligan_replace_waits_for_the_requested_selection_change():
+    before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
     pending = ActionOutcome(
-        Action(ActionType.MULLIGAN_REPLACE, raw={"points": [(10, 20)]}), before, 8,
+        Action(ActionType.MULLIGAN_REPLACE, raw={"points": [(10, 20)],
+                                                 "mulligan_index": 0, "selected": True}),
+        before, 8,
     )
-    outcome = pending.observe(before, 1)
+    assert pending.observe(before, 1).status is OutcomeStatus.WAITING
+    assert pending.observe(replace(before, mulligan_selected=(None, False, False, False)), 2).status is (
+        OutcomeStatus.WAITING
+    )
+    assert pending.observe(replace(before, mulligan_selected=(True, True, False, False)), 3).status is (
+        OutcomeStatus.WAITING
+    )
+    outcome = pending.observe(replace(before, mulligan_selected=(True, False, False, False)), 4)
     assert outcome.status is OutcomeStatus.SUCCEEDED
-    assert outcome.reason == "mulligan_replace_sent"
+    assert outcome.reason == "mulligan_selection_changed"
 
 
 def test_play_waits_for_correlated_evidence():
@@ -68,6 +77,17 @@ def test_free_unit_uses_board_change_but_not_hand_representation_change():
 def test_targeting_requires_input_instead_of_repeating_drag():
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), state(), 8)
     assert pending.observe(state(ui_state=UIState.TARGETING), 1).status is OutcomeStatus.NEEDS_INPUT
+
+
+def test_play_yields_to_confirmation_when_the_game_requests_it():
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
+    after = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    assert pending.observe(after, 1).status is OutcomeStatus.NEEDS_INPUT
+    # 展开手牌之后出现结算按钮，不代表已经成功拖出卡牌。
+    collapsed = replace(before, hand_expanded=False)
+    expanded = ActionOutcome(Action(ActionType.PLAY_CARD, 0), collapsed, 8).observe(after, 1)
+    assert expanded.reason == "hand_expanded"
 
 
 @pytest.mark.parametrize("kind,raw", [

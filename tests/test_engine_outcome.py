@@ -132,6 +132,93 @@ def test_successful_outcome_is_delivered_to_policy_once(monkeypatch):
     assert observer.outcomes == [(action, before, after)]
 
 
+def test_staged_spell_is_confirmed_before_notifying_policy(monkeypatch):
+    card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
+    before = ready(hand=[card], hand_expanded=True)
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(staged, ui_state=UIState.ENEMY_TURN, hand=[], mana=2,
+                    readings={**staged.readings, "mana": Reading(2, 0)})
+    play = Action(ActionType.PLAY_CARD, 0)
+    confirm = Action(ActionType.CONFIRM)
+    engine, device, router, events, _ = engine_for(
+        monkeypatch, [before, staged, after], [play, confirm, Action(ActionType.NO_OP)],
+    )
+
+    class Observer:
+        def __init__(self):
+            self.outcomes = []
+
+        def on_action_outcome(self, action, old, new):
+            self.outcomes.append((action, old, new))
+
+    observer = Observer()
+    router.layers = [observer]
+    engine.run(max_ticks=3)
+    assert len(device.drags) == 1
+    assert device.taps == [(20, 20)]
+    assert (play, before, after) in observer.outcomes
+    assert any(event.get("reason") == "confirmation_required" for event in events)
+
+
+def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypatch):
+    card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
+    before = ready(hand=[card], hand_expanded=True)
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    engine, device, router, _, snapshots = engine_for(
+        monkeypatch, [before, staged, staged],
+        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
+    )
+    clock = iter([0.0, 0.0, 0.0, 20.0])
+    monkeypatch.setattr("lorwright.loop.engine.time.monotonic", lambda: next(clock))
+
+    class Observer:
+        def __init__(self):
+            self.outcomes = []
+
+        def on_action_outcome(self, action, old, new):
+            self.outcomes.append(action.type)
+
+    observer = Observer()
+    router.layers = [observer]
+    engine.run(max_ticks=3)
+    assert len(device.drags) == 1 and device.taps == [(20, 20)]
+    assert ActionType.PLAY_CARD not in observer.outcomes
+    assert snapshots == [{"tag": "action_timeout"}]
+
+
+def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
+    card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
+    before = ready(hand=[card], hand_expanded=True)
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(staged, ui_state=UIState.MY_TURN_IDLE)
+    engine, device, router, _, snapshots = engine_for(
+        monkeypatch, [before, staged, after],
+        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
+    )
+    engine.run(max_ticks=3)
+    assert len(device.drags) == 1 and device.taps == [(20, 20)]
+    assert router.calls == 2
+    assert snapshots == [{"tag": "staged_play_unverified"}]
+
+
+def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):
+    from lorwright.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.decide.router import Router as RealRouter
+    from lorwright.models import MulliganCard
+
+    cards = [MulliganCard(i, False, Rect(100 + i * 100, 100, 8, 8))
+             for i in range(4)]
+    mulligan = ready(ui_state=UIState.MULLIGAN, mulligan_cards=cards,
+                     mulligan_selected=(False,) * 4)
+    engine, device, _, events, _ = engine_for(monkeypatch, [mulligan, mulligan], [])
+    engine.router = RealRouter([JinxOpeningPolicy()])
+    ages = iter([0, 10, 0, 0])
+    monkeypatch.setattr(Frame, "age_s", lambda self: next(ages))
+    engine.run(max_ticks=2)
+    assert device.taps == [cards[0].rect.center]
+    assert any(event.get("reason") == "frame_expired_during_decision" for event in events)
+
+
 def test_timeout_saves_evidence_and_stops_without_retry_or_restart(monkeypatch):
     state = ready(ui_state=UIState.MULLIGAN)
     engine, device, router, events, snapshots = engine_for(

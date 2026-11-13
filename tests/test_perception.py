@@ -196,6 +196,11 @@ def test_confirm_phase_is_not_my_turn() -> None:
     assert state.ui_state is UIState.COMBAT_RESOLVING
 
 
+def test_staged_jinx_spell_has_a_confirmation_button() -> None:
+    state = _parser().parse(_load("1080p_jinx_spell_confirm_20261113.jpg"))
+    assert state.ui_state is UIState.COMBAT_RESOLVING
+
+
 def test_main_menu_is_not_a_battle() -> None:
     state = _parser(LEGACY_720P).parse(_load("720p_main_menu.png"))
     assert state.ui_state is UIState.UNKNOWN

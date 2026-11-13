@@ -56,6 +56,9 @@ class StateParser:
                           continue_button=find_continue_button(image))
         if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:
             state.mulligan_cards = self.mulligan_recognizer(image)
+        if state.ui_state is UIState.MULLIGAN:
+            from lorwright.perceive.mulligan import recognize_mulligan_selection
+            state.mulligan_selected = recognize_mulligan_selection(image)
         # 起手换牌是新对局边界，不能沿用上一场血量/法力。
         if state.ui_state is UIState.MULLIGAN and self._previous_ui is not UIState.MULLIGAN:
             self._readings.clear()

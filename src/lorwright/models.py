@@ -66,6 +66,15 @@ class CardInHand:
 
 
 @dataclass(frozen=True)
+class MulliganCard:
+    """起手槽位是否为英雄包关注的目标牌；None 表示无法判断。"""
+
+    index: int
+    matches_target: bool | None
+    rect: Rect
+
+
+@dataclass(frozen=True)
 class Unit:
     name: str
     attack: int
@@ -96,7 +105,9 @@ class GameState:
     max_mana: int = 0
     hand: list[CardInHand] = field(default_factory=list)
     #: 起手换牌界面的 4 张牌；rect 是「替換」按钮中心，用于点选。
-    mulligan_cards: list[CardInHand] = field(default_factory=list)
+    mulligan_cards: list[MulliganCard] = field(default_factory=list)
+    #: 每张起手牌是否已选替换；无法辨认时为 None。
+    mulligan_selected: tuple[bool | None, ...] = ()
     #: 手牌是否处于展开态。收起态卡片斜叠、只露左边缘，**拖不动**；
     #: 必须先 tap 展开才能拖出牌（2026-11-04 实测）
     hand_expanded: bool = False

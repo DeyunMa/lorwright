@@ -21,6 +21,7 @@ class JinxOpeningPolicy:
         # 恢复已有对局时，调用方必须依据可靠记录或人工确认显式提供此信息。
         self.step = 2 if jinx_summoned else (1 if spell_already_played else 0)
         self._mulligan = False
+        self._mulligan_targets: tuple[bool, ...] | None = None
         self._awaiting_crab = False
         self._awaiting_hero = False
         self._board_before: int | None = None
@@ -28,7 +29,6 @@ class JinxOpeningPolicy:
         self._stable_views = 0
         #: 本次 Jinx 下场后已经打出的火箭数；用户要求最多打 2 次。
         self._rockets_played = 0
-        self._mulligan_replaced = False
 
     def decide(self, state: GameState) -> Action:
         if state.ui_state is UIState.MULLIGAN:
@@ -40,25 +40,37 @@ class JinxOpeningPolicy:
                 self._last_opening_view = None
                 self._stable_views = 0
                 self._rockets_played = 0
-                self._mulligan_replaced = False
+                self._mulligan_targets = None
             self._mulligan = True
             cards = state.mulligan_cards
-            if len(cards) != 4 or any(not card.name for card in cards):
+            selected = state.mulligan_selected
+            if (len(cards) != 4 or [card.index for card in cards] != list(range(4))
+                    or len(selected) != 4
+                    or any(value is None for value in selected)):
                 return Action(type=ActionType.NO_OP)
-            if not self._mulligan_replaced:
-                heroes = [card for card in cards if card.name == "吉茵珂絲"]
-                if heroes:
-                    # 用户确认：有 Jinx 时保留其他牌，仅替换多余的 Jinx。
-                    points = [card.rect.center for card in heroes[1:]]
-                else:
-                    points = [card.rect.center for card in cards]
-                if points:
-                    self._mulligan_replaced = True
+            observed = tuple(card.matches_target for card in cards)
+            if self._mulligan_targets is None:
+                # 选中后的特效会遮挡卡面；必须在四张均未选中且可见时
+                # 建立本局判断，重启后不能猜测已经选中的牌。
+                if any(selected) or any(value is None for value in observed):
+                    return Action(type=ActionType.NO_OP)
+                self._mulligan_targets = observed
+            elif any(
+                not selected[i] and observed[i] != self._mulligan_targets[i]
+                for i in range(4)
+            ):
+                return Action(type=ActionType.NO_OP)
+            heroes = [i for i, matches in enumerate(self._mulligan_targets) if matches]
+            # 有 Jinx 时只替换多余的 Jinx；没有则四张都替换。
+            desired = set(heroes[1:]) if heroes else set(range(4))
+            for card, current in zip(cards, selected, strict=True):
+                target = card.index in desired
+                if current != target:
                     return Action(
                         type=ActionType.MULLIGAN_REPLACE,
-                        raw={"points": points},
+                        raw={"points": [card.rect.center], "mulligan_index": card.index,
+                             "selected": target},
                     )
-            self._mulligan_replaced = True
             return Action(type=ActionType.CONFIRM)
         self._mulligan = False
         if self.step >= 3:

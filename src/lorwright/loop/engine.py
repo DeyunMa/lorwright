@@ -12,7 +12,7 @@ from lorwright.device.base import Device
 from lorwright.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
-from lorwright.models import ActionType, ClickPlan, GameState, Layout, UIState
+from lorwright.models import Action, ActionType, ClickPlan, GameState, Layout, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.normalize import Normalizer, Scale
 from lorwright.perceive.state import StateParser
@@ -69,6 +69,8 @@ class Engine:
         self._unreadable_mana_frames = 0
         self._confirmed_zero_mana = False
         self._pending: ActionOutcome | None = None
+        #: 待确认的出牌；出现确认按钮只表示还需输入，不算出牌已成功。
+        self._staged_play: tuple[Action, GameState] | None = None
 
     def run(self, max_ticks: int | None = None) -> None:
         self.parser.load()
@@ -131,6 +133,7 @@ class Engine:
                 # 对局结束后由外层流程处理结果界面。
                 if state.ui_state is UIState.BATTLE_END:
                     self._pending = None
+                    self._staged_play = None
                     break
 
                 # 已发送的输入先等新帧证明结果，不能每 tick 重放同一个手势。
@@ -153,11 +156,31 @@ class Engine:
                     if outcome.status is OutcomeStatus.WAITING:
                         time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
                         continue
+                    if (outcome.status is OutcomeStatus.NEEDS_INPUT
+                            and outcome.reason == "confirmation_required"):
+                        self._staged_play = (self._pending.action, self._pending.before)
                     if outcome.status is OutcomeStatus.SUCCEEDED:
+                        confirmed_play = False
+                        if (self._staged_play is not None
+                                and self._pending.action.type is ActionType.CONFIRM):
+                            confirmed_play = ActionOutcome(
+                                *self._staged_play, float("inf")
+                            ).observe(state, time.monotonic()).status is OutcomeStatus.SUCCEEDED
+                            if not confirmed_play:
+                                # 确认按钮消失并不证明原来的牌已经打出，
+                                # 避免策略把同一张火箭当成下一张再次尝试。
+                                save_snapshot(frame.image, self.settings.perception.snapshot_dir,
+                                              tag="staged_play_unverified")
+                                logger.warning("确认后无法核实原出牌结果，停止")
+                                break
                         for layer in self.router.layers:
                             callback = getattr(layer, "on_action_outcome", None)
                             if callback is not None:
                                 callback(self._pending.action, self._pending.before, state)
+                                if confirmed_play and self._staged_play is not None:
+                                    callback(*self._staged_play, state)
+                        if self._pending.action.type is ActionType.CONFIRM:
+                            self._staged_play = None
                     self._pending = None
                     self.watchdog.reset()
                     self.recovery.reset()

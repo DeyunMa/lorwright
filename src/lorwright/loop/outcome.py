@@ -43,9 +43,18 @@ class ActionOutcome:
         before = self.before
         kind = self.action.type
         if kind is ActionType.MULLIGAN_REPLACE:
-            # 换牌点击没有稳定的「成功」画面；点击已按计划发出，下一步由
-            # 策略点「確定」，不能再等一个不存在的状态变化。
-            return Outcome(OutcomeStatus.SUCCEEDED, "mulligan_replace_sent")
+            index = self.action.raw.get("mulligan_index")
+            target = self.action.raw.get("selected")
+            previous = before.mulligan_selected
+            current = after.mulligan_selected
+            if (before.ui_state is UIState.MULLIGAN and after.ui_state is UIState.MULLIGAN
+                    and isinstance(index, int) and not isinstance(index, bool) and 0 <= index < 4
+                    and isinstance(target, bool) and len(previous) == len(current) == 4
+                    and all(value is not None for value in (*previous, *current))
+                    and previous[index] is not target and current[index] is target
+                    and all(previous[i] == current[i] for i in range(4) if i != index)):
+                return Outcome(OutcomeStatus.SUCCEEDED, "mulligan_selection_changed")
+            return Outcome(OutcomeStatus.WAITING, "awaiting_mulligan_selection")
         known = after.ui_state is not UIState.UNKNOWN
         reason = ""
         # 出牌动画期间 UI 可能短暂 UNKNOWN，但手牌减少 + 场面增加/费用下降
@@ -57,6 +66,10 @@ class ActionOutcome:
                         reason = "hand_expanded"
                 elif after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
+                elif (before.ui_state is UIState.MY_TURN_IDLE
+                      and after.ui_state is UIState.COMBAT_RESOLVING):
+                    # 慢速法术先进入堆栈，要点「確認」后才会真正结算。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_required")
                 elif len(after.hand) < len(before.hand) and (
                     (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")
                      and after.mana < before.mana)

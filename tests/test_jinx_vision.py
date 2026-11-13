@@ -12,6 +12,7 @@ from lorwright.champions.jinx.vision import recognize_hand, recognize_mulligan
 from lorwright.models import ActionType, GameState, Rect, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.hand import recognize_expanded
+from lorwright.perceive.mulligan import recognize_mulligan_selection
 
 
 def _named(filename: str):
@@ -68,12 +69,38 @@ def test_mulligan_cards_are_recognized():
     image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-4cards.png")))
     assert image is not None
     cards = recognize_mulligan(image)
-    assert [card.name for card in cards] == [
-        "懸浮飛板初學者", "懸浮飛板初學者", "勤奮的學徒", "爆破幫菜鳥",
-    ]
+    assert [card.matches_target for card in cards] == [False] * 4
     assert [card.rect.center for card in cards] == [
         (438, 820), (756, 820), (1068, 817), (1386, 817),
     ]
-    action = JinxOpeningPolicy().decide(GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards))
+    action = JinxOpeningPolicy().decide(GameState(
+        ui_state=UIState.MULLIGAN, mulligan_cards=cards,
+        mulligan_selected=recognize_mulligan_selection(image),
+    ))
     assert action.type is ActionType.MULLIGAN_REPLACE
-    assert action.raw["points"] == [card.rect.center for card in cards]
+    assert action.raw["points"] == [cards[0].rect.center]
+
+
+def test_mulligan_does_not_need_support_or_reward_card_names():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-before.png")))
+    assert image is not None
+    cards = recognize_mulligan(image)
+    # 金色英雄标志不能排除是 Jinx，保留未知。
+    assert [card.matches_target for card in cards] == [False, False, False, None]
+
+
+def test_mulligan_selected_card_is_unknown_without_prior_view():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-first-selected.png")))
+    assert image is not None
+    assert [card.matches_target for card in recognize_mulligan(image)] == [None, False, False, None]
+
+
+def test_synthetic_jinx_and_obscured_slot():
+    # 把素材嵌入真实换牌画面只检验接线，不等于真实 Jinx 换牌截图。
+    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-4cards.png")))
+    target = cv2.imread(str(Path("src/lorwright/champions/jinx/assets/01PZ040.png")))
+    assert image is not None and target is not None
+    image[332:732, 347:627] = cv2.resize(target, (280, 400))
+    assert recognize_mulligan(image)[0].matches_target is True
+    image[340:550, 363:443] = 0
+    assert recognize_mulligan(image)[0].matches_target is None

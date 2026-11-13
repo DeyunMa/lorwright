@@ -330,6 +330,117 @@ def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monk
     assert engine.run_calls == []
 
 
+def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure):
+    from lorwright.champions.base import Preference
+
+    reward = FIXTURES.parent / "card_rewards"
+    before, selected, after = (cv2.imread(str(reward / name)) for name in (
+        "before.png", "selected-left.png", "after.png",
+    ))
+    loop, device, engine, saved, _ = adventure(
+        [before, selected, after, _img("1080p_jinx_map.png")], []
+    )
+    loop.pack = type("Pack", (), {
+        "card_preferences": (Preference(("普羅大砲",)),),
+        "item_preferences": (),
+        "recognize_map_hero": staticmethod(load("jinx").recognize_map_hero),
+    })()
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    loop.run(max_nodes=2)
+    assert device.taps == [(555, 393), (960, 1003)]
+    assert saved == ["card_reward_unverified"]
+    assert engine.run_calls == []
+
+
+def test_card_reward_does_not_confirm_when_wrong_card_is_highlighted(adventure):
+    reward = FIXTURES.parent / "card_rewards"
+    before = cv2.imread(str(reward / "before.png"))
+    left_selected = cv2.imread(str(reward / "selected-left.png"))
+    loop, device, _, saved, _ = adventure([before, left_selected], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    # 默认选右侧稀有卡；若下一帧却显示左侧高亮，绝不能点确认。
+    assert device.taps == [(1375, 393)]
+    assert saved == ["card_reward_selection_failed"]
+
+
+def test_card_reward_confirmation_is_not_repeated(adventure):
+    from lorwright.champions.base import Preference
+
+    reward = FIXTURES.parent / "card_rewards"
+    before = cv2.imread(str(reward / "before.png"))
+    selected = cv2.imread(str(reward / "selected-left.png"))
+    loop, device, _, saved, _ = adventure([before, selected, selected], [])
+    loop.pack = type("Pack", (), {
+        "card_preferences": (Preference(("普羅大砲",)),), "item_preferences": (),
+    })()
+    loop.run(max_nodes=3)
+    assert device.taps == [(555, 393), (960, 1003)]
+    assert saved == ["card_reward_confirm_unchanged"]
+
+
+def test_card_reward_does_not_click_an_obscured_target(adventure):
+    from lorwright.champions.base import Preference
+
+    before = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
+    before[391:396, 553:558] = 0
+    loop, device, _, saved, _ = adventure([before], [])
+    loop.pack = type("Pack", (), {
+        "card_preferences": (Preference(("普羅大砲",)),), "item_preferences": (),
+    })()
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["card_reward_target_obscured"]
+
+
+def test_card_reward_does_not_treat_blue_unknown_scene_as_battle(adventure):
+    from lorwright.champions.base import Preference
+
+    reward = FIXTURES.parent / "card_rewards"
+    before = cv2.imread(str(reward / "before.png"))
+    selected = cv2.imread(str(reward / "selected-left.png"))
+    unknown = _blank()
+    loop, device, engine, saved, _ = adventure([before, selected, unknown, unknown], [])
+    loop.pack = type("Pack", (), {
+        "card_preferences": (Preference(("普羅大砲",)),), "item_preferences": (),
+    })()
+    button = loop.settings.layout.to_layout().end_turn
+    unknown[button.y:button.y + button.h, button.x:button.x + button.w] = (255, 100, 0)
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold, action_button=button,
+    )
+    engine.parser.ui.load()
+    assert engine.parser.ui.detect(unknown) is UIState.MY_TURN_IDLE
+    loop.run(max_nodes=2)
+    assert device.taps == [(555, 393), (960, 1003)]
+    assert saved == ["card_reward_after_unknown"]
+    assert engine.run_calls == []
+
+
+def test_already_selected_card_reward_never_confirms_without_a_pending_choice(adventure):
+    selected = cv2.imread(str(FIXTURES.parent / "card_rewards" / "selected-left.png"))
+    loop, device, _, saved, _ = adventure([selected], [])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["card_reward_unknown"]
+
+
+@pytest.mark.parametrize("frame", ["after.png", "map-bright.png"])
+def test_map_after_card_reward_stops_if_no_verified_next_path(adventure, frame):
+    # 同一地图的暗、亮两帧：当前节点光环不能被当作下一条路径。
+    image = cv2.imread(str(FIXTURES.parent / "card_rewards" / frame))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["map_no_next"]
+
+
 def test_node_click_that_stays_on_map_does_not_tap_travel(adventure):
     # 节点点击没打开面板（坐标/动画/网络问题）：仍能看到地图节点，禁止盲点旅行。
     loop, device, engine, saved, coords = adventure(

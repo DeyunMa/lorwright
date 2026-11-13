@@ -63,6 +63,9 @@ class ChampionPack(Protocol):
     #: 道具选择偏好；偏好不表示已经获得该道具
     item_preferences: tuple[Preference, ...]
 
+    #: 卡牌奖励：新选一张卡进入牌组
+    card_preferences: tuple[Preference, ...]
+
     #: 法术节点：新选一个法术进卡组
     spell_preferences: tuple[Preference, ...]
 

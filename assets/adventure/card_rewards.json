@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {"name": "普羅大砲", "template": "card_reward_poro_cannon", "art": "card_reward_art_poro_cannon", "quality": "common"},
+    {"name": "排山倒海", "template": "card_reward_crashing_wave", "art": "card_reward_art_crashing_wave", "quality": "unranked"},
+    {"name": "生物編目員", "template": "card_reward_creature_cataloguer", "art": "card_reward_art_creature_cataloguer", "quality": "rare"}
+  ],
+  "items": [
+    {"name": "帝王的恩賜", "template": "card_reward_item_emperors_favor", "cost_certain": true},
+    {"name": "腦蟲", "template": "card_reward_item_brain_worm", "cost_certain": true},
+    {"name": "光輝板甲", "template": "card_reward_item_radiant_plate", "cost_certain": false}
+  ]
+}

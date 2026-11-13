@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from lorwright.act.translate import ActionTranslator
-from lorwright.decide.rewards import pick_reward
+from lorwright.decide.rewards import pick_card_reward, pick_reward
 from lorwright.device.base import Device
 from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
@@ -36,7 +36,15 @@ from lorwright.perceive.buttons import find_continue_button
 from lorwright.perceive.mapnav import empty_point, next_node, panel_open
 from lorwright.perceive.normalize import Normalizer
 from lorwright.perceive.panels import action_button
-from lorwright.perceive.reward_screen import is_power_screen, recognize_powers
+from lorwright.perceive.reward_screen import (
+    card_reward_confirm_button,
+    card_reward_selection,
+    card_reward_target,
+    is_card_reward_screen,
+    is_power_screen,
+    recognize_card_rewards,
+    recognize_powers,
+)
 from lorwright.util import snapshot
 from lorwright.util.logger import logger
 
@@ -75,6 +83,10 @@ class AdventureLoop:
         last_continue_view = None
         for _ in range(max_nodes):
             image = self._frame()
+            if self._is_card_reward(image):
+                if not self._handle_card_reward(image):
+                    return
+                continue
             ui = self.engine.parser.ui.detect(image)
             if ui in self.BATTLE_STATES:
                 last_continue = None
@@ -170,6 +182,81 @@ class AdventureLoop:
             logger.warning("adventure: 能力候选无法完整识别，停止")
         snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="power_choice")
 
+    def _reward_design(self, image):
+        height, width = image.shape[:2]
+        if not width or not height or abs(width / height - 16 / 9) > 0.02:
+            return None
+        if (self.settings.screen.width, self.settings.screen.height) != (1920, 1080):
+            return None
+        return self.normalizer.fit(image)
+
+    def _is_card_reward(self, image) -> bool:
+        normalized = self._reward_design(image)
+        return normalized is not None and is_card_reward_screen(normalized[0])
+
+    def _handle_card_reward(self, image) -> bool:
+        """逐步选牌并核对转场；到账尚不可验证时停止。"""
+        normalized = self._reward_design(image)
+        if normalized is None:
+            return False
+        design, scale = normalized
+        candidates = recognize_card_rewards(design)
+        if candidates is None:
+            logger.warning("adventure: 卡牌奖励信息不完整或已选中，停止")
+            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="card_reward_unknown")
+            return False
+        picked = pick_card_reward(
+            candidates, getattr(self.pack, "card_preferences", ()),
+            getattr(self.pack, "item_preferences", ()),
+        )
+        if picked is None:
+            logger.warning("adventure: 卡牌奖励无法安全排序，停止")
+            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="card_reward_undecided")
+            return False
+        index = candidates.index(picked.candidate)
+        logger.info("adventure: 选择奖励 {}（{}）", picked.candidate.card.name, picked.reason)
+        target = card_reward_target(design, index, picked.candidate.card.name)
+        if target is None:
+            snapshot.save_snapshot(
+                image, self.settings.perception.snapshot_dir, tag="card_reward_target_obscured"
+            )
+            return False
+        self.device.tap(*scale.to_device(*target.center))
+        time.sleep(3)
+        selected_image = self._frame()
+        selected = self._reward_design(selected_image)
+        if selected is None or card_reward_selection(selected[0]) != index:
+            snapshot.save_snapshot(
+                selected_image, self.settings.perception.snapshot_dir, tag="card_reward_selection_failed"
+            )
+            return False
+        button = card_reward_confirm_button(selected[0])
+        if button is None:
+            snapshot.save_snapshot(
+                selected_image, self.settings.perception.snapshot_dir, tag="card_reward_confirm_missing"
+            )
+            return False
+        self.device.tap(*selected[1].to_device(*button.center))
+        time.sleep(3)
+        next_image = self._frame()
+        next_design = self._reward_design(next_image)
+        if next_design is None or is_card_reward_screen(next_design[0]):
+            snapshot.save_snapshot(
+                next_image, self.settings.perception.snapshot_dir, tag="card_reward_confirm_unchanged"
+            )
+            return False
+        if not (is_map(next_design[0]) or is_power_screen(next_design[0])):
+            snapshot.save_snapshot(
+                next_image, self.settings.perception.snapshot_dir, tag="card_reward_after_unknown"
+            )
+            return False
+        # 回到地图或进入能力页不代表服务端已把奖励加入牌组。
+        logger.warning("adventure: 奖励确认后已转场，但尚无法验证卡牌到账，停止")
+        snapshot.save_snapshot(
+            next_image, self.settings.perception.snapshot_dir, tag="card_reward_unverified"
+        )
+        return False
+
     def _close_panel(self, image) -> bool:
         # 动态找“非节点”的空白区域，不固定某个坐标。
         point = empty_point(image)
@@ -189,6 +276,8 @@ class AdventureLoop:
     def _handle_node_panel(self) -> bool:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         image = self._frame()
+        if self._is_card_reward(image):
+            return self._handle_card_reward(image)
         ui = self.engine.parser.ui.detect(image)
         if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
             return True  # 有些节点直接进战斗
@@ -225,6 +314,8 @@ class AdventureLoop:
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
             time.sleep(4)
             image = self._frame()
+            if self._is_card_reward(image):
+                return self._handle_card_reward(image)
             ui = self.engine.parser.ui.detect(image)
             if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
                 return True

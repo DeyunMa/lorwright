@@ -12,10 +12,15 @@ from dataclasses import dataclass
 
 from lorwright.champions.base import Preference
 
-__all__ = ["QUALITY_RANK", "RewardCandidate", "pick_reward"]
+__all__ = [
+    "QUALITY_RANK", "CardRewardCandidate", "CardRewardPick", "RewardCandidate",
+    "pick_card_reward", "pick_reward",
+]
 
 #: 品质 → 排序权值（越大越好）。繁中键来自游戏本地化文本。
 QUALITY_RANK: dict[str, int] = {
+    # 无品质与未知品质不同：前者是已核实的卡牌枚举，排序时放在普通之下。
+    "unranked": -1,
     "common": 0,
     "普通": 0,
     "rare": 1,
@@ -24,6 +29,8 @@ QUALITY_RANK: dict[str, int] = {
     "史詩": 2,
     "legendary": 3,
     "傳說": 3,
+    "champion": 4,
+    "英雄": 4,
 }
 
 
@@ -46,6 +53,60 @@ class RewardPick:
 
     candidate: RewardCandidate
     reason: str
+
+
+@dataclass(frozen=True)
+class CardRewardCandidate:
+    """一张奖励卡与附带道具；费用是预览显示值。"""
+
+    card: RewardCandidate
+    item_name: str
+    cost_certain: bool
+
+
+@dataclass(frozen=True)
+class CardRewardPick:
+    candidate: CardRewardCandidate
+    reason: str
+
+
+def pick_card_reward(
+    candidates: list[CardRewardCandidate],
+    card_preferences: tuple[Preference, ...] = (),
+    item_preferences: tuple[Preference, ...] = (),
+) -> CardRewardPick | None:
+    """英雄偏好优先；否则按卡牌品质、有效费用排序。信息不足则弃权。"""
+    if not candidates:
+        return None
+
+    def preference_hit(preferences, *, item: bool):
+        for pref in preferences:
+            names = {_norm(name) for name in pref.names}
+            for candidate in candidates:
+                name = candidate.item_name if item else candidate.card.name
+                if _norm(name) in names:
+                    return candidate, pref
+        return None
+
+    card_hit = preference_hit(card_preferences, item=False)
+    item_hit = preference_hit(item_preferences, item=True)
+    # 两张不同的卡同时命中不同类型的偏好时，现有规则没有指定先后。
+    if card_hit and item_hit and card_hit[0] != item_hit[0]:
+        return None
+    hit = card_hit or item_hit
+    if hit:
+        return CardRewardPick(hit[0], f"英雄偏好 {hit[1].names[0]}：{hit[1].note}")
+
+    if any(c.card.quality not in QUALITY_RANK for c in candidates):
+        return None
+    highest = max(QUALITY_RANK[c.card.quality] for c in candidates)
+    best = [c for c in candidates if QUALITY_RANK[c.card.quality] == highest]
+    # 只有最高品质并列时费用才影响选择。附带道具可能改变费用。
+    if len(best) > 1 and any(c.card.cost is None or not c.cost_certain for c in best):
+        return None
+    chosen = min(best, key=lambda c: (c.card.cost if c.card.cost is not None else 1_000,
+                                      c.card.name))
+    return CardRewardPick(chosen, "默认规则：卡牌品质优先，同品质按费用排序")
 
 
 def _preference_hit(candidates: list[RewardCandidate], prefs: tuple[Preference, ...]) -> RewardPick | None:

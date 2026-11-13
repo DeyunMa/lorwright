@@ -5,6 +5,7 @@ from lorwright.champions import available, load
 PREFERENCE_ATTRS = (
     "relic_preferences",
     "item_preferences",
+    "card_preferences",
     "spell_preferences",
     "power_preferences",
 )

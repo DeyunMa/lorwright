@@ -24,6 +24,7 @@ ITEM_PREFERENCES = (
 )
 POWER_PREFERENCES: tuple[Preference, ...] = ()
 SPELL_PREFERENCES: tuple[Preference, ...] = ()
+CARD_PREFERENCES: tuple[Preference, ...] = ()
 
 
 class ElisePack:
@@ -37,6 +38,7 @@ class ElisePack:
 
     relic_preferences = RELIC_PREFERENCES
     item_preferences = ITEM_PREFERENCES
+    card_preferences = CARD_PREFERENCES
     spell_preferences = SPELL_PREFERENCES
     power_preferences = POWER_PREFERENCES
 

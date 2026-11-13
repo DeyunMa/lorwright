@@ -10,6 +10,7 @@
 | `mapnav_960_legacy/*.jpg` | 960×540 | 历史地图素材，已退出运行时；只作迁移对照 |
 | `jinx/*.png` | 1080p 帧或其裁剪 | 对局内手牌/展开态回归 |
 | `continue/*.png` | 960×540 | 历史结算页和胜利横幅；结算页玩家名已遮盖，测试会放大到设计尺寸 |
+| `card_rewards/*` | 1920×1080 或标注裁剪 | f1 战斗奖励选前、选中及后续地图；`deck-after-crop.png` 和 `deck-after-restart.jpg` 是重启前后的牌组侧栏裁剪，后者经 JPEG 有损压缩 |
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 

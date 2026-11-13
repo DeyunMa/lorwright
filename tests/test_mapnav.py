@@ -1,9 +1,11 @@
 """mapnav 1080p 回归：最大视角，英雄节点 C3，下一关 C4。"""
 
+import random
 from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 
 from lorwright.champions.jinx.vision import recognize_hero
 from lorwright.perceive.mapnav import (
@@ -152,3 +154,142 @@ def test_path_without_a_detected_node_is_not_clickable() -> None:
     image = np.zeros((1080, 1920, 3), np.uint8)
     cv2.rectangle(image, (500, 500), (800, 510), (255, 255, 255), -1)
     assert next_node_by_path(image, hero=(500, 500)) is None
+
+
+def test_jinx_support_fork_selects_only_lit_neighboring_nodes() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+
+    targets = ((1141, 513), (1044, 841))
+    found = set()
+    for seed in (0, 1):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is not None
+        matching = [i for i, (x, y) in enumerate(targets)
+                    if abs(node.x - x) <= 20 and abs(node.y - y) <= 20]
+        assert len(matching) == 1
+        found.add(matching[0])
+    assert found == {0, 1}
+
+
+def test_jinx_support_fork_rejects_disconnected_paths() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    # 保留两端的节点环，将两条路线靠近英雄的一段变暗。
+    image[445:515, 940:1120] = (image[445:515, 940:1120] * 0.35).astype(np.uint8)
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize(
+    ("target", "position"),
+    [((1141, 513), t) for t in (0.1, 0.15, 0.2, 0.65, 0.8, 0.85, 0.9)]
+    + [((1044, 841), t) for t in (0.1, 0.15, 0.2, 0.65, 0.8, 0.85, 0.9)],
+)
+def test_jinx_support_fork_never_selects_a_cut_path(target, position) -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    anchor = (960, 411)
+    dx, dy = target[0] - anchor[0], target[1] - anchor[1]
+    length = (dx * dx + dy * dy) ** 0.5
+    x, y = int(anchor[0] + dx * position), int(anchor[1] + dy * position)
+    start = (int(x - dy / length * 30), int(y + dx / length * 30))
+    end = (int(x + dy / length * 30), int(y - dx / length * 30))
+    cv2.line(image, start, end, (0, 0, 0), 12)
+    for seed in (0, 1):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is None or (node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 > 40 ** 2
+
+
+def test_jinx_support_fork_rejects_completed_nodes() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    # 在两处候选中心加上绿色完成勾，不能把它们当作下一节点。
+    for x, y in ((1141, 513), (1044, 841)):
+        check = np.array([(x - 20, y), (x - 5, y + 15), (x + 23, y - 20)])
+        cv2.polylines(image, [check], False, (35, 225, 35), thickness=11)
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("target", ((1141, 513), (1044, 841)))
+@pytest.mark.parametrize("shade", (20, 30, 70, 120, 200))
+@pytest.mark.parametrize("half_size", (20, 28, 35))
+def test_jinx_support_fork_does_not_select_obscured_target(target, shade, half_size) -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    x, y = target
+    # 即使完成勾被遮住，也不能把被遮住的目标当作可走节点。
+    cv2.line(image, (x - 15, y), (x - 4, y + 10), (40, 220, 40), 8)
+    cv2.line(image, (x - 4, y + 10), (x + 15, y - 12), (40, 220, 40), 8)
+    cv2.rectangle(image, (x - half_size, y - half_size),
+                  (x + half_size, y + half_size), (shade, shade, shade), -1)
+    for seed in (0, 1):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is None or (node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2
+
+
+@pytest.mark.parametrize("target", ((1141, 513), (1044, 841)))
+@pytest.mark.parametrize("shade", (0, 30, 90, 150, 220))
+def test_jinx_support_fork_rejects_small_center_occlusion(target, shade) -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    x, y = target
+    cv2.rectangle(image, (x - 10, y - 10), (x + 10, y + 10), (shade,) * 3, -1)
+    for seed in (0, 1):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is None or (node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2
+
+
+def test_jinx_support_fork_does_not_use_loose_fallback_for_completed_node() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.line(image, (1024, 841), (1039, 856), (40, 220, 40), 12)
+    cv2.line(image, (1039, 856), (1069, 821), (40, 220, 40), 12)
+    # 一帧亮线变长时，不能让宽松的旧回退绕过完成标记检查。
+    cv2.line(image, (965, 445), (965, 430), (255, 255, 255), 8)
+    node = next_node(image, hero=hero, rng=random.Random(0))
+    assert node is None or (node.x - 1044) ** 2 + (node.y - 841) ** 2 > 40 ** 2
+
+
+def test_jinx_support_fork_does_not_return_to_completed_node() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    # 已完成节点及其旧路径变亮，不能绕过分叉路线检查。
+    cv2.line(image, hero, (737, 371), (255, 255, 255), 8)
+    for seed in (0, 1):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is None or (node.x - 737) ** 2 + (node.y - 371) ** 2 > 40 ** 2
+
+
+@pytest.mark.parametrize("shade", (0, 30, 90, 150))
+def test_jinx_support_fork_stops_when_current_node_is_obscured(shade) -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (930, 380), (990, 430), (shade, shade, shade), -1)
+    cv2.line(image, (965, 445), (965, 430), (255, 255, 255), 8)
+    assert next_node(image, hero=hero) is None
+
+
+def test_jinx_stops_when_current_round_node_is_obscured() -> None:
+    image = _load("1080p_map.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (hero[0] - 30, hero[1] + 65),
+                  (hero[0] + 30, hero[1] + 125), (90, 90, 90), -1)
+    assert next_node(image, hero=hero) is None
+
+
+def test_jinx_support_fork_rejects_dimmed_map() -> None:
+    image = _load("1080p_jinx_fork_after_support.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    dimmed = (image * 0.5).astype(np.uint8)
+    assert next_node(dimmed, hero=hero) is None

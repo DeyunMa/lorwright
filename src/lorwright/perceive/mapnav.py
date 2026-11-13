@@ -255,12 +255,144 @@ def next_node(
     if panel_open(image):
         return None
     mask = glow_mask(image)
+    if hero is not None:
+        routes = _lit_routes_from_ability(image, hero, mask)
+        if routes is not None:
+            return (rng or random).choice(routes) if routes else None
+        if not _current_node_halo_visible(image, hero):
+            return None
     nodes = detect_nodes(image)
     current = MapNode(*hero, 60) if hero is not None else hero_node(image, nodes)
     reachable = _reachable_nodes(image, current, nodes, mask)
     if not reachable:
         return next_node_by_path(image, hero=current.center, rng=rng)
     return (rng or random).choice(reachable)
+
+
+def _current_node_halo_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
+    """未识别菱形时，仅在英雄脚下的蓝环和中心图标可见时使用旧路径。"""
+    x, y = hero[0], hero[1] + 95
+    extent = 75
+    if (image.shape != (1080, 1920, 3) or x < extent or y < extent
+            or x + extent >= image.shape[1] or y + extent >= image.shape[0]):
+        return False
+    region = image[y - extent:y + extent + 1, x - extent:x + extent + 1]
+    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    distance = xx * xx + yy * yy
+    annulus = (distance >= 40 ** 2) & (distance <= extent ** 2)
+    blue, green, red = (region[:, :, i].astype(np.int16) for i in range(3))
+    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+    center = image[y - 18:y + 18, x - 18:x + 18]
+    return float(cyan[annulus].mean()) >= 0.2 and float(center.std()) >= 12
+
+
+def _lit_routes_from_ability(
+    image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
+) -> list[MapNode] | None:
+    """识别英雄站在菱形节点上时，连续亮线连接的蓝环节点。
+
+    None 表示没有识别到脚下的菱形；空列表表示场景适用但没有可确认
+    的路线，不能再使用较宽松的路径回退。
+    """
+    if image.shape != (1080, 1920, 3):
+        return None
+    anchors = [
+        node for node in detect_ability_nodes(image)
+        if abs(node.x - hero[0]) <= 30 and 55 <= node.y - hero[1] <= 125
+    ]
+    if not anchors:
+        return None
+    if len(anchors) != 1:
+        return []
+    anchor = anchors[0]
+    _, labels = cv2.connectedComponents(mask, connectivity=8)
+    contours, _ = cv2.findContours(mask * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    nodes: list[MapNode] = []
+    for contour in contours:
+        if cv2.contourArea(contour) < 300:
+            continue
+        if cv2.pointPolygonTest(contour, anchor.center, True) < -50:
+            continue
+        points = contour.reshape(-1, 2)
+        cx, cy = points[0]
+        label = labels[cy, cx]
+        if not _line_touches_ability(image, labels, label, anchor):
+            continue
+        ends = (
+            points[np.argmin(points[:, 0])], points[np.argmax(points[:, 0])],
+            points[np.argmin(points[:, 1])], points[np.argmax(points[:, 1])],
+        )
+        end = max(ends, key=lambda p: (int(p[0]) - anchor.x) ** 2
+                  + (int(p[1]) - anchor.y) ** 2)
+        circle = _circle_near(image, tuple(end))
+        if circle is None:
+            continue
+        x, y, radius = circle
+        if (x - anchor.x) ** 2 + (y - anchor.y) ** 2 < 120 ** 2:
+            continue
+        if x < 240 or x > 1750 or y < 60 or radius < 45:
+            continue
+        if not _lit_unfinished_ring(image, labels, label, x, y, radius):
+            continue
+        if all((node.x - x) ** 2 + (node.y - y) ** 2 >= 50 ** 2 for node in nodes):
+            nodes.append(MapNode(x, y, radius))
+    return nodes
+
+
+def _line_touches_ability(
+    image: np.ndarray, labels: np.ndarray, label: int, anchor: MapNode,
+) -> bool:
+    """检查亮线连通域与英雄脚下菱形的实际金色边缘相邻。"""
+    extent = anchor.radius + 30
+    if (anchor.x < extent or anchor.y < extent or anchor.x + extent >= image.shape[1]
+            or anchor.y + extent >= image.shape[0]):
+        return False
+    x0, x1 = anchor.x - extent, anchor.x + extent + 1
+    y0, y1 = anchor.y - extent, anchor.y + extent + 1
+    hsv = cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2HSV)
+    gold = cv2.inRange(hsv, (15, 120, 120), (40, 255, 255))
+    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    gold[xx * xx + yy * yy > (anchor.radius + 8) ** 2] = 0
+    component = labels[y0:y1, x0:x1] == label
+    if not component.any() or not gold.any():
+        return False
+    distances = cv2.distanceTransform((~component).astype(np.uint8), cv2.DIST_L2,
+                                      cv2.DIST_MASK_PRECISE)
+    return float(distances[gold > 0].min()) <= 6
+
+
+def _lit_unfinished_ring(
+    image: np.ndarray, labels: np.ndarray, label: int, x: int, y: int, radius: int,
+) -> bool:
+    """检查亮线与蓝环，并拒绝低纹理中心及绿色完成标记。"""
+    extent = radius + 18
+    if x < extent or y < extent or x + extent >= image.shape[1] or y + extent >= image.shape[0]:
+        return False
+    region = image[y - extent:y + extent + 1, x - extent:x + extent + 1]
+    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    distance = xx * xx + yy * yy
+    annulus = (distance >= max(10, radius - 18) ** 2) & (distance <= extent ** 2)
+    blue, green, red = (region[:, :, i].astype(np.int16) for i in range(3))
+    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+    if float(cyan[annulus].mean()) < 0.2:
+        return False
+    component = labels[y - extent:y + extent + 1, x - extent:x + extent + 1] == label
+    if int(np.count_nonzero(component & annulus & cyan)) < 200:
+        return False
+    center_gray = cv2.cvtColor(image[y - 10:y + 10, x - 10:x + 10], cv2.COLOR_BGR2GRAY)
+    if float(center_gray.std()) < 12 or float(center_gray[5:15, 5:15].std()) < 12:
+        return False
+    visible_radius = int(radius * 0.9)
+    visible = image[y - visible_radius:y + visible_radius, x - visible_radius:x + visible_radius]
+    darkness = cv2.inRange(cv2.cvtColor(visible, cv2.COLOR_BGR2HSV), (0, 0, 0), (180, 255, 19))
+    count, _, stats, _ = cv2.connectedComponentsWithStats(darkness)
+    if count > 1 and int(stats[1:, cv2.CC_STAT_AREA].max()) >= 100:
+        return False
+    center_radius = int(radius * 0.55)
+    center = image[y - center_radius:y + center_radius, x - center_radius:x + center_radius]
+    hsv = cv2.cvtColor(center, cv2.COLOR_BGR2HSV)
+    green_mark = cv2.inRange(hsv, (35, 95, 130), (85, 255, 255))
+    return int(cv2.countNonZero(green_mark)) < 100
 
 
 def next_node_by_path(

@@ -272,9 +272,11 @@ def next_node_by_path(
     """用最大发光路径的端点找下一节点。
 
     有些地图的节点环对比不足，HoughCircles + _is_ring_node 会漏掉；但路径
-    本身很亮。取最大发光连通域，找离英雄最远的端点，再在端点附近找圆形
-    节点。找不到圆就用端点本身作为可点位置。
+    本身很亮。只考虑靠近英雄的发光连通域，在远端寻找圆形节点；
+    找不到节点或圆心太靠近英雄时弃权，避免将当前节点的光环当成路径。
     """
+    if hero is None:
+        return None
     glow = glow_mask(image)
     contours, _ = cv2.findContours(
         (glow * 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -284,6 +286,9 @@ def next_node_by_path(
     contour = max(contours, key=cv2.contourArea)
     if cv2.contourArea(contour) < 300:
         return None
+    # 地图头像位于当前节点上方，已验证的路径与头像相距不超过 120px。
+    if cv2.pointPolygonTest(contour, hero, True) < -120:
+        return None
     points = contour.reshape(-1, 2)
     endpoints = [
         tuple(points[np.argmin(points[:, 0])]),
@@ -291,14 +296,14 @@ def next_node_by_path(
         tuple(points[np.argmin(points[:, 1])]),
         tuple(points[np.argmax(points[:, 1])]),
     ]
-    if hero is not None:
-        endpoint = max(endpoints, key=lambda p: (p[0] - hero[0]) ** 2 + (p[1] - hero[1]) ** 2)
-    else:
-        endpoint = max(endpoints, key=lambda p: p[0])
+    endpoint = max(endpoints, key=lambda p: (p[0] - hero[0]) ** 2 + (p[1] - hero[1]) ** 2)
     circle = _circle_near(image, endpoint)
-    if circle is not None:
-        return MapNode(*circle)
-    return MapNode(int(endpoint[0]), int(endpoint[1]), 40)
+    if circle is None:
+        return None
+    x, y, radius = circle
+    if (x - hero[0]) ** 2 + (y - hero[1]) ** 2 < 120 ** 2:
+        return None
+    return MapNode(x, y, radius)
 
 
 def _circle_near(

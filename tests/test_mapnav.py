@@ -140,3 +140,15 @@ def test_path_endpoint_finds_next_node_when_rings_fail() -> None:
     assert nxt is not None
     assert abs(nxt.x - 982) <= 20
     assert abs(nxt.y - 334) <= 20
+
+
+def test_disconnected_glow_is_not_a_path_from_the_hero() -> None:
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    cv2.circle(image, (1500, 250), 55, (255, 255, 255), 8)
+    assert next_node_by_path(image, hero=(500, 500)) is None
+
+
+def test_path_without_a_detected_node_is_not_clickable() -> None:
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    cv2.rectangle(image, (500, 500), (800, 510), (255, 255, 255), -1)
+    assert next_node_by_path(image, hero=(500, 500)) is None

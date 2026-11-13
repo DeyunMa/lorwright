@@ -107,6 +107,16 @@ def test_no_next_node_saves_snapshot_and_stops(adventure):
     assert engine.run_calls == []
 
 
+def test_support_map_without_next_node_stops_without_clicking(adventure):
+    image = _img("1080p_jinx_support_map.jpg")
+    loop, device, engine, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["map_no_next"]
+    assert engine.run_calls == []
+
+
 def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
     # 蓝色内容本身不足以证明画面是地图面板。
     image = _blank()

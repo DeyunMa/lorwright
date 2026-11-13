@@ -84,10 +84,30 @@ def find_home_adventure_entry(image: np.ndarray) -> Rect | None:
     return Rect(x1 + x, y1 + y, w, h)
 
 
+def _map_zoom_visible(image: np.ndarray) -> bool:
+    template = _template("map_zoom")
+    if template is None or template.shape != (190, 84) or image.shape != (1080, 1920, 3):
+        return False
+    region = cv2.cvtColor(image[240:430, 1780:1864], cv2.COLOR_BGR2GRAY)
+    # 控件四周的背景随地图变化；只匹配控件内部，避免背景导致漏识别。
+    score = cv2.matchTemplate(region[12:-12, 12:-12], template[12:-12, 12:-12],
+                              cv2.TM_CCOEFF_NORMED)[0, 0]
+    if score < 0.9:
+        return False
+    # 相关系数对整体变暗不敏感；检查加减号字迹，排除已验证的遮暗和遮挡。
+    plus_mask = template[30:85, 15:70] >= 170
+    minus_mask = template[115:160, 15:70] >= 85
+    if not plus_mask.any() or not minus_mask.any():
+        return False
+    plus = region[30:85, 15:70][plus_mask]
+    minus = region[115:160, 15:70][minus_mask]
+    return bool(np.percentile(plus, 10) >= 150 and np.percentile(minus, 10) >= 100)
+
+
 def is_map(image: np.ndarray) -> bool:
-    """同时识别地图返回键与缩放控件，不能仅凭蓝色像素认地图。"""
+    """同时识别地图返回键与可见缩放控件，不能仅凭蓝色像素认地图。"""
     return (_matches(image, "map_back", (80, 65, 118, 105), 0.9)
-            and _matches(image, "map_zoom", (1780, 240, 1864, 430)))
+            and _map_zoom_visible(image))
 
 
 def is_battle_detail(image: np.ndarray) -> bool:

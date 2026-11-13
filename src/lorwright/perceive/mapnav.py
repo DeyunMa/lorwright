@@ -15,6 +15,8 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -259,6 +261,10 @@ def next_node(
         routes = _lit_routes_from_ability(image, hero, mask)
         if routes is not None:
             return (rng or random).choice(routes) if routes else None
+        if _current_completed_node_visible(image, hero):
+            # 圆形完成节点的连接尚不能可靠排除靠近起点的遮挡；停手
+            # 等待更多独立实机帧，不能走宽松的亮线回退。
+            return None
         if not _current_node_halo_visible(image, hero):
             return None
     nodes = detect_nodes(image)
@@ -267,6 +273,27 @@ def next_node(
     if not reachable:
         return next_node_by_path(image, hero=current.center, rng=rng)
     return (rng or random).choice(reachable)
+
+
+@cache
+def _current_completed_template() -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure/map_current_check.png")), cv2.IMREAD_COLOR)
+
+
+def _current_completed_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
+    """识别头像脚下的完成勾；不把任意绿色图标视为完成。"""
+    template = _current_completed_template()
+    x, y = hero
+    if (template is None or image.shape != (1080, 1920, 3) or x < 65 or y < 0
+            or x + 65 >= 1920 or y + 155 >= 1080):
+        return False
+    region = image[y + 55:y + 125, x - 55:x + 55]
+    result = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+    _, score, _, (dx, dy) = cv2.minMaxLoc(result)
+    matched = region[dy:dy + template.shape[0], dx:dx + template.shape[1]]
+    hsv = cv2.cvtColor(matched, cv2.COLOR_BGR2HSV)
+    green = cv2.inRange(hsv, (35, 95, 130), (85, 255, 255))
+    return bool(score >= 0.90 and cv2.countNonZero(green) >= 120)
 
 
 def _current_node_halo_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:

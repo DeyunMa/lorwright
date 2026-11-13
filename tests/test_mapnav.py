@@ -287,6 +287,44 @@ def test_jinx_stops_when_current_round_node_is_obscured() -> None:
     assert next_node(image, hero=hero) is None
 
 
+def test_completed_current_node_waits_when_connection_is_not_verified() -> None:
+    image = _load("f1-healer-route-20261113.jpg")
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("position", (0.13, 0.2, 0.4, 0.5, 0.6, 0.7))
+def test_completed_node_does_not_follow_a_cut_path(position) -> None:
+    image = _load("f1-healer-route-20261113.jpg")
+    hero = recognize_hero(image)
+    assert hero is not None
+    # 包括靠近当前节点的断线，不能将另一端的亮环视作已连接。
+    start, end = (963, 454), (1173, 521)
+    x = int(start[0] + (end[0] - start[0]) * position)
+    y = int(start[1] + (end[1] - start[1]) * position)
+    cv2.line(image, (x - 15, y + 30), (x + 15, y - 30), (0, 0, 0), 15)
+    assert next_node(image, hero=hero) is None
+
+
+def test_completed_node_does_not_select_obscured_healer() -> None:
+    image = _load("f1-healer-route-20261113.jpg")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (1140, 490), (1205, 555), (0, 0, 0), -1)
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("shade", (0, 80, 160))
+def test_completed_node_does_not_navigate_when_current_marker_is_obscured(shade) -> None:
+    image = _load("f1-healer-route-20261113.jpg")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (hero[0] - 34, hero[1] + 55),
+                  (hero[0] + 34, hero[1] + 117), (shade,) * 3, -1)
+    assert next_node(image, hero=hero) is None
+
+
 def test_jinx_support_fork_rejects_dimmed_map() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
     hero = recognize_hero(image)

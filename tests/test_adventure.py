@@ -790,6 +790,37 @@ def test_jinx_node_opens_travel_then_battle_panel(adventure):
     assert saved == []
 
 
+def test_resume_from_current_battle_node(adventure):
+    # 地图和详情是同一节点的实拍，战斗帧用假 UI 状态模拟。
+    battle = _img("1080p_zoommax.png")
+    loop, device, engine, saved, _ = adventure(
+        [_img("f1-karma-current-20261114.png"),
+         _img("f1-karma-battle-detail-20261114.png"), battle, battle],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN, UIState.MULLIGAN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 2
+    assert abs(device.taps[0][0] - 960) <= 15
+    assert abs(device.taps[0][1] - 540) <= 15
+    assert device.taps[1] == (1581, 1010)
+    assert engine.run_calls == [400]
+    assert saved == []
+
+
+def test_resume_from_open_battle_detail(adventure):
+    battle = _img("1080p_zoommax.png")
+    loop, device, engine, saved, _ = adventure(
+        [_img("f1-karma-battle-detail-20261114.png"), battle, battle],
+        [UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN, UIState.MULLIGAN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert device.taps == [(1581, 1010)]
+    assert engine.run_calls == [400]
+    assert saved == []
+
+
 def test_jinx_sharpshooter_node_travel_and_battle(adventure):
     # 同一地图和敌人的三个截图；最终战斗 UI 状态由假引擎模拟。
     loop, device, engine, saved, _ = adventure(

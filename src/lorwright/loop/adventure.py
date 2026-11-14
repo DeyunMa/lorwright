@@ -154,6 +154,10 @@ class AdventureLoop:
             if is_power_screen(image):
                 self._preview_power(image)
                 return
+            if is_battle_detail(image):
+                if not self._handle_node_panel(image):
+                    return
+                continue
             # 主页属于独立识别场景，不把战斗 UNKNOWN 当作点击授权。
             height, width = image.shape[:2]
             if width and height and abs(width / height - 16 / 9) <= 0.02:
@@ -441,9 +445,10 @@ class AdventureLoop:
                 return False
         return False
 
-    def _handle_node_panel(self) -> bool:
+    def _handle_node_panel(self, image=None) -> bool:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
-        image = self._frame()
+        if image is None:
+            image = self._frame()
         if shop_leave_button(image) is not None:
             return self._handle_shop(image)
         if self._is_healer(image):

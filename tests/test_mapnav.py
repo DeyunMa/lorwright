@@ -9,6 +9,7 @@ import pytest
 
 from lorwright.champions.jinx.vision import recognize_hero
 from lorwright.perceive.mapnav import (
+    _current_battle_node_visible,
     detect_ability_nodes,
     detect_nodes,
     empty_point,
@@ -100,6 +101,39 @@ def test_jinx_portrait_finds_map_avatar_instead_of_fixed_hud() -> None:
     assert abs(hero[1] - 445) <= 15
     # 最大视角图中地图头像太小，当前匹配不足，应拒识而不是返回左下角。
     assert recognize_hero(_load("1080p_zoommax.png")) is None
+
+
+def test_current_unfinished_battle_can_be_reentered() -> None:
+    image = _load("f1-karma-current-20261114.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert abs(node.x - 960) <= 15 and abs(node.y - 540) <= 15
+
+
+@pytest.mark.parametrize("name", [
+    "f1-after-shop-20261114.png",
+    "f1-before-healer-1080.png",
+    "1080p_jinx_fork_after_support.png",
+    "1080p_map.png",
+])
+def test_other_current_nodes_are_not_unfinished_battles(name: str) -> None:
+    image = _load(name)
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert not _current_battle_node_visible(image, hero)
+
+
+def test_obscured_or_dimmed_current_battle_is_not_reentered() -> None:
+    image = _load("f1-karma-current-20261114.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    obscured = image.copy()
+    x, y = hero[0], hero[1] + 95
+    obscured[y - 10:y + 10, x - 10:x + 10] = 128
+    assert not _current_battle_node_visible(obscured, hero)
+    assert not _current_battle_node_visible((image * 0.75).astype(np.uint8), hero)
 
 
 def test_jinx_second_map_next_node() -> None:
@@ -300,6 +334,7 @@ def test_completed_current_node_follows_verified_jpeg_route() -> None:
     ("relative", "target"),
     [
         ("mapnav/f1-after-shop-20261114.png", (1185, 573)),
+        ("mapnav/f1-resumed-map-20261114.png", (1203, 575)),
         ("mapnav/f1-before-healer-1080.png", (1191, 603)),
         ("healer/f1-after-heal.png", (1166, 444)),
         ("healer/f1-after-heal-alt.png", (1166, 444)),
@@ -320,6 +355,7 @@ def test_completed_current_node_follows_real_lit_route(relative, target) -> None
     ("relative", "start", "target"),
     [
         ("mapnav/f1-after-shop-20261114.png", (959, 535), (1185, 573)),
+        ("mapnav/f1-resumed-map-20261114.png", (959, 534), (1203, 575)),
         ("mapnav/f1-before-healer-1080.png", (958, 511), (1191, 603)),
         ("healer/f1-after-heal.png", (959, 534), (1166, 444)),
         ("healer/f1-after-heal-alt.png", (958, 537), (1167, 435)),
@@ -345,6 +381,7 @@ def test_completed_node_rejects_cut_paths_in_both_directions(
 
 @pytest.mark.parametrize("relative,target", [
     ("mapnav/f1-after-shop-20261114.png", (1185, 573)),
+    ("mapnav/f1-resumed-map-20261114.png", (1203, 575)),
     ("mapnav/f1-before-healer-1080.png", (1191, 603)),
     ("healer/f1-after-heal.png", (1166, 444)),
     ("healer/f1-after-heal-alt.png", (1167, 435)),
@@ -397,9 +434,12 @@ def test_completed_node_does_not_select_obscured_healer() -> None:
     assert next_node(image, hero=hero) is None
 
 
+@pytest.mark.parametrize("name", (
+    "f1-after-shop-20261114.png", "f1-resumed-map-20261114.png",
+))
 @pytest.mark.parametrize("shade", (0, 80, 160))
-def test_shop_node_does_not_navigate_when_current_marker_is_obscured(shade) -> None:
-    image = _load("f1-after-shop-20261114.png")
+def test_shop_node_does_not_navigate_when_current_marker_is_obscured(name, shade) -> None:
+    image = _load(name)
     hero = recognize_hero(image)
     assert hero is not None
     cv2.rectangle(image, (hero[0] - 34, hero[1] + 55),
@@ -407,11 +447,16 @@ def test_shop_node_does_not_navigate_when_current_marker_is_obscured(shade) -> N
     assert next_node(image, hero=hero) is None
 
 
-def test_shop_node_does_not_select_obscured_target() -> None:
-    image = _load("f1-after-shop-20261114.png")
+@pytest.mark.parametrize(("name", "target"), (
+    ("f1-after-shop-20261114.png", (1185, 573)),
+    ("f1-resumed-map-20261114.png", (1203, 575)),
+))
+def test_shop_node_does_not_select_obscured_target(name, target) -> None:
+    image = _load(name)
     hero = recognize_hero(image)
     assert hero is not None
-    cv2.rectangle(image, (1150, 538), (1220, 608), (0, 0, 0), -1)
+    x, y = target
+    cv2.rectangle(image, (x - 35, y - 35), (x + 35, y + 35), (0, 0, 0), -1)
     assert next_node(image, hero=hero) is None
 
 

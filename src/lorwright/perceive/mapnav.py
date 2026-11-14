@@ -261,6 +261,8 @@ def next_node(
         routes = _lit_routes_from_ability(image, hero, mask)
         if routes is not None:
             return (rng or random).choice(routes) if routes else None
+        if _current_battle_node_visible(image, hero):
+            return MapNode(hero[0], hero[1] + 95, 48)
         if (_current_completed_node_visible(image, hero)
                 or _current_node_halo_visible(image, hero)):
             routes = _lit_routes_from_round(image, hero, mask)
@@ -375,7 +377,8 @@ def _lit_routes_from_round(
     if not anchors:
         return []
     anchor = min(anchors, key=lambda n: (n.x - guess[0]) ** 2 + (n.y - guess[1]) ** 2)
-    extent = anchor.radius + 16
+    # 亮线与当前节点的光环可能因阈值分割出现几像素的间隙。
+    extent = anchor.radius + 18
     if (anchor.x < extent or anchor.y < extent or anchor.x + extent >= image.shape[1]
             or anchor.y + extent >= image.shape[0]):
         return []
@@ -440,6 +443,25 @@ def _current_node_halo_visible(image: np.ndarray, hero: tuple[int, int]) -> bool
     # 商店等节点的图标和头像会遮住一部分光环；仍要求中心可见、
     # 且后续由连续亮线与未完成目标共同验证，避免仅凭微弱蓝光移动。
     return float(cyan[annulus].mean()) >= 0.12 and float(center.std()) >= 12
+
+
+def _current_battle_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
+    """识别脚下仍待挑战的战斗节点；其他节点不能仅凭蓝光重进。"""
+    if (_current_completed_node_visible(image, hero)
+            or not _current_node_halo_visible(image, hero)):
+        return False
+    x, y = hero[0], hero[1] + 95
+    extent = 75
+    region = image[y - extent:y + extent + 1, x - extent:x + extent + 1]
+    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    distance = xx * xx + yy * yy
+    lower_ring = (distance >= 28 ** 2) & (distance <= 48 ** 2) & (yy >= 0)
+    blue, green, red = (region[:, :, i].astype(np.int16) for i in range(3))
+    orange = (red > 140) & (red - green > 30) & (green - blue > 10) & (green > 45)
+    bright_halo = (blue > 220) & (green > 200) & (blue - red > 35)
+    center = cv2.cvtColor(image[y - 5:y + 5, x - 5:x + 5], cv2.COLOR_BGR2GRAY)
+    return (float(orange[lower_ring].mean()) >= 0.04
+            and int(bright_halo.sum()) >= 200 and float(center.std()) >= 5)
 
 
 def _lit_routes_from_ability(

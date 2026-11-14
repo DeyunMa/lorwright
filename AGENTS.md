@@ -1,112 +1,47 @@
 # AGENTS.md
 
-给在本仓库工作的 AI agent 的规则。人类可读，但主要写给 agent。
+本文件是 AI agent 的项目入口：只放持续适用的目标和约束，进度、环境和详细设计放在链接的文档中。
 
-## 这是什么
+## 项目目标
 
-基于视觉的《符文大地传说》**英雄之路（Path of Champions）**自动化工具，Windows 上运行。
+将基于视觉的《符文大地传说》英雄之路自动化工具跑通。基础目标是让 **Jinx 和 Elise 分别自动完成整个冒险**：从进入冒险、路线移动，到战斗、结算、奖励、治疗及其他节点，能够根据画面连续处理。当前实现和实机验证范围见 [`docs/handoff.md`](docs/handoff.md) 和 [`docs/status.md`](docs/status.md)；目标不代表已经实现。
 
-**接手开发先读 [`docs/handoff.md`](docs/handoff.md)** —— 里面写了现在卡在哪、
-按什么顺序做、有哪些踩过的坑。
+优先建设所有英雄可复用的感知、决策和操作能力，再由英雄包提供必要的专属规则。冒险中会加入新卡，不能以提前登记所有手牌为完成基础目标的前提；无法可靠判断时应停下并补足通用能力，而不是盲点。
 
-## 硬约束（先读这个，否则会走错方向）
+## 从这里开始
 
-1. **英雄之路没有官方 API。** `localhost:21337` 只覆盖收藏/构筑/PvP，
-   PoC 至今无 API（见 `docs/adr/0002`）。**不要尝试接 API 做 PoC 状态。**
-2. **主路径是 ADB（手机/模拟器），不是 Windows 窗口。** 见 `docs/adr/0003`。
-   桌面模式（mss+pynput）只作为调试回退。
-3. **手机版只能拖拽出牌**（实测：点击不发牌），且手势必须是
-   **按住 → 停顿 → 拖 → 松手**。`input swipe` 是原子手势、从第 0 ms 就插值移动，
-   表达不了停顿，会被 LoR 判成长按预览；所以出牌走 `device/touch.py` 的事件级后端
-   （`EvdevSurface.drag(hold_ms, drag_ms)`）。不是「点卡 → 点地面」两次点击。
-4. **UI 状态 UNKNOWN 时绝不点击。** 兜底动作是 `NO_OP`，不是「结束回合」。
-   2026-11-02 因为盲点，机器人点进了设定菜单。
-5. **坐标和模板按「设计尺寸」标定，不按物理分辨率。** 设计尺寸写在 `config.screen`
-   （现 1920×1080），`perceive/normalize.py` 负责把实际截图归一化过去、动作坐标再反算回设备像素。
-   Pie64 原生 720p 读不出数字，用 `adb shell wm size 1920x1080` 抬高。环境细节见 `docs/environment.md`。
+- 接手时先读 [`docs/handoff.md`](docs/handoff.md) 的最新接手入口和 [`docs/status.md`](docs/status.md)；历史记录不等于当前状态。
+- 按任务查阅 [`docs/environment.md`](docs/environment.md)（f1、模拟器和 ADB）、[`docs/champions/elise.md`](docs/champions/elise.md)（Elise 决策）、[`docs/adr/`](docs/adr/)（架构决策）。现有实现与实测证据优先于过时的设计描述。
+- 实战开发时先看当前画面，让程序处理已支持的步骤；程序遇阻后，依据截图和日志补能力，用相关图片及安全负例验证，同步后继续。画面变化影响下一步时，简短说明观察和下一步。
+- 修改只针对当前目标和观察到的问题；区分离线图片回放、局部实机操作和完整冒险验证，不把其中一种说成另一种。
 
-## 目标牌组
+## 必须遵守
 
-现有伊莉絲（Elise）与金克丝（Jinx）英雄包；具体完成度和实战证据见
-`docs/handoff.md`。修改伊莉絲决策逻辑前先读 `docs/champions/elise.md`。
-基础目标是通用战斗、结算、移动、治疗和奖励规则，加上必要的英雄规则，
-让这两个英雄完成冒险；不以逐张登记冒险中新加入的卡牌作为前提。
+1. **英雄之路没有官方状态 API。** `localhost:21337` 覆盖收藏、构筑和 PvP，不能用来获取 PoC 状态，见 [ADR 0002](docs/adr/0002-vision-only-perception.md)。
+2. **ADB 是主路径**（手机或模拟器），Windows 桌面模式仅用于调试回退，见 [ADR 0003](docs/adr/0003-adb-over-desktop.md)。不读写游戏内存、不修改游戏文件、不绕过反作弊。
+3. **手机版出牌用带停顿的拖拽。** 展开手牌后执行「按住 → 停顿 → 拖 → 松手」，使用 `device/touch.py` 的事件级后端；点击出牌和 `input swipe` 不能替代这个手势。
+4. **状态未知不点击。** `UNKNOWN` 的兜底是 `NO_OP`；只有确定处于 `MY_TURN_IDLE` 且各策略均弃权时才结束回合。不可为了继续流程盲点。
+5. **坐标和模板按设计尺寸标定。** `config.screen` 当前为 1920×1080；`perceive/normalize.py` 负责截图归一化和动作坐标反算。f1 Pie64 的分辨率设置见环境文档。
+6. **保留 f1 的独立改动。** 使用用户指定的 Tailscale 和系统 SSH；同步前核对待覆盖文件，备份已有内容并在同步后校验。实时操作前重新确认画面。
 
-## f1 实测
+## 代码边界
 
-- 按用户指定使用 Tailscale 和系统 SSH；先看当前画面，再让程序处理已支持的步骤。
-- 实测卡住时保留截图和日志，以可复用能力修复，并用相关图片及安全负例验证。
-- 同步前检查 f1 上待覆盖文件的现状，保留独立改动并备份、核验所覆盖的文件。
+`device → perceive → decide → act → loop`：设备负责截图和输入，感知只读画面，决策只产生语义动作，执行层将动作转换为坐标和手势，循环负责编排。决策层不能截图、控制鼠标或直接生成坐标。
 
-## 命令
+- 英雄规则、牌表和偏好放在 `champions/<name>/`；`decide/` 与 `models.py` 不包含具体英雄知识。新英雄应通过英雄包接入，不为单个英雄改核心层。
+- 每层决策可以弃权；确定没有优先权时返回 `NO_OP`，避免继续执行通用层。配置中的 `layout` 和 `champion` 优先于硬编码。
+- 测试不依赖游戏：用合成图和保存的实拍截图验证感知及决策，包括误识别和遮挡等安全负例。
+- 不提前引入 GUI、Playwright/Selenium 或插件系统；优先跑通现有 CLI 与英雄包。
+
+## 常用命令
 
 ```bash
-pip install -e ".[dev]"     # 安装
-pytest                      # 单测，不需要游戏
-ruff check src tests tools  # 静态检查
-lorwright doctor            # 环境自检
-lorwright devices           # 列出 ADB 设备
-lorwright probe             # 设备信息 + UI 状态
-lorwright shot --out x.png  # 截图（量坐标/采模板）
+pip install -e ".[dev]"
+pytest
+ruff check src tests tools
+lorwright doctor
+lorwright devices
+lorwright probe
+lorwright shot --out x.png
 lorwright run --max-ticks 50 --device adb
 ```
-
-## 架构
-
-```
-device（adb / desktop）→ perceive（模板匹配/OCR） → decide（英雄包→通用规则→兜底，纯脚本） → act（坐标翻译） → loop
-```
-
-策略全部弃权时，确认处于 `MY_TURN_IDLE` 则结束回合；其他状态返回 `NO_OP`。
-
-| 目录 | 职责 | 关键约定 |
-|---|---|---|
-| `models.py` | 数据契约 | `GameState` / `Action` / `Layout`，**决策层不碰坐标** |
-| `device/` | 设备抽象 | `AdbDevice`（adb 截图/点击）/ `DesktopDevice`（mss+pynput） |
-| `perceive/` | 感知 | 只读截图，不产生动作 |
-| `decide/` | 决策机制 | `base` 协议、`card` 卡牌词汇、`combat` 战斗求解器、`router` 分层路由 |
-| `champions/` | 英雄包 | `champions/<name>/` = 牌表 + 策略；**核心层不认识任何英雄** |
-| `act/` | 执行 | 语义动作 → 点击序列 |
-| `loop/` | 编排 | 主循环、看门狗、恢复策略 |
-
-### 英雄包（重要）
-
-一个英雄 = 一个目录，丢进去就能被 `champions.available()` 发现：
-
-```
-champions/elise/
-  __init__.py   # 暴露 PACK
-  deck.py       # 牌表（继承 decide.card.CardDef）+ 效果分类 + 别名
-  policy.py     # 这个英雄的 L1 规则与评分
-```
-
-加英雄时 **不改 `decide/` 下任何文件**。如果要改，说明有东西没抽象干净。
-这是 MAA 的资源包思路：core 管机制，resource pack 管具体对象的知识。
-换英雄只改 `config/settings.yaml` 的 `champion:`。
-
-## 设计约定
-
-- **决策层只产出语义动作**（`PlayCard(card_index=2)`），不产出坐标。
-  坐标由 `act/translate.py` 负责，这样决策逻辑可以脱离屏幕单测。
-- **英雄专属的东西全在自己的目录里。** 牌表、评分、取舍规则不进 `decide/`，
-  也不进 `models.py`（不要再出现 `spider_count` 这种字段）。
-- **每层都能弃权。** 但「答案唯一」的情况不能弃权——没优先权时返回 `NO_OP`，
-  不是 `None`，否则路由会在对手回合每帧白跑一次通用层决策。
-- **配置优先于硬编码。** 坐标放 `config/settings.yaml` 的 `layout` 段，
-  英雄放 `champion:` 段。
-- **测试不依赖游戏。** 使用合成图像与已保存的截图等 fixture。
-
-## 不要做
-
-- ❌ 不引入 GUI（先做 CLI + 日志；可视化需求用 `rich`）
-- ❌ 不引入 Playwright/Selenium（这不是浏览器自动化）
-- ❌ 不读写游戏内存、不改游戏文件、不绕过反作弊
-- ❌ 不把插件系统提前实现（见 `docs/adr/0001`，先跑通一个卡组）
-- ❌ 不在 `decide/` 里调用截图或鼠标（破坏可测试性）
-- ❌ 不把某个英雄的知识写进 `decide/` 或 `models.py`（破坏解耦）
-
-## 当前状态
-
-见 `docs/status.md`。打开的 issue 在 GitHub Issues，标签 `p0/p1/p2`。
-
-当前进展、实战验证范围及待办见 `docs/handoff.md`、`docs/status.md` 和 GitHub Issues。

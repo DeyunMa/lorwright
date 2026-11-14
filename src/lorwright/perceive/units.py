@@ -30,7 +30,7 @@ import cv2
 import numpy as np
 
 from lorwright.models import Rect, Unit
-from lorwright.perceive.unit_stats import UnitStatsReader
+from lorwright.perceive.unit_stats import UnitStatsReader, _find_health_badge
 
 __all__ = [
     "ATTACK_BLOCK_MIN_AREA",
@@ -170,6 +170,16 @@ def find_unit_badges(
     candidates: list[UnitBadge] = []
     for i in range(1, count):
         x, y, w, h, area = (int(v) for v in stats[i])
+        if not enemy and area >= 2500 and 50 <= w <= 90 and 120 <= h <= 210:
+            # 金色卡框可能与攻击徽章连通；只截顶部，并用生命徽章交叉验证。
+            _, _, top_stats, _ = cv2.connectedComponentsWithStats(mask[y:y + 50, x:x + w])
+            for tx, ty, tw, th, top_area in top_stats[1:]:
+                if top_area < min_area or not (50 <= tw <= 90 and 35 <= th <= 50):
+                    continue
+                rect = Rect(region.x + x + int(tx), region.y + y + int(ty), int(tw), int(th))
+                if _find_health_badge(image, rect) is not None:
+                    candidates.append(UnitBadge(rect.center, min(1.0, top_area / 2000.0), rect))
+            continue
         if area < min_area or not (w_min <= w <= w_max and h_min <= h <= h_max):
             continue
         candidates.append(

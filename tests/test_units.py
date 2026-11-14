@@ -88,6 +88,25 @@ def test_empty_board_yields_no_units() -> None:
     assert find_unit_badges(blank, ENEMY_BOARD, enemy=True) == []
 
 
+def test_unit_with_connected_gold_frame_is_found() -> None:
+    image = cv2.imread(str(SCREENS / "f1-karma-eight-mana-20261114.png"))
+    assert image is not None
+    units = to_units(find_unit_badges(image, MY_BOARD), image=image)
+    assert len(units) == 2
+    assert any(1000 <= unit.rect.center[0] <= 1065 and unit.attack == 6 for unit in units)
+
+
+@pytest.mark.parametrize("shade", (0, 80, 160))
+@pytest.mark.parametrize("bounds", ((970, 850, 1045, 905), (1045, 850, 1120, 905)))
+def test_connected_gold_frame_without_visible_badges_is_not_a_unit(shade, bounds) -> None:
+    image = cv2.imread(str(SCREENS / "f1-karma-eight-mana-20261114.png"))
+    assert image is not None
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = shade
+    units = to_units(find_unit_badges(image, MY_BOARD))
+    assert all(not 1000 <= unit.rect.center[0] <= 1065 for unit in units)
+
+
 def test_reads_attack_values_from_idle_units() -> None:
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
     mine = to_units(find_unit_badges(img, MY_BOARD), image=img)

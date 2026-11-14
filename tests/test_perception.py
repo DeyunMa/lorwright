@@ -92,9 +92,9 @@ def test_assets_exist() -> None:
     assert (Path("assets/buttons") / "mulligan.png").exists()
     reader = DigitReader()
     reader.load()
-    # 7/8/9 还没采到大字号样本（血量 50/30 里没这三个数）。
+    # 9 还没采到样本。
     # 没样本时读数返回 None（不猜），比读成错的强。
-    assert reader.digits >= set(range(0, 7)), f"缺字形：{reader.digits}"
+    assert reader.digits >= set(range(0, 9)), f"缺字形：{reader.digits}"
 
 
 def test_mulligan_is_not_my_turn() -> None:
@@ -114,6 +114,47 @@ def test_battle_turn2() -> None:
     assert state.mana == 3
     assert state.nexus_hp == 50
     assert state.enemy_nexus_hp == 30
+
+
+def test_ten_mana_is_fresh_in_real_battle() -> None:
+    state = _parser().parse(_load("f1-karma-ten-mana-20261114.png"))
+    assert state.ui_state is UIState.MY_TURN_IDLE
+    assert state.mana == 10
+    assert state.readings["mana"].fresh
+
+
+@pytest.mark.parametrize(("name", "expected"), [
+    ("1080p_jinx_mulligan_20261114.png", 1),
+    ("1080p_confirm_phase.png", 2),
+    ("1080p_battle_turn2.png", 3),
+    ("1080p_hand_fan.png", 4),
+    ("1080p_my_units.png", 6),
+    ("f1-karma-seven-mana-20261114.png", 7),
+    ("f1-karma-eight-mana-20261114.png", 8),
+])
+def test_mana_region_keeps_single_digit_readings(name, expected) -> None:
+    parser = _parser()
+    assert parser.digits.read(_load(name), parser.layout.mana) == expected
+
+
+@pytest.mark.parametrize(("name", "side", "expected"), [
+    ("f1-karma-ten-mana-20261114.png", "enemy_nexus_hp", 25),
+    ("f1-karma-seven-mana-20261114.png", "enemy_nexus_hp", 17),
+    ("f1-karma-eight-mana-20261114.png", "enemy_nexus_hp", 18),
+    ("1080p_mulligan.png", "nexus_hp", 50),
+])
+def test_high_resolution_nexus_health(name, side, expected) -> None:
+    state = _parser().parse(_load(name))
+    assert getattr(state, side) == expected
+    assert state.readings[side].fresh
+
+
+@pytest.mark.parametrize("shade", (0, 80, 160))
+def test_partially_obscured_ten_mana_is_not_fresh(shade) -> None:
+    image = _load("f1-karma-ten-mana-20261114.png")
+    image[650:689, 1695:1712] = shade
+    state = _parser().parse(image)
+    assert not state.readings["mana"].fresh
 
 
 def test_hand_costs_from_live_frame() -> None:
@@ -228,14 +269,14 @@ def test_read_numbers(name: str, rect: Rect, expected: int) -> None:
     assert reader.read(_load(name), rect) == expected
 
 
-def test_small_glyph_generalizes_or_refuses() -> None:
-    """同一数字存了多个原型后，小字号也能认对；没原型就返回 None，不猜。"""
+def test_small_glyph_generalizes() -> None:
+    """同一数字存了多个原型后，小字号也能认对。"""
     reader = DigitReader()
     reader.load()
     # 地图血条上的 6 只有 14px，靠起手卡费（18px）那个原型认出来
     assert reader.read(_load("720p_map.png"), Rect(375, 670, 16, 20)) == 6
-    # 主菜单金币 155753 里有 7，字形库里没有 7 → 整串拒读
-    assert reader.read(_load("720p_main_menu.png"), Rect(395, 18, 85, 28)) is None
+    # 1080p 的 7 也能识别主菜单金币中的小字号。
+    assert reader.read(_load("720p_main_menu.png"), Rect(395, 18, 85, 28)) == 155753
 
 
 def test_targeting_button_is_detected() -> None:

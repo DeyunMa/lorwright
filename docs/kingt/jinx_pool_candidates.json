@@ -1,0 +1,5365 @@
+{
+  "generated_at": "2026-11-13T10:25:03Z",
+  "artifacts_root": "/Users/mdy/Code/my-own/lorwright-artifacts",
+  "purpose": "为 jinx_card_templates_manifest.json 提供带出处的卡码集合。上游引用的 62 张清单文件不存在，所以这里给候选口径而非唯一答案。",
+  "groups": {
+    "starting_deck": {
+      "desc": "起始牌组 9 种 ×2 = 18 张",
+      "confidence": "确证",
+      "codes": [
+        "01PZ009",
+        "01PZ019",
+        "01PZ028",
+        "01PZ038",
+        "01PZ040",
+        "01PZ045",
+        "01PZ054",
+        "99PZ104",
+        "99PZ130"
+      ],
+      "evidence": "src/lorwright/champions/jinx/deck.py JINX_DECK；交叉核验 champion-progression/data/champions.jsonl anchors.Jinx（deck_size 9 / total 18）"
+    },
+    "jinx_tokens": {
+      "desc": "Jinx 下场后由能力生成的牌，不在 18 张起始牌组里但要能识别",
+      "confidence": "确证",
+      "codes": [
+        "01PZ040T1"
+      ],
+      "evidence": "src/lorwright/champions/jinx/deck.py JINX_TOKENS"
+    },
+    "campaign_referenced": {
+      "desc": "客户端数据里名字/路径含 Jinx 的冒险条目直接连出的卡码",
+      "confidence": "确证的引用关系，不等于完整奖励池",
+      "codes": [
+        "00PZ012",
+        "00PZ012T1",
+        "00PZ012T2",
+        "00PZ012T3",
+        "01NX020",
+        "01NX038",
+        "01PZ001",
+        "01PZ009",
+        "01PZ019",
+        "01PZ028",
+        "01PZ033",
+        "01PZ036",
+        "01PZ038",
+        "01PZ039",
+        "01PZ040",
+        "01PZ040T1",
+        "01PZ040T2",
+        "01PZ040T3",
+        "01PZ045",
+        "01PZ054",
+        "02BW024",
+        "02BW026",
+        "02PZ008",
+        "05PZ019",
+        "99PZ104",
+        "99PZ112",
+        "99PZ124",
+        "99PZ126",
+        "99PZ130"
+      ],
+      "evidence": "domain.sqlite：131 个 Jinx 相关条目（AdventureEncounterData / AdventurePowerRank / AdventureConfig / SpeAbilityDefinition_Client / ClientCardData 等）及其一层 links 指向的 ClientCardData.code"
+    },
+    "rocket_spells": {
+      "desc": "复盘点名的两张法术：超威能死亡火箭各卡码，以及火箭轰击（简体译名，繁中客户端作「火箭亂發」，英文 Rocket Barrage）",
+      "confidence": "确证卡码",
+      "codes": [
+        "00PZ012T1",
+        "01PZ040T1",
+        "01PZ040T2",
+        "01PZ040T3",
+        "05PZ038"
+      ],
+      "evidence": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-names/data/cards.jsonl 按 name_en 精确匹配"
+    },
+    "poc_pz_pool": {
+      "desc": "PoC 专属皮城/祖安卡（00PZ*/99PZ*，含各英雄战役卡，Data Dragon 无图）",
+      "confidence": "确证卡码集合；是否属于 Jinx 局需按战役归属逐张判断",
+      "codes": [
+        "00PZ001",
+        "00PZ001T1",
+        "00PZ002",
+        "00PZ003",
+        "00PZ004",
+        "00PZ005",
+        "00PZ005T1",
+        "00PZ005T2",
+        "00PZ005T3",
+        "00PZ006",
+        "00PZ007",
+        "00PZ008",
+        "00PZ009",
+        "00PZ009T1",
+        "00PZ009T2",
+        "00PZ010",
+        "00PZ011",
+        "00PZ012",
+        "00PZ012T1",
+        "00PZ012T2",
+        "00PZ012T3",
+        "00PZ013",
+        "00PZ014",
+        "00PZ015",
+        "00PZ016",
+        "00PZ017",
+        "00PZ018",
+        "00PZ018T1",
+        "00PZ019",
+        "00PZ021",
+        "00PZ022",
+        "00PZ101",
+        "99PZ023",
+        "99PZ100",
+        "99PZ101",
+        "99PZ102",
+        "99PZ103",
+        "99PZ103T1",
+        "99PZ104",
+        "99PZ106",
+        "99PZ109",
+        "99PZ110",
+        "99PZ111",
+        "99PZ112",
+        "99PZ113",
+        "99PZ114",
+        "99PZ115",
+        "99PZ116",
+        "99PZ117",
+        "99PZ118",
+        "99PZ119",
+        "99PZ120",
+        "99PZ121",
+        "99PZ124",
+        "99PZ125",
+        "99PZ126",
+        "99PZ127",
+        "99PZ128",
+        "99PZ129",
+        "99PZ130",
+        "99PZ131",
+        "99PZ420",
+        "99PZ422",
+        "99PZ422T2",
+        "99PZ422T3"
+      ],
+      "evidence": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-names/data/cards.jsonl 卡码前缀过滤"
+    },
+    "pz_region_superset": {
+      "desc": "皮城/祖安全部卡码，奖励池的最大候选口径，用于兜底取图",
+      "confidence": "超集，非清单",
+      "codes": [
+        "00PZ001",
+        "00PZ001T1",
+        "00PZ002",
+        "00PZ003",
+        "00PZ004",
+        "00PZ005",
+        "00PZ005T1",
+        "00PZ005T2",
+        "00PZ005T3",
+        "00PZ006",
+        "00PZ007",
+        "00PZ008",
+        "00PZ009",
+        "00PZ009T1",
+        "00PZ009T2",
+        "00PZ010",
+        "00PZ011",
+        "00PZ012",
+        "00PZ012T1",
+        "00PZ012T2",
+        "00PZ012T3",
+        "00PZ013",
+        "00PZ014",
+        "00PZ015",
+        "00PZ016",
+        "00PZ017",
+        "00PZ018",
+        "00PZ018T1",
+        "00PZ019",
+        "00PZ021",
+        "00PZ022",
+        "00PZ101",
+        "01PZ001",
+        "01PZ002",
+        "01PZ003",
+        "01PZ004",
+        "01PZ005",
+        "01PZ006",
+        "01PZ007",
+        "01PZ008",
+        "01PZ008T1",
+        "01PZ008T2",
+        "01PZ009",
+        "01PZ010",
+        "01PZ012",
+        "01PZ013",
+        "01PZ013T1",
+        "01PZ014",
+        "01PZ014T1",
+        "01PZ015",
+        "01PZ016",
+        "01PZ017",
+        "01PZ018",
+        "01PZ019",
+        "01PZ020",
+        "01PZ021",
+        "01PZ022",
+        "01PZ023",
+        "01PZ024",
+        "01PZ025",
+        "01PZ026",
+        "01PZ027",
+        "01PZ028",
+        "01PZ029",
+        "01PZ030",
+        "01PZ030T1",
+        "01PZ031",
+        "01PZ032",
+        "01PZ033",
+        "01PZ033T1",
+        "01PZ034",
+        "01PZ035",
+        "01PZ036",
+        "01PZ036T1",
+        "01PZ036T2",
+        "01PZ038",
+        "01PZ039",
+        "01PZ040",
+        "01PZ040T1",
+        "01PZ040T2",
+        "01PZ040T3",
+        "01PZ042",
+        "01PZ043",
+        "01PZ044",
+        "01PZ044T2",
+        "01PZ045",
+        "01PZ046",
+        "01PZ047",
+        "01PZ048",
+        "01PZ048T1",
+        "01PZ049",
+        "01PZ050",
+        "01PZ051",
+        "01PZ052",
+        "01PZ053",
+        "01PZ054",
+        "01PZ054T1",
+        "01PZ055",
+        "01PZ056",
+        "01PZ056T1",
+        "01PZ056T10",
+        "01PZ056T2",
+        "01PZ056T3",
+        "01PZ056T4",
+        "01PZ056T5",
+        "01PZ056T6",
+        "01PZ056T7",
+        "01PZ056T8",
+        "01PZ056T9",
+        "01PZ057",
+        "01PZ058",
+        "01PZ059",
+        "01PZ060",
+        "02PZ001",
+        "02PZ002",
+        "02PZ003",
+        "02PZ004",
+        "02PZ005",
+        "02PZ006",
+        "02PZ007",
+        "02PZ008",
+        "02PZ008T1",
+        "02PZ008T2",
+        "02PZ009",
+        "02PZ010",
+        "03PZ001",
+        "03PZ002",
+        "03PZ003",
+        "03PZ003T1",
+        "03PZ003T11",
+        "03PZ003T15",
+        "03PZ004",
+        "03PZ004T1",
+        "03PZ004T2",
+        "03PZ005",
+        "03PZ010",
+        "03PZ011",
+        "03PZ012",
+        "03PZ013",
+        "03PZ014",
+        "03PZ016",
+        "03PZ017",
+        "03PZ018",
+        "03PZ019",
+        "03PZ020",
+        "03PZ022",
+        "03PZ025",
+        "04PZ001",
+        "04PZ001T2",
+        "04PZ001T3",
+        "04PZ001T4",
+        "04PZ002",
+        "04PZ002T1",
+        "04PZ003",
+        "04PZ004",
+        "04PZ005",
+        "04PZ005T1",
+        "04PZ005T2",
+        "04PZ007",
+        "04PZ010",
+        "04PZ011",
+        "04PZ011T1",
+        "04PZ012",
+        "04PZ013",
+        "04PZ014",
+        "04PZ015",
+        "04PZ016",
+        "04PZ017",
+        "04PZ020",
+        "04PZ020T1",
+        "05PZ002",
+        "05PZ004",
+        "05PZ006",
+        "05PZ006T1",
+        "05PZ006T2",
+        "05PZ008",
+        "05PZ009",
+        "05PZ010",
+        "05PZ012",
+        "05PZ013",
+        "05PZ014",
+        "05PZ014T1",
+        "05PZ014T2",
+        "05PZ015",
+        "05PZ016",
+        "05PZ017",
+        "05PZ019",
+        "05PZ020",
+        "05PZ021",
+        "05PZ022",
+        "05PZ022T1",
+        "05PZ022T2",
+        "05PZ022T3",
+        "05PZ022T6",
+        "05PZ022T7",
+        "05PZ022T8",
+        "05PZ022T9",
+        "05PZ023",
+        "05PZ024",
+        "05PZ025",
+        "05PZ026",
+        "05PZ027",
+        "05PZ028",
+        "05PZ029",
+        "05PZ030",
+        "05PZ031",
+        "05PZ031T1",
+        "05PZ035",
+        "05PZ038",
+        "06PZ006",
+        "06PZ007",
+        "06PZ008",
+        "06PZ008T2",
+        "06PZ008T3",
+        "06PZ009",
+        "06PZ010",
+        "06PZ014",
+        "06PZ018",
+        "06PZ019",
+        "06PZ020",
+        "06PZ021",
+        "06PZ021T1",
+        "06PZ021T2",
+        "06PZ022",
+        "06PZ025",
+        "06PZ027",
+        "06PZ029",
+        "06PZ030",
+        "06PZ032",
+        "06PZ033",
+        "06PZ034",
+        "06PZ036",
+        "06PZ036T3",
+        "06PZ037",
+        "06PZ038",
+        "06PZ039",
+        "06PZ040",
+        "06PZ041",
+        "06PZ042",
+        "06PZ043",
+        "06PZ046",
+        "07PZ005",
+        "07PZ009",
+        "07PZ013",
+        "07PZ015",
+        "07PZ015T1",
+        "07PZ017",
+        "07PZ019",
+        "07PZ021",
+        "07PZ022",
+        "08PZ001",
+        "08PZ001T1",
+        "08PZ001T3",
+        "08PZ002",
+        "08PZ005",
+        "08PZ006",
+        "08PZ007",
+        "08PZ008",
+        "08PZ008T2",
+        "08PZ008T3",
+        "08PZ009",
+        "08PZ018",
+        "08PZ019",
+        "08PZ020",
+        "08PZ024",
+        "08PZ025",
+        "08PZ026",
+        "08PZ026T1",
+        "08PZ028",
+        "08PZ031",
+        "09PZ044",
+        "09PZ044T1",
+        "09PZ044T2",
+        "09PZ044T3",
+        "09PZ044T4",
+        "09PZ045",
+        "09PZ045T1",
+        "09PZ045T2",
+        "09PZ046",
+        "98PZ001",
+        "98PZ001T1",
+        "98PZ001T2",
+        "98PZ001T4",
+        "98PZ004",
+        "98PZ005",
+        "98PZ006",
+        "98PZ006T1",
+        "98PZ006T2",
+        "98PZ006T3",
+        "98PZ007",
+        "98PZ008",
+        "98PZ009",
+        "98PZ013",
+        "98PZ014",
+        "98PZ015",
+        "99PZ023",
+        "99PZ100",
+        "99PZ101",
+        "99PZ102",
+        "99PZ103",
+        "99PZ103T1",
+        "99PZ104",
+        "99PZ106",
+        "99PZ109",
+        "99PZ110",
+        "99PZ111",
+        "99PZ112",
+        "99PZ113",
+        "99PZ114",
+        "99PZ115",
+        "99PZ116",
+        "99PZ117",
+        "99PZ118",
+        "99PZ119",
+        "99PZ120",
+        "99PZ121",
+        "99PZ124",
+        "99PZ125",
+        "99PZ126",
+        "99PZ127",
+        "99PZ128",
+        "99PZ129",
+        "99PZ130",
+        "99PZ131",
+        "99PZ420",
+        "99PZ422",
+        "99PZ422T2",
+        "99PZ422T3"
+      ],
+      "evidence": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-names/data/cards.jsonl 阵营过滤"
+    }
+  },
+  "counts": {
+    "starting_deck": 9,
+    "jinx_tokens": 1,
+    "campaign_referenced": 29,
+    "rocket_spells": 5,
+    "poc_pz_pool": 65,
+    "pz_region_superset": 328
+  },
+  "counts_summary": {
+    "union_all_groups": 332,
+    "union_confirmed_groups": 86,
+    "starting_deck_plus_poc_pz_dedup": 72
+  },
+  "union_confirmed_groups": [
+    "00PZ001",
+    "00PZ001T1",
+    "00PZ002",
+    "00PZ003",
+    "00PZ004",
+    "00PZ005",
+    "00PZ005T1",
+    "00PZ005T2",
+    "00PZ005T3",
+    "00PZ006",
+    "00PZ007",
+    "00PZ008",
+    "00PZ009",
+    "00PZ009T1",
+    "00PZ009T2",
+    "00PZ010",
+    "00PZ011",
+    "00PZ012",
+    "00PZ012T1",
+    "00PZ012T2",
+    "00PZ012T3",
+    "00PZ013",
+    "00PZ014",
+    "00PZ015",
+    "00PZ016",
+    "00PZ017",
+    "00PZ018",
+    "00PZ018T1",
+    "00PZ019",
+    "00PZ021",
+    "00PZ022",
+    "00PZ101",
+    "01NX020",
+    "01NX038",
+    "01PZ001",
+    "01PZ009",
+    "01PZ019",
+    "01PZ028",
+    "01PZ033",
+    "01PZ036",
+    "01PZ038",
+    "01PZ039",
+    "01PZ040",
+    "01PZ040T1",
+    "01PZ040T2",
+    "01PZ040T3",
+    "01PZ045",
+    "01PZ054",
+    "02BW024",
+    "02BW026",
+    "02PZ008",
+    "05PZ019",
+    "05PZ038",
+    "99PZ023",
+    "99PZ100",
+    "99PZ101",
+    "99PZ102",
+    "99PZ103",
+    "99PZ103T1",
+    "99PZ104",
+    "99PZ106",
+    "99PZ109",
+    "99PZ110",
+    "99PZ111",
+    "99PZ112",
+    "99PZ113",
+    "99PZ114",
+    "99PZ115",
+    "99PZ116",
+    "99PZ117",
+    "99PZ118",
+    "99PZ119",
+    "99PZ120",
+    "99PZ121",
+    "99PZ124",
+    "99PZ125",
+    "99PZ126",
+    "99PZ127",
+    "99PZ128",
+    "99PZ129",
+    "99PZ130",
+    "99PZ131",
+    "99PZ420",
+    "99PZ422",
+    "99PZ422T2",
+    "99PZ422T3"
+  ],
+  "notes": [
+    "静态客户端数据编码不出奖励可选卡：AdventureCardChoiceData 字段数为 0，AdventureNodeData 只有坐标与 GdsGuid，节点到遭遇的分配在运行时决定。",
+    "没有任何一个自然过滤结果等于 62。最接近的是起始 9 种 + PoC 专属 99PZ/00PZ 非 token 52 种（去掉与起始牌组重复的 99PZ104/99PZ130）再补火箭 token 与火箭轰击，数值接近 62 属巧合，不作为结论。",
+    "火箭轰击 = 05PZ038 Rocket Barrage（繁中「火箭亂發」）；超威能死亡火箭有 01PZ040T1（6 费）/01PZ040T2（1 费）/00PZ012T1（2 费）三个卡码。"
+  ],
+  "evidence_files": [
+    {
+      "path": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-names/data/cards.jsonl",
+      "sha256": "757fb9ad070f7986fb3b22e6f2ca6cf468f3ad5192d35e209d0552e1800c7eb2"
+    },
+    {
+      "path": "/Users/mdy/Code/my-own/lorwright-artifacts/research/champion-progression/data/champions.jsonl",
+      "sha256": "d0828e45d7c721af9644d37494b91dbb54bdfd0ff6538af6c59b0e4eab24a241"
+    },
+    {
+      "path": "/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/02-domain/domain.sqlite",
+      "sha256": "6189101f12092155eafeb19475432f944b8d94cc629e6793e6b73f131d534907"
+    },
+    {
+      "path": "/Users/mdy/Code/my-own/lorwright-artifacts/research/adventure-catalog/data/encounters.jsonl",
+      "sha256": "b8e20476145fffb12582cc0cbb70ae89ab95b794f28c44ab7b01ba97ed837510"
+    }
+  ],
+  "cards": [
+    {
+      "code": "00PZ001",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "自我強化科學家",
+      "name_en": "Augmented Experimentor",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ001T1",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "貿然研究",
+      "name_en": "Reckless Research",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ002",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "皮爾托福强化",
+      "name_en": "Piltovan Powerup",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ003",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "方頭機器人",
+      "name_en": "Crackling Platbot",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ004",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "武趣工匠",
+      "name_en": "Funsmith",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ005",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾",
+      "name_en": "Ezreal",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ005T1",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "祕術射擊",
+      "name_en": "Mystic Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ005T2",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾",
+      "name_en": "Ezreal",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ005T3",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾",
+      "name_en": "Ezreal",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ006",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "精準彈幕",
+      "name_en": "Trueshot Barrage",
+      "cost": 7,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ007",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "雜物堆",
+      "name_en": "Rummage",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ008",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "進步日！",
+      "name_en": "Progress Day!",
+      "cost": 8,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ009",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格",
+      "name_en": "Heimerdinger",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ009T1",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "扳手機器人",
+      "name_en": "Wrenchbot",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ009T2",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格",
+      "name_en": "Heimerdinger",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ010",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格",
+      "name_en": "Heimerdinger",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ011",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "聰慧學者",
+      "name_en": "Astute Academic",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ012",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲",
+      "name_en": "Jinx",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ012T1",
+      "groups": [
+        "campaign_referenced",
+        "rocket_spells",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "超威能死亡火箭！",
+      "name_en": "Super Mega Death Rocket!",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ012T2",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲",
+      "name_en": "Jinx",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ012T3",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲",
+      "name_en": "Jinx",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ013",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "極度興奮",
+      "name_en": "Amped Up",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ014",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "叉狀閃電",
+      "name_en": "Forked Lightning",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ015",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "機械暴龍",
+      "name_en": "T-Hex",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ016",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "普羅機器人",
+      "name_en": "Porobot",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ017",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "咒能高漲",
+      "name_en": "Rising Spell Force",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ018",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "化學龐克撕裂樂手",
+      "name_en": "Chempunk Shredder",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ018T1",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "魔音穿腦",
+      "name_en": "Face-Melter",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ019",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "空白",
+      "name_en": "Blank",
+      "cost": 13,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ021",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "廣場守護者",
+      "name_en": "Plaza Guardian",
+      "cost": 10,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ022",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "精準彈幕",
+      "name_en": "Trueshot Barrage",
+      "cost": 7,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "00PZ101",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "發明之力！",
+      "name_en": "Invent!",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01NX020",
+      "groups": [
+        "campaign_referenced"
+      ],
+      "name_zh_tw": "達瑞文",
+      "name_en": "Draven",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01NX038",
+      "groups": [
+        "campaign_referenced"
+      ],
+      "name_zh_tw": "達瑞斯",
+      "name_en": "Darius",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ001",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "雜物堆",
+      "name_en": "Rummage",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "陋巷酒吧老闆",
+      "name_en": "Back Alley Barkeep",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ003",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "組合機器人",
+      "name_en": "Assembly Bot",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "精準彈幕",
+      "name_en": "Trueshot Barrage",
+      "cost": 7,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯變形儀",
+      "name_en": "Hextech Transmogulator",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "廣場守護者",
+      "name_en": "Plaza Guardian",
+      "cost": 10,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "電光遊行花車",
+      "name_en": "Parade Electrorig",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ008",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "提摩",
+      "name_en": "Teemo",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ008T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "提摩 蘑菇雲",
+      "name_en": "Teemo's Mushroom Cloud",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ008T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "提摩",
+      "name_en": "Teemo",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ009",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "懸浮飛板初學者",
+      "name_en": "Amateur Aeronaut",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ009.png"
+    },
+    {
+      "code": "01PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "蘑菇雲",
+      "name_en": "Mushroom Cloud",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ012",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "咬咬手榴彈！",
+      "name_en": "Flame Chompers!",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "自我強化科學家",
+      "name_en": "Augmented Experimenter",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ013T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "貿然研究",
+      "name_en": "Reckless Research",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "無照新發明",
+      "name_en": "Unlicensed Innovation",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ014T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "非法怪裝置",
+      "name_en": "Illegal Contraption",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ015",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "機械暴龍",
+      "name_en": "T-Hex",
+      "cost": 8,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ016",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "靈光電火球",
+      "name_en": "Flash of Brilliance",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ017",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "藥劑桶供應商",
+      "name_en": "Used Cask Salesman",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ018",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "菁英學院奇才",
+      "name_en": "Academy Prodigy",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ018.png"
+    },
+    {
+      "code": "01PZ019",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "勤奮的學徒",
+      "name_en": "Eager Apprentice",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "大膽普羅",
+      "name_en": "Daring Poro",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ021",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "密登史多的黨羽",
+      "name_en": "Midenstokke Henchmen",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ022",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "劇毒膨菇",
+      "name_en": "Poison Puffcap",
+      "cost": null,
+      "type_name": "Trap",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ023",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "馮奕卜教授",
+      "name_en": "Professor von Yipp",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ024",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "暴走配線員",
+      "name_en": "Unstable Voltician",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ025",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "膨菇小販",
+      "name_en": "Puffcap Peddler",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ025.png"
+    },
+    {
+      "code": "01PZ026",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑地圖",
+      "name_en": "Sumpworks Map",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ027",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生熱光束",
+      "name_en": "Thermogenic Beam",
+      "cost": null,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ028",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "應急裝置",
+      "name_en": "Jury-Rig",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ029",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "大善人",
+      "name_en": "Eminent Benefactor",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ030",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "可疑人物",
+      "name_en": "Shady Character",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ030T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "維妙維肖",
+      "name_en": "Impersonate",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ031",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "史提克衝擊",
+      "name_en": "Statikk Shock",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ032",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "廢料河蟹",
+      "name_en": "Scrap Scuttler",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ033",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "追尋完喵",
+      "name_en": "Purrsuit of Perfection",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ033T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "貓劫降臨",
+      "name_en": "Catastrophe",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ034",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑拾荒者",
+      "name_en": "Sumpsnipe Scavenger",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ035",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰．梅德拉達",
+      "name_en": "Jae Medarda",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ036",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾",
+      "name_en": "Ezreal",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ036T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾",
+      "name_en": "Ezreal",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ036T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "伊澤瑞爾 祕術射擊",
+      "name_en": "Ezreal's Mystic Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ038",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑疏濬機器人",
+      "name_en": "Sump Dredger",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ039",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "狂躁！",
+      "name_en": "Get Excited!",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ040",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲",
+      "name_en": "Jinx",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ040T1",
+      "groups": [
+        "jinx_tokens",
+        "campaign_referenced",
+        "rocket_spells",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲",
+      "name_en": "Jinx",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ040T2",
+      "groups": [
+        "campaign_referenced",
+        "rocket_spells",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "超威能死亡火箭！",
+      "name_en": "Super Mega Death Rocket!",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ040T3",
+      "groups": [
+        "campaign_referenced",
+        "rocket_spells",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "吉茵珂絲 狂躁！",
+      "name_en": "Jinx's Get Excited!",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ042",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "英勇水手",
+      "name_en": "Intrepid Mariner",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ043",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "化學龐克扒手",
+      "name_en": "Chempunk Pickpocket",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ044",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "化學龐克撕裂樂手",
+      "name_en": "Chempunk Shredder",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ044T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "魔音穿腦",
+      "name_en": "Face-Melter",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ045",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "佐恩小乞丐",
+      "name_en": "Zaunite Urchin",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ045.png"
+    },
+    {
+      "code": "01PZ046",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "盜版贗品",
+      "name_en": "Counterfeit Copies",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ047",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "腐蝕藥劑桶",
+      "name_en": "Caustic Cask",
+      "cost": null,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ048",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "可瑞娜．瓦拉撒",
+      "name_en": "Corina Veraza",
+      "cost": 9,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ048T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "曠世巨作",
+      "name_en": "Magnum Opus",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ049",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "進步日！",
+      "name_en": "Progress Day!",
+      "cost": 8,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ050",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "咒能高漲",
+      "name_en": "Rising Spell Force",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ051",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "武趣工匠",
+      "name_en": "Funsmith",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ052",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "祕術射擊",
+      "name_en": "Mystic Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ053",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "呼碰引伴",
+      "name_en": "Clump of Whumps",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ053.png"
+    },
+    {
+      "code": "01PZ054",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "爆破幫菜鳥",
+      "name_en": "Boomcrew Rookie",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ054.png"
+    },
+    {
+      "code": "01PZ054T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "暗中破壞",
+      "name_en": "Undermine",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ055",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "聰慧學者",
+      "name_en": "Astute Academic",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格",
+      "name_en": "Heimerdinger",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk0：發條粉碎機",
+      "name_en": "Mk0: Windup Shredder",
+      "cost": null,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T10",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格",
+      "name_en": "Heimerdinger",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk5：火箭轟爆槍",
+      "name_en": "Mk5: Rocket Blaster",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "漢默丁格 進步日！",
+      "name_en": "Heimerdinger's Progress Day!",
+      "cost": 8,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T4",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk1：扳手機器人",
+      "name_en": "Mk1: Wrenchbot",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ056T4.png"
+    },
+    {
+      "code": "01PZ056T5",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk7：裝甲重踏獸",
+      "name_en": "Mk7: Armored Stomper",
+      "cost": 7,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T6",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk6：破地螺旋鑽",
+      "name_en": "Mk6: Floor-B-Gone",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T7",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk2：進化砲臺",
+      "name_en": "Mk2: Evolution Turret",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T8",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk3：究極炮臺",
+      "name_en": "Mk3: Apex Turret",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ056T9",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "Mk4：風暴吊球機",
+      "name_en": "Mk4: Stormlobber",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ057",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "巧遇",
+      "name_en": "Scrapdash Assembly",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ058",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "重量級呼碰",
+      "name_en": "Chump Whump",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/01PZ058.png"
+    },
+    {
+      "code": "01PZ059",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "金嚇破壞機器人",
+      "name_en": "Golden Crushbot",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "01PZ060",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "速成完喵",
+      "name_en": "Accelerated Purrsuit",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02BW024",
+      "groups": [
+        "campaign_referenced"
+      ],
+      "name_zh_tw": "雙倍麻煩",
+      "name_en": "Double Trouble",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02BW026",
+      "groups": [
+        "campaign_referenced"
+      ],
+      "name_zh_tw": "逆命",
+      "name_en": "Twisted Fate",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ001",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "潛水喵",
+      "name_en": "Subpurrsible",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "首席機械師澤維",
+      "name_en": "Chief Mechanist Zevi",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ003",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "整裝待發",
+      "name_en": "Suit Up!",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "蓄能衝擊",
+      "name_en": "Vault Breaker",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "巡邏員警",
+      "name_en": "Patrol Wardens",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/02PZ005.png"
+    },
+    {
+      "code": "02PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "逮到你囉！",
+      "name_en": "Gotcha!",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "新銳調查組員",
+      "name_en": "Insightful Investigator",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ008",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "菲艾",
+      "name_en": "Vi",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ008T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "菲艾 蓄能衝擊",
+      "name_en": "Vi's Vault Breaker",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ008T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "菲艾",
+      "name_en": "Vi",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "蛛絲馬跡",
+      "name_en": "Trail of Evidence",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "02PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "資深調查組員",
+      "name_en": "Veteran Investigator",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/02PZ010.png"
+    },
+    {
+      "code": "03PZ001",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "皮爾托福大學",
+      "name_en": "The University of Piltover",
+      "cost": 5,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生化喵",
+      "name_en": "Nyandroid",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/03PZ002.png"
+    },
+    {
+      "code": "03PZ003",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "維克特",
+      "name_en": "Viktor",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ003T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "維克特",
+      "name_en": "Viktor",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ003T11",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯核心升級",
+      "name_en": "Hex Core Upgrade",
+      "cost": null,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ003T15",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "維克特 死亡射線：1型",
+      "name_en": "Viktor's Death Ray - Mk 1",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "死亡射線：1型",
+      "name_en": "Death Ray - Mk 1",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ004T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "死亡射線：2型",
+      "name_en": "Death Ray - Mk 2",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ004T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "死亡射線：3型",
+      "name_en": "Death Ray - Mk 3",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "彈道機器人",
+      "name_en": "Ballistic Bot",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/03PZ005.png"
+    },
+    {
+      "code": "03PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "擬態機兵",
+      "name_en": "Mechanized Mimic",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": "/Users/mdy/Code/my-own/lorwright-artifacts/research/poc-card-art-fallback/data/cards/03PZ010.png"
+    },
+    {
+      "code": "03PZ011",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "射線餘波",
+      "name_en": "Aftershock",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ012",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "巨臂改裝迷",
+      "name_en": "Armed Gearhead",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "反覆改良",
+      "name_en": "Iterative Improvement",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "精密傑作",
+      "name_en": "Calculated Creations",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ016",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "爆燃",
+      "name_en": "Ignition",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ017",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "三雷射爆破炮",
+      "name_en": "Tri-beam Improbulator",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ018",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "普羅大砲",
+      "name_en": "Poro Cannon",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ019",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "拼裝普羅機器人",
+      "name_en": "Patched Porobot",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯核心鑄造廠",
+      "name_en": "Hexcore Foundry",
+      "cost": 3,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ022",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "全力以赴",
+      "name_en": "Give It All",
+      "cost": 8,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "03PZ025",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "壓力測試",
+      "name_en": "Stress Testing",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ001",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "艾克",
+      "name_en": "Ekko",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ001T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "艾克 打擊宣言",
+      "name_en": "Ekko's Called Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ001T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "艾克",
+      "name_en": "Ekko",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ001T4",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "計時開始",
+      "name_en": "Chronobreak",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "落地喵喵",
+      "name_en": "Fallen Feline",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ002T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯水晶",
+      "name_en": "Hexite Crystal",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ003",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "時光樞紐",
+      "name_en": "Timewinder",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "滑板女孩",
+      "name_en": "Dropboarder",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "奇里安汙水坑工人",
+      "name_en": "Chirean Sumpworker",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ005T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑暴徒",
+      "name_en": "Sumpworks Posse",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ005T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "電路破壞者",
+      "name_en": "Circuit Breaker",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "時間戲法",
+      "name_en": "Time Trick",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "平行時空",
+      "name_en": "Concurrent Timelines",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ011",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "打擊宣言",
+      "name_en": "Called Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ011T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "時空攔截",
+      "name_en": "Parallel Convergence",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ012",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "務實完美主義者",
+      "name_en": "Practical Perfectionist",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "小白牛厄努克",
+      "name_en": "Volunteer Elnuk",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "產能爆發",
+      "name_en": "Production Surge",
+      "cost": null,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ015",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "適應創號3000",
+      "name_en": "Adaptatron 3000",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ016",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "轟炸狒狒",
+      "name_en": "Boom Baboon",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ017",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "榮光進化",
+      "name_en": "Glorious Evolution",
+      "cost": 10,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "瑕疵拉霸機器人",
+      "name_en": "Defective Swapbot",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "04PZ020T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "換換樂",
+      "name_en": "Swapbot's Swap",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "內線消息",
+      "name_en": "Insider Knowledge",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "警備小隊",
+      "name_en": "Officer Squad",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "凱特琳",
+      "name_en": "Caitlyn",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ006T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "凱特琳 鎮暴射擊",
+      "name_en": "Caitlyn's Piltover Peacemaker",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ006T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "凱特琳",
+      "name_en": "Caitlyn",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ008",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "閃光炸彈陷阱",
+      "name_en": "Flashbomb Trap",
+      "cost": null,
+      "type_name": "Trap",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "臥底探員",
+      "name_en": "Sting Officer",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "進階情報",
+      "name_en": "Advanced Intel",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ012",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "警局檔案專員",
+      "name_en": "Station Archivist",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鎮暴射擊",
+      "name_en": "Piltover Peacemaker",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "謀略大師可瑞娜",
+      "name_en": "Corina, Mastermind",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ014T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "蠱惑之花",
+      "name_en": "Beguiling Blossom",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ014T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "含苞待炸",
+      "name_en": "Volatile Bloom",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ015",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "正義騎士",
+      "name_en": "Justice Rider",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ016",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "致命一擊",
+      "name_en": "Coup de Grace",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ017",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑毒霧",
+      "name_en": "Sump Fumes",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ019",
+      "groups": [
+        "campaign_referenced",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "頭號要犯",
+      "name_en": "Most Wanted",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "埋伏突襲",
+      "name_en": "Ambush",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ021",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "明日鍛造場",
+      "name_en": "The Forge Of Tomorrow",
+      "cost": 3,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西 電磁脈衝",
+      "name_en": "Jayce's Shock Blast",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "中子加速裝置",
+      "name_en": "Acceleration Gate",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T6",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T7",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T8",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ022T9",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "杰西",
+      "name_en": "Jayce",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ023",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鍛造場工人",
+      "name_en": "Forge Worker",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ024",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "斐羅仕金主",
+      "name_en": "Ferros Financier",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ025",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鍛造場主管",
+      "name_en": "Forge Chief",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ026",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生產線",
+      "name_en": "Assembly Line",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ027",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "電磁脈衝",
+      "name_en": "Shock Blast",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ028",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "斐羅仕巡航機",
+      "name_en": "Ferros Skycruiser",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ029",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯科技搬運機",
+      "name_en": "Hextech Handler",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ030",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯科技異常",
+      "name_en": "Hextech Anomaly",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ031",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "亞布斯．斐羅仕",
+      "name_en": "Albus Ferros",
+      "cost": 7,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ031T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "斐羅仕的分紅",
+      "name_en": "Ferros' Dividend",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ035",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "惡臭呼碰",
+      "name_en": "Stinky Whump",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "05PZ038",
+      "groups": [
+        "rocket_spells",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "火箭亂發",
+      "name_en": "Rocket Barrage",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "震撼回響",
+      "name_en": "Encore",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "野心勃勃邪教徒",
+      "name_en": "Ambitious Cultist",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ008",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "冥血豎琴",
+      "name_en": "The Darkin Harp",
+      "cost": 2,
+      "type_name": "Equipment",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ008T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "史媞拉圖",
+      "name_en": "Styraatu",
+      "cost": 8,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ008T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "冥血豎琴",
+      "name_en": "The Darkin Harp",
+      "cost": 2,
+      "type_name": "Equipment",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "傳腦魔音",
+      "name_en": "Caustic Riff",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ010",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "聲學家",
+      "name_en": "Acoustician",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "後援會會長",
+      "name_en": "Fanclub President",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ018",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "樂音高亢",
+      "name_en": "High Note",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ019",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "佐恩門房",
+      "name_en": "Zaun Bouncer",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯技師 橡果",
+      "name_en": "Acorn, the Hextechnician",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ021",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "瑟菈紛",
+      "name_en": "Seraphine",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ021T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "瑟菈紛 樂音高亢",
+      "name_en": "Seraphine's High Note",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ021T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "瑟菈紛",
+      "name_en": "Seraphine",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ022",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鼓手獨奏",
+      "name_en": "Drum Solo",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ025",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "孤獨遊女",
+      "name_en": "Solitude",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ027",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "祕密邀請函",
+      "name_en": "Discreet Invitation",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ029",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "人見人愛",
+      "name_en": "Crowd Pleaser",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ030",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "靈感計畫",
+      "name_en": "Inspired Plans",
+      "cost": 2,
+      "type_name": "Equipment",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ032",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "爆音唱片機",
+      "name_en": "Sputtering Songspinner",
+      "cost": 7,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ033",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "三管頑皮槍v1.0",
+      "name_en": "Gatalyst v1.0",
+      "cost": 3,
+      "type_name": "Equipment",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ034",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯泯滅者",
+      "name_en": "Hexbliterator",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ036",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "佐恩天后",
+      "name_en": "The Zaun Diva",
+      "cost": 8,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ036T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "致命安可",
+      "name_en": "Fatal Encore",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ037",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "猛爆琴音",
+      "name_en": "The Violent Dischord",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ038",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "廢棄隱蹤器",
+      "name_en": "Scavenged Camocloaker",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ039",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "回收廢料",
+      "name_en": "Salvaged Scrap",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ040",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "陋巷酒吧",
+      "name_en": "Back Alley Bar",
+      "cost": 7,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ041",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "狡猾小貓",
+      "name_en": "Cunning Kitten",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ042",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "邪惡不完美主義者",
+      "name_en": "Evil Imperfectionist",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ043",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "皮爾托福泰爾石",
+      "name_en": "Piltovan Tellstones",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "06PZ046",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "魔法方程式",
+      "name_en": "Formula",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "膛炸",
+      "name_en": "Blowback",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "改裝時鐘機器人",
+      "name_en": "Augmented Clockling",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "汙水坑銅像",
+      "name_en": "Sump Monument",
+      "cost": 4,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ015",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "廢料大改造",
+      "name_en": "Epic Scraptraption",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ015T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "落跑廢料機",
+      "name_en": "Runaway Scraptrap",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ017",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "閃光炸彈小販",
+      "name_en": "Flashbomb Peddler",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ019",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "化學科技毛毛車",
+      "name_en": "Chemtech Catermobile",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ021",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "安努拉與呼嚕噗",
+      "name_en": "Anura & Froop",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "07PZ022",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "聖潔清風",
+      "name_en": "Divine Draft",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ001",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "珍娜",
+      "name_en": "Janna",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ001T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "珍娜 風暴之眼",
+      "name_en": "Janna's Eye Of The Storm",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ001T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "珍娜",
+      "name_en": "Janna",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ002",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "颶風呼嘯",
+      "name_en": "Howling Gale",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "風暴之眼",
+      "name_en": "Eye Of The Storm",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "深淵海妖婭希拉",
+      "name_en": "Iascylla, Figurehead of the Deep",
+      "cost": 6,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "颶歌燕群",
+      "name_en": "Galesong Flock",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ008",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "神廟守望者馬爾雅姆",
+      "name_en": "Maryam, Temple Caretaker",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ008T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "神廟守望者馬爾雅姆",
+      "name_en": "Maryam, Temple Caretaker",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ008T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "神廟守望者馬爾雅姆",
+      "name_en": "Maryam, Temple Caretaker",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海底神廟",
+      "name_en": "Sunken Temple",
+      "cost": 5,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ018",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "乘風水手",
+      "name_en": "Windborne Mariner",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ019",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "神聖旋風",
+      "name_en": "Divine Whirlwind",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ020",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "遊雲聖獸",
+      "name_en": "Exalted Cloudwinder",
+      "cost": 5,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ024",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "江湖魚販",
+      "name_en": "Charlatan Fishmonger",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ025",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "原型普羅機器人",
+      "name_en": "Prototype Porobot",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ026",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "颶歌呼喚",
+      "name_en": "Galesong Call",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ026T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "颶歌燕",
+      "name_en": "Galesong Swallow",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ028",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生化科技飛龍",
+      "name_en": "Chemtech Drake",
+      "cost": 8,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "08PZ031",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "可疑眼鏡",
+      "name_en": "Shady Spectacles",
+      "cost": 3,
+      "type_name": "Equipment",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ044",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "燭光祈禱",
+      "name_en": "The Candlelit Prayer",
+      "cost": 2,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ044T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "祝福氣息",
+      "name_en": "Blessed Breath",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ044T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "颶風門徒",
+      "name_en": "Disciple of the Gale",
+      "cost": null,
+      "type_name": "Ability",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ044T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "燭光祈禱",
+      "name_en": "The Candlelit Prayer",
+      "cost": 2,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ044T4",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "燭光祈禱",
+      "name_en": "The Candlelit Prayer",
+      "cost": 2,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ045",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "翺翔製圖師",
+      "name_en": "Soaring Cartographer",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ045T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "翺翔製圖師",
+      "name_en": "Soaring Cartographer",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ045T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "翺翔製圖師",
+      "name_en": "Soaring Cartographer",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "09PZ046",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "變異實驗體",
+      "name_en": "Malmutation",
+      "cost": 8,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ001",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "沃維克",
+      "name_en": "Warwick",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ001T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "沃維克的血跡獵蹤",
+      "name_en": "Warwick's Blood Hunt",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ001T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "沃維克",
+      "name_en": "Warwick",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ001T4",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "血跡獵蹤",
+      "name_en": "Blood Hunt",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ004",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "王牌射手",
+      "name_en": "Ace in the Hole",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ005",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "叱返金身",
+      "name_en": "Rebuttal",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ006",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "梅爾",
+      "name_en": "Mel",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ006T1",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "梅爾",
+      "name_en": "Mel",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ006T2",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "絢輝彈幕",
+      "name_en": "Radiant Volley",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ006T3",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "梅爾的叱返金身",
+      "name_en": "Mel's Rebuttal",
+      "cost": 5,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ007",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "艾洛拉",
+      "name_en": "Elora",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ008",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "烈陽羅網",
+      "name_en": "Solar Snare",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ009",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "以防萬一",
+      "name_en": "Lest",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ013",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "神恩浩蕩",
+      "name_en": "Divine Grace",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ014",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生化科技針嘴",
+      "name_en": "Chemtech Needlenose",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "98PZ015",
+      "groups": [
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "實驗體二號",
+      "name_en": "Test Subject #2",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ023",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "金嚇破壞機器人",
+      "name_en": "Golden Crushbot",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ100",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "續力",
+      "name_en": "Prolong",
+      "cost": null,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ101",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "雙面間諜",
+      "name_en": "Double Agent",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ102",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵骷髏幫老大",
+      "name_en": "Tinskull Boss",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ103",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "巨砲執法機器人",
+      "name_en": "Klaxon Lawbot",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ103T1",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵趾執法機器人",
+      "name_en": "Steeltoe Lawbot",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ104",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "火箭滑板",
+      "name_en": "Rocketboarder",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ106",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵骷髏幫燃燒器",
+      "name_en": "Tinskull Burner",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ109",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "迷人公會成員",
+      "name_en": "Charming Guildmember",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ110",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "翹課少女",
+      "name_en": "Class Cutter",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ111",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "灰背奇里安",
+      "name_en": "Chirean Grayback",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ112",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "得意展售員",
+      "name_en": "Proud Purveyor",
+      "cost": 2,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ113",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "生物編目員",
+      "name_en": "Creature Cataloguer",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ114",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "寵物呼碰",
+      "name_en": "House Whump",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ115",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "海克斯科技觀測所",
+      "name_en": "Hextech Observatory",
+      "cost": 3,
+      "type_name": "Landmark",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ116",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "好品味伯爵伊拉米斯",
+      "name_en": "Eramis, Baron of Taste",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ117",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵骷髏幫坦克",
+      "name_en": "Tinskull Tank",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ118",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "擴增普羅",
+      "name_en": "Augmented Poro",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ119",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵骷髏幫工匠",
+      "name_en": "Tinskull Tinkerer",
+      "cost": 1,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ120",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "執法鐵臂",
+      "name_en": "Arm of the Law",
+      "cost": 4,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ121",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "惡作劇與騷亂",
+      "name_en": "Mischief and Mayhem",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ124",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "暴走重砲",
+      "name_en": "The Loose Cannon",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ125",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "皮爾托福執法者",
+      "name_en": "The Sheriff of Piltover",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ126",
+      "groups": [
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "非自願測試者",
+      "name_en": "Involuntary Testing",
+      "cost": 1,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ127",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "明日守護者",
+      "name_en": "The Defender of Tomorrow",
+      "cost": 6,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ128",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "震動",
+      "name_en": "Jolt",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Rare",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ129",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "時空少年",
+      "name_en": "The Boy Who Shattered Time",
+      "cost": null,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ130",
+      "groups": [
+        "starting_deck",
+        "campaign_referenced",
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "砰砰",
+      "name_en": "Pow-Pow",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ131",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "鐵腕特警",
+      "name_en": "The Piltover Enforcer",
+      "cost": 3,
+      "type_name": "Spell",
+      "supertype_name": null,
+      "rarity_name": "Epic",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ420",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "崔梅洛",
+      "name_en": "Tremello",
+      "cost": 3,
+      "type_name": null,
+      "supertype_name": null,
+      "rarity_name": null,
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ422",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "歐茲",
+      "name_en": "Ozzi",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "Champion",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ422T2",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "歐茲 打擊宣言",
+      "name_en": "Ozzi's Called Shot",
+      "cost": 2,
+      "type_name": "Spell",
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    },
+    {
+      "code": "99PZ422T3",
+      "groups": [
+        "poc_pz_pool",
+        "pz_region_superset"
+      ],
+      "name_zh_tw": "歐茲",
+      "name_en": "Ozzi",
+      "cost": 4,
+      "type_name": null,
+      "supertype_name": "Champion",
+      "rarity_name": "None",
+      "in_client_catalog": true,
+      "local_art_fallback": null
+    }
+  ]
+}

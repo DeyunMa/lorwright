@@ -213,15 +213,18 @@ def recognize_mulligan(image: np.ndarray) -> list[MulliganCard]:
                     if count >= 30 and count / len(good) >= 0.7:
                         result = True
                 else:
-                    # 不能把「没匹配到 Jinx」直接当成非 Jinx。实图中的
-                    # 绿色/蓝色品质标志可提供独立反证；
-                    # 金色英雄标志及看不清的标志不能排除 Jinx。
+                    # 明显不匹配 Jinx 的卡面可直接判为非目标；边界情况或明显的
+                    # 英雄品质标志仍保留未知，避免把难以分辨的英雄误判成可替换牌。
                     cx = (486, 802, 1118, 1434)[index]
                     gem = image[726:743, cx - 11:cx + 11]
                     hsv = cv2.cvtColor(gem, cv2.COLOR_BGR2HSV)
                     green = cv2.inRange(hsv, (35, 65, 80), (90, 255, 255))
                     blue = cv2.inRange(hsv, (90, 60, 100), (130, 255, 255))
-                    if max(cv2.countNonZero(green), cv2.countNonZero(blue)) >= 100:
+                    gold = cv2.inRange(hsv, (15, 80, 80), (35, 255, 255))
+                    if len(good) < 20:
+                        if cv2.countNonZero(gold) < 150:
+                            result = False
+                    elif max(cv2.countNonZero(green), cv2.countNonZero(blue)) >= 100:
                         result = False
         cards.append(MulliganCard(index, result, Rect(bx - 4, by - 4, 8, 8)))
     return cards

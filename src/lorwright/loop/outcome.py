@@ -57,8 +57,7 @@ class ActionOutcome:
             return Outcome(OutcomeStatus.WAITING, "awaiting_mulligan_selection")
         known = after.ui_state is not UIState.UNKNOWN
         reason = ""
-        # 出牌动画期间 UI 可能短暂 UNKNOWN，但手牌减少 + 场面增加/费用下降
-        # 仍是可验证的可见结果；不能让动画把动作拖到超时。
+        # UNKNOWN 动画期间仅凭单位数量增加不够：收起的手牌可能露出原有单位。
         if known or kind is ActionType.PLAY_CARD:
             if kind is ActionType.PLAY_CARD:
                 if not before.hand_expanded:
@@ -79,7 +78,7 @@ class ActionOutcome:
                         and after.spell_mana < before.spell_mana)
                     # 手牌打空后展开态会变成 False；只要手牌减少且场面增加，
                     # 仍是“打出了单位”，不能因为手牌收起就判失败。
-                    or len(after.my_units) > len(before.my_units)
+                    or (known and len(after.my_units) > len(before.my_units))
                 ):
                     reason = "hand_reduced_and_mana_or_board_changed"
             elif kind in (ActionType.ATTACK, ActionType.BLOCK):

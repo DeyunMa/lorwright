@@ -167,7 +167,7 @@ def test_free_spell_without_correlated_evidence_stays_unverified():
     assert pending.observe(replace(before, hand=before.hand[:1]), 1).status is OutcomeStatus.WAITING
 
 
-def test_play_card_can_succeed_while_ui_is_unknown():
+def test_unknown_animation_does_not_prove_play_by_revealing_units():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)
     after = replace(
@@ -176,4 +176,6 @@ def test_play_card_can_succeed_while_ui_is_unknown():
         hand=[],
         my_units=units(900),
     )
-    assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
+    assert pending.observe(after, 1).status is OutcomeStatus.WAITING
+    staged = replace(after, ui_state=UIState.COMBAT_RESOLVING)
+    assert pending.observe(staged, 2).status is OutcomeStatus.NEEDS_INPUT

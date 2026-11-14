@@ -18,6 +18,7 @@ from lorwright.models import (
     Reading,
     Rect,
     UIState,
+    Unit,
 )
 
 
@@ -158,6 +159,29 @@ def test_staged_spell_is_confirmed_before_notifying_policy(monkeypatch):
     assert device.taps == [(20, 20)]
     assert (play, before, after) in observer.outcomes
     assert any(event.get("reason") == "confirmation_required" for event in events)
+
+
+def test_unknown_animation_waits_for_spell_confirmation(monkeypatch):
+    card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
+    before = ready(hand=[card], hand_expanded=True)
+    units = [Unit("", -1, -1, Rect(x, 900, 8, 8)) for x in (700, 850)]
+    animation = replace(before, ui_state=UIState.UNKNOWN, hand=[], my_units=units,
+                        readings={**before.readings, "mana": Reading(3, 1)})
+    staged = replace(animation, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(staged, ui_state=UIState.ENEMY_TURN, mana=2,
+                    readings={**staged.readings, "mana": Reading(2, 0)})
+    play = Action(ActionType.PLAY_CARD, 0)
+    engine, device, router, events, _ = engine_for(
+        monkeypatch, [before, animation, staged, after],
+        [play, Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
+    )
+    engine.run(max_ticks=4)
+    assert len(device.drags) == 1
+    assert device.taps == [(20, 20)]
+    assert router.calls == 3
+    assert [event["status"] for event in events if event.get("event") == "action_outcome"] == [
+        "waiting", "needs_input", "succeeded",
+    ]
 
 
 def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypatch):

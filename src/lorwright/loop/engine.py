@@ -147,6 +147,7 @@ class Engine:
                         readings={name: asdict(reading) for name, reading in state.readings.items()},
                     )
                     if outcome.status is OutcomeStatus.TIMED_OUT:
+                        before = self._pending.before
                         if (
                             self._pending.action.type in (ActionType.END_TURN, ActionType.PASS)
                             and state.ui_state is not UIState.UNKNOWN
@@ -158,6 +159,22 @@ class Engine:
                             self._pending = None
                             self.watchdog.reset()
                             self.recovery.reset()
+                        elif (
+                            self._pending.action.type is ActionType.PLAY_CARD
+                            and state.ui_state is UIState.MY_TURN_IDLE
+                            and before.ui_state is UIState.MY_TURN_IDLE
+                            and state.mana == before.mana
+                            and len(state.hand) == len(before.hand)
+                            and len(state.my_units) == len(before.my_units)
+                            and len(state.enemy_units) == len(before.enemy_units)
+                            and state.nexus_hp == before.nexus_hp
+                            and state.enemy_nexus_hp == before.enemy_nexus_hp
+                        ):
+                            logger.warning(
+                                "出牌结果未确认且状态无变化，继续观察：{}",
+                                self._pending.action.type.value,
+                            )
+                            self._pending = None
                         else:
                             save_snapshot(
                                 frame.image, self.settings.perception.snapshot_dir,

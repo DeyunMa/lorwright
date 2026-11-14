@@ -98,6 +98,8 @@ class ActionOutcome:
                     new_count = sum(u.rect.center[1] < cutoff for u in after.my_units)
                     if new_count - old_count >= len(selected):
                         reason = "selected_units_moved_to_combat_row"
+                if not reason and known and after.ui_state is UIState.COMBAT_RESOLVING and before.ui_state is not after.ui_state:
+                    reason = "combat_ui_transition"
             elif kind in (ActionType.SELECT_TARGET, ActionType.CANCEL):
                 if before.ui_state is UIState.TARGETING and after.ui_state is not UIState.TARGETING:
                     reason = "targeting_closed"

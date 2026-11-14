@@ -29,6 +29,7 @@ from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
     button_is,
     find_home_adventure_entry,
+    find_resume_adventure_button,
     is_battle_detail,
     is_completed_panel,
     is_map,
@@ -157,6 +158,29 @@ class AdventureLoop:
             height, width = image.shape[:2]
             if width and height and abs(width / height - 16 / 9) <= 0.02:
                 design_image, scale = self.normalizer.fit(image)
+                resume = find_resume_adventure_button(design_image)
+                if resume is not None:
+                    selected = getattr(self.pack, "recognize_selected_hero", None)
+                    if selected is None or not selected(design_image):
+                        logger.warning("adventure: 无法确认所选英雄，停止")
+                        snapshot.save_snapshot(
+                            image, self.settings.perception.snapshot_dir, tag="resume_hero_unknown"
+                        )
+                        return
+                    self.device.tap(*scale.to_device(*resume.center))
+                    for _ in range(6):
+                        time.sleep(2)
+                        after = self._frame()
+                        if is_map(after):
+                            logger.info("adventure: 已继续冒险，返回地图")
+                            break
+                    else:
+                        snapshot.save_snapshot(
+                            after, self.settings.perception.snapshot_dir,
+                            tag="resume_transition_unverified",
+                        )
+                        return
+                    continue
                 entry = find_home_adventure_entry(design_image)
                 if entry is not None:
                     self.device.tap(*scale.to_device(*entry.center))

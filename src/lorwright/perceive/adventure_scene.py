@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 
 from lorwright.models import Rect
+from lorwright.perceive.panels import action_button
 
 _ASSETS = Path("assets/adventure")
 
@@ -117,6 +118,18 @@ def is_battle_detail(image: np.ndarray) -> bool:
 
 def is_completed_panel(image: np.ndarray) -> bool:
     return is_map(image) and _matches(image, "completed", (400, 300, 1100, 650), 0.9)
+
+
+def find_resume_adventure_button(image: np.ndarray) -> Rect | None:
+    """在冒险选择页识别可点击的「繼續冒險」，不依赖具体冒险插画。"""
+    if image.shape != (1080, 1920, 3):
+        return None
+    if not _matches(image, "map_back", (60, 40, 140, 125), 0.9):
+        return None
+    button = action_button(image)
+    if button is None or button.x < 1200 or button.y < 850:
+        return None
+    return button if button_is(image, button, "resume_adventure") else None
 
 
 def shop_leave_button(image: np.ndarray) -> Rect | None:

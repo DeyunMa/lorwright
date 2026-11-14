@@ -365,6 +365,45 @@ def test_home_entry_clicks_visible_label_when_card_center_is_covered(adventure):
     assert saved == ["home_entry_after"]
 
 
+def test_resume_adventure_clicks_once_and_accepts_map(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert image is not None
+    loop, device, engine, saved, _ = adventure([image, _img("1080p_map.png")], [])
+    loop.pack = load("jinx")
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert 1500 < device.taps[0][0] < 1650 and 950 < device.taps[0][1] < 1010
+    assert saved == []
+
+
+def test_resume_adventure_does_not_repeat_on_unchanged_page(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image] * 7, [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == ["resume_transition_unverified"]
+
+
+@pytest.mark.parametrize("champion", ["jinx", "elise"])
+def test_resume_adventure_stops_if_selected_hero_is_unverified(adventure, champion):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert image is not None
+    if champion == "jinx":
+        image[946:991, 320:485] = 0
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.pack = load(champion)
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["resume_hero_unknown"]
+
+
 @pytest.mark.parametrize("name", [
     "1080p_login_splash.png",
     "1080p_login_form.png",

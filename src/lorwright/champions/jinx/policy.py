@@ -1,5 +1,6 @@
 """用户指定的起手：應急裝置 → 减费 Jinx → 打掉 Jinx 生成的飞逝牌。"""
 
+from lorwright.decide.rewards import QUALITY_RANK, CardRewardCandidate, CardRewardPick
 from lorwright.models import Action, ActionType, GameState, UIState
 
 #: Jinx 下场后手牌被替换成的飞逝牌。客户端繁中名 + 用户常用简中名。
@@ -9,6 +10,22 @@ ROCKET_NAMES = frozenset({
     "威能死亡火箭！", "威能死亡火箭",
 })
 POW_POW_NAMES = frozenset({"砰砰", "碰碰", "Pow-Pow"})
+
+
+def pick_card_reward(candidates: list[CardRewardCandidate]) -> CardRewardPick | None:
+    """Jinx 战斗奖励：先比较有效费用，同费用再比较卡牌品质。"""
+    if not candidates or any(
+        c.card.cost is None or c.card.cost < 0 or not c.cost_certain for c in candidates
+    ):
+        return None
+    lowest = min(c.card.cost for c in candidates)
+    cheapest = [c for c in candidates if c.card.cost == lowest]
+    if len(cheapest) == 1:
+        return CardRewardPick(cheapest[0], "Jinx：费用最低优先")
+    if any(c.card.quality not in QUALITY_RANK for c in cheapest):
+        return None
+    chosen = max(cheapest, key=lambda c: QUALITY_RANK[c.card.quality])
+    return CardRewardPick(chosen, "Jinx：费用相同时品质最高优先")
 
 
 class JinxOpeningPolicy:
@@ -102,28 +119,46 @@ class JinxOpeningPolicy:
             if state.hand:
                 return Action(type=ActionType.PLAY_CARD, card_index=state.hand[0].index)
             return Action(type=ActionType.NO_OP)
-        name, cost = (("應急裝置", 1) if self.step == 0 else ("吉茵珂絲", 2))
-        matches = [card for card in state.hand if card.name == name and card.cost == cost]
-        if not matches or state.mana < cost or self._board_before is None:
+        if self.step == 0:
+            spells = [card for card in state.hand if card.name == "應急裝置"]
+            available = state.mana + (state.spell_mana or 0)
+            matches = [card for card in state.hand if card.name == "應急裝置"
+                       and 0 <= card.cost <= 3 and card.cost <= available]
+            if not matches and any(card.cost < 0 or card.cost <= 3 for card in spells):
+                # 有目标牌但费用不明或当前付不起时，不让通用层抢先打出 Jinx。
+                return Action(type=ActionType.NO_OP)
+        else:
+            matches = [card for card in state.hand if card.name == "吉茵珂絲"
+                       and 0 <= card.cost <= state.mana]
+        if not matches or self._board_before is None:
             # 本帧找不到目标或费用不够：弃权。通用层可先把满价 Jinx
             # 打下去（英雄优先），不阻塞整局。
             return None
         return Action(type=ActionType.PLAY_CARD, card_index=matches[0].index)
 
     def _decide_post_jinx(self, state: GameState) -> Action | None:
-        """Jinx 已下场：优先打 2 张火箭，再用砰砰；名字认不出时只兜底小手牌。"""
+        """Jinx 下场后先处理两张火箭；费用和可用法力须足以证明能出。"""
         if not state.hand_expanded:
             return None
-        playable = [card for card in state.hand if 0 <= card.cost <= state.mana]
-        if not playable:
-            return None
         if self._rockets_played < 2:
-            rockets = [card for card in playable if card.name in ROCKET_NAMES]
-            if rockets:
-                return Action(type=ActionType.PLAY_CARD, card_index=rockets[0].index)
-            # 大手牌里认不出火箭时不能让通用层按费用打其他牌。
-            if len(state.hand) > 2:
+            cards = sorted(state.hand, key=lambda card: card.index)
+            remaining = 2 - self._rockets_played
+            if len(cards) < remaining or [c.index for c in cards] != list(range(len(cards))):
                 return Action(type=ActionType.NO_OP)
+            # 首次选择时两张火箭都要有卡面证据，避免漏掉最左牌后
+            # 把第二张当第一张。第二张只在前一张结果核实后选择。
+            if any(card.name not in ROCKET_NAMES for card in cards[:remaining]):
+                return Action(type=ActionType.NO_OP)
+            rocket = cards[0]
+            if rocket.cost < 0:
+                return Action(type=ActionType.NO_OP)
+            available = state.mana + (state.spell_mana or 0)
+            if rocket.cost <= available:
+                return Action(type=ActionType.PLAY_CARD, card_index=rocket.index,
+                              raw={"jinx_rocket": True})
+            # 确认不够费用时让通用层继续战斗；法术法力未知则等待。
+            return None if state.spell_mana is not None else Action(type=ActionType.NO_OP)
+        playable = [card for card in state.hand if 0 <= card.cost <= state.mana]
         pows = [card for card in playable if card.name in POW_POW_NAMES]
         if pows:
             return Action(type=ActionType.PLAY_CARD, card_index=pows[0].index)
@@ -143,14 +178,14 @@ class JinxOpeningPolicy:
         if card is None:
             return
         if self.step == 2:
-            if card.name in ROCKET_NAMES:
+            if action.raw.get("jinx_rocket") is True and card.name in ROCKET_NAMES:
                 self._rockets_played += 1
-        elif self.step == 0 and card.name == "應急裝置" and card.cost == 1:
+        elif self.step == 0 and card.name == "應急裝置" and 0 <= card.cost <= 3:
             if self._board_before is not None and len(after.my_units) > self._board_before:
                 self.step = 1
             else:
                 self._awaiting_crab = True
-        elif self.step == 1 and card.name == "吉茵珂絲" and card.cost == 2:
+        elif self.step == 1 and card.name == "吉茵珂絲" and card.cost >= 0:
             if self._board_before is not None and len(after.my_units) > self._board_before:
                 self.step = 2
                 self._rockets_played = 0

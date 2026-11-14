@@ -128,6 +128,82 @@ def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
     assert engine.run_calls == []
 
 
+def test_healer_taps_once_and_stops_even_if_screen_does_not_change(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    assert image is not None
+    loop, device, engine, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop.run(max_nodes=3)
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_unchanged"]
+    assert engine.run_calls == []
+
+
+def test_healer_does_not_click_when_selected_option_is_unclear(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    assert image is not None
+    image[754:814, 932:979] = 0
+    loop, device, engine, saved, _ = adventure([image], [UIState.UNKNOWN])
+    loop.run(max_nodes=3)
+    assert device.taps == []
+    assert saved == ["healer_unknown"]
+    assert engine.run_calls == []
+
+
+def test_healer_opened_from_node_panel_stops_after_one_heal(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    assert not loop._handle_node_panel()
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_unchanged"]
+
+
+def test_healer_records_return_to_real_map_and_stops(adventure):
+    before = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    after = cv2.imread(str(FIXTURES.parent / "healer" / "f1-after-heal.png"))
+    assert before is not None and after is not None
+    loop, device, _, saved, _ = adventure([before, after], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_completed"]
+
+
+def test_healer_continues_to_the_next_node_after_completion(adventure):
+    before = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    after = cv2.imread(str(FIXTURES.parent / "healer" / "f1-after-heal.png"))
+    assert before is not None and after is not None
+    loop, device, _, saved, _ = adventure([before, after, after, _blank()], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert device.taps[0] == (1441, 1004)
+    assert len(device.taps) == 2
+    x, y = device.taps[1]
+    assert (x - 1166) ** 2 + (y - 444) ** 2 <= 35 ** 2
+    assert saved == ["healer_completed", "panel_unknown"]
+
+
+def test_healer_returning_to_map_without_completion_stops(adventure):
+    before = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    after = cv2.imread(str(FIXTURES.parent / "healer" / "f1-after-heal.png"))
+    assert before is not None and after is not None
+    after[500:560, 930:990] = 0
+    loop, device, _, saved, _ = adventure([before, after], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_map_unverified"]
+
+
+def test_healer_stops_when_result_is_unknown(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image, _blank()], [UIState.UNKNOWN])
+    loop.run(max_nodes=3)
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_after_unknown"]
+
+
 def _support_fixture(name: str) -> np.ndarray:
     image = cv2.imread(str(FIXTURES.parent / "support" / name))
     assert image is not None
@@ -325,6 +401,27 @@ def test_battle_takeover_runs_engine(adventure):
     assert device.taps == []
 
 
+def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):
+    shop = _img("f1-shop-20261114.png")
+    loop, device, _, saved, _ = adventure([shop, shop], [])
+    loop.run(max_nodes=2)
+    assert device.taps == [(691, 1004)]
+    assert saved == ["shop_leave_unverified"]
+
+
+def test_shop_does_not_click_when_title_or_leave_is_obscured(adventure):
+    shop = _img("f1-shop-20261114.png")
+    from lorwright.perceive.adventure_scene import shop_leave_button
+
+    assert shop_leave_button(shop) is not None
+    assert shop_leave_button(shop // 2) is None
+    shop[984:1025, 648:735] = 0
+    assert shop_leave_button(shop) is None
+    loop, device, _, _, _ = adventure([shop], [UIState.UNKNOWN])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+
+
 def test_battle_end_taps_recognized_continue(adventure):
     # 已知结算状态下，点截图里识别到的位置。
     image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
@@ -410,6 +507,47 @@ def test_node_panel_travel_then_fight(adventure):
     assert saved == []
 
 
+def test_node_transitions_wait_for_recognized_scenes_without_repeated_taps(adventure):
+    # 载入和换牌为 f1 实拍；面板来源于既有素材，拼接仅用于验证流程。
+    screens = FIXTURES.parent / "screens"
+    loading = cv2.imread(str(screens / "1080p_battle_loading_20261114.png"))
+    mulligan = cv2.imread(str(screens / "1080p_jinx_mulligan_20261114.png"))
+    assert loading is not None and mulligan is not None
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_jinx_map.png"), _img("1080p_node_panel.png"),
+         loading, _img("1080p_battle_detail.png"), loading, mulligan, mulligan], [],
+    )
+    loop.pack = load("jinx")
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    loop.run(max_nodes=2)
+    assert device.taps == [(982, 334), (817, 485), (1581, 1010)]
+    assert engine.run_calls == [400]
+    assert saved == []
+
+
+def test_node_transition_timeout_stops_without_repeating_battle(adventure):
+    loading = cv2.imread(str(
+        FIXTURES.parent / "screens" / "1080p_battle_loading_20261114.png"
+    ))
+    assert loading is not None
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_battle_detail.png"), *([loading] * 11)], [],
+    )
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    assert not loop._handle_node_panel()
+    assert device.taps == [(1581, 1010)]
+    assert engine.run_calls == []
+    assert saved == ["panel_transition_timeout"]
+
+
 def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monkeypatch):
     # 识别三项并调用奖励规则；尚无选中后的截图，不盲点卡片/确认。
     from lorwright.champions.base import Preference
@@ -463,12 +601,36 @@ def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure
     assert engine.run_calls == []
 
 
+def test_jinx_card_reward_uses_champion_cost_rule_before_default(adventure):
+    from lorwright.decide.rewards import CardRewardCandidate, RewardCandidate
+    from lorwright.models import Rect
+
+    before = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
+    selected = cv2.imread(str(FIXTURES.parent / "card_rewards" / "selected-left.png"))
+    after = cv2.imread(str(FIXTURES.parent / "card_rewards" / "after.png"))
+    loop, device, _, saved, _ = adventure([before, selected, after], [])
+    loop.pack = load("jinx")
+    candidates = [
+        CardRewardCandidate(RewardCandidate("普通", "common", 1), "", True),
+        CardRewardCandidate(RewardCandidate("稀有", "rare", 4), "", True),
+        CardRewardCandidate(RewardCandidate("普通", "common", 4), "", True),
+    ]
+    # 保留真实选中帧和按钮检查，仅隔离候选识别。
+    from unittest.mock import patch
+
+    with patch("lorwright.loop.adventure.recognize_card_rewards", return_value=candidates), \
+            patch("lorwright.loop.adventure.card_reward_target", return_value=Rect(551, 389, 8, 8)):
+        loop.run(max_nodes=1)
+    assert device.taps == [(555, 393), (960, 1003)]
+    assert saved == ["card_reward_unverified"]
+
+
 def test_card_reward_does_not_confirm_when_wrong_card_is_highlighted(adventure):
     reward = FIXTURES.parent / "card_rewards"
     before = cv2.imread(str(reward / "before.png"))
     left_selected = cv2.imread(str(reward / "selected-left.png"))
     loop, device, _, saved, _ = adventure([before, left_selected], [])
-    loop.pack = load("jinx")
+    loop.pack = type("Pack", (), {"card_preferences": (), "item_preferences": ()})()
     loop.run(max_nodes=1)
     # 默认选右侧稀有卡；若下一帧却显示左侧高亮，绝不能点确认。
     assert device.taps == [(1375, 393)]

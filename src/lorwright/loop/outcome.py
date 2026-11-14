@@ -73,6 +73,10 @@ class ActionOutcome:
                 elif len(after.hand) < len(before.hand) and (
                     (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")
                      and after.mana < before.mana)
+                    or (before.has_fresh_readings("spell_mana")
+                        and after.has_fresh_readings("spell_mana")
+                        and before.spell_mana is not None and after.spell_mana is not None
+                        and after.spell_mana < before.spell_mana)
                     # 手牌打空后展开态会变成 False；只要手牌减少且场面增加，
                     # 仍是“打出了单位”，不能因为手牌收起就判失败。
                     or len(after.my_units) > len(before.my_units)

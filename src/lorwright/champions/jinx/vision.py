@@ -81,13 +81,15 @@ def recognize_hand(image: np.ndarray, cards: list[CardInHand]) -> list[CardInHan
             continue
 
         # 费用是强约束，但 PoC 道具会把任意牌减费（实测砰砰 2→1），
-        # 所以只排除「显示费用高于卡牌基础费用」的候选；减费牌仍然参与
-        # ORB 打分。此前只给英雄牌开口子，导致 1 费砰砰被误认成 Jinx。
+        # 减费牌仍然参与 ORB 打分。应急装置也可能被增费至 3 费，
+        # 必须参与比较，否则可能被误认成其他 3 费牌。
+        # 此前只给英雄牌开口子，导致 1 费砰砰被误认成 Jinx。
         candidates = [
             (definition, train)
             for definition, train in templates
             if card.cost < 0
             or definition.cost >= card.cost
+            or (definition.code == "01PZ028" and card.cost <= 3)
         ]
         scores = sorted(
             ((_good_matches(matcher, descriptors, train), definition) for definition, train in candidates),

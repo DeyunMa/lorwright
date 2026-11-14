@@ -32,9 +32,16 @@ from lorwright.perceive.adventure_scene import (
     is_battle_detail,
     is_completed_panel,
     is_map,
+    shop_leave_button,
 )
 from lorwright.perceive.buttons import find_continue_button
-from lorwright.perceive.mapnav import empty_point, next_node, panel_open
+from lorwright.perceive.healer import healer_heal_button, is_healer_screen
+from lorwright.perceive.mapnav import (
+    _current_completed_node_visible,
+    empty_point,
+    next_node,
+    panel_open,
+)
 from lorwright.perceive.normalize import Normalizer
 from lorwright.perceive.panels import action_button
 from lorwright.perceive.reward_screen import (
@@ -91,6 +98,14 @@ class AdventureLoop:
         last_continue_view = None
         for _ in range(max_nodes):
             image = self._frame()
+            if shop_leave_button(image) is not None:
+                if not self._handle_shop(image):
+                    return
+                continue
+            if self._is_healer(image):
+                if not self._handle_healer(image):
+                    return
+                continue
             if self._is_support(image):
                 if not self._handle_support(image):
                     return
@@ -212,6 +227,59 @@ class AdventureLoop:
         normalized = self._reward_design(image)
         return normalized is not None and is_support_screen(normalized[0])
 
+    def _is_healer(self, image) -> bool:
+        normalized = self._reward_design(image)
+        return normalized is not None and is_healer_screen(normalized[0])
+
+    def _handle_shop(self, image) -> bool:
+        """按当前通用规则离开商店，核实返回地图后继续。"""
+        button = shop_leave_button(image)
+        if button is None:
+            return False
+        self.device.tap(*button.center)
+        time.sleep(3)
+        after = self._frame()
+        if is_map(after) and not panel_open(after):
+            logger.info("adventure: 已离开商店，继续寻找下一节点")
+            return True
+        snapshot.save_snapshot(after, self.settings.perception.snapshot_dir, tag="shop_leave_unverified")
+        return False
+
+    def _handle_healer(self, image) -> bool:
+        """点一次免费治疗，确认回到地图且节点完成后继续冒险。"""
+        normalized = self._reward_design(image)
+        button = healer_heal_button(normalized[0]) if normalized is not None else None
+        if normalized is None or button is None:
+            logger.warning("adventure: 治疗师选项或按钮无法确认，停止")
+            snapshot.save_snapshot(
+                image, self.settings.perception.snapshot_dir, tag="healer_unknown"
+            )
+            return False
+        _, scale = normalized
+        self.device.tap(*scale.to_device(*button.center))
+        logger.info("adventure: 已点击治疗，等待核对结果")
+        time.sleep(3)
+        after = self._frame()
+        if self._is_healer(after):
+            logger.warning("adventure: 治疗后仍在治疗师页面，停止")
+            tag = "healer_unchanged"
+        elif is_map(after) and not panel_open(after):
+            recognize_hero = getattr(self.pack, "recognize_map_hero", None)
+            hero = recognize_hero(after) if recognize_hero is not None else None
+            if hero is not None and _current_completed_node_visible(after, hero):
+                logger.info("adventure: 治疗节点已完成，继续冒险")
+                snapshot.save_snapshot(
+                    after, self.settings.perception.snapshot_dir, tag="healer_completed"
+                )
+                return True
+            logger.warning("adventure: 治疗后回到地图，但无法确认节点完成")
+            tag = "healer_map_unverified"
+        else:
+            logger.warning("adventure: 治疗后状态无法确认，停止")
+            tag = "healer_after_unknown"
+        snapshot.save_snapshot(after, self.settings.perception.snapshot_dir, tag=tag)
+        return False
+
     def _handle_support(self, image) -> bool:
         """选择援军并核对选中状态；确认后无法验证到账则停止。"""
         normalized = self._reward_design(image)
@@ -280,7 +348,8 @@ class AdventureLoop:
             logger.warning("adventure: 卡牌奖励信息不完整或已选中，停止")
             snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="card_reward_unknown")
             return False
-        picked = pick_card_reward(
+        champion_pick = getattr(self.pack, "pick_card_reward", None)
+        picked = champion_pick(candidates) if champion_pick is not None else pick_card_reward(
             candidates, getattr(self.pack, "card_preferences", ()),
             getattr(self.pack, "item_preferences", ()),
         )
@@ -351,6 +420,10 @@ class AdventureLoop:
     def _handle_node_panel(self) -> bool:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         image = self._frame()
+        if shop_leave_button(image) is not None:
+            return self._handle_shop(image)
+        if self._is_healer(image):
+            return self._handle_healer(image)
         if self._is_support(image):
             return self._handle_support(image)
         if self._is_card_reward(image):
@@ -390,19 +463,34 @@ class AdventureLoop:
             last_action = action
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
             time.sleep(4)
-            image = self._frame()
-            if self._is_support(image):
-                return self._handle_support(image)
-            if self._is_card_reward(image):
-                return self._handle_card_reward(image)
-            ui = self.engine.parser.ui.detect(image)
-            if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
-                return True
-            if is_power_screen(image):
-                self._preview_power(image)
+            # 旅行或战斗可能先出现载入画面。只等待新帧，绝不重复点击；
+            # 看到可识别的场景再交给对应处理，超时仍未知则停止。
+            for attempt in range(11):
+                image = self._frame()
+                if shop_leave_button(image) is not None:
+                    return self._handle_shop(image)
+                if self._is_healer(image):
+                    return self._handle_healer(image)
+                if self._is_support(image):
+                    return self._handle_support(image)
+                if self._is_card_reward(image):
+                    return self._handle_card_reward(image)
+                ui = self.engine.parser.ui.detect(image)
+                if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
+                    return True
+                if is_power_screen(image):
+                    self._preview_power(image)
+                    return False
+                if is_map(image) or is_battle_detail(image):
+                    break
+                if attempt < 10:
+                    time.sleep(2)
+            else:
+                logger.warning("adventure: 节点转场后画面仍无法识别，停止")
+                snapshot.save_snapshot(
+                    image, self.settings.perception.snapshot_dir, tag="panel_transition_timeout"
+                )
                 return False
-            if not is_map(image) and not is_battle_detail(image):
-                break
         # 旅行后回到地图：说明这个节点只是移动，继续下一轮找节点。
         if last_action == "travel" and is_map(image) and self._find_next(image) is not None:
             return True

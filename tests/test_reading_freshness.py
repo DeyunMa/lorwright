@@ -6,6 +6,8 @@ import pytest
 from lorwright.models import Layout, Rect, UIState
 from lorwright.perceive.state import StateParser
 
+_CACHED_READINGS = ("mana", "nexus_hp", "enemy_nexus_hp")
+
 
 class _UI:
     state = UIState.MY_TURN_IDLE
@@ -59,7 +61,8 @@ def test_observed_zero_is_fresh_not_missing(parser_setup):
 
     assert (state.mana, state.nexus_hp, state.enemy_nexus_hp) == (0, 0, 0)
     assert state.has_fresh_readings("mana", "nexus_hp", "enemy_nexus_hp")
-    assert all(r.value == 0 and r.age_frames == 0 for r in state.readings.values())
+    assert all(state.readings[name].value == 0 and state.readings[name].age_frames == 0
+               for name in _CACHED_READINGS)
 
 
 def test_obscured_numbers_keep_values_but_age_until_reobserved(parser_setup):
@@ -72,8 +75,8 @@ def test_obscured_numbers_keep_values_but_age_until_reobserved(parser_setup):
 
     assert (obscured.mana, obscured.nexus_hp, obscured.enemy_nexus_hp) == (3, 50, 30)
     assert not obscured.has_fresh_readings("mana", "nexus_hp", "enemy_nexus_hp")
-    assert all(r.age_frames == 1 for r in obscured.readings.values())
-    assert all(r.age_frames == 2 for r in twice_obscured.readings.values())
+    assert all(obscured.readings[name].age_frames == 1 for name in _CACHED_READINGS)
+    assert all(twice_obscured.readings[name].age_frames == 2 for name in _CACHED_READINGS)
 
     digits.values = {layout.mana: 1, layout.my_hp: 45, layout.enemy_hp: 25}
     restored = parser.parse(image)
@@ -99,7 +102,7 @@ def test_non_battle_screens_do_not_refresh_cached_numbers(parser_setup, non_batt
 
     assert digits.calls == []
     assert (state.mana, state.nexus_hp, state.enemy_nexus_hp) == (3, 50, 30)
-    assert all(r.age_frames == 1 for r in state.readings.values())
+    assert all(state.readings[name].age_frames == 1 for name in _CACHED_READINGS)
     assert not state.has_fresh_readings("mana", "nexus_hp", "enemy_nexus_hp")
 
 
@@ -126,4 +129,4 @@ def test_new_battle_does_not_inherit_previous_battle_numbers(parser_setup):
 
     assert observed.has_fresh_readings("mana", "nexus_hp", "enemy_nexus_hp")
     assert (still_mulligan.mana, still_mulligan.nexus_hp, still_mulligan.enemy_nexus_hp) == (1, 50, 30)
-    assert all(r.age_frames == 1 for r in still_mulligan.readings.values())
+    assert all(still_mulligan.readings[name].age_frames == 1 for name in _CACHED_READINGS)

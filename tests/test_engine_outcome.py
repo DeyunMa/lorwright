@@ -186,6 +186,36 @@ def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypat
     assert snapshots == [{"tag": "action_timeout"}]
 
 
+def test_two_rockets_each_wait_for_confirmation_and_verified_payment(monkeypatch):
+    from lorwright.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.decide.generic import CombatConfirmPolicy
+    from lorwright.decide.router import Router as RealRouter
+
+    def rocket(index):
+        return CardInHand(index, "超威能死亡火箭！", 1, Rect(300 + index * 100, 800, 50, 50))
+
+    readings = {"mana": Reading(0, 0), "spell_mana": Reading(2, 0),
+                "nexus_hp": Reading(20, 0), "enemy_nexus_hp": Reading(20, 0)}
+    first = ready(mana=0, spell_mana=2, hand=[rocket(0), rocket(1)],
+                  hand_expanded=True, readings=readings)
+    staged_first = replace(first, ui_state=UIState.COMBAT_RESOLVING)
+    second = replace(first, hand=[rocket(0)], spell_mana=1,
+                     readings={**readings, "spell_mana": Reading(1, 0)})
+    staged_second = replace(second, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(second, hand=[], spell_mana=0,
+                    readings={**readings, "spell_mana": Reading(0, 0)})
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [first, staged_first, second, staged_second, after], [],
+    )
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    engine.router = RealRouter([policy, CombatConfirmPolicy()])
+    engine.run(max_ticks=5)
+    assert len(device.drags) == 2
+    assert device.taps[:2] == [(20, 20), (20, 20)]
+    assert policy._rockets_played == 2
+    assert snapshots == []
+
+
 def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)

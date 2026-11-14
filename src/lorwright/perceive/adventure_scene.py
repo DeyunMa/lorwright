@@ -119,6 +119,25 @@ def is_completed_panel(image: np.ndarray) -> bool:
     return is_map(image) and _matches(image, "completed", (400, 300, 1100, 650), 0.9)
 
 
+def shop_leave_button(image: np.ndarray) -> Rect | None:
+    """商店标题和明亮的离开文字同时可见才允许离开。"""
+    if image.shape != (1080, 1920, 3):
+        return None
+    if not _matches(image, "shop_title", (545, 345, 715, 430), 0.94):
+        return None
+    if not _matches(image, "shop_leave", (630, 970, 760, 1040), 0.94):
+        return None
+    # CCOEFF 对整体变暗不敏感，不能点击被遮罩的商店。
+    region = cv2.cvtColor(image[984:1025, 648:735], cv2.COLOR_BGR2GRAY)
+    template = _template("shop_leave")
+    if template is None or region.shape != template.shape:
+        return None
+    bright = template > 180
+    if not bright.any() or float(region[bright].mean()) < 160:
+        return None
+    return Rect(648, 984, 87, 41)
+
+
 def button_is(image: np.ndarray, button: Rect, name: str) -> bool:
     """金色外观不足以区分按钮：还需匹配按钮上的文字。"""
     return _matches(image, name, (button.x, button.y, button.x + button.w, button.y + button.h))

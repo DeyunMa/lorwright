@@ -65,6 +65,18 @@ def test_stale_mana_cannot_prove_payment():
     assert pending.observe(after, 1).status is OutcomeStatus.WAITING
 
 
+def test_fresh_spell_mana_payment_can_prove_play_but_stale_cannot():
+    before = state(spell_mana=2, readings={"mana": Reading(3, 0),
+                                          "spell_mana": Reading(2, 0)})
+    after = replace(before, hand=before.hand[:1], spell_mana=1,
+                    readings={"mana": Reading(3, 0), "spell_mana": Reading(1, 0)})
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
+    assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
+    stale = replace(after, readings={"mana": Reading(3, 0), "spell_mana": Reading(1, 1)})
+    assert pending.observe(stale, 1).status is OutcomeStatus.WAITING
+    assert pending.observe(replace(after, hand=before.hand), 1).status is OutcomeStatus.WAITING
+
+
 def test_free_unit_uses_board_change_but_not_hand_representation_change():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)

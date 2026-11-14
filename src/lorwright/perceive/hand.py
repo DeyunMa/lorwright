@@ -39,7 +39,7 @@ BADGE_MIN_DIST = 45
 #: 展开态徽章模板（56×56）。展开后卡片放大，徽章从 48px 变 56px，
 #: 收起态模板匹配不上——这正好用来区分两种状态，别试图用缩放凑。
 BADGE_EXPANDED_TEMPLATE = Path("assets/ui/badge_expanded.png")
-#: 展开态实测：真徽章 ≥0.977，唯一误报 0.937
+#: 展开态主体徽章阈值；边缘卡另结合相邻卡间距及可读费用检查。
 EXPANDED_MIN_SCORE = 0.96
 #: 展开态卡间距 222~242px，抑制半径取 120 不会吃掉邻卡
 EXPANDED_MIN_DIST = 120
@@ -51,6 +51,9 @@ _WHITE_MIN = 170
 #: 0 费卡的数字是**绿色**的（R/B 都很低），白字判据抠不出来，单独认一路
 _GREEN_MIN = 180
 _GREEN_MAX_RB = 120
+#: 费用增加时数字会变红，背景蓝色徽章不能混入笔画。
+_RED_MIN = 160
+_RED_MAX_GB = 110
 #: 字形已按主轴扶正，只剩估算误差，小范围搜索就够
 _ROTATIONS = tuple(range(-8, 9, 2))
 #: 拖拽起点相对徽章中心的偏移：徽章在卡片左上角，卡身朝右下
@@ -138,6 +141,8 @@ def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD
     blue, green, red = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
     lit = (patch.min(axis=2) >= _WHITE_MIN) | (
         (green >= _GREEN_MIN) & (red <= _GREEN_MAX_RB) & (blue <= _GREEN_MAX_RB)
+    ) | (
+        (red >= _RED_MIN) & (green <= _RED_MAX_GB) & (blue <= _RED_MAX_GB)
     )
     white = lit.astype(np.uint8) * 255
     yy, xx = np.mgrid[0 : rad * 2, 0 : rad * 2]
@@ -217,8 +222,19 @@ def recognize_expanded(
     threshold: float = EXPANDED_MIN_SCORE,
 ) -> list[CardInHand]:
     """识别展开态手牌（卡片平铺在屏幕下方）。"""
+    badges = find_badges_expanded(image, region, threshold=threshold)
+    # 边缘卡倾斜可能使最左徽章得分略低；只有在两张以上可靠徽章
+    # 确立间距、候选位于其左侧且费用可读时才补回，不单靠低阈值。
+    if threshold == EXPANDED_MIN_SCORE and len(badges) >= 2:
+        candidates = find_badges_expanded(image, region, threshold=0.95)
+        if candidates and candidates[0].center[0] < badges[0].center[0]:
+            candidate = candidates[0]
+            gap = badges[1].center[0] - badges[0].center[0]
+            left_gap = badges[0].center[0] - candidate.center[0]
+            if 0.7 * gap <= left_gap <= 1.3 * gap and read_cost(image, candidate, digits) is not None:
+                badges.insert(0, candidate)
     cards: list[CardInHand] = []
-    for index, badge in enumerate(find_badges_expanded(image, region, threshold=threshold)):
+    for index, badge in enumerate(badges):
         cx, cy = badge.center
         dx, dy = DRAG_OFFSET_EXPANDED
         cost = read_cost(image, badge, digits)

@@ -6,8 +6,10 @@ import cv2
 import pytest
 
 from lorwright.champions.base import Preference
+from lorwright.champions.jinx.policy import pick_card_reward as pick_jinx_card_reward
 from lorwright.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
 from lorwright.perceive.reward_screen import (
+    _card_cost,
     card_reward_confirm_button,
     card_reward_selection,
     card_reward_target,
@@ -136,3 +138,32 @@ def test_reward_quality_then_cost_and_unknowns():
     assert pick_card_reward([low, _candidate("未知", "unknown", 0)]) is None
     assert pick_card_reward([cheap, _candidate("费用变动", "rare", 1, cost_certain=False)]) is None
     assert pick_card_reward([low, _candidate("无品质", "unranked", 0)]).candidate == low
+
+
+def test_jinx_prefers_lower_cost_then_higher_quality():
+    common = _candidate("便宜普通", "common", 1)
+    rare = _candidate("昂贵稀有", "rare", 4)
+    assert pick_jinx_card_reward([common, rare]).candidate == common
+    assert pick_card_reward([common, rare]).candidate == rare
+    equally_cheap_rare = _candidate("便宜稀有", "rare", 1)
+    assert pick_jinx_card_reward([common, equally_cheap_rare, rare]).candidate == equally_cheap_rare
+
+
+def test_f1_reward_image_costs_support_jinx_priority():
+    image = _image("f1-cost-rule-20261114.png")
+    costs = [_card_cost(image, x) for x in (354, 769, 1184)]
+    assert costs == [1, 4, 4]
+    candidates = [_candidate(str(i), "unknown", cost) for i, cost in enumerate(costs)]
+    assert pick_jinx_card_reward(candidates).candidate == candidates[0]
+    image[276:309, 843:879] = 0
+    assert _card_cost(image, 769) is None
+
+
+def test_jinx_reward_waits_when_cost_or_required_tiebreak_is_uncertain():
+    common = _candidate("普通", "common", 1)
+    assert pick_jinx_card_reward([common, _candidate("未知费用", "rare", None)]) is None
+    assert pick_jinx_card_reward([common, _candidate("费用变化", "rare", 4,
+                                                     cost_certain=False)]) is None
+    assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 1)]) is None
+    # 最低费用唯一时，其他候选品质不影响排序。
+    assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 4)]).candidate == common

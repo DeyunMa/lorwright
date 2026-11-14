@@ -74,6 +74,12 @@ class StateParser:
         # 法力上限暂时跟着当前法力走：出牌判定只用到 mana，
         # 真正的宝石计数要等 pips 模板（见 docs/handoff.md §2）
         state.max_mana = self._mana
+        # 法术法力只使用本帧读数，不能沿用被遮挡前的旧值。
+        spell_mana = self._read(image, lay.spell_mana) if readable_ui else None
+        state.spell_mana = spell_mana if spell_mana in (0, 1, 2, 3) else None
+        state.readings["spell_mana"] = Reading(
+            state.spell_mana, 0 if state.spell_mana is not None else None
+        )
 
         enemy_hp = self._observe("enemy_nexus_hp", image, lay.enemy_hp, readable_ui, state)
         if enemy_hp is not None:

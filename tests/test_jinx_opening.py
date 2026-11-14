@@ -1,5 +1,7 @@
 from dataclasses import replace
 
+import pytest
+
 from lorwright.champions import load
 from lorwright.champions.jinx.policy import JinxOpeningPolicy
 from lorwright.models import (
@@ -48,7 +50,7 @@ def test_two_steps_require_confirmed_spell_and_visible_crab():
     hero_action = policy.decide(after)
     policy.on_action_outcome(hero_action, after, state([], [crab, crab], mana=0))
     assert policy.step == 2
-    assert policy.decide(after) is None
+    assert policy.decide(after).type is ActionType.NO_OP
 
 
 def test_already_expanded_hand_still_starts_with_spell():
@@ -59,6 +61,42 @@ def test_already_expanded_hand_still_starts_with_spell():
     assert policy.decide(state_now) == Action(type=ActionType.PLAY_CARD, card_index=1)
 
 
+@pytest.mark.parametrize("cost", [0, 1, 2, 3])
+def test_emergency_device_up_to_three_mana_starts_combo(cost):
+    policy = JinxOpeningPolicy()
+    spell = card(1, "應急裝置", cost)
+    before = state([card(0, "其他牌", 1), spell, card(2, "吉茵珂絲", 2)], mana=3)
+    chosen = policy.decide(before)
+    assert chosen == Action(type=ActionType.PLAY_CARD, card_index=1)
+    crab = Unit("", -1, -1, Rect(0, 0, 10, 10))
+    after = state([card(2, "吉茵珂絲", 2)], units=[crab], mana=2)
+    policy.on_action_outcome(chosen, before, after)
+    assert policy.step == 1
+    assert policy.decide(after) == Action(type=ActionType.PLAY_CARD, card_index=2)
+
+
+def test_emergency_device_uses_spell_mana_without_allowing_jinx_to_preempt_it():
+    policy = JinxOpeningPolicy()
+    cards = [card(0, "吉茵珂絲", 2), card(1, "應急裝置", 3)]
+    s = state(cards, mana=2)
+    assert policy.decide(replace(s, spell_mana=3)) == Action(
+        type=ActionType.PLAY_CARD, card_index=1
+    )
+    assert policy.decide(replace(s, spell_mana=0)).type is ActionType.NO_OP
+    assert policy.decide(replace(s, spell_mana=None)).type is ActionType.NO_OP
+
+
+@pytest.mark.parametrize("cost", [0, 1, 2, 3, 4])
+def test_jinx_after_spell_uses_current_affordable_cost(cost):
+    policy = JinxOpeningPolicy(spell_already_played=True)
+    before = state([card(0, "吉茵珂絲", cost)], mana=4)
+    action = policy.decide(before)
+    assert action == Action(type=ActionType.PLAY_CARD, card_index=0)
+    unit = Unit("", -1, -1, Rect(0, 0, 10, 10))
+    policy.on_action_outcome(action, before, state([], units=[unit], mana=0))
+    assert policy.step == 2
+
+
 def test_unknown_wrong_cost_and_expansion_do_not_advance():
     policy = load("jinx").make_policy()
     collapsed = state([card(0, "", 1)], expanded=False)
@@ -67,8 +105,10 @@ def test_unknown_wrong_cost_and_expansion_do_not_advance():
     policy.on_action_outcome(action, collapsed, replace(collapsed, hand_expanded=True))
     assert policy.step == 0
     assert policy.decide(state([card(0, "", 1), card(1, "吉茵珂絲", 2)])) is None
-    assert policy.decide(state([card(0, "應急裝置", 2)])) is None
-    assert policy.decide(state([card(0, "應急裝置", 1)], mana=0)) is None
+    assert policy.decide(state([card(0, "應急裝置", 4)], mana=4)) is None
+    assert policy.decide(state([card(0, "應急裝置", -1)])).type is ActionType.NO_OP
+    assert policy.decide(state([card(0, "應急裝置", 3)], mana=2)).type is ActionType.NO_OP
+    assert policy.decide(state([card(0, "應急裝置", 1)], mana=0)).type is ActionType.NO_OP
 
 
 def test_new_mulligan_resets_opening():
@@ -96,8 +136,8 @@ def test_resume_after_jinx_starts_at_fleeting_step():
     policy = JinxOpeningPolicy(jinx_summoned=True)
     assert policy.step == 2
     rocket = card(0, "超威能死亡火箭！", 1)
-    assert policy.decide(state([rocket], mana=1)) == Action(
-        type=ActionType.PLAY_CARD, card_index=0
+    assert policy.decide(state([rocket, replace(rocket, index=1)], mana=1)) == Action(
+        type=ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True}
     )
 
 
@@ -242,13 +282,15 @@ def test_post_jinx_plays_two_rockets_then_pow_pow():
 
     before = state([rocket(0), rocket(1), pow_pow(2)], mana=3)
     first = policy.decide(before)
-    assert first == Action(type=ActionType.PLAY_CARD, card_index=0)
+    assert first == Action(type=ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
+    assert policy.decide(before) == first
+    assert policy._rockets_played == 0
     policy.on_action_outcome(first, before, state([rocket(0), pow_pow(1)], mana=2))
     assert policy._rockets_played == 1
 
     after_first = state([rocket(0), pow_pow(1)], mana=2)
     second = policy.decide(after_first)
-    assert second == Action(type=ActionType.PLAY_CARD, card_index=0)
+    assert second == Action(type=ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
     policy.on_action_outcome(second, after_first, state([pow_pow(0)], mana=1))
     assert policy._rockets_played == 2
 
@@ -256,11 +298,31 @@ def test_post_jinx_plays_two_rockets_then_pow_pow():
     assert third == Action(type=ActionType.PLAY_CARD, card_index=0)
 
 
-def test_post_jinx_unnamed_two_cards_play_leftmost():
+def test_post_jinx_unnamed_cards_are_not_assumed_to_be_rockets():
     policy = load("jinx").make_policy()
     policy.step = 2
     before = state([card(0, "", 1), card(1, "", 1)], mana=2)
-    assert policy.decide(before) == Action(type=ActionType.PLAY_CARD, card_index=0)
+    assert policy.decide(before).type is ActionType.NO_OP
+
+
+def test_post_jinx_uses_spell_mana_and_waits_for_unknown_cost():
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    rockets = [card(i, "超威能死亡火箭！", 1) for i in range(2)]
+    before = replace(state(rockets, mana=0), spell_mana=1)
+    assert policy.decide(before) == Action(
+        type=ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True}
+    )
+    assert policy.decide(replace(before, spell_mana=None)).type is ActionType.NO_OP
+    assert policy.decide(replace(before, hand=[replace(rockets[0], cost=-1), rockets[1]])).type is (
+        ActionType.NO_OP
+    )
+
+
+def test_post_jinx_requires_both_rockets_before_first_play():
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    rocket = card(0, "超威能死亡火箭！", 1)
+    # 漏掉最左徽章时，第二张火箭也会变成 index 0。
+    assert policy.decide(state([rocket, card(1, "砰砰", 1)], mana=2)).type is ActionType.NO_OP
 
 
 def test_post_jinx_does_not_play_unknown_large_hand():

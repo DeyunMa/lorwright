@@ -287,10 +287,92 @@ def test_jinx_stops_when_current_round_node_is_obscured() -> None:
     assert next_node(image, hero=hero) is None
 
 
-def test_completed_current_node_waits_when_connection_is_not_verified() -> None:
+def test_completed_current_node_follows_verified_jpeg_route() -> None:
     image = _load("f1-healer-route-20261113.jpg")
     hero = recognize_hero(image)
     assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - 1173) ** 2 + (node.y - 521) ** 2 <= 35 ** 2
+
+
+@pytest.mark.parametrize(
+    ("relative", "target"),
+    [
+        ("mapnav/f1-after-shop-20261114.png", (1185, 573)),
+        ("mapnav/f1-before-healer-1080.png", (1191, 603)),
+        ("healer/f1-after-heal.png", (1166, 444)),
+        ("healer/f1-after-heal-alt.png", (1166, 444)),
+        ("healer/f1-after-heal-dim.png", (1166, 444)),
+    ],
+)
+def test_completed_current_node_follows_real_lit_route(relative, target) -> None:
+    image = cv2.imread(str(FIXTURES.parent / relative))
+    assert image is not None
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 <= 35 ** 2
+
+
+@pytest.mark.parametrize(
+    ("relative", "start", "target"),
+    [
+        ("mapnav/f1-after-shop-20261114.png", (959, 535), (1185, 573)),
+        ("mapnav/f1-before-healer-1080.png", (958, 511), (1191, 603)),
+        ("healer/f1-after-heal.png", (959, 534), (1166, 444)),
+        ("healer/f1-after-heal-alt.png", (958, 537), (1167, 435)),
+        ("healer/f1-after-heal-dim.png", (958, 537), (1165, 436)),
+    ],
+)
+@pytest.mark.parametrize("position", (0.13, 0.2, 0.5, 0.8))
+def test_completed_node_rejects_cut_paths_in_both_directions(
+    relative, start, target, position
+) -> None:
+    image = cv2.imread(str(FIXTURES.parent / relative))
+    assert image is not None
+    hero = recognize_hero(image)
+    assert hero is not None
+    dx, dy = target[0] - start[0], target[1] - start[1]
+    distance = (dx * dx + dy * dy) ** 0.5
+    x, y = int(start[0] + dx * position), int(start[1] + dy * position)
+    a = (int(x - dy / distance * 30), int(y + dx / distance * 30))
+    b = (int(x + dy / distance * 30), int(y - dx / distance * 30))
+    cv2.line(image, a, b, (0, 0, 0), 15)
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("relative,target", [
+    ("mapnav/f1-after-shop-20261114.png", (1185, 573)),
+    ("mapnav/f1-before-healer-1080.png", (1191, 603)),
+    ("healer/f1-after-heal.png", (1166, 444)),
+    ("healer/f1-after-heal-alt.png", (1167, 435)),
+    ("healer/f1-after-heal-dim.png", (1165, 436)),
+])
+def test_completed_node_does_not_revisit_a_completed_target(relative, target) -> None:
+    image = cv2.imread(str(FIXTURES.parent / relative))
+    assert image is not None
+    hero = recognize_hero(image)
+    assert hero is not None
+    x, y = target
+    cv2.line(image, (x - 20, y), (x - 5, y + 15), (40, 220, 40), 11)
+    cv2.line(image, (x - 5, y + 15), (x + 23, y - 20), (40, 220, 40), 11)
+    assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("position", (0.13, 0.25, 0.5, 0.75, 0.9))
+def test_round_current_node_does_not_follow_cut_path(position) -> None:
+    image = _load("1080p_map.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    start, target = (959, 534), (1252, 322)
+    dx, dy = target[0] - start[0], target[1] - start[1]
+    distance = (dx * dx + dy * dy) ** 0.5
+    x, y = int(start[0] + dx * position), int(start[1] + dy * position)
+    a = (int(x - dy / distance * 30), int(y + dx / distance * 30))
+    b = (int(x + dy / distance * 30), int(y - dx / distance * 30))
+    cv2.line(image, a, b, (0, 0, 0), 15)
     assert next_node(image, hero=hero) is None
 
 
@@ -313,6 +395,31 @@ def test_completed_node_does_not_select_obscured_healer() -> None:
     assert hero is not None
     cv2.rectangle(image, (1140, 490), (1205, 555), (0, 0, 0), -1)
     assert next_node(image, hero=hero) is None
+
+
+@pytest.mark.parametrize("shade", (0, 80, 160))
+def test_shop_node_does_not_navigate_when_current_marker_is_obscured(shade) -> None:
+    image = _load("f1-after-shop-20261114.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (hero[0] - 34, hero[1] + 55),
+                  (hero[0] + 34, hero[1] + 117), (shade,) * 3, -1)
+    assert next_node(image, hero=hero) is None
+
+
+def test_shop_node_does_not_select_obscured_target() -> None:
+    image = _load("f1-after-shop-20261114.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    cv2.rectangle(image, (1150, 538), (1220, 608), (0, 0, 0), -1)
+    assert next_node(image, hero=hero) is None
+
+
+def test_shop_node_rejects_dimmed_map() -> None:
+    image = _load("f1-after-shop-20261114.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert next_node((image * 0.75).astype(np.uint8), hero=hero) is None
 
 
 @pytest.mark.parametrize("shade", (0, 80, 160))

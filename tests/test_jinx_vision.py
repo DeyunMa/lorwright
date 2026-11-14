@@ -1,5 +1,6 @@
 """Jinx 手牌身份：9 张卡面 ORB + 费用约束。"""
 
+from dataclasses import replace
 from pathlib import Path
 
 import cv2
@@ -9,10 +10,13 @@ import pytest
 from lorwright.champions.jinx.deck import BY_NAME
 from lorwright.champions.jinx.policy import JinxOpeningPolicy
 from lorwright.champions.jinx.vision import recognize_hand, recognize_mulligan
+from lorwright.config import load_settings
 from lorwright.models import ActionType, GameState, Rect, UIState
 from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.hand import recognize_expanded
 from lorwright.perceive.mulligan import recognize_mulligan_selection
+from lorwright.perceive.state import StateParser
+from lorwright.perceive.ui_state import UIStateDetector
 
 
 def _named(filename: str):
@@ -61,8 +65,81 @@ def test_reduced_cost_pow_pow_is_not_mistaken_for_jinx():
     # 当成 Jinx（4 费英雄牌允许减费），策略随后去拖一张法术。
     named = {card.index: card for card in _named("live-6cards-20261107.png") if card.name}
     assert named[0].name == "超威能死亡火箭！"
-    for index in (1, 2, 3, 4):
+    assert named[1].name == "超威能死亡火箭！"
+    for index in (2, 3, 4, 5):
         assert named[index].name == "砰砰"
+
+
+def test_emergency_device_can_be_recognized_at_three_mana():
+    # PoC 可能提高显示费用，不能用基础 1 费把目标牌排除。
+    region = cv2.imread(str(Path("tests/fixtures/jinx/battle-hand.png")))
+    assert region is not None
+    image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    image[700:1080, 200:1800] = region
+    digits = DigitReader()
+    digits.load()
+    cards = recognize_expanded(image, Rect(200, 700, 1600, 380), digits)
+    cards = [replace(card, cost=3) if card.index == 5 else card for card in cards]
+    named = {card.index: card.name for card in recognize_hand(image, cards)}
+    assert named[5] == "應急裝置"
+
+
+def test_increased_red_costs_in_live_hand_are_read():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-increased-costs-20261114.png")))
+    assert image is not None
+    digits = DigitReader()
+    digits.load()
+    cards = recognize_hand(image, recognize_expanded(image, Rect(200, 700, 1600, 380), digits))
+    assert [(card.name, card.cost) for card in cards][3] == ("應急裝置", 3)
+    assert [card.cost for card in cards] == [2, 2, 3, 3, 3, 3]
+
+
+def test_live_increased_cost_spell_uses_available_spell_mana():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-increased-costs-20261114.png")))
+    assert image is not None
+    settings = load_settings()
+    layout = settings.layout.to_layout()
+    parser = StateParser(
+        layout, UIStateDetector(threshold=settings.perception.match_threshold,
+                                action_button=layout.end_turn),
+        card_recognizer=recognize_hand,
+    )
+    parser.load()
+    s = parser.parse(image)
+    assert (s.mana, s.spell_mana) == (2, 3)
+    action = JinxOpeningPolicy().decide(s)
+    assert action.type is ActionType.PLAY_CARD
+    assert s.hand[action.card_index].name == "應急裝置"
+
+
+def test_live_two_rockets_include_leftmost_before_selecting():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-two-rockets-20261114.png")))
+    assert image is not None
+    settings = load_settings()
+    layout = settings.layout.to_layout()
+    parser = StateParser(
+        layout, UIStateDetector(threshold=settings.perception.match_threshold,
+                                action_button=layout.end_turn),
+        card_recognizer=recognize_hand,
+    )
+    parser.load()
+    s = parser.parse(image)
+    assert [(card.name, card.cost) for card in s.hand[:2]] == [
+        ("超威能死亡火箭！", 1), ("超威能死亡火箭！", 1),
+    ]
+    # 火箭旁的动画遮住了普通法力数字；只注入画面可见的 2 费，
+    # 图片测试实际负责验证两张卡的检测、顺序和目标位置。
+    assert not s.has_fresh_readings("mana")
+    action = JinxOpeningPolicy(jinx_summoned=True).decide(replace(s, mana=2))
+    assert action.type is ActionType.PLAY_CARD
+    assert action.card_index == 0
+    assert s.hand[0].rect.center[0] < s.hand[1].rect.center[0]
+    # 左侧徽章被遮住时不能把第二张当第一张。
+    image[878:941, 336:400] = 0
+    obscured = parser.parse(image)
+    assert JinxOpeningPolicy(jinx_summoned=True).decide(replace(obscured, mana=2)).type is (
+        ActionType.NO_OP
+    )
 
 
 def test_mulligan_cards_are_recognized():

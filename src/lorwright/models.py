@@ -103,6 +103,8 @@ class GameState:
     turn: int = 0
     mana: int = 0
     max_mana: int = 0
+    #: 本帧可用的法术法力；None 表示未可靠读出。
+    spell_mana: int | None = None
     hand: list[CardInHand] = field(default_factory=list)
     #: 起手换牌界面的 4 张牌；rect 是「替換」按钮中心，用于点选。
     mulligan_cards: list[MulliganCard] = field(default_factory=list)
@@ -162,6 +164,7 @@ class Layout:
     enemy_hp: Rect | None = None
     my_hp: Rect | None = None
     mana: Rect | None = None
+    spell_mana: Rect | None = None
     # 登录界面（splash 按钮 / 用户名 / 密码 / 提交）
     login_splash: Rect | None = None
     login_username: Rect | None = None

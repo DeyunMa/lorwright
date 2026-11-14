@@ -101,6 +101,7 @@ class LayoutConfig(BaseModel):
     enemy_hp: list[int] | None = None
     my_hp: list[int] | None = None
     mana: list[int] | None = None
+    spell_mana: list[int] | None = None
     login_splash: list[int] | None = None
     login_username: list[int] | None = None
     login_password: list[int] | None = None
@@ -130,6 +131,7 @@ class LayoutConfig(BaseModel):
             enemy_hp=self._rect(self.enemy_hp),
             my_hp=self._rect(self.my_hp),
             mana=self._rect(self.mana),
+            spell_mana=self._rect(self.spell_mana),
             login_splash=self._rect(self.login_splash),
             login_username=self._rect(self.login_username),
             login_password=self._rect(self.login_password),

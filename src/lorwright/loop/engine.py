@@ -147,12 +147,24 @@ class Engine:
                         readings={name: asdict(reading) for name, reading in state.readings.items()},
                     )
                     if outcome.status is OutcomeStatus.TIMED_OUT:
-                        save_snapshot(
-                            frame.image, self.settings.perception.snapshot_dir,
-                            tag="action_timeout",
-                        )
-                        logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
-                        break
+                        if (
+                            self._pending.action.type in (ActionType.END_TURN, ActionType.PASS)
+                            and state.ui_state is not UIState.UNKNOWN
+                        ):
+                            logger.warning(
+                                "动作结果未确认但状态可读，继续观察：{}",
+                                self._pending.action.type.value,
+                            )
+                            self._pending = None
+                            self.watchdog.reset()
+                            self.recovery.reset()
+                        else:
+                            save_snapshot(
+                                frame.image, self.settings.perception.snapshot_dir,
+                                tag="action_timeout",
+                            )
+                            logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
+                            break
                     if outcome.status is OutcomeStatus.WAITING:
                         time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
                         continue

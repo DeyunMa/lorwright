@@ -8,8 +8,58 @@
 | `gamewatchdog.ps1` | `F1GameWatchdog`，每 5 分钟 | SYSTEM | 模拟器进程、ADB、LoR 进程的最外层恢复 |
 | `start-pie64.ps1` | `F1StartPie64`，手动/被调用 | Administrator + Interactive | 在交互式桌面启动 Pie64；已在跑时只记日志 |
 
-## 同步项目运行文件
+## 只读盘点
 
+在 f1 执行 `powershell -NoProfile -File tools/f1/audit.ps1`，输出 JSON：正式 Git
+工作区的 HEAD、变更数量及非敏感变更文件的 SHA-256，部署目录大小及其中 `project`
+检出的状态，以及进程命令行和计划任务动作中明确引用这些路径的记录。不会输出
+命令行或任务参数，也不读取凭据、配置及日志文件。忽略文件、间接引用、环境变量、
+服务和包含换行的文件名需要另行检查；目录大小遇到无权限项可能不完整。该脚本
+仅供盘点，不能凭空结果认定目录可以删除。
+
+## 更新正式工作区
+
+日常开发在 Mac，f1 的正式工作区为 `C:\Code\lorwright`；正常情况下在该目录
+使用 `git pull --ff-only` 更新，先检查是否有未提交改动。当前 f1 的 origin 使用
+HTTPS，已验证可 fetch。以下 bundle 流程用于远程仓库不可访问或旧工作区有待保全
+改动时的受控恢复，不是日常更新方式。
+
+`update-checkout.ps1` 面向现有 `C:\Code\lorwright`，要求先将含有
+`refs/heads/main` 的 Git bundle 复制到 f1，且 bundle 的前置对象已存在于该仓库。
+停止自动化会话，暂停可能重新启动会话的外部任务，并避免其他人同时修改工作区。
+脚本保守拒绝任何 Python 或 lorwright 进程，以及正式工作区默认会话目录或当前
+`LORWRIGHT_RUNS_DIR` 中的非终态记录；它不能阻止检查后其他进程启动，也不能发现
+其他位置的孤立状态文件。运行前须自行核对所有部署目录和看门狗。
+
+```powershell
+powershell -NoProfile -File tools/f1/update-checkout.ps1 -Bundle C:\path\project.bundle
+powershell -NoProfile -File tools/f1/update-checkout.ps1 -Bundle C:\path\project.bundle -Apply
+```
+
+默认预览验证 bundle 和 main，输出 HEAD、目标提交和变更数量；真正执行时 fetch
+到 `FETCH_HEAD`，检查当前 HEAD 是目标祖先，再以 `stash push -u` 保存已跟踪和
+未跟踪变更，最后 `merge --ff-only`。忽略文件（包括 `.env`、`.venv`）保留；若它们
+阻碍合并则停止。目标已是当前 HEAD 时不会创建 stash。脚本的控制台输出是操作
+日志，可由操作者重定向到受保护的位置；不要将日志和凭据提交到 Git。
+
+stash 不会自动恢复，因为旧文件可能与新版本冲突。更新或中断后先检查
+`git status`、`git log -1` 和 `git stash list`，按记录的 stash 哈希确认内容；
+需要恢复时使用 `git stash apply <stash-hash>`，检查并解决冲突，确认所需内容
+已安全保留后再自行处理 stash。若中断发生在 stash 输出前，按 `f1-update-` 标记
+查找。fetch 可能已更新 `FETCH_HEAD`；重试前先核对 HEAD 和 stash，不要用
+reset、clean 或删除文件来排除冲突。此流程不自动归并旧目录的独有改动，也不
+更新看门狗、虚拟环境或安装依赖。
+
+## 归档历史部署
+
+`archive-deployments.ps1` 默认只预览；`-Mode Archive -Batch <名称>` 完整复制
+并校验历史部署，`-Mode Cleanup -Batch <名称> -ConfirmRemoval` 再次校验后移除
+原目录。归档保留完整代码、实机截图和日志，可能含私人数据；含 `.env`、`.git`
+或链接的目录会跳过。操作前须停止写入并检查外部引用，脚本无法消除并发风险。
+
+## 隔离部署（仅用于需要保留独立实验现场时）
+
+日常运行使用 `C:\Code\lorwright`；不应每次同步都创建新的部署目录。
 本机运行 `python tools/f1/deploy.py --host f1 --name RUN_NAME` 预览；追加
 `--apply` 后，脚本在 f1 的 `C:\Code\lorwright-deployments\RUN_NAME` 新建目录，
 上传运行源码、工具脚本、模板和项目配置，逐文件校验 SHA-256 并保存清单和回执。

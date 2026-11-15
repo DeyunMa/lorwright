@@ -9,10 +9,10 @@
 
 from __future__ import annotations
 
-from lorwright.champions import load
-from lorwright.decide.router import Router
-from lorwright.main import _battle_layers
-from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.cli.app import _battle_layers, _jinx_policy_kwargs
+from lorwright.core.champions import load
+from lorwright.core.decide.router import Router
+from lorwright.core.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 
 def test_battle_layers_include_blocking_policy():
@@ -22,9 +22,9 @@ def test_battle_layers_include_blocking_policy():
         "expand_hand",
         "play_unit",
         "hero_first",
-        "unknown_card",
         "targeting",
         "attack_when_token",
+        "unknown_card",
         "combat_confirm",
         "blocking",
     ]
@@ -33,6 +33,22 @@ def test_battle_layers_include_blocking_policy():
 def test_jinx_layers_include_play_unit():
     names = [layer.name for layer in _battle_layers(load("jinx"))]
     assert names[:4] == ["jinx_opening", "expand_hand", "play_unit", "hero_first"]
+
+
+def test_jinx_resume_count_reaches_router():
+    pack = load("jinx")
+    kwargs = _jinx_policy_kwargs(
+        pack, spell_already_played=False, jinx_summoned=True, rockets_already_played=1,
+    )
+    router = Router(_battle_layers(pack, policy_kwargs=kwargs))
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=2, hand_expanded=True,
+        hand=[CardInHand(0, "超威能死亡火箭！", 1, Rect(0, 900, 8, 8))],
+    )
+    result = router.decide(state)
+    assert result.layer == "jinx_opening"
+    assert result.action.type is ActionType.PLAY_CARD
+    assert result.action.raw == {"jinx_rocket": True}
 
 
 def test_jinx_router_plays_cheapest_known_unit():
@@ -67,8 +83,21 @@ def test_jinx_router_uses_cost_for_unnamed_cards():
     )
     result = router.decide(state)
     assert result.layer == "unknown_card"
-    assert result.action.type is ActionType.PLAY_CARD
-    assert result.action.card_index == 1
+    assert result.action.type is ActionType.NO_OP
+
+
+def test_unknown_card_does_not_block_known_unit_or_attack():
+    router = Router(_battle_layers(load("jinx"), policy_kwargs={
+        "jinx_summoned": True, "rockets_already_played": 2,
+    }))
+    s = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+                  hand=[CardInHand(0, "", 1, Rect(0, 900, 8, 8)),
+                        CardInHand(1, "汙水坑疏濬機器人", 3, Rect(100, 900, 8, 8))])
+    assert router.decide(s).action.card_index == 1
+    s.hand = s.hand[:1]
+    s.my_units = [Unit("", 1, 1, Rect(0, 900, 10, 10))]
+    s.has_attack_token = True
+    assert router.decide(s).action.type is ActionType.ATTACK
 
 
 def test_unknown_card_does_not_override_jinx_rocket_opening():

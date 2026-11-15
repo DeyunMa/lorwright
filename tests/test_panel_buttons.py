@@ -5,7 +5,7 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lorwright.perceive.panels import action_button
+from lorwright.core.perceive.panels import action_button
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
 

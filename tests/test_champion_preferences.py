@@ -1,6 +1,6 @@
 """英雄包奖励偏好：数据只落在英雄包，核心层不认识具体名字。"""
 
-from lorwright.champions import available, load
+from lorwright.core.champions import available, load
 
 PREFERENCE_ATTRS = (
     "relic_preferences",

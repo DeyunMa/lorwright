@@ -8,7 +8,16 @@
 | `gamewatchdog.ps1` | `F1GameWatchdog`，每 5 分钟 | SYSTEM | 模拟器进程、ADB、LoR 进程的最外层恢复 |
 | `start-pie64.ps1` | `F1StartPie64`，手动/被调用 | Administrator + Interactive | 在交互式桌面启动 Pie64；已在跑时只记日志 |
 
-## 部署
+## 同步项目运行文件
+
+本机运行 `python tools/f1/deploy.py --host f1 --name RUN_NAME` 预览；追加
+`--apply` 后，脚本在 f1 的 `C:\Code\lorwright-deployments\RUN_NAME` 新建目录，
+上传运行源码、工具脚本、模板和项目配置，逐文件校验 SHA-256 并保存清单和回执。
+目录名已存在时拒绝覆盖；失败目录保留用于排查，重试时使用新名称。该脚本
+不会修改 f1 已有工作区、虚拟环境或看门狗，也不会上传 `.env`。使用现有
+Python 环境运行时，将新目录的 `src` 放入 `PYTHONPATH` 并以新目录为工作目录。
+
+## 部署看门狗
 
 把三个 `.ps1` 放到 `C:\Windows\Temp\`，然后创建任务：
 

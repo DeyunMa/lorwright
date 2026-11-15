@@ -15,8 +15,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lorwright.champions.jinx.vision import recognize_hero  # noqa: E402
-from lorwright.perceive import mapnav  # noqa: E402
+from lorwright.core.champions.jinx.vision import recognize_hero  # noqa: E402
+from lorwright.core.perceive import mapnav  # noqa: E402
 
 FIXTURE_DIRS = (
     ROOT / "tests" / "fixtures" / "mapnav",

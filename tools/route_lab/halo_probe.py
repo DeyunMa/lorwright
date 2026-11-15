@@ -14,7 +14,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lorwright.perceive import mapnav  # noqa: E402
+from lorwright.core.perceive import mapnav  # noqa: E402
 
 CASES = [
     ("mapnav/f1-healer-route-20261113.jpg", "T-healer", (1173, 521)),

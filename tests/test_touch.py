@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from lorwright.device.touch import (
+from lorwright.core.device.touch import (
     EvdevSurface,
     TouchDevice,
     parse_getevent,
@@ -102,19 +102,34 @@ def test_script_moves_in_steps_and_ends_on_target() -> None:
     assert abs(last_x - expected) <= 2
 
 
-def test_gesture_stays_short_enough() -> None:
-    """整段手势要 < 2s：每个 sendevent 是一次进程启动（~40ms）。
+def test_default_drag_reduces_processes_and_preserves_hold_and_release() -> None:
+    """事件数量可离线验证；实际时长和游戏响应须在设备上测量。"""
+    surface = EvdevSurface(TouchDevice("/dev/input/event4", "touch", 32767, 32767),
+                           (1920, 1080), _Runner())
+    lines = surface.build_script(1457, 865, 960, 640, 300, 600).splitlines()
+    events = [line for line in lines if line.startswith("sendevent")]
+    assert len(events) == 18  # 按下 6 + 移动 3 × 3 + 抬手 3
+    hold = lines.index("sleep 0.300")
+    assert sum(" 3 53 " in line for line in lines[:hold]) == 1
+    assert sum(" 3 53 " in line for line in lines[hold:]) == 3
+    assert any(line.endswith(" 3 53 16384") for line in lines[hold:])
+    assert any(line.endswith(f" 3 54 {round(640 / 1080 * 32767)}") for line in lines[hold:])
+    assert lines[-3].endswith(" 3 57 -1")
+    assert lines[-2].endswith(" 1 330 0")
+    assert lines[-1].endswith(" 0 0 0")
 
-    事件数一多手势就拖到 3s 以上，LoR 会当成「长按预览」——卡片放大但不
-    跟手，松手回手牌。这条盯的是事件数，不是逻辑。
-    """
-    from lorwright.device.touch import _DRAG_STEPS
 
-    lines = _script(steps=_DRAG_STEPS)
-    events = [ln for ln in lines if ln.startswith("sendevent")]
-    # 按下 6 + 每步 3 + 抬手 3；按 40ms/次估算总时长
-    assert len(events) <= 30, f"事件太多：{len(events)}"
-    assert len(events) * 0.040 + 0.120 + 0.600 < 2.0
+def test_drag_propagates_runner_failure() -> None:
+    class FailingRunner:
+        def run(self, *args, **kwargs):
+            raise RuntimeError("input failed")
+
+    import pytest
+
+    surface = EvdevSurface(TouchDevice("/dev/input/event4", "touch", 32767, 32767),
+                           (1920, 1080), FailingRunner())
+    with pytest.raises(RuntimeError, match="input failed"):
+        surface.drag(1457, 865, 960, 640, 300, 600)
 
 
 def test_slot_selected_once_at_down() -> None:
@@ -142,7 +157,7 @@ def test_adb_runner_raises_on_failure(monkeypatch) -> None:
     """adb 返回非 0 必须抛错。以前输入后端把返回码丢掉，点失败也报成功。"""
     import subprocess
 
-    from lorwright.device.adb import AdbRunner
+    from lorwright.core.device.adb import AdbRunner
 
     class _P:
         returncode = 1

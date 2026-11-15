@@ -1,7 +1,7 @@
 """奖励决策：偏好 > 品质 > 费用。数据来自英雄包，核心不认识具体英雄。"""
 
-from lorwright.champions import load
-from lorwright.decide.rewards import RewardCandidate, pick_reward
+from lorwright.core.champions import load
+from lorwright.core.decide.rewards import RewardCandidate, pick_reward
 
 
 def test_preference_beats_quality():

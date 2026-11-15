@@ -3,9 +3,9 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lorwright.config import load_settings
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.config import load_settings
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 
 @pytest.mark.parametrize(('name', 'expected'), [

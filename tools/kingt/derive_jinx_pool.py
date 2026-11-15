@@ -27,7 +27,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from lorwright.champions.jinx.deck import JINX_DECK, JINX_TOKENS  # noqa: E402
+from lorwright.core.champions.jinx.deck import JINX_DECK, JINX_TOKENS  # noqa: E402
 
 CARD_CODE = re.compile(r"^\d{2}[A-Z]{2}\d{3}(?:T\d+)?$")
 FALLBACK_ART = "research/poc-card-art-fallback/data/cards"
@@ -141,7 +141,7 @@ def main() -> None:
             "desc": "起始牌组 9 种 ×2 = 18 张",
             "confidence": "确证",
             "codes": sorted({c.code for c in JINX_DECK}),
-            "evidence": "src/lorwright/champions/jinx/deck.py JINX_DECK；交叉核验 "
+            "evidence": "src/lorwright/core/champions/jinx/deck.py JINX_DECK；交叉核验 "
                         "champion-progression/data/champions.jsonl anchors.Jinx"
                         "（deck_size 9 / total 18）",
         },
@@ -149,7 +149,7 @@ def main() -> None:
             "desc": "Jinx 下场后由能力生成的牌，不在 18 张起始牌组里但要能识别",
             "confidence": "确证",
             "codes": sorted({c.code for c in JINX_TOKENS}),
-            "evidence": "src/lorwright/champions/jinx/deck.py JINX_TOKENS",
+            "evidence": "src/lorwright/core/champions/jinx/deck.py JINX_TOKENS",
         },
         "campaign_referenced": {
             "desc": "客户端数据里名字/路径含 Jinx 的冒险条目直接连出的卡码",

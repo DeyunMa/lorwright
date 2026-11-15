@@ -10,11 +10,11 @@ import cv2
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from lorwright.config import LayoutConfig
-from lorwright.models import UIState
-from lorwright.perceive.normalize import Normalizer
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.config import LayoutConfig
+from lorwright.core.models import UIState
+from lorwright.core.perceive.normalize import Normalizer
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

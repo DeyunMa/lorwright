@@ -5,11 +5,11 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lorwright.act.translate import ActionTranslator
-from lorwright.models import Action, ActionType, GameState, Layout
-from lorwright.perceive.buttons import find_continue_button
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.act.translate import ActionTranslator
+from lorwright.core.models import Action, ActionType, GameState, Layout
+from lorwright.core.perceive.buttons import find_continue_button
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

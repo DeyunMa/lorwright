@@ -20,8 +20,8 @@ from pathlib import Path
 
 import cv2
 
-from lorwright.models import Rect
-from lorwright.perceive.digits import GLYPH_SIZE, segment_glyphs
+from lorwright.core.models import Rect
+from lorwright.core.perceive.digits import GLYPH_SIZE, segment_glyphs
 
 
 def parse_sample(spec: str) -> tuple[Path, Rect, str]:

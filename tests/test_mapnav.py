@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.champions.jinx.vision import recognize_hero
-from lorwright.perceive.mapnav import (
+from lorwright.core.champions.jinx.vision import recognize_hero
+from lorwright.core.perceive.mapnav import (
     _current_battle_node_visible,
     detect_ability_nodes,
     detect_nodes,
@@ -72,6 +72,37 @@ def test_gold_diamond_ability_node_is_not_next() -> None:
     assert nxt is not None and (nxt.x, nxt.y) == (1189, 370)
 
 
+@pytest.mark.parametrize("name", ["f1-after-hero-item-20261115.png"]
+                         + [f"map-frame-{i}.png" for i in range(1, 5)])
+def test_completed_node_follows_lit_diamond(name: str) -> None:
+    image = _load(name)
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - 937) ** 2 + (node.y - 772) ** 2 < 15 ** 2
+
+
+@pytest.mark.parametrize("damage", ("cut", "lock", "completed", "decoration", "obscured"))
+def test_lit_diamond_rejects_unsafe_states(damage: str) -> None:
+    image = _load("map-frame-3.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        cv2.line(image, (920, 607), (980, 607), (0, 0, 0), 12)
+    elif damage == "lock":
+        # 复制同一实拍中已锁节点的锁图标。
+        image[758:786, 923:951] = image[592:620, 1484:1512]
+    elif damage == "completed":
+        cv2.line(image, (918, 772), (932, 783), (40, 220, 40), 11)
+        cv2.line(image, (932, 783), (957, 754), (40, 220, 40), 11)
+    elif damage == "decoration":
+        image[720:827, 883:992] = (image[720:827, 883:992] * 0.4).astype(np.uint8)
+    else:
+        image[762:782, 927:947] = 128
+    assert next_node(image, hero=hero) is None
+
+
 def test_blank_frame_has_no_next() -> None:
     blank = np.zeros((1080, 1920, 3), np.uint8)
     assert next_node(blank) is None
@@ -103,8 +134,11 @@ def test_jinx_portrait_finds_map_avatar_instead_of_fixed_hud() -> None:
     assert recognize_hero(_load("1080p_zoommax.png")) is None
 
 
-def test_current_unfinished_battle_can_be_reentered() -> None:
-    image = _load("f1-karma-current-20261114.png")
+@pytest.mark.parametrize("name", ["f1-karma-current-20261114.png",
+                                  "f1-reentry-cave-20261115.png"])
+def test_current_unfinished_battle_can_be_reentered(name: str) -> None:
+    image = _load(name)
+    assert not panel_open(image)
     hero = recognize_hero(image)
     assert hero is not None
     node = next_node(image, hero=hero)
@@ -125,8 +159,10 @@ def test_other_current_nodes_are_not_unfinished_battles(name: str) -> None:
     assert not _current_battle_node_visible(image, hero)
 
 
-def test_obscured_or_dimmed_current_battle_is_not_reentered() -> None:
-    image = _load("f1-karma-current-20261114.png")
+@pytest.mark.parametrize("name", ["f1-karma-current-20261114.png",
+                                  "f1-reentry-cave-20261115.png"])
+def test_obscured_or_dimmed_current_battle_is_not_reentered(name: str) -> None:
+    image = _load(name)
     hero = recognize_hero(image)
     assert hero is not None
     obscured = image.copy()
@@ -134,6 +170,20 @@ def test_obscured_or_dimmed_current_battle_is_not_reentered() -> None:
     obscured[y - 10:y + 10, x - 10:x + 10] = 128
     assert not _current_battle_node_visible(obscured, hero)
     assert not _current_battle_node_visible((image * 0.75).astype(np.uint8), hero)
+
+
+def test_reentry_cave_completed_or_locked_node_is_not_reentered() -> None:
+    image = _load("f1-reentry-cave-20261115.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    x, y = hero[0], hero[1] + 95
+    completed = image.copy()
+    cv2.line(completed, (x - 18, y), (x - 6, y + 10), (40, 220, 40), 11)
+    cv2.line(completed, (x - 6, y + 10), (x + 18, y - 17), (40, 220, 40), 11)
+    assert not _current_battle_node_visible(completed, hero)
+    locked = image.copy()
+    locked[y - 18:y + 18, x - 18:x + 18] = image[415:451, 1290:1326]
+    assert not _current_battle_node_visible(locked, hero)
 
 
 def test_jinx_second_map_next_node() -> None:

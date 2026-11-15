@@ -1,7 +1,7 @@
 """卡死检测：NO_OP 不计入，只有「做了动作但画面没变」才算卡住。"""
 
-from lorwright.loop.watchdog import Watchdog
-from lorwright.models import ActionType, GameState, UIState
+from lorwright.core.loop.watchdog import Watchdog
+from lorwright.core.models import ActionType, GameState, UIState
 
 
 def _state(ui: UIState = UIState.MY_TURN_IDLE) -> GameState:

@@ -16,11 +16,11 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.config import load_settings
-from lorwright.models import Layout, Rect, UIState
-from lorwright.perceive.digits import DigitReader
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.config import load_settings
+from lorwright.core.models import Layout, Rect, UIState
+from lorwright.core.perceive.digits import DigitReader
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 SCREENS = Path("tests/fixtures/screens")
 
@@ -200,8 +200,8 @@ def test_block_phase_is_not_my_turn() -> None:
 def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> None:
     from dataclasses import replace
 
-    from lorwright.decide.generic import BlockingPolicy, plan_blocks
-    from lorwright.models import ActionType
+    from lorwright.core.decide.generic import BlockingPolicy, plan_blocks
+    from lorwright.core.models import ActionType
 
     state = _parser().parse(_load("1080p_block_phase.png"))
     assert len(state.enemy_attackers) == 6
@@ -285,7 +285,7 @@ def test_targeting_button_is_detected() -> None:
     实机栽过：文字判断被套在「蓝色占比 ≥0.45」里面，这个按钮永远进不去，
     整个状态落到 UNKNOWN，策略按「状态不明不点击」空转到引擎停。
     """
-    from lorwright.perceive.ui_state import UIStateDetector
+    from lorwright.core.perceive.ui_state import UIStateDetector
 
     detector = UIStateDetector(action_button=Rect(1680, 470, 132, 132))
     detector.load()

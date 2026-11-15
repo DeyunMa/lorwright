@@ -1,7 +1,7 @@
 """分层路由测试：弃权、命中、异常、兜底。"""
 
-from lorwright.decide.router import Router
-from lorwright.models import Action, ActionType, GameState, UIState
+from lorwright.core.decide.router import Router
+from lorwright.core.models import Action, ActionType, GameState, UIState
 
 
 class _Abstain:

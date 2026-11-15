@@ -4,8 +4,17 @@ from dataclasses import replace
 
 import pytest
 
-from lorwright.loop.outcome import ActionOutcome, OutcomeStatus
-from lorwright.models import Action, ActionType, CardInHand, GameState, Reading, Rect, UIState, Unit
+from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+from lorwright.core.models import (
+    Action,
+    ActionType,
+    CardInHand,
+    GameState,
+    Reading,
+    Rect,
+    UIState,
+    Unit,
+)
 
 
 def state(**kwargs):
@@ -89,6 +98,9 @@ def test_free_unit_uses_board_change_but_not_hand_representation_change():
 def test_targeting_requires_input_instead_of_repeating_drag():
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), state(), 8)
     assert pending.observe(state(ui_state=UIState.TARGETING), 1).status is OutcomeStatus.NEEDS_INPUT
+    collapsed = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0),
+                              state(hand_expanded=False), 8)
+    assert collapsed.observe(state(ui_state=UIState.TARGETING, hand_expanded=False), 1).status is OutcomeStatus.NEEDS_INPUT
 
 
 def test_play_yields_to_confirmation_when_the_game_requests_it():

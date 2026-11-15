@@ -81,7 +81,9 @@ lorwright sessions stop RUN_ID --json
 
 `RUN_ID` 使用启动回执中的值；停止回执只表示请求已写入，需要再查终态。
 前台 `run` / `adventure` 支持 `--jsonl`，运行文件位于已忽略的 `logs/runs/`。
-阶段、等待、停滞及退出码见 [`docs/cli.md`](docs/cli.md)。
+f1 可在冒险启动命令中加 `--bootstrap-f1`，接管或启动 Pie64 和游戏；遇到
+登录页会停下，待用户登录后再启动。阶段、等待、停滞及退出码见
+[`docs/cli.md`](docs/cli.md)。
 
 配置在 `config/settings.yaml`（`champion` / `layout` / `adb` / `loop`）。
 
@@ -105,27 +107,23 @@ lorwright sessions stop RUN_ID --json
 
 ```
 src/lorwright/
-├── models.py         # 数据契约：GameState / Action / Layout
-├── runtime/          # 通用运行会话、状态/事件、后台启动与安全停止
-├── device/           # ADB / 桌面设备抽象
-├── perceive/         # 截图 → UI 状态、卡牌、场面
-├── decide/           # 决策机制（不认识任何英雄）
-│   ├── card.py       #   卡牌通用词汇
-│   ├── combat.py     #   战斗求解器（穷举）
-│   ├── generic.py    #   通用规则：英雄优先 / 攻击 / 格挡
-│   ├── rewards.py    #   奖励三选一
-│   └── router.py     #   分层路由
-├── champions/        # 英雄包：一个英雄 = 一个目录
-│   ├── elise/        #   牌表 + 策略 + 识别
-│   └── jinx/         #   牌表 + 策略 + 识别
-├── perceive/unit_stats.py # 单位攻击/生命数字
-├── act/              # 语义动作 → 坐标
-└── loop/             # 主循环、看门狗、恢复
+├── core/             # 自动化核心，独立于入口
+│   ├── models.py     # 数据契约：GameState / Action / Layout
+│   ├── runtime/      # 会话、状态、事件和安全停止
+│   ├── device/       # ADB / 桌面设备抽象
+│   ├── perceive/     # 截图 → UI 状态、卡牌、场面
+│   ├── decide/       # 通用决策机制
+│   ├── act/          # 语义动作 → 坐标
+│   ├── loop/         # 主循环、看门狗、恢复
+│   └── champions/    # 英雄包：牌表、策略和识别
+│       ├── elise/
+│       └── jinx/
+└── cli/              # 命令行入口和会话命令
 ```
 
-**基础层提供通用能力，英雄层提供具体知识。** `runtime/` 和现有设备、感知、
-决策、操作、循环均属基础层；牌表、专属识别与打法仍在 `champions/<name>/`。
-CLI 会话不包含英雄分支，本阶段不引入可视化或网络服务。
+**基础层提供通用能力，英雄层提供具体知识。** 两者都位于 `core/`；牌表、
+专属识别与打法位于 `core/champions/<name>/`。`cli/` 使用核心运行能力；
+后续 GUI 可使用同一核心，本阶段不引入可视化或网络服务。
 
 运行模板位于 `assets/`，当前回归截图位于 `tests/fixtures/`，历史证据集中到
 `research/archives/`，按用途分开保存。

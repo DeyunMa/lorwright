@@ -1,4 +1,4 @@
-# 当前使用的英雄包（对应 src/lorwright/champions/<name>/）
+# 当前使用的英雄包（对应 src/lorwright/core/champions/<name>/）
 champion: elise
 
 screen:
@@ -84,6 +84,7 @@ layout:
   cancel_point: [140, 280, 60, 60]
   hand_region:  [1420, 855, 500, 225]   # 右下扇形手牌（收起态）；框要包住最上面那张卡的徽章
   hand_expanded: [200, 700, 1600, 380]  # 展开态手牌（tap 手牌后卡片平铺在下方）；收起态在这框里匹配不上
+  collapse_hand_point: [499, 619, 2, 2]  # f1 实测空白处，收起展开手牌
   # 数字区域（perceive/digits.py 字形匹配）
   enemy_hp:     [215, 390, 56, 40]      # 敌方水晶旁数字
   my_hp:        [216, 646, 56, 40]      # 我方水晶旁数字

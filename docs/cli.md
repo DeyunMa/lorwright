@@ -4,10 +4,10 @@ CLI 是当前的人和 Agent 入口。先查询运行状态与事件；需要定
 
 ## 基础层与英雄层
 
-- `runtime/` 属于通用基础层：会话生命周期、状态、事件、设备占用和停止请求；不包含英雄知识，不截图、不决定打法。
-- `loop/` 编排冒险与战斗，报告观察事实和停止原因；`device → perceive → decide → act` 的职责保持不变。
-- `champions/<name>/` 提供英雄牌表、识别回调、策略及偏好；运行会话仅记录所选英雄名。
-- CLI 继续使用 Typer；本阶段不加入 GUI、Web 服务或前端工具链。
+- `core/runtime/` 属于通用基础层：会话生命周期、状态、事件、设备占用和停止请求；不包含英雄知识，不截图、不决定打法。
+- `core/loop/` 编排冒险与战斗，报告观察事实和停止原因；`device → perceive → decide → act` 的职责保持不变。
+- `core/champions/<name>/` 提供英雄牌表、识别回调、策略及偏好；运行会话仅记录所选英雄名。
+- `cli/` 使用核心能力并以 Typer 提供命令；本阶段不加入 GUI、Web 服务或前端工具链。
 
 ## Agent 推荐流程
 
@@ -30,7 +30,51 @@ lorwright sessions stop RUN_ID --json
 
 首次查询不要填写示例游标 `120`，省略 `--after` 或使用 `0`。省略 RUN_ID 时选择最近更新的会话；多次运行时应始终使用启动回执中的明确 ID。
 
+恢复已在进行的金克丝战斗时，可根据可靠的对局记录指定已完成的起手步骤：
+
+```bash
+lorwright sessions start --mode battle --champion jinx --jinx-summoned --rockets-already-played 1 --json
+```
+
+`--rockets-already-played` 接受 0–2，必须与 `--champion jinx --jinx-summoned` 一起用于战斗模式。只在已核实火箭出牌结果时填写；重新启动不会自动继承此前会话的策略状态。
+
 `events --follow --jsonl` 可供终端持续跟随，直到终态或失联；Agent 更适合有界的 `status --wait` 配合增量事件查询。查询命令成功只说明取得状态，不代表游戏目标完成。
+
+## f1：从设备开机接入冒险
+
+f1 必须已有 Windows 交互会话、`F1StartPie64` 计划任务和本项目的 Pie64
+ADB 配置。运行时可在同一个设备锁内启动或接管模拟器与游戏：
+
+```bash
+lorwright sessions start --mode adventure --champion jinx --bootstrap-f1 --open-riot-login --json
+```
+
+程序先确认 `127.0.0.1:5555` 在线；未在线时触发交互式计划任务并限时等待。
+ADB 在线后还要等待 Android 完成启动及游戏包可查询，再启动或接管 LoR、确认
+前台并识别新画面。可选的 `--open-riot-login` 只在识别到登录方式页时，按已标定
+坐标核实拳头图标清晰可见且未变暗，再点击一次 Riot 按钮；确认进入表单后返回
+`stopped / login_required`，由用户完成登录后重新启动；该选项不填写账号密码。
+按钮无法核实返回 `login_button_unverified`，跳转无法核实返回
+`login_transition_unverified`，都不会重复点击。其他画面交给冒险循环
+识别，未知画面不能盲点。独立部署需要读取其他目录的配置时，可在启动命令前设置
+`LORWRIGHT_ENV_FILE`，例如 PowerShell 中执行
+`$env:LORWRIGHT_ENV_FILE = 'C:\Users\Administrator\lorwright\.env'`。
+未设置时仍读取当前目录的 `.env`；已设置的环境变量优先，指定文件不存在时会报错。
+`--bootstrap-f1` 不适用于
+回放或 desktop。计划任务触发成功不等于模拟器或游戏已准备就绪。
+
+冒险命令或 `sessions start --mode adventure` 可同时传入 `--bootstrap-f1 --auto-login`，
+自动打开 Riot 登录方式并在识别到表单时使用配置的凭据提交一次。缺少凭据、坐标或
+画面过期时停止；提交后表单未消失会超时停止，不会重试。表单消失不代表登录成功，
+后续画面仍由冒险循环识别。当前 ADB 文本输入支持可打印 ASCII（`%` 除外）；
+其他字符会以 `login_credentials_unsupported` 停止。凭据通过标准输入传给 ADB，
+不会放在宿主机的 ADB 进程参数中；会话事件和日志不记录凭据。Android 内的输入
+命令仍会短暂携带文本。此流程尚未实机验证。
+
+Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果宿主作业禁止
+进程脱离，启动会失败并保留诊断，应改用支持脱离的交互环境或前台运行。
+设备锁只约束本用户的 lorwright 会话；f1 原有 SYSTEM 看门狗和独立调试命令
+不受该锁约束，排障时须留意它们的动作。
 
 ## 读懂状态
 
@@ -97,7 +141,8 @@ logs/runs/<run_id>/
 
 后台启动还保留进程回执。设备占用锁放在本机用户缓存下的 `lorwright/device-locks/`
 （Windows 为 `LOCALAPPDATA`，Mac 为 `~/Library/Caches`），不随项目或日志根目录改变。
-同种实际设备入口由一个会话控制；回放按目录独立。更换日志目录不会绕开占用约束。
+ADB 与 desktop 会话共用一个交互设备锁，避免同时控制同一模拟器；回放按目录
+独立。更换日志目录不会绕开占用约束。
 
 用环境变量 `LORWRIGHT_RUNS_DIR` 指定其他运行根目录；会话查询命令也支持 `--root PATH`。前台运行和查询必须使用同一根目录。运行状态不持久化完整配置或账号密码。
 

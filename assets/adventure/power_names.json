@@ -1,5 +1,8 @@
 [
   {"template": "power_spell_burn", "name": "法術燃燒"},
   {"template": "power_noxian_might", "name": "諾克薩斯威能"},
-  {"template": "power_overprepared", "name": "準備過度"}
+  {"template": "power_overprepared", "name": "準備過度"},
+  {"template": "power_adaptation", "name": "因時制宜"},
+  {"template": "power_evolution", "name": "物競人擇"},
+  {"template": "power_cant_stop", "name": "不能停，不要停"}
 ]

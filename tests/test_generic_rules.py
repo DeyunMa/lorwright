@@ -1,7 +1,7 @@
 from dataclasses import replace
 
-from lorwright.champions import load
-from lorwright.decide.generic import (
+from lorwright.core.champions import load
+from lorwright.core.decide.generic import (
     AttackWhenTokenPolicy,
     BlockingPolicy,
     ExpandHandPolicy,
@@ -11,7 +11,7 @@ from lorwright.decide.generic import (
     UnknownCardPolicy,
     plan_blocks,
 )
-from lorwright.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 
 def card(index, name, cost):
@@ -59,47 +59,24 @@ def test_play_unit_stops_at_six_units():
 def test_unknown_card_only_uses_known_affordable_costs_in_my_expanded_hand():
     policy = UnknownCardPolicy()
     s = state(hand=[card(0, "", -1), card(1, "", 4), card(2, "", 0)])
-    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=2)
+    assert policy.decide(s) == Action(type=ActionType.NO_OP, raw={"inspect_board": True})
     assert policy.decide(replace(s, hand_expanded=False)) is None
     assert policy.decide(replace(s, ui_state=UIState.MULLIGAN)) is None
     assert policy.decide(replace(s, hand=s.hand[:2])) is None
 
 
-def test_targeting_hand_then_enemy_then_ally_then_nexus_then_cancel():
+def test_targeting_does_not_guess_from_visible_objects():
     policy = TargetingPolicy()
     enemy = unit_at(0, 350, 1, 1)
     ally = unit_at(0, 900, 1, 1)
-    # 弃牌提示：手牌展开时先点手牌。
-    with_hand = state(
-        ui_state=UIState.TARGETING, hand=[card(0, "砰砰", 1)],
-        enemy_units=[enemy], my_units=[ally],
-    )
-    assert policy.decide(with_hand) == Action(
-        type=ActionType.SELECT_TARGET, raw={"hand": True, "index": 0}
-    )
-    # 单位目标：手牌收起时先敌方，再我方。
-    with_enemy = state(
-        ui_state=UIState.TARGETING, hand_expanded=False,
-        enemy_units=[enemy], my_units=[ally],
-    )
-    assert policy.decide(with_enemy) == Action(
-        type=ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0}
-    )
-    ally_only = state(
-        ui_state=UIState.TARGETING, hand_expanded=False, my_units=[ally],
-    )
-    assert policy.decide(ally_only) == Action(
-        type=ActionType.SELECT_TARGET, raw={"enemy": False, "index": 0}
-    )
-    # 没有单位时，法术可以指向敌方水晶。
-    nexus_only = state(ui_state=UIState.TARGETING, hand_expanded=False)
-    assert policy.decide(nexus_only) == Action(
-        type=ActionType.SELECT_TARGET, raw={"nexus": True}
-    )
-    no_target = state(
-        ui_state=UIState.TARGETING, hand_expanded=False, enemy_nexus_hp=0,
-    )
-    assert policy.decide(no_target).type is ActionType.CANCEL
+    for changes in (
+        {"hand": [card(0, "", 1)], "enemy_units": [enemy], "my_units": [ally]},
+        {"hand_expanded": False, "enemy_units": [enemy]},
+        {"hand_expanded": False, "my_units": [ally]},
+        {"hand_expanded": False, "enemy_nexus_hp": 20},
+        {"hand_expanded": False, "enemy_nexus_hp": 0},
+    ):
+        assert policy.decide(state(ui_state=UIState.TARGETING, **changes)).type is ActionType.NO_OP
 
 
 def unit_at(x, y, attack, health):
@@ -168,7 +145,7 @@ def test_overwhelm_blocking_accounts_for_damage_to_nexus():
 
 
 def test_overwhelm_greedy_fallback_accounts_for_damage_to_nexus(monkeypatch):
-    monkeypatch.setattr("lorwright.decide.generic.MAX_ASSIGNMENT_COMBINATIONS", 0)
+    monkeypatch.setattr("lorwright.core.decide.generic.MAX_ASSIGNMENT_COMBINATIONS", 0)
     blockers = [unit_at(0, 900, 1, 1), unit_at(1, 910, 1, 4)]
     attacker = replace(unit_at(0, 350, 5, 1), keywords=frozenset({"Overwhelm"}))
     assert plan_blocks(blockers, [attacker]) == [(1, 0)]

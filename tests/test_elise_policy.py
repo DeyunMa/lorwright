@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from lorwright.champions.elise import SpiderAggroPolicy
-from lorwright.champions.elise.policy import rank_playable
-from lorwright.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.champions.elise import SpiderAggroPolicy
+from lorwright.core.champions.elise.policy import rank_playable
+from lorwright.core.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
 # 用 (0,0) 会被误判成已经声明过攻击
@@ -77,7 +77,7 @@ def test_elise_outranks_every_other_card():
     2 费算下来 5+2-3 = 4.0，排在蜘蛛哨兵、發狂疾行蛛、尖嘯蜘蛛之后，
     实战里整局都不打英雄卡。用户多次指出过这个问题。
     """
-    from lorwright.champions.elise.deck import SPIDER_AGGRO
+    from lorwright.core.champions.elise.deck import SPIDER_AGGRO
 
     for other in SPIDER_AGGRO:
         if other.name == "伊莉絲":
@@ -271,7 +271,7 @@ def test_targeting_state_cancels_instead_of_playing() -> None:
     )
     action = POLICY.decide(state)
     assert action is not None
-    assert action.type is ActionType.CANCEL
+    assert action.type is ActionType.NO_OP
 
 
 def test_card_that_opens_targeting_is_marked_unplayable() -> None:
@@ -341,8 +341,8 @@ def test_tellstones_rank_last_behind_units() -> None:
     实机连出两轮 0 费泰爾石、一个单位都没铺上去，就是因为它的评分
     （bonus 3.0、费用按 1 算）高于 1 费小蜘蛛。用户明确要求不要默认打它。
     """
-    from lorwright.champions.elise.deck import lookup
-    from lorwright.champions.elise.policy import score
+    from lorwright.core.champions.elise.deck import lookup
+    from lorwright.core.champions.elise.policy import score
 
     tellstones = lookup("闇影島泰爾石")
     spiderling = lookup("小蜘蛛")

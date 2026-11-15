@@ -5,13 +5,15 @@ import os
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import cv2
 import numpy as np
 from typer.testing import CliRunner
 
-from lorwright.main import app
-from lorwright.runtime.session import RunSession, read_status
+from lorwright.cli.app import app
+from lorwright.core.runtime.session import RunSession, read_status
 
 
 def replay_dir(tmp_path):
@@ -53,7 +55,7 @@ def test_configuration_failure_is_a_terminal_event(tmp_path, monkeypatch):
     def broken_settings():
         raise ValueError("invalid local configuration")
 
-    monkeypatch.setattr("lorwright.main.load_settings", broken_settings)
+    monkeypatch.setattr("lorwright.cli.app.load_settings", broken_settings)
     result = CliRunner().invoke(app, ["run", "--jsonl"])
     events = [json.loads(line) for line in result.stdout.splitlines()]
     assert result.exit_code == 1
@@ -64,6 +66,20 @@ def test_configuration_failure_is_a_terminal_event(tmp_path, monkeypatch):
     assert saved["details"]["error_type"] == "ValueError"
 
 
+def test_bootstrap_login_stops_without_entering_adventure(tmp_path, monkeypatch):
+    monkeypatch.setenv("LORWRIGHT_RUNS_DIR", str(tmp_path))
+    device = Mock()
+    monkeypatch.setattr("lorwright.cli.app._make_device", lambda _: device)
+    monkeypatch.setattr("lorwright.core.loop.bootstrap.prepare_f1",
+                        lambda settings, dev, **kwargs: SimpleNamespace(stop_reason="login_required"))
+    result = CliRunner().invoke(app, ["adventure", "--bootstrap-f1", "--jsonl"])
+    events = [json.loads(line) for line in result.stdout.splitlines()]
+    assert result.exit_code == 3
+    saved = read_status(tmp_path, events[0]["run_id"])
+    assert (saved["status"], saved["reason"]) == ("stopped", "login_required")
+    device.close.assert_called_once()
+
+
 def test_status_does_not_read_game_configuration(tmp_path, monkeypatch):
     with RunSession(tmp_path, mode="battle", champion="test", device="replay") as session:
         session.finish("stopped", "tick_limit")
@@ -71,7 +87,7 @@ def test_status_does_not_read_game_configuration(tmp_path, monkeypatch):
     def forbidden():
         raise AssertionError("status must not load game configuration")
 
-    monkeypatch.setattr("lorwright.main.load_settings", forbidden)
+    monkeypatch.setattr("lorwright.cli.app.load_settings", forbidden)
     result = CliRunner().invoke(app, ["sessions", "status", session.run_id,
                                      "--root", str(tmp_path), "--json"])
     assert result.exit_code == 0, result.output
@@ -94,7 +110,7 @@ def test_real_background_cli_can_be_observed_and_stopped(tmp_path):
     root = tmp_path / "runs"
     frames = replay_dir(tmp_path)
     env = dict(os.environ, LORWRIGHT_RUNS_DIR=str(root), PYTHONIOENCODING="utf-8")
-    command = [sys.executable, "-m", "lorwright.main"]
+    command = [sys.executable, "-m", "lorwright.cli.app"]
     started = subprocess.run(
         [*command, "sessions", "start", "--replay", str(frames), "--champion", "jinx", "--json"],
         capture_output=True, text=True, encoding="utf-8", env=env, timeout=10,

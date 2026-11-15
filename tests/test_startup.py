@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from lorwright.device.adb import AdbDevice
-from lorwright.device.startup import PACKAGE, launch_pie64
+from lorwright.core.device.adb import AdbDevice
+from lorwright.core.device.startup import PACKAGE, launch_pie64
 
 
 class Runner:
@@ -37,7 +37,7 @@ class Runner:
 
 @pytest.fixture(autouse=True)
 def no_wait(monkeypatch):
-    monkeypatch.setattr("lorwright.device.startup.time.sleep", lambda _: None)
+    monkeypatch.setattr("lorwright.core.device.startup.time.sleep", lambda _: None)
 
 
 def test_trace_stops_before_post_start_verification():
@@ -95,7 +95,7 @@ def test_standard_device_launch_remains_standard(monkeypatch):
 
 def test_device_trace_mode_uses_shared_workflow(monkeypatch):
     calls = []
-    monkeypatch.setattr("lorwright.device.startup.launch_pie64", lambda *args: calls.append(args))
+    monkeypatch.setattr("lorwright.core.device.startup.launch_pie64", lambda *args: calls.append(args))
     device = AdbDevice(serial="127.0.0.1:5555", launch_mode="pie64_trace")
     device.launch(PACKAGE)
     assert calls == [(device._adb, PACKAGE)]

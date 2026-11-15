@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from lorwright.models import Layout, Rect, UIState
-from lorwright.perceive.state import StateParser
+from lorwright.core.models import Layout, Rect, UIState
+from lorwright.core.perceive.state import StateParser
 
 _CACHED_READINGS = ("mana", "nexus_hp", "enemy_nexus_hp")
 

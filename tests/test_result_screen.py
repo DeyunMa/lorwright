@@ -5,10 +5,10 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lorwright.models import UIState
-from lorwright.perceive.buttons import find_continue_button
-from lorwright.perceive.result_screen import result_screen
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.models import UIState
+from lorwright.core.perceive.buttons import find_continue_button
+from lorwright.core.perceive.result_screen import result_screen
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path("tests/fixtures/continue")
 
@@ -21,6 +21,7 @@ def _load(name):
 
 @pytest.mark.parametrize(("name", "expected"), [
     ("f1-missions-20261113.jpg", "missions"),
+    ("f1-missions-20261115.png", "missions"),
     ("f1-vault-20261113.jpg", "vault"),
     ("vault_experience.png", "vault"),
 ])
@@ -33,6 +34,15 @@ def test_results_require_two_visible_features(name, expected):
         image[205:255, 548:759] = 0
     else:
         image[40:133, 1178:1367] = 0
+    assert result_screen(image) is None
+
+
+def test_mission_structure_survives_changed_tasks_values_and_rewards():
+    image = _load("f1-missions-20261115.png")
+    image[275:1050, :1250] = 0  # 任务内容、进度和奖励可变化
+    image[125:1050, 1250:] = 0  # 经验数值及宝库可变化
+    assert result_screen(image) == "missions"
+    image[46:126, 1496:1683] = 0
     assert result_screen(image) is None
 
 

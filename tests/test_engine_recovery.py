@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from lorwright.config import Settings
-from lorwright.decide.router import Router
-from lorwright.device.base import Frame
-from lorwright.loop.engine import Engine
-from lorwright.loop.recovery import RecoveryPolicy
-from lorwright.models import Action, ActionType, ClickPlan, GameState, Layout, Rect, UIState
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.config import Settings
+from lorwright.core.decide.router import Router
+from lorwright.core.device.base import Frame
+from lorwright.core.loop.engine import Engine
+from lorwright.core.loop.recovery import RecoveryPolicy
+from lorwright.core.models import Action, ActionType, ClickPlan, GameState, Layout, Rect, UIState
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 
 class FakeDevice:
@@ -78,8 +78,8 @@ def _engine(
     )
 
 
-def test_stuck_retries_then_stops_instead_of_restarting_client() -> None:
-    """重启客户端会掉登录态，默认配置下不能拿它当恢复手段。"""
+def test_stuck_does_not_replay_previous_plan() -> None:
+    """旧计划后出现无效计划时，恢复不能重放旧动作。"""
     dev = FakeDevice()
     engine = _engine(
         dev,
@@ -89,12 +89,12 @@ def test_stuck_retries_then_stops_instead_of_restarting_client() -> None:
 
     state = GameState(ui_state=UIState.MY_TURN_IDLE)
     engine._execute(ClickPlan(points=[(10, 10)], wait_ms=0))
-    assert engine._recover(state) is True
+    assert engine._execute(None) == 0
     assert engine._recover(state) is False
 
-    # 重试重放了一次点击，然后走到 restart_battle → 拒绝重启 → 停
-    assert len(dev.taps) >= 2
+    assert dev.taps == [(10, 10)]
     assert dev.restarts == []
+    assert engine.result.reason == "recovery_unverified"
 
 
 def test_client_restart_only_when_explicitly_allowed() -> None:
@@ -102,12 +102,12 @@ def test_client_restart_only_when_explicitly_allowed() -> None:
     engine = _engine(
         dev,
         Action(type=ActionType.END_TURN),
-        RecoveryPolicy(retry_limit=1, battle_limit=1, client_limit=1),
+        RecoveryPolicy(retry_limit=0, battle_limit=1, client_limit=1),
         allow_client_restart=True,
     )
 
     state = GameState(ui_state=UIState.MY_TURN_IDLE)
-    assert [engine._recover(state) for _ in range(4)] == [True, True, True, False]
+    assert [engine._recover(state) for _ in range(3)] == [True, True, False]
 
     # restart_battle 退化为重启客户端，第二次又重启，最后耗尽停下
     assert dev.restarts == ["com.riotgames.legendsofruneterra"] * 2

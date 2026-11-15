@@ -7,16 +7,16 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.champions.jinx.deck import BY_NAME
-from lorwright.champions.jinx.policy import JinxOpeningPolicy
-from lorwright.champions.jinx.vision import recognize_hand, recognize_mulligan
-from lorwright.config import load_settings
-from lorwright.models import ActionType, GameState, Rect, UIState
-from lorwright.perceive.digits import DigitReader
-from lorwright.perceive.hand import recognize_expanded
-from lorwright.perceive.mulligan import recognize_mulligan_selection
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.champions.jinx.deck import BY_NAME
+from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+from lorwright.core.champions.jinx.vision import recognize_hand, recognize_mulligan
+from lorwright.core.config import load_settings
+from lorwright.core.models import ActionType, GameState, Rect, UIState
+from lorwright.core.perceive.digits import DigitReader
+from lorwright.core.perceive.hand import recognize_expanded
+from lorwright.core.perceive.mulligan import recognize_mulligan_selection
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 
 def _named(filename: str):
@@ -134,12 +134,12 @@ def test_live_two_rockets_include_leftmost_before_selecting():
     assert action.type is ActionType.PLAY_CARD
     assert action.card_index == 0
     assert s.hand[0].rect.center[0] < s.hand[1].rect.center[0]
-    # 左侧徽章被遮住时不能把第二张当第一张。
+    # 左侧徽章被遮住时只能选择仍能识别到的火箭，不能猜测被遮住的牌。
     image[878:941, 336:400] = 0
     obscured = parser.parse(image)
-    assert JinxOpeningPolicy(jinx_summoned=True).decide(replace(obscured, mana=2)).type is (
-        ActionType.NO_OP
-    )
+    action = JinxOpeningPolicy(jinx_summoned=True).decide(replace(obscured, mana=2))
+    assert action.type is ActionType.PLAY_CARD
+    assert obscured.hand[action.card_index].name == "超威能死亡火箭！"
 
 
 def test_mulligan_cards_are_recognized():
@@ -162,20 +162,20 @@ def test_mulligan_does_not_need_support_or_reward_card_names():
     image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-before.png")))
     assert image is not None
     cards = recognize_mulligan(image)
-    # 金色英雄标志不能排除是 Jinx，保留未知。
-    assert [card.matches_target for card in cards] == [False, False, False, None]
+    # 伊莉丝卡面可直接证明不是 Jinx，不依赖英雄品质标志。
+    assert [card.matches_target for card in cards] == [False, False, False, False]
 
 
 def test_mulligan_selected_card_is_unknown_without_prior_view():
     image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-first-selected.png")))
     assert image is not None
-    assert [card.matches_target for card in recognize_mulligan(image)] == [None, False, False, None]
+    assert [card.matches_target for card in recognize_mulligan(image)] == [None, False, False, False]
 
 
 def test_synthetic_jinx_and_obscured_slot():
     # 把素材嵌入真实换牌画面只检验接线，不等于真实 Jinx 换牌截图。
     image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-4cards.png")))
-    target = cv2.imread(str(Path("src/lorwright/champions/jinx/assets/01PZ040.png")))
+    target = cv2.imread(str(Path("src/lorwright/core/champions/jinx/assets/01PZ040.png")))
     assert image is not None and target is not None
     image[332:732, 347:627] = cv2.resize(target, (280, 400))
     assert recognize_mulligan(image)[0].matches_target is True

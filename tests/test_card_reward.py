@@ -5,10 +5,10 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lorwright.champions.base import Preference
-from lorwright.champions.jinx.policy import pick_card_reward as pick_jinx_card_reward
-from lorwright.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
-from lorwright.perceive.reward_screen import (
+from lorwright.core.champions.base import Preference
+from lorwright.core.champions.jinx.policy import pick_card_reward as pick_jinx_card_reward
+from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
+from lorwright.core.perceive.reward_screen import (
     _card_cost,
     card_reward_confirm_button,
     card_reward_selection,
@@ -99,14 +99,14 @@ def test_click_target_must_not_be_partially_obscured():
 
 
 def test_incomplete_catalog_abstains(monkeypatch):
-    import lorwright.perceive.reward_screen as reward_screen
+    import lorwright.core.perceive.reward_screen as reward_screen
 
     monkeypatch.setattr(reward_screen, "_card_catalog", lambda: {"cards": [{}], "items": [{}]})
     assert recognize_card_rewards(_image("before.png")) is None
 
 
 def test_invalid_catalog_json_abstains(monkeypatch, tmp_path):
-    import lorwright.perceive.reward_screen as reward_screen
+    import lorwright.core.perceive.reward_screen as reward_screen
 
     (tmp_path / "card_rewards.json").write_text("{bad json", encoding="utf-8")
     monkeypatch.setattr(reward_screen, "_ASSETS", tmp_path)

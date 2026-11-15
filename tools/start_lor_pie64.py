@@ -18,8 +18,8 @@ from pathlib import Path
 
 import cv2
 
-from lorwright.device.adb import AdbDevice
-from lorwright.device.startup import PACKAGE
+from lorwright.core.device.adb import AdbDevice
+from lorwright.core.device.startup import PACKAGE
 
 
 def main() -> int:

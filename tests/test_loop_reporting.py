@@ -5,9 +5,9 @@ from dataclasses import replace
 import pytest
 from test_engine_outcome import engine_for, ready
 
-from lorwright.loop.outcome import LoopResult
-from lorwright.loop.recovery import RecoveryPolicy
-from lorwright.models import (
+from lorwright.core.loop.outcome import LoopResult
+from lorwright.core.loop.recovery import RecoveryPolicy
+from lorwright.core.models import (
     Action,
     ActionType,
     CardInHand,
@@ -17,7 +17,7 @@ from lorwright.models import (
     Rect,
     UIState,
 )
-from lorwright.runtime.session import RunSession, StopRequested, read_status
+from lorwright.core.runtime.session import RunSession, StopRequested, read_status
 
 
 @pytest.mark.parametrize(("states", "expected"), [

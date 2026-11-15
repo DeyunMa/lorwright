@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.perceive.healer import healer_heal_button, is_healer_screen
+from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

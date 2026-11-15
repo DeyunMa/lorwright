@@ -5,10 +5,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from lorwright.champions.elise.vision import recognize_hand
-from lorwright.models import CardInHand, Rect
-from lorwright.perceive.digits import DigitReader
-from lorwright.perceive.hand import recognize_expanded
+from lorwright.core.champions.elise.vision import recognize_hand
+from lorwright.core.models import CardInHand, Rect
+from lorwright.core.perceive.digits import DigitReader
+from lorwright.core.perceive.hand import recognize_expanded
 
 
 def test_recognizes_all_six_cards_in_real_expanded_hand():

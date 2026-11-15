@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.champions.jinx.vision import recognize_selected_hero
-from lorwright.perceive.adventure_scene import find_resume_adventure_button, is_map
+from lorwright.core.champions.jinx.vision import recognize_selected_hero
+from lorwright.core.perceive.adventure_scene import find_resume_adventure_button, is_map
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

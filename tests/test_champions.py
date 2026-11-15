@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from lorwright.champions import available, load
-from lorwright.decide.base import Policy
-from lorwright.decide.card import CardDef
+from lorwright.core.champions import available, load
+from lorwright.core.decide.base import Policy
+from lorwright.core.decide.card import CardDef
 
 
 def test_available_lists_elise():

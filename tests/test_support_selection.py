@@ -6,10 +6,10 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.decide.support import SupportGroup, pick_support_group
-from lorwright.perceive.digits import normalize_glyph
-from lorwright.perceive.normalize import Normalizer
-from lorwright.perceive.support_screen import (
+from lorwright.core.decide.support import SupportGroup, pick_support_group
+from lorwright.core.perceive.digits import normalize_glyph
+from lorwright.core.perceive.normalize import Normalizer
+from lorwright.core.perceive.support_screen import (
     is_support_screen,
     recognize_support_choices,
     same_support_choices,

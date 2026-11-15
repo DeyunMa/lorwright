@@ -12,14 +12,14 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.champions import load
-from lorwright.config import load_settings
-from lorwright.loop.adventure import AdventureLoop
-from lorwright.loop.outcome import LoopResult
-from lorwright.models import UIState
-from lorwright.perceive.adventure_scene import find_home_adventure_entry
-from lorwright.perceive.mapnav import empty_point
-from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.core.champions import load
+from lorwright.core.config import load_settings
+from lorwright.core.loop.adventure import AdventureLoop
+from lorwright.core.loop.outcome import LoopResult
+from lorwright.core.models import UIState
+from lorwright.core.perceive.adventure_scene import find_home_adventure_entry
+from lorwright.core.perceive.mapnav import empty_point
+from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
 
@@ -42,7 +42,7 @@ class FakeDevice:
         self.taps: list[tuple[int, int]] = []
 
     def screencap(self):
-        from lorwright.device.base import Frame
+        from lorwright.core.device.base import Frame
 
         img = self._frames.pop(0) if self._frames else self._frames[-1] if self._frames else _blank()
         return Frame(image=img)
@@ -89,15 +89,107 @@ def adventure(monkeypatch):
         engine = FakeEngine(ui_script)
         loop = AdventureLoop(settings, engine, device, pack=load(settings.champion))
         coords = settings.adventure.to_coords()
-        monkeypatch.setattr("lorwright.loop.adventure.time.sleep", lambda _: None)
+        monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", lambda _: None)
         saved = []
         monkeypatch.setattr(
-            "lorwright.util.snapshot.save_snapshot",
+            "lorwright.core.util.snapshot.save_snapshot",
             lambda image, out_dir, tag: saved.append(tag) or Path("/tmp/fake.png"),
         )
         return loop, device, engine, saved, coords
 
     return make
+
+
+def test_battle_reward_timeout_transition_returns_to_adventure(adventure, monkeypatch):
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    loop, device, engine, _, _ = adventure([_blank(), home, resume], [UIState.MY_TURN_IDLE])
+    monkeypatch.setattr(engine, "run", lambda **kwargs: LoopResult("stopped", "reward_timeout_transition"))
+    loop.run(max_nodes=2)
+    assert device.taps == [find_home_adventure_entry(home).center]
+
+
+def test_reward_timeout_waits_for_known_scene_without_repeating(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1.png"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image, image, _blank()], [UIState.MY_TURN_IDLE])
+    loop.run(max_nodes=1)
+    assert device.taps == [(960, 757)]
+    assert saved == []
+
+
+def test_reward_timeout_transitions_to_home_and_enters_adventure(adventure):
+    timeout = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert timeout is not None and home is not None and resume is not None
+    entry = find_home_adventure_entry(home)
+    assert entry is not None
+    loop, device, _, saved, _ = adventure([timeout, timeout, home, resume], [])
+    loop.run(max_nodes=2)
+    assert device.taps == [(960, 757), entry.center]
+    assert saved == []
+
+
+def test_reward_timeout_does_not_accept_obscured_home(adventure):
+    timeout = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    assert timeout is not None and home is not None
+    home[835:904, 1485:1799] = 0
+    loop, device, _, saved, _ = adventure([timeout] + [home] * 6, [])
+    loop.run(max_nodes=2)
+    assert device.taps == [(960, 757)]
+    assert saved == ["reward_timeout_transition_unverified"]
+
+
+def test_reward_timeout_unknown_transition_stops_without_repeating(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1.png"))
+    assert image is not None
+    loop, device, _, saved, _ = adventure([image] + [_blank()] * 6, [])
+    loop.run(max_nodes=1)
+    assert device.taps == [(960, 757)]
+    assert saved == ["reward_timeout_transition_unverified"]
+
+
+def test_missions_clicks_once_and_accepts_recognized_vault(adventure):
+    mission = cv2.imread(str(FIXTURES.parent / "continue" / "f1-missions-20261115.png"))
+    vault = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    assert mission is not None and vault is not None
+    vault = cv2.resize(vault, (1920, 1080))
+    loop, device, _, saved, _ = adventure([mission, mission, vault], [UIState.BATTLE_END])
+    loop.run(max_nodes=1)
+    assert device.taps == [(1850, 1020)]
+    assert saved == []
+
+
+def test_missions_transition_timeout_never_repeats_click(adventure):
+    mission = cv2.imread(str(FIXTURES.parent / "continue" / "f1-missions-20261115.png"))
+    assert mission is not None
+    loop, device, _, saved, _ = adventure([mission] * 7, [UIState.BATTLE_END])
+    loop.run(max_nodes=1)
+    assert device.taps == [(1850, 1020)]
+    assert saved == ["missions_transition_unverified"]
+
+
+def test_missions_unknown_transition_stops_without_another_click(adventure):
+    mission = cv2.imread(str(FIXTURES.parent / "continue" / "f1-missions-20261115.png"))
+    assert mission is not None
+    loop, device, _, saved, _ = adventure([mission] + [_blank()] * 6, [UIState.BATTLE_END])
+    loop.run(max_nodes=1)
+    assert device.taps == [(1850, 1020)]
+    assert saved == ["missions_transition_unverified"]
+
+
+def test_missions_transition_obeys_stop(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    mission = cv2.imread(str(FIXTURES.parent / "continue" / "f1-missions-20261115.png"))
+    assert mission is not None
+    loop, device, _, _, _ = adventure([mission], [UIState.BATTLE_END])
+    monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: (_ for _ in ()).throw(StopRequested()))
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=1)
+    assert device.taps == [(1850, 1020)]
 
 
 def test_no_next_node_saves_snapshot_and_stops(adventure):
@@ -107,6 +199,33 @@ def test_no_next_node_saves_snapshot_and_stops(adventure):
     assert device.taps == []
     assert saved == ["unknown_scene"]
     assert engine.run_calls == []
+
+
+def test_map_waits_for_confirmed_node_before_clicking(adventure, monkeypatch):
+    initial, unknown, stable = (_blank() for _ in range(3))
+    loop, device, _, saved, _ = adventure([initial, unknown, stable], [])
+    monkeypatch.setattr("lorwright.core.loop.adventure.is_map", lambda image: image is not unknown)
+    monkeypatch.setattr("lorwright.core.loop.adventure.is_completed_panel", lambda _: False)
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(loop, "_find_next", lambda image: SimpleNamespace(x=100, y=200)
+                        if image is stable else None)
+    monkeypatch.setattr(loop, "_handle_node_panel", lambda: False)
+    loop.run(max_nodes=1)
+    assert device.taps == [(100, 200)]
+    assert saved == []
+
+
+def test_map_wait_obeys_stop_without_clicking(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    image = _img("1080p_jinx_support_map.jpg")
+    loop, device, _, _, _ = adventure([image], [])
+    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: (_ for _ in ()).throw(StopRequested()))
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=1)
+    assert device.taps == []
 
 
 def test_support_map_without_next_node_stops_without_clicking(adventure):
@@ -214,7 +333,7 @@ def _support_fixture(name: str) -> np.ndarray:
 
 def _support_middle_choice_frames() -> tuple[np.ndarray, np.ndarray]:
     """真实选中帧加费用合成：让已选的中间组成为唯一最低费。"""
-    from lorwright.perceive.normalize import Normalizer
+    from lorwright.core.perceive.normalize import Normalizer
 
     normalizer = Normalizer((1920, 1080))
     before = normalizer.fit(_support_fixture("m3-travel.jpg"))[0]
@@ -336,6 +455,94 @@ def test_home_entry_reaches_tap_with_real_ui_detector(adventure, name):
     assert engine.run_calls == []
 
 
+def test_home_entry_waits_for_resume_screen_and_continues(adventure):
+    home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert home is not None and resume is not None
+    loop, device, engine, saved, _ = adventure(
+        [home, _blank(), _blank(), resume, _img("1080p_map.png")], [],
+    )
+    loop.pack = load("jinx")
+    result = loop.run(max_nodes=2)
+    assert len(device.taps) == 2
+    assert 1500 < device.taps[1][0] < 1650
+    assert saved == []
+    assert engine.run_calls == []
+    assert result.reason == "iteration_limit"
+
+
+def test_home_entry_ignores_transient_battle_ui_before_resume(adventure):
+    home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261115.png"))
+    assert home is not None and resume is not None
+    transition = _blank()
+    loop, device, engine, saved, _ = adventure(
+        [home, transition, resume, _img("1080p_map.png")], [],
+    )
+    engine.parser.ui.detect = lambda image: (
+        UIState.MY_TURN_IDLE if image is transition else UIState.UNKNOWN
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 2
+    assert engine.run_calls == []
+    assert saved == []
+
+
+def test_home_entry_persistent_battle_probe_times_out_without_entering_battle(adventure):
+    home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
+    assert home is not None
+    transition = _blank()
+    loop, device, engine, saved, _ = adventure([home] + [transition] * 6, [])
+    engine.parser.ui.detect = lambda image: (
+        UIState.MY_TURN_IDLE if image is transition else UIState.UNKNOWN
+    )
+    result = loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert engine.run_calls == []
+    assert saved == ["home_entry_after"]
+    assert result.reason == "home_entry_after"
+
+
+def test_home_entry_unknown_transition_times_out_with_wait_report(adventure, monkeypatch):
+    home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
+    assert home is not None
+    loop, device, _, saved, _ = adventure([home] + [_blank()] * 6, [])
+    reports = []
+    monkeypatch.setattr(
+        "lorwright.core.loop.adventure.report",
+        lambda phase, reason=None, **kwargs: reports.append((phase, reason, kwargs)),
+    )
+    result = loop.run(max_nodes=3)
+    waits = [data for phase, reason, data in reports
+             if phase == "waiting" and reason == "home_entry_transition"]
+    assert len(waits) == 6 and all(data["wait_s"] == 12 for data in waits)
+    assert len(device.taps) == 1
+    assert saved == ["home_entry_after"]
+    assert result.reason == "home_entry_after"
+
+
+def test_home_entry_stop_during_transition_does_not_tap_again(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
+    assert home is not None
+    loop, device, _, saved, _ = adventure([home, _blank()], [])
+    calls = 0
+
+    def stop_on_transition_frame():
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise StopRequested()
+
+    monkeypatch.setattr("lorwright.core.loop.adventure.checkpoint", stop_on_transition_frame)
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == []
+
+
 def test_home_entry_ignores_service_error_overlay(adventure):
     image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_home_service_error.png"))
     assert image is not None
@@ -380,6 +587,67 @@ def test_resume_adventure_clicks_once_and_accepts_map(adventure):
     loop.run(max_nodes=1)
     assert len(device.taps) == 1
     assert 1500 < device.taps[0][0] < 1650 and 950 < device.taps[0][1] < 1010
+    assert saved == []
+
+
+def test_resume_then_revive_clicks_each_once_and_processes_map(adventure, monkeypatch):
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    revive = cv2.imread(str(FIXTURES.parent / "screens/f1-revive-20261115.png"))
+    assert resume is not None and revive is not None
+    loop, device, engine, saved, _ = adventure(
+        [resume, revive, _blank(), _img("1080p_map.png")], [],
+    )
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_find_next", lambda image: None)
+    result = loop.run(max_nodes=3)
+    assert len(device.taps) == 2
+    assert device.taps[1] == (960, 912)
+    assert saved == ["map_no_next"]
+    assert result.reason == "map_no_next"
+    assert engine.run_calls == []
+
+
+@pytest.mark.parametrize("after", ["unchanged", "unknown"])
+def test_revive_transition_timeout_never_repeats_click(adventure, after):
+    revive = cv2.imread(str(FIXTURES.parent / "screens/f1-revive-20261115.png"))
+    assert revive is not None
+    frame = revive if after == "unchanged" else _blank()
+    loop, device, engine, saved, _ = adventure([revive] + [frame] * 6, [])
+    result = loop.run(max_nodes=3)
+    assert device.taps == [(960, 912)]
+    assert result.reason == "revive_transition_unverified"
+    assert saved == ["revive_transition_unverified"]
+    assert engine.run_calls == []
+
+
+def test_revive_obscured_button_does_not_click(adventure):
+    revive = cv2.imread(str(FIXTURES.parent / "screens/f1-revive-20261115.png"))
+    assert revive is not None
+    revive[858:967, 960:1116] = 0
+    loop, device, _, saved, _ = adventure([revive], [])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["unknown_scene"]
+
+
+def test_revive_stop_during_transition(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    revive = cv2.imread(str(FIXTURES.parent / "screens/f1-revive-20261115.png"))
+    assert revive is not None
+    loop, device, _, saved, _ = adventure([revive, _blank()], [])
+    calls = 0
+
+    def stop_on_transition_frame():
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise StopRequested()
+
+    monkeypatch.setattr("lorwright.core.loop.adventure.checkpoint", stop_on_transition_frame)
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=3)
+    assert device.taps == [(960, 912)]
     assert saved == []
 
 
@@ -465,7 +733,7 @@ def test_iteration_limit_does_not_claim_completed_nodes(adventure):
 
 
 def test_adventure_stop_reports_snapshot_to_session(adventure, tmp_path):
-    from lorwright.runtime.session import RunSession, read_status
+    from lorwright.core.runtime.session import RunSession, read_status
 
     loop, _, _, _, _ = adventure([_blank()], [UIState.UNKNOWN])
     with RunSession(tmp_path, mode="adventure", champion="test", device="synthetic") as session:
@@ -486,7 +754,7 @@ def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):
 
 def test_shop_does_not_click_when_title_or_leave_is_obscured(adventure):
     shop = _img("f1-shop-20261114.png")
-    from lorwright.perceive.adventure_scene import shop_leave_button
+    from lorwright.core.perceive.adventure_scene import shop_leave_button
 
     assert shop_leave_button(shop) is not None
     assert shop_leave_button(shop // 2) is None
@@ -539,7 +807,44 @@ def test_battle_end_with_unchanged_continue_does_not_tap_twice(adventure):
     )
     loop.run(max_nodes=2)
     assert len(device.taps) == 1
-    assert saved == ["continue_unchanged"]
+    assert saved == ["continue_transition_unverified"]
+
+
+def test_continue_waits_through_unknown_until_recognized_scene(adventure, monkeypatch):
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080))
+    transition, destination = _blank(), _blank()
+    loop, device, _, saved, _ = adventure(
+        [image, transition, destination], [UIState.BATTLE_END],
+    )
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda frame: frame is destination)
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert saved == []
+
+
+def test_continue_unknown_transition_stops_without_another_click(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080))
+    loop, device, _, saved, _ = adventure([image] + [_blank()] * 6, [UIState.BATTLE_END])
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert saved == ["continue_transition_unverified"]
+
+
+def test_continue_transition_obeys_stop(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    assert image is not None
+    image = cv2.resize(image, (1920, 1080))
+    loop, device, _, _, _ = adventure([image], [UIState.BATTLE_END])
+    monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: (_ for _ in ()).throw(StopRequested()))
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=1)
+    assert len(device.taps) == 1
 
 
 def test_different_result_pages_can_have_continue_in_same_place(adventure):
@@ -551,12 +856,13 @@ def test_different_result_pages_can_have_continue_in_same_place(adventure):
     images = [cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
               for image in images]
     loop, device, _, saved, _ = adventure(
-        images, [UIState.BATTLE_END, UIState.BATTLE_END],
+        images + [_blank()] * 6,
+        [UIState.BATTLE_END, UIState.BATTLE_END, UIState.BATTLE_END],
     )
     loop.run(max_nodes=2)
     assert len(device.taps) == 2
     assert abs(device.taps[0][0] - device.taps[1][0]) < 40
-    assert saved == []
+    assert saved == ["continue_transition_unverified"]
 
 
 def test_node_panel_travel_then_fight(adventure):
@@ -623,10 +929,10 @@ def test_node_transition_timeout_stops_without_repeating_battle(adventure):
     assert saved == ["panel_transition_timeout"]
 
 
-def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monkeypatch):
-    # 识别三项并调用奖励规则；尚无选中后的截图，不盲点卡片/确认。
-    from lorwright.champions.base import Preference
-    from lorwright.decide.rewards import pick_reward
+def test_ability_select_picks_preference_once_then_stops(adventure, monkeypatch):
+    # 选中一次后保存截图，不自动确认。
+    from lorwright.core.champions.base import Preference
+    from lorwright.core.decide.rewards import pick_reward
 
     selected = []
 
@@ -635,7 +941,7 @@ def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monk
         selected.append(pick.candidate.name)
         return pick
 
-    monkeypatch.setattr("lorwright.loop.adventure.pick_reward", record)
+    monkeypatch.setattr("lorwright.core.loop.adventure.pick_reward", record)
     loop, device, engine, saved, _ = adventure(
         [_img("1080p_zoommax.png"), _img("1080p_ability_select.png")],
         [UIState.UNKNOWN, UIState.UNKNOWN],
@@ -644,14 +950,221 @@ def test_ability_select_recommends_then_stops_without_blind_taps(adventure, monk
         "power_preferences": (Preference(("準備過度",)),),
     })()
     loop.run(max_nodes=1)
-    assert device.taps == [(1189, 370)]
+    assert device.taps == [(1189, 370), (1303, 430)]
     assert selected == ["準備過度"]  # 英雄偏好压过其他两项稀有品质
-    assert saved == ["power_choice"]
+    assert saved == ["power_selected_unverified"]
     assert engine.run_calls == []
 
 
+def _power_fixture(name):
+    image = cv2.imread(str(FIXTURES.parent / "power_reward" / name))
+    assert image is not None
+    return image
+
+
+def test_power_resumes_selected_and_confirms_once(adventure, monkeypatch):
+    selected = _power_fixture("f1-power-selected-20261115.png")
+    next_scene = _img("1080p_zoommax.png")
+    loop, device, _, saved, _ = adventure([next_scene], [])
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda image: image is next_scene)
+    assert loop._handle_power(selected) is next_scene
+    assert device.taps == [(960, 1003)]
+    assert saved == []
+
+
+def test_power_selects_then_confirms_after_verification(adventure, monkeypatch):
+    initial = _power_fixture("f1-power-20261115.png")
+    selected = _power_fixture("f1-power-selected-20261115.png")
+    next_scene = _img("1080p_zoommax.png")
+    loop, device, _, saved, _ = adventure([selected, next_scene], [])
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda image: image is next_scene)
+    assert loop._handle_power(initial) is next_scene
+    assert device.taps == [(1303, 430), (960, 1003)]
+    assert saved == []
+
+
+def test_power_selected_wrong_preference_or_disabled_stops(adventure):
+    from lorwright.core.champions.base import Preference
+
+    selected = _power_fixture("f1-power-selected-20261115.png")
+    loop, device, _, saved, _ = adventure([selected], [])
+    loop.pack = type("Pack", (), {"power_preferences": (Preference(("因時制宜",)),)})()
+    assert loop._handle_power(selected) is None
+    assert device.taps == []
+    assert saved == ["power_selected_unverified"]
+    disabled = selected.copy()
+    disabled[960:1045, 800:1120] = 0
+    loop, device, _, saved, _ = adventure([disabled], [])
+    assert loop._handle_power(disabled) is None
+    assert device.taps == []
+    assert saved == ["power_selected_unverified"]
+
+
+def test_power_transition_timeout_never_confirms_twice(adventure):
+    selected = _power_fixture("f1-power-selected-20261115.png")
+    loop, device, _, saved, _ = adventure([selected] * 7, [])
+    assert loop._handle_power(selected) is None
+    assert device.taps == [(960, 1003)]
+    assert saved == ["power_transition_unverified"]
+
+
+def test_power_transition_honors_stop_after_confirmation(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    selected = _power_fixture("f1-power-selected-20261115.png")
+    loop, device, _, _, _ = adventure([selected], [])
+
+    def stop(*args, **kwargs):
+        raise StopRequested()
+
+    monkeypatch.setattr(loop, "_wait", stop)
+    with pytest.raises(StopRequested):
+        loop._handle_power(selected)
+    assert device.taps == [(960, 1003)]
+
+
+def test_hero_item_reward_from_selected_hero_picks_once(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "jinx-selected.png"))
+    loop, device, _, saved, _ = adventure([image, image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps in [[(615, 750)], [(960, 750)]]
+    assert saved == ["hero_item_selected_unverified"]
+
+
+def test_hero_item_reward_selects_and_verifies_hero_first(adventure):
+    folder = FIXTURES.parent / "hero_item_reward"
+    before = cv2.imread(str(folder / "before-sample.png"))
+    selected = cv2.imread(str(folder / "jinx-selected.png"))
+    loop, device, _, saved, _ = adventure([before, selected, selected], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps[0] == (780, 430)
+    assert device.taps[1] in [(615, 750), (960, 750)]
+    assert len(device.taps) == 2
+    assert saved == ["hero_item_selected_unverified"]
+
+
+def test_hero_item_reward_does_not_pick_if_hero_unverified(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "before-sample.png"))
+    loop, device, _, saved, _ = adventure([image, image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [(780, 430)]
+    assert saved == ["hero_item_hero_unverified"]
+
+
+def test_hero_item_reward_unknown_item_stops_without_click(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "jinx-selected.png"))
+    image[700:745, 906:1036] = 0
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["hero_item_selection_unverified"]
+
+
+def test_hero_item_reward_wrong_selected_hero_stops(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "jinx-selected.png"))
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("elise")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["hero_item_wrong_hero"]
+
+
+def test_hero_item_reentry_confirms_without_new_choice(adventure, monkeypatch):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
+    after = _blank()
+    loop, device, _, saved, _ = adventure([image, after], [])
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda frame: not frame.any())
+    loop.run(max_nodes=1)
+    assert device.taps == [(960, 1003)]
+    assert saved == []
+
+
+def test_hero_item_real_map_transition_continues_adventure(adventure, monkeypatch):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
+    after = _img("1080p_map.png")
+    loop, device, _, saved, _ = adventure([image, after], [])
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    loop.run(max_nodes=2)
+    assert device.taps == [(960, 1003)]
+    assert saved == ["map_no_next"]
+
+
+def test_hero_item_new_selection_verifies_before_confirm(adventure, monkeypatch):
+    folder = FIXTURES.parent / "hero_item_reward"
+    before = cv2.imread(str(folder / "jinx-selected.png"))
+    selected = cv2.imread(str(folder / "both-selected.png"))
+    after = _blank()
+    loop, device, _, saved, _ = adventure([before, selected, after], [])
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop.rng, "choice", lambda options: options[0])
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda frame: not frame.any())
+    loop.run(max_nodes=1)
+    assert device.taps == [(615, 750), (960, 1003)]
+    assert saved == []
+
+
+def test_hero_item_selected_but_disabled_stops(adventure):
+    folder = FIXTURES.parent / "hero_item_reward"
+    image = cv2.imread(str(folder / "both-selected.png"))
+    disabled = cv2.imread(str(folder / "jinx-selected.png"))
+    image[960:1045, 800:1120] = disabled[960:1045, 800:1120]
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["hero_item_selected_unverified"]
+
+
+def test_hero_item_confirmation_timeout_does_not_repeat(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
+    loop, device, _, saved, _ = adventure([image] * 7, [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [(960, 1003)]
+    assert saved == ["hero_item_transition_unverified"]
+
+
+def test_hero_item_stop_during_transition(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
+    loop, device, _, _, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    def stop(*args, **kwargs):
+        raise StopRequested("stop")
+    monkeypatch.setattr(loop, "_wait", stop)
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=1)
+    assert device.taps == [(960, 1003)]
+
+
+def test_hero_item_sampling_taps_once_and_stops(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "f1-20261115.png"))
+    loop, device, _, saved, _ = adventure([image, image], [])
+    loop.sample_hero_item_jinx = True
+    loop.run(max_nodes=3)
+    assert device.taps == [(780, 430)]
+    assert saved == ["hero_item_jinx_sample"]
+
+
+def test_hero_item_sampling_rejects_unknown_page(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "f1-20261115.png"))
+    image[18:110, 760:1160] = 0
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.sample_hero_item_jinx = True
+    loop.run(max_nodes=3)
+    assert device.taps == []
+    assert saved == ["hero_item_sample_precondition_failed"]
+
+
 def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure):
-    from lorwright.champions.base import Preference
+    from lorwright.core.champions.base import Preference
 
     reward = FIXTURES.parent / "card_rewards"
     before, selected, after = (cv2.imread(str(reward / name)) for name in (
@@ -677,8 +1190,8 @@ def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure
 
 
 def test_jinx_card_reward_uses_champion_cost_rule_before_default(adventure):
-    from lorwright.decide.rewards import CardRewardCandidate, RewardCandidate
-    from lorwright.models import Rect
+    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
+    from lorwright.core.models import Rect
 
     before = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
     selected = cv2.imread(str(FIXTURES.parent / "card_rewards" / "selected-left.png"))
@@ -693,8 +1206,8 @@ def test_jinx_card_reward_uses_champion_cost_rule_before_default(adventure):
     # 保留真实选中帧和按钮检查，仅隔离候选识别。
     from unittest.mock import patch
 
-    with patch("lorwright.loop.adventure.recognize_card_rewards", return_value=candidates), \
-            patch("lorwright.loop.adventure.card_reward_target", return_value=Rect(551, 389, 8, 8)):
+    with patch("lorwright.core.loop.adventure.recognize_card_rewards", return_value=candidates), \
+            patch("lorwright.core.loop.adventure.card_reward_target", return_value=Rect(551, 389, 8, 8)):
         loop.run(max_nodes=1)
     assert device.taps == [(555, 393), (960, 1003)]
     assert saved == ["card_reward_unverified"]
@@ -713,7 +1226,7 @@ def test_card_reward_does_not_confirm_when_wrong_card_is_highlighted(adventure):
 
 
 def test_card_reward_confirmation_is_not_repeated(adventure):
-    from lorwright.champions.base import Preference
+    from lorwright.core.champions.base import Preference
 
     reward = FIXTURES.parent / "card_rewards"
     before = cv2.imread(str(reward / "before.png"))
@@ -728,7 +1241,7 @@ def test_card_reward_confirmation_is_not_repeated(adventure):
 
 
 def test_card_reward_does_not_click_an_obscured_target(adventure):
-    from lorwright.champions.base import Preference
+    from lorwright.core.champions.base import Preference
 
     before = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
     before[391:396, 553:558] = 0
@@ -742,7 +1255,7 @@ def test_card_reward_does_not_click_an_obscured_target(adventure):
 
 
 def test_card_reward_does_not_treat_blue_unknown_scene_as_battle(adventure):
-    from lorwright.champions.base import Preference
+    from lorwright.core.champions.base import Preference
 
     reward = FIXTURES.parent / "card_rewards"
     before = cv2.imread(str(reward / "before.png"))

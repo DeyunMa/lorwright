@@ -1,5 +1,5 @@
-from lorwright.act.translate import ActionTranslator, Layout
-from lorwright.models import (
+from lorwright.core.act.translate import ActionTranslator, Layout
+from lorwright.core.models import (
     Action,
     ActionType,
     CardInHand,
@@ -36,6 +36,18 @@ def test_play_card_drags_from_expanded_hand() -> None:
     assert plan.drag
     assert plan.points[0] == (140, 1060)
     assert plan.points[1] == (1000, 600)
+
+
+def test_expanded_hand_uses_body_point_or_abstains() -> None:
+    card = CardInHand(0, "", 3, Rect(1453, 861, 8, 8), drag_point=(1457, 960))
+    state = GameState(hand=[card], hand_expanded=True)
+    action = Action(type=ActionType.PLAY_CARD, card_index=0)
+    plan = ActionTranslator(LAYOUT).translate(action, state)
+    assert plan is not None and plan.points[0] == (1457, 960)
+    blocked = CardInHand(0, "", 3, card.rect, drag_point_valid=False)
+    assert ActionTranslator(LAYOUT).translate(action, GameState(
+        hand=[blocked], hand_expanded=True
+    )) is None
 
 
 def test_play_card_expands_collapsed_hand_first() -> None:

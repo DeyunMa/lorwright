@@ -11,8 +11,9 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from lorwright.runtime import cli, session
-from lorwright.runtime.session import (
+from lorwright.cli import sessions as cli
+from lorwright.core.runtime import session
+from lorwright.core.runtime.session import (
     RunSession,
     StopRequested,
     checkpoint,
@@ -124,6 +125,13 @@ def test_device_lock_released_and_distinct_devices(tmp_path):
         pass
 
 
+def test_adb_and_desktop_share_the_interactive_device_lock(tmp_path):
+    with RunSession(tmp_path / "adb", mode="battle", champion="", device="adb"):
+        with pytest.raises(RuntimeError, match="设备已由另一会话控制"):
+            with RunSession(tmp_path / "desktop", mode="battle", champion="", device="desktop"):
+                pass
+
+
 def test_device_lock_is_shared_across_run_directories(tmp_path):
     device = f"test:{tmp_path}"
     with RunSession(tmp_path / "a", mode="battle", champion="", device=device):
@@ -219,7 +227,8 @@ def test_detach_windows_options(monkeypatch):
     monkeypatch.setattr(cli.sys, "platform", "win32")
     monkeypatch.setattr(subprocess, "DETACHED_PROCESS", 8, raising=False)
     monkeypatch.setattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512, raising=False)
-    assert cli._detach_options() == {"creationflags": 520}
+    monkeypatch.setattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000, raising=False)
+    assert cli._detach_options() == {"creationflags": 0x01000208}
 
 
 def test_start_success_reserves_id_and_passes_replay(tmp_path, monkeypatch):
@@ -246,11 +255,78 @@ def test_start_success_reserves_id_and_passes_replay(tmp_path, monkeypatch):
     assert "--jsonl" in calls[0]
 
 
+@pytest.mark.parametrize("option", ["--spell-already-played", "--jinx-summoned",
+                                    "--confirm-empty-hand-once"])
+def test_start_battle_recovery_option(tmp_path, monkeypatch, option):
+    commands = []
+
+    def spawn(command, **kwargs):
+        commands.append(command)
+
+        def wait(timeout):
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        return SimpleNamespace(pid=os.getpid(), wait=wait)
+
+    monkeypatch.setattr(cli.subprocess, "Popen", spawn)
+    bad = runner.invoke(cli.app, ["start", "--root", str(tmp_path), "--mode", "adventure", option])
+    assert bad.exit_code == 2 and not commands
+    good = runner.invoke(cli.app, ["start", "--root", str(tmp_path), "--mode", "battle", option])
+    assert good.exit_code == 0, good.output
+    assert "run" in commands[0] and option in commands[0]
+
+
+def test_start_rocket_recovery_validation_and_forwarding(tmp_path, monkeypatch):
+    commands = []
+
+    def spawn(command, **kwargs):
+        commands.append(command)
+
+        def wait(timeout):
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        return SimpleNamespace(pid=os.getpid(), wait=wait)
+
+    monkeypatch.setattr(cli.subprocess, "Popen", spawn)
+    base = ["start", "--root", str(tmp_path), "--rockets-already-played"]
+    for args in (["1"], ["3", "--champion", "jinx", "--jinx-summoned"],
+                 ["1", "--champion", "elise", "--jinx-summoned"],
+                 ["1", "--champion", "jinx", "--jinx-summoned", "--mode", "adventure"]):
+        assert runner.invoke(cli.app, base + args).exit_code == 2
+    assert not commands
+    result = runner.invoke(cli.app, base + ["1", "--champion", "jinx", "--jinx-summoned"])
+    assert result.exit_code == 0, result.output
+    index = commands[0].index("--rockets-already-played")
+    assert commands[0][index + 1] == "1"
+
+
+def test_start_passes_riot_login_option_only_for_bootstrap(tmp_path, monkeypatch):
+    commands = []
+
+    def spawn(command, **kwargs):
+        commands.append(command)
+
+        def wait(timeout):
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        return SimpleNamespace(pid=os.getpid(), wait=wait)
+
+    monkeypatch.setattr(cli.subprocess, "Popen", spawn)
+    bad = runner.invoke(cli.app, ["start", "--root", str(tmp_path), "--mode", "adventure",
+                                  "--open-riot-login"])
+    assert bad.exit_code == 2 and not commands
+    good = runner.invoke(cli.app, ["start", "--root", str(tmp_path), "--mode", "adventure",
+                                   "--bootstrap-f1", "--open-riot-login", "--auto-login", "--json"])
+    assert good.exit_code == 0, good.output
+    assert "--bootstrap-f1" in commands[0] and "--open-riot-login" in commands[0]
+    assert "--auto-login" in commands[0]
+
+
 def test_real_cli_subprocess_json_utf8(tmp_path):
     with RunSession(tmp_path, mode="adventure", champion="任意英雄", device="fake") as run:
         pass
     result = subprocess.run(
-        [sys.executable, "-c", "from lorwright.runtime.cli import app; app()",
+        [sys.executable, "-c", "from lorwright.cli.sessions import app; app()",
          "status", run.run_id, "--json"],
         env=dict(os.environ, LORWRIGHT_RUNS_DIR=str(tmp_path),
                  PYTHONPATH=str(Path(__file__).resolve().parents[1] / "src")),

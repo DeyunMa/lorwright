@@ -17,8 +17,8 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.models import Rect
-from lorwright.perceive.units import find_unit_badges, to_units
+from lorwright.core.models import Rect
+from lorwright.core.perceive.units import find_unit_badges, to_units
 
 SCREENS = Path(__file__).parent / "fixtures" / "screens"
 MY_BOARD = Rect(200, 820, 1500, 260)
@@ -136,7 +136,7 @@ def test_reads_visible_health_but_keeps_obscured_health_unknown() -> None:
 
 def test_attack_token_detected() -> None:
     """有令牌：按钮左侧橙色箭头，实测最大连通域 8446px。"""
-    from lorwright.perceive.attack_token import has_attack_token
+    from lorwright.core.perceive.attack_token import has_attack_token
 
     img = cv2.imread(str(SCREENS / "1080p_attack_token.png"))
     assert has_attack_token(img, ATTACK_TOKEN_REGION)
@@ -144,7 +144,7 @@ def test_attack_token_detected() -> None:
 
 def test_no_attack_token() -> None:
     """无令牌：同一区域只有 30px 的宝石边缘。"""
-    from lorwright.perceive.attack_token import has_attack_token
+    from lorwright.core.perceive.attack_token import has_attack_token
 
     img = cv2.imread(str(SCREENS / "1080p_no_attack_token.png"))
     assert not has_attack_token(img, ATTACK_TOKEN_REGION)

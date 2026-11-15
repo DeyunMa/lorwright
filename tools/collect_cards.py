@@ -11,7 +11,7 @@ from pathlib import Path
 
 import cv2
 
-from lorwright.device import AdbDevice, DesktopDevice
+from lorwright.core.device import AdbDevice, DesktopDevice
 
 
 def main() -> None:

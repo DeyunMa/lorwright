@@ -1,5 +1,5 @@
-from lorwright.decide.candidates import describe, generate
-from lorwright.models import ActionType, CardInHand, GameState, Rect, Unit
+from lorwright.core.decide.candidates import describe, generate
+from lorwright.core.models import ActionType, CardInHand, GameState, Rect, Unit
 
 
 def _card(i, cost, name="c"):
@@ -31,6 +31,6 @@ def test_describe() -> None:
 
 
 def ActionType_play(i):
-    from lorwright.models import Action
+    from lorwright.core.models import Action
 
     return Action(type=ActionType.PLAY_CARD, card_index=i)

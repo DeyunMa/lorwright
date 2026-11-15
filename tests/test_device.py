@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from lorwright.device.base import Frame
-from lorwright.loop.engine import Engine
+from lorwright.core.device.base import Frame
+from lorwright.core.loop.engine import Engine
 
 
 class FakeDevice:
@@ -37,7 +37,7 @@ class _Router:
     calls = 0
 
     def decide(self, state):
-        from lorwright.models import Action, ActionType
+        from lorwright.core.models import Action, ActionType
 
         type(self).calls += 1
         return type("R", (), {"action": Action(type=ActionType.END_TURN), "layer": "test"})()
@@ -47,8 +47,8 @@ class _Router:
 
 
 def test_engine_uses_device(monkeypatch, tmp_path) -> None:
-    from lorwright.config import Settings
-    from lorwright.models import GameState, Layout, Rect, UIState
+    from lorwright.core.config import Settings
+    from lorwright.core.models import GameState, Layout, Rect, UIState
 
     settings = Settings()
     settings.layout.end_turn = [10, 10, 20, 20]
@@ -68,8 +68,8 @@ def test_engine_uses_device(monkeypatch, tmp_path) -> None:
 
 def test_engine_scales_coordinates_to_device_resolution(monkeypatch) -> None:
     """非设计尺寸时，动作坐标要按比例换成设备像素（分辨率解耦）。"""
-    from lorwright.config import Settings
-    from lorwright.models import GameState, Layout, Rect, UIState
+    from lorwright.core.config import Settings
+    from lorwright.core.models import GameState, Layout, Rect, UIState
 
     settings = Settings()
     settings.layout.end_turn = [10, 10, 20, 20]
@@ -89,8 +89,8 @@ def test_stale_frame_is_not_acted_on() -> None:
     """帧太旧就不动：截图+决策耗时过长时，点会落在已经变了的画面上。"""
     import time
 
-    from lorwright.config import Settings
-    from lorwright.models import Layout, Rect
+    from lorwright.core.config import Settings
+    from lorwright.core.models import Layout, Rect
 
     settings = Settings()
     settings.loop.tick_ms = 0

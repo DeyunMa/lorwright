@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from lorwright.perceive.normalize import Normalizer, Scale
+from lorwright.core.perceive.normalize import Normalizer, Scale
 
 
 def test_identity_when_size_matches() -> None:

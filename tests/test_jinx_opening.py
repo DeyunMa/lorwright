@@ -2,14 +2,15 @@ from dataclasses import replace
 
 import pytest
 
-from lorwright.champions import load
-from lorwright.champions.jinx.policy import JinxOpeningPolicy
-from lorwright.models import (
+from lorwright.core.champions import load
+from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+from lorwright.core.models import (
     Action,
     ActionType,
     CardInHand,
     GameState,
     MulliganCard,
+    Reading,
     Rect,
     UIState,
     Unit,
@@ -294,8 +295,49 @@ def test_post_jinx_plays_two_rockets_then_pow_pow():
     policy.on_action_outcome(second, after_first, state([pow_pow(0)], mana=1))
     assert policy._rockets_played == 2
 
-    third = policy.decide(state([pow_pow(0)], mana=1))
+    enemy = Unit("", -1, -1, Rect(0, 0, 10, 10))
+    third = policy.decide(replace(state([pow_pow(0)], mana=1), enemy_units=[enemy]))
     assert third == Action(type=ActionType.PLAY_CARD, card_index=0)
+
+
+def test_resume_after_one_rocket_plays_only_the_remaining_rocket():
+    policy = load("jinx").make_policy(jinx_summoned=True, rockets_already_played=1)
+    before = state([card(0, "超威能死亡火箭！", 1), card(1, "砰砰", 1)], mana=2)
+    action = policy.decide(before)
+    assert action == Action(type=ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
+    policy.on_action_outcome(action, before, state([card(0, "砰砰", 1)], mana=1))
+    enemy = Unit("", -1, -1, Rect(0, 0, 10, 10))
+    assert policy.decide(replace(state([card(0, "砰砰", 1)], mana=1), enemy_units=[enemy])) == Action(
+        type=ActionType.PLAY_CARD, card_index=0
+    )
+
+
+def test_pow_pow_requires_visible_enemy_after_rockets():
+    policy = JinxOpeningPolicy(jinx_summoned=True, rockets_already_played=2)
+    jinx = Unit("吉茵珂絲", 6, 7, Rect(0, 0, 10, 10))
+    assert policy.decide(state([card(0, "砰砰", 1)], units=[jinx], mana=5)) is None
+    assert policy.decide(state([card(0, "", 1)], units=[jinx], mana=5)) is None
+
+
+def test_known_unit_does_not_bypass_board_or_mana_limits():
+    policy = JinxOpeningPolicy(jinx_summoned=True, rockets_already_played=2)
+    cards = [card(0, "", 1), card(1, "汙水坑疏濬機器人", 3)]
+    assert policy.decide(state(cards, mana=2)) is None
+    units = [Unit("", 1, 1, Rect(0, 0, 10, 10)) for _ in range(6)]
+    assert policy.decide(state(cards, units=units, mana=4)) is None
+
+
+def test_unrecognized_rockets_allow_confirmed_attack():
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    unit = Unit("", 2, 2, Rect(0, 900, 10, 10))
+    s = replace(state([card(0, "", 1)], units=[unit], mana=2), has_attack_token=True)
+    assert policy.decide(s) == Action(type=ActionType.ATTACK, raw={"attackers": (0,)})
+    assert policy.decide(replace(s, has_attack_token=False)).type is ActionType.NO_OP
+
+
+def test_resume_one_rocket_still_refuses_unrecognized_card():
+    policy = JinxOpeningPolicy(jinx_summoned=True, rockets_already_played=1)
+    assert policy.decide(state([card(0, "", 1)], mana=2)).type is ActionType.NO_OP
 
 
 def test_post_jinx_unnamed_cards_are_not_assumed_to_be_rockets():
@@ -318,11 +360,27 @@ def test_post_jinx_uses_spell_mana_and_waits_for_unknown_cost():
     )
 
 
-def test_post_jinx_requires_both_rockets_before_first_play():
+def test_post_jinx_prioritizes_identified_rocket_even_when_other_cards_are_unknown():
     policy = JinxOpeningPolicy(jinx_summoned=True)
+    rocket = card(1, "超威能死亡火箭！", 1)
+    assert policy.decide(state([card(0, "", 1), rocket, card(2, "砰砰", 1)], mana=2)) == Action(
+        ActionType.PLAY_CARD, card_index=1, raw={"jinx_rocket": True}
+    )
+
+
+def test_unrecognized_cards_do_not_block_pow_but_rocket_takes_priority():
+    policy = JinxOpeningPolicy(jinx_summoned=True, rockets_already_played=1)
+    enemy = Unit("", 2, 1, Rect(0, 0, 10, 10))
+    s = replace(state([card(0, "", 1), card(1, "砰砰", 1)], mana=0),
+                enemy_units=[enemy], spell_mana=1,
+                readings={"spell_mana": Reading(1, 0)})
+    assert policy.decide(s) == Action(ActionType.PLAY_CARD, card_index=1,
+                                      raw={"spell_mana_only": True})
+    assert policy.decide(replace(s, spell_mana=None)).type is ActionType.NO_OP
+    assert policy.decide(replace(s, readings={"spell_mana": Reading(1, 1)})).type is ActionType.NO_OP
     rocket = card(0, "超威能死亡火箭！", 1)
-    # 漏掉最左徽章时，第二张火箭也会变成 index 0。
-    assert policy.decide(state([rocket, card(1, "砰砰", 1)], mana=2)).type is ActionType.NO_OP
+    assert policy.decide(replace(s, hand=[rocket, s.hand[1]])).raw == {"jinx_rocket": True}
+    assert policy.decide(replace(s, ui_state=UIState.UNKNOWN)) is None
 
 
 def test_post_jinx_does_not_play_unknown_large_hand():

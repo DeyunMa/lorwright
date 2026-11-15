@@ -2,8 +2,8 @@
 
 import pytest
 
-from lorwright.champions import load
-from lorwright.models import CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.champions import load
+from lorwright.core.models import CardInHand, GameState, Rect, UIState, Unit
 
 
 def _card(idx: int, cost: int) -> CardInHand:

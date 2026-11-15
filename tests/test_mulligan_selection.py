@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.perceive.mulligan import recognize_mulligan_selection
+from lorwright.core.perceive.mulligan import recognize_mulligan_selection
 
 
 def _load(name: str):

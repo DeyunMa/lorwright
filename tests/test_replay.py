@@ -8,10 +8,10 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.config import Settings
-from lorwright.device.replay import ReplayDevice
-from lorwright.loop.engine import Engine
-from lorwright.models import Action, ActionType, Layout, Rect
+from lorwright.core.config import Settings
+from lorwright.core.device.replay import ReplayDevice
+from lorwright.core.loop.engine import Engine
+from lorwright.core.models import Action, ActionType, Layout, Rect
 
 
 def _png(path: Path, color: int) -> None:

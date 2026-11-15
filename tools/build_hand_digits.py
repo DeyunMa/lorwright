@@ -18,8 +18,8 @@ from pathlib import Path
 
 import cv2
 
-from lorwright.perceive.digits import GLYPH_SIZE
-from lorwright.perceive.hand import read_glyph
+from lorwright.core.perceive.digits import GLYPH_SIZE
+from lorwright.core.perceive.hand import read_glyph
 
 
 def parse_badge(spec: str) -> tuple[tuple[int, int], int]:

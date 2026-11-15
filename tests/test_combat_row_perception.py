@@ -9,12 +9,12 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.config import load_settings
-from lorwright.loop.outcome import ActionOutcome, OutcomeStatus
-from lorwright.models import Action, ActionType, UIState
-from lorwright.perceive.hand import find_badges, find_badges_expanded
-from lorwright.perceive.state import StateParser
-from lorwright.perceive.units import find_unit_badges
+from lorwright.core.config import load_settings
+from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+from lorwright.core.models import Action, ActionType, UIState
+from lorwright.core.perceive.hand import find_badges, find_badges_expanded
+from lorwright.core.perceive.state import StateParser
+from lorwright.core.perceive.units import find_unit_badges
 
 
 class UI:

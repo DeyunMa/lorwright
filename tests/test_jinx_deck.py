@@ -1,6 +1,6 @@
-from lorwright.champions import load
-from lorwright.champions.jinx.deck import BY_CODE
-from lorwright.decide.card import CardKind
+from lorwright.core.champions import load
+from lorwright.core.champions.jinx.deck import BY_CODE
+from lorwright.core.decide.card import CardKind
 
 
 def test_jinx_deck_has_nine_types_and_key_cards():

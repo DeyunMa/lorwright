@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from lorwright.champions.elise.deck import BY_NAME, SPIDER_AGGRO, Effect, lookup
-from lorwright.champions.elise.policy import rank_playable, score
-from lorwright.decide.combat import to_combatant
-from lorwright.models import CardInHand, GameState, Rect, Unit
+from lorwright.core.champions.elise.deck import BY_NAME, SPIDER_AGGRO, Effect, lookup
+from lorwright.core.champions.elise.policy import rank_playable, score
+from lorwright.core.decide.combat import to_combatant
+from lorwright.core.models import CardInHand, GameState, Rect, Unit
 
 RECT = Rect(0, 0, 10, 10)
 
@@ -108,7 +108,7 @@ def test_attack_trigger_buff_is_not_deferred():
     它是在攻击时给全体蜘蛛 +2|+0，早出晚出效果一样；
     把它和「召喚時」型混在一起排到后面，只会白白让它少参与一次攻击。
     """
-    from lorwright.champions.elise.deck import lookup
+    from lorwright.core.champions.elise.deck import lookup
 
     spinner = lookup("尖嘯蜘蛛")
     host = lookup("群蛛之主")

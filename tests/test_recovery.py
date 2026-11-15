@@ -1,6 +1,6 @@
 """分级恢复：重试 → 重开对局 → 重启客户端 → 停止。"""
 
-from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
+from lorwright.core.loop.recovery import RecoveryAction, RecoveryPolicy
 
 
 def test_escalation_order() -> None:

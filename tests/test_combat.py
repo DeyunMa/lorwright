@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from lorwright.decide.combat import (
+from lorwright.core.decide.combat import (
     Combatant,
     Keyword,
     best_attack,
@@ -15,7 +15,7 @@ from lorwright.decide.combat import (
     strike,
     to_combatant,
 )
-from lorwright.models import Rect, Unit
+from lorwright.core.models import Rect, Unit
 
 
 def unit(attack: int, health: int, *keywords: Keyword, name: str = "", stunned: bool = False) -> Combatant:

@@ -2,14 +2,17 @@
 
 import time
 from dataclasses import replace
+from pathlib import Path
 
+import cv2
 import numpy as np
+import pytest
 
-from lorwright.config import Settings
-from lorwright.decide.router import RouteResult
-from lorwright.device.base import Frame
-from lorwright.loop.engine import Engine
-from lorwright.models import (
+from lorwright.core.config import Settings
+from lorwright.core.decide.router import RouteResult
+from lorwright.core.device.base import Frame
+from lorwright.core.loop.engine import Engine
+from lorwright.core.models import (
     Action,
     ActionType,
     CardInHand,
@@ -63,6 +66,55 @@ class Router:
         return {}
 
 
+def test_inspect_board_collapses_once_then_attacks(monkeypatch):
+    from lorwright.core.decide.generic import AttackWhenTokenPolicy, ExpandHandPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    card = CardInHand(0, "spell", 3, Rect(400, 800, 80, 100))
+    expanded = ready(hand=[card], hand_expanded=True, has_attack_token=True)
+    unit = Unit("unit", 1, 1, Rect(500, 850, 50, 50))
+    collapsed = ready(hand=[card], has_attack_token=True, my_units=[unit])
+    engine, device, _, _, _ = engine_for(monkeypatch, [expanded, collapsed], [])
+    engine.layout.collapse_hand_point = Rect(499, 619, 2, 2)
+    engine.layout.attack_row = Rect(700, 470, 520, 70)
+    engine.router = RealRouter([ExpandHandPolicy(), AttackWhenTokenPolicy()])
+    engine.run(max_ticks=2)
+    assert device.taps == [(500, 620)]
+    assert len(device.drags) == 1
+
+
+@pytest.mark.parametrize("ui,action", [
+    (UIState.UNKNOWN, Action(ActionType.NO_OP, raw={"inspect_board": True})),
+    (UIState.TARGETING, Action(ActionType.NO_OP)),
+    (UIState.MY_TURN_IDLE, Action(ActionType.NO_OP)),
+])
+def test_board_inspection_never_overrides_unrelated_wait(monkeypatch, ui, action):
+    state = ready(ui_state=ui, hand_expanded=True, has_attack_token=True)
+    engine, device, _, _, _ = engine_for(monkeypatch, [state], [action])
+    engine.layout.collapse_hand_point = Rect(499, 619, 2, 2)
+    engine.run(max_ticks=1)
+    assert device.taps == []
+
+
+@pytest.mark.parametrize("transition", [True, False])
+def test_reward_timeout_clicks_once_and_requires_known_transition(monkeypatch, transition):
+    fixtures = Path(__file__).parent / "fixtures/reward_timeout"
+    timeout = cv2.imread(str(fixtures / "f1.png"))
+    home = cv2.imread(str(fixtures / "f1-after-home.png"))
+    engine, device, router, _, snapshots = engine_for(
+        monkeypatch, [GameState(ui_state=UIState.UNKNOWN)], [],
+    )
+    images = iter([timeout] + ([timeout, home] if transition else [timeout] * 6))
+    monkeypatch.setattr(device, "screencap", lambda: Frame(image=next(images)))
+    monkeypatch.setattr(engine, "_wait", lambda seconds: None)
+    result = engine.run(max_ticks=1)
+    assert device.taps == [(960, 757)]
+    assert router.calls == 0
+    assert result.reason == ("reward_timeout_transition" if transition
+                             else "reward_timeout_transition_unverified")
+    assert bool(snapshots) is not transition
+
+
 def ready(**kwargs):
     values = dict(
         ui_state=UIState.MY_TURN_IDLE, mana=3,
@@ -87,9 +139,119 @@ def engine_for(monkeypatch, states, actions, timeout=8):
     monkeypatch.setattr(engine.parser, "load", lambda: None)
     monkeypatch.setattr(engine, "_build_state", lambda image: next(sequence))
     events, snapshots = [], []
-    monkeypatch.setattr("lorwright.loop.engine.emit", lambda **event: events.append(event))
-    monkeypatch.setattr("lorwright.loop.engine.save_snapshot", lambda *args, **kw: snapshots.append(kw))
+    monkeypatch.setattr("lorwright.core.loop.engine.emit", lambda **event: events.append(event))
+    monkeypatch.setattr("lorwright.core.loop.engine.save_snapshot", lambda *args, **kw: snapshots.append(kw))
     return engine, device, router, events, snapshots
+
+
+@pytest.mark.parametrize("action_type,allowed", [
+    (ActionType.ATTACK, True),
+    (ActionType.PLAY_CARD, False),
+    (ActionType.END_TURN, False),
+    (ActionType.CONFIRM, False),
+])
+def test_stale_mana_only_allows_attack_with_confirmed_empty_hand(monkeypatch, action_type, allowed):
+    state = ready(
+        hand_empty_confirmed=True, has_attack_token=True,
+        my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+        readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)},
+    )
+    engine, device, router, events, _ = engine_for(
+        monkeypatch, [state], [Action(action_type)],
+    )
+    engine.layout.attack_row = Rect(500, 400, 100, 50)
+    engine.run(max_ticks=1)
+
+    assert router.calls == 1
+    assert bool(device.drags) is allowed
+    assert not device.taps
+    if not allowed:
+        assert events[-1]["layer"] == "unreadable"
+
+
+@pytest.mark.parametrize("change", [
+    {"hand_empty_confirmed": False},
+    {"has_attack_token": False},
+    {"my_units": []},
+    {"readings": {"mana": Reading(10, 1), "nexus_hp": Reading(20, 1)}},
+])
+def test_stale_mana_requires_all_attack_evidence(monkeypatch, change):
+    values = dict(hand_empty_confirmed=True, has_attack_token=True,
+                  my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+                  readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)})
+    values.update(change)
+    engine, device, router, _, _ = engine_for(monkeypatch, [ready(**values)], [])
+    engine.run(max_ticks=1)
+    assert router.calls == 0
+    assert not device.drags and not device.taps
+
+
+@pytest.mark.parametrize("action,spell_reading,cost,expected", [
+    (Action(ActionType.PLAY_CARD, card_index=0, raw={"spell_mana_only": True}), Reading(3, 0), 1, True),
+    (Action(ActionType.PLAY_CARD, card_index=0), Reading(3, 0), 1, False),
+    (Action(ActionType.END_TURN), Reading(3, 0), 1, False),
+    (Action(ActionType.PLAY_CARD, card_index=0, raw={"spell_mana_only": True}), Reading(3, 1), 1, False),
+    (Action(ActionType.PLAY_CARD, card_index=0, raw={"spell_mana_only": True}), Reading(3, 0), 4, False),
+])
+def test_unreadable_mana_only_allows_verified_spell_mana_action(
+    monkeypatch, action, spell_reading, cost, expected
+):
+    s = ready(hand_expanded=True, hand=[CardInHand(0, "砰砰", cost, Rect(200, 900, 8, 8))],
+              enemy_units=[Unit("", 2, 1, Rect(500, 200, 20, 20))], spell_mana=3,
+              readings={"mana": Reading(None, None), "spell_mana": spell_reading,
+                        "nexus_hp": Reading(20, 0)})
+    engine, device, _, _, _ = engine_for(monkeypatch, [s], [action])
+    engine.run(max_ticks=1)
+    assert bool(device.drags) is expected
+    assert not device.taps
+
+
+def test_manual_empty_hand_allows_attack_with_unreadable_mana(monkeypatch):
+    state = ready(has_attack_token=True,
+                  my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+                  readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)})
+    engine, device, _, _, _ = engine_for(monkeypatch, [state], [Action(ActionType.ATTACK)])
+    engine.layout.attack_row = Rect(500, 400, 100, 50)
+    engine._confirm_empty_hand_once = True
+    engine.run(max_ticks=1)
+    assert device.drags and not device.taps
+
+
+def test_manual_empty_hand_allows_only_one_frame_to_attack(monkeypatch):
+    state = ready(has_attack_token=True,
+                  my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+                  readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)})
+    later = replace(state)
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [state, later], [Action(ActionType.NO_OP)],
+    )
+    engine._confirm_empty_hand_once = True
+    engine.run(max_ticks=2)
+    assert router.calls == 1
+    assert state.hand_empty_confirmed and not later.hand_empty_confirmed
+    assert not device.drags and not device.taps
+
+
+@pytest.mark.parametrize("action_type", [ActionType.PLAY_CARD, ActionType.END_TURN, ActionType.CONFIRM])
+def test_manual_empty_hand_only_permits_attack_even_with_fresh_mana(monkeypatch, action_type):
+    state = ready(has_attack_token=True, my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))])
+    engine, device, _, _, _ = engine_for(monkeypatch, [state], [Action(action_type)])
+    engine._confirm_empty_hand_once = True
+    engine.run(max_ticks=1)
+    assert not device.drags and not device.taps
+
+
+def test_manual_empty_hand_conflicting_card_consumes_confirmation(monkeypatch):
+    card = CardInHand(0, "", 1, Rect(300, 800, 50, 50))
+    state = ready(hand=[card])
+    later = ready(readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)},
+                  has_attack_token=True, my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))])
+    engine, device, router, _, _ = engine_for(monkeypatch, [state, later], [])
+    engine._confirm_empty_hand_once = True
+    engine.run(max_ticks=2)
+    assert router.calls == 0
+    assert not later.hand_empty_confirmed
+    assert not device.drags and not device.taps
 
 
 def test_expand_then_drag_waits_for_result_without_repeating_input(monkeypatch):
@@ -104,11 +266,38 @@ def test_expand_then_drag_waits_for_result_without_repeating_input(monkeypatch):
     engine.run(max_ticks=4)
     assert len(device.taps) == 1
     assert len(device.drags) == 1
+    attempts = [e for e in events if e.get("event") == "play_card_attempt"]
+    assert len(attempts) == 2
+    assert attempts[1]["card_index"] == 0
+    assert attempts[1]["card"]["cost"] == 1
+    assert attempts[1]["hand_expanded"] is True
+    assert attempts[1]["plan"]["points"][0] == (325, 825)
     assert router.calls == 3
     assert [e["status"] for e in events if e.get("event") == "action_outcome"] == [
         "succeeded", "waiting", "succeeded",
     ]
     assert device.closed
+
+
+def test_unrecognized_target_stops_without_input(monkeypatch):
+    s = ready(ui_state=UIState.TARGETING)
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [s, s], [Action(ActionType.NO_OP)], timeout=0,
+    )
+    result = engine.run(max_ticks=2)
+    assert result.reason == "unknown_target"
+    assert snapshots[-1]["tag"] == "unknown_target"
+    assert not device.drags and not device.taps
+
+
+def test_target_wait_deadline_survives_unknown_frame(monkeypatch):
+    targeting = ready(ui_state=UIState.TARGETING)
+    unknown = ready(ui_state=UIState.UNKNOWN)
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [targeting, unknown], [Action(ActionType.NO_OP)], timeout=0,
+    )
+    assert engine.run(max_ticks=2).reason == "unknown_target"
+    assert not device.drags and not device.taps
 
 
 def test_successful_outcome_is_delivered_to_policy_once(monkeypatch):
@@ -193,7 +382,7 @@ def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypat
         [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
     )
     clock = iter([0.0, 0.0, 0.0, 20.0])
-    monkeypatch.setattr("lorwright.loop.engine.time.monotonic", lambda: next(clock))
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: next(clock))
 
     class Observer:
         def __init__(self):
@@ -211,9 +400,9 @@ def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypat
 
 
 def test_two_rockets_each_wait_for_confirmation_and_verified_payment(monkeypatch):
-    from lorwright.champions.jinx.policy import JinxOpeningPolicy
-    from lorwright.decide.generic import CombatConfirmPolicy
-    from lorwright.decide.router import Router as RealRouter
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.generic import CombatConfirmPolicy
+    from lorwright.core.decide.router import Router as RealRouter
 
     def rocket(index):
         return CardInHand(index, "超威能死亡火箭！", 1, Rect(300 + index * 100, 800, 50, 50))
@@ -240,6 +429,40 @@ def test_two_rockets_each_wait_for_confirmation_and_verified_payment(monkeypatch
     assert snapshots == []
 
 
+def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.generic import CombatConfirmPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    cards = [CardInHand(i, "超威能死亡火箭！", 1, Rect(300 + i * 100, 800, 50, 50))
+             for i in range(2)]
+    before = ready(mana=8, hand=cards, hand_expanded=True,
+                   readings={"mana": Reading(8, 0), "nexus_hp": Reading(20, 0)})
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    animation = replace(staged, ui_state=UIState.UNKNOWN, hand=cards[:1])
+    blocking = replace(before, ui_state=UIState.BLOCKING, hand=cards[:1], mana=7,
+                       readings={**before.readings, "mana": Reading(7, 0)})
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [before, staged, animation, blocking], [],
+    )
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    engine.router = RealRouter([policy, CombatConfirmPolicy()])
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 1.0, 10.0, 12.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    engine.run(max_ticks=4)
+    assert len(device.drags) == 1 and device.taps == [(20, 20)]
+    assert policy._rockets_played == 1
+    assert snapshots == []
+
+
 def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)
@@ -257,9 +480,9 @@ def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
 
 
 def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):
-    from lorwright.champions.jinx.policy import JinxOpeningPolicy
-    from lorwright.decide.router import Router as RealRouter
-    from lorwright.models import MulliganCard
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+    from lorwright.core.models import MulliganCard
 
     cards = [MulliganCard(i, False, Rect(100 + i * 100, 100, 8, 8))
              for i in range(4)]
@@ -274,6 +497,60 @@ def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):
     assert any(event.get("reason") == "frame_expired_during_decision" for event in events)
 
 
+@pytest.mark.parametrize("settled", [True, False])
+def test_combat_confirm_waits_for_settlement_without_repeating(monkeypatch, settled):
+    combat = ready(ui_state=UIState.COMBAT_RESOLVING)
+    animation = replace(combat, ui_state=UIState.UNKNOWN)
+    final = replace(combat, ui_state=UIState.ENEMY_TURN) if settled else animation
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [combat, animation, final],
+        [Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
+    )
+    decide = router.decide
+    monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="combat_confirm"))
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 10.0, 12.0 if settled else 20.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=3)
+    outcomes = [e["status"] for e in events if e.get("event") == "action_outcome"]
+    assert outcomes == ["waiting", "succeeded" if settled else "timed_out"]
+    assert device.taps == [(20, 20)]
+    assert snapshots == ([] if settled else [{"tag": "action_timeout"}])
+    if not settled:
+        assert result.reason == "action_timeout"
+        assert router.calls == 1
+
+
+def test_combat_confirm_wait_can_be_stopped(monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    combat = ready(ui_state=UIState.COMBAT_RESOLVING)
+    animation = replace(combat, ui_state=UIState.UNKNOWN)
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [combat, animation], [Action(ActionType.CONFIRM)],
+    )
+    decide = router.decide
+    monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="combat_confirm"))
+
+    def stop_after_animation():
+        if device.frames >= 2:
+            raise StopRequested()
+
+    monkeypatch.setattr("lorwright.core.loop.engine.checkpoint", stop_after_animation)
+    with pytest.raises(StopRequested):
+        engine.run(max_ticks=4)
+    assert device.taps == [(20, 20)]
+    assert router.calls == 1
+    assert device.closed
+
+
 def test_timeout_saves_evidence_and_stops_without_retry_or_restart(monkeypatch):
     state = ready(ui_state=UIState.MULLIGAN)
     engine, device, router, events, snapshots = engine_for(
@@ -285,6 +562,21 @@ def test_timeout_saves_evidence_and_stops_without_retry_or_restart(monkeypatch):
     assert snapshots == [{"tag": "action_timeout"}]
     assert any(e.get("status") == "timed_out" for e in events)
     assert device.closed and device.frames == 2
+
+
+def test_unchanged_play_timeout_stops_before_repeating_drag(monkeypatch):
+    hand = [CardInHand(0, "unit", 3, Rect(200, 800, 8, 8))]
+    state = ready(hand=hand, hand_expanded=True)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [state] * 3,
+        [Action(ActionType.PLAY_CARD, card_index=0)] * 2, timeout=0,
+    )
+    result = engine.run(max_ticks=3)
+    assert result.reason == "action_timeout"
+    assert router.calls == 1
+    assert len(device.drags) == 1
+    assert snapshots == [{"tag": "action_timeout"}]
+    assert any(e.get("status") == "timed_out" for e in events)
 
 
 def test_battle_end_returns_to_outer_loop_without_repeating_pending_action(monkeypatch):

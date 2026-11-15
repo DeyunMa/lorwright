@@ -3,7 +3,7 @@
 import cv2
 import numpy as np
 
-from lorwright.perceive.locate import find_all, find_one
+from lorwright.core.perceive.locate import find_all, find_one
 
 
 def _frame_with_block(x=100, y=120, size=40):

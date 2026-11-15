@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "purpose": "历史证据集中归档；保留全部图片原字节，不删除、不改变当前测试行为。",
+  "entries": [
+    {
+      "path": "research/archives/card_rewards/deck-after-crop.png",
+      "original_path": "tests/fixtures/card_rewards/deck-after-crop.png",
+      "sha256": "3b57d115a508cd67ffc7bce21aab10682acb878469d1e12879397913ce2411a7",
+      "bytes": 413078,
+      "width": 530,
+      "height": 860,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史奖励选中、重启后地图和牌组人工核查；不能单凭图片推断连续操作。"
+    },
+    {
+      "path": "research/archives/card_rewards/deck-after-restart.jpg",
+      "original_path": "tests/fixtures/card_rewards/deck-after-restart.jpg",
+      "sha256": "7914b563cba63ef89b76ab3f491c16423f03068071a102225dccf518d467ff75",
+      "bytes": 98048,
+      "width": 650,
+      "height": 1080,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史奖励选中、重启后地图和牌组人工核查；不能单凭图片推断连续操作。"
+    },
+    {
+      "path": "research/archives/card_rewards/f1-reward-selected-20261113.jpg",
+      "original_path": "tests/fixtures/card_rewards/f1-reward-selected-20261113.jpg",
+      "sha256": "8c5a7d9ac8c4490cf7a890b310b185f700b9fd1ce590d79bc9a794a78b95acd7",
+      "bytes": 206492,
+      "width": 1920,
+      "height": 1080,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史奖励选中、重启后地图和牌组人工核查；不能单凭图片推断连续操作。"
+    },
+    {
+      "path": "research/archives/card_rewards/map-after-restart.png",
+      "original_path": "tests/fixtures/card_rewards/map-after-restart.png",
+      "sha256": "acc10b9413dab072d88ffb2125b57d1b82adb9f7746a70458699322d8553b457",
+      "bytes": 2241734,
+      "width": 1920,
+      "height": 1080,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史奖励选中、重启后地图和牌组人工核查；不能单凭图片推断连续操作。"
+    },
+    {
+      "path": "research/archives/mapnav/f1-healer-travel-20261113.jpg",
+      "original_path": "tests/fixtures/mapnav/f1-healer-travel-20261113.jpg",
+      "sha256": "9c45ba8616ceb749adb6058a82f992902f793546c1a9fc4ef229f7a997d3423a",
+      "bytes": 148973,
+      "width": 1920,
+      "height": 1080,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "治疗师旅行面板人工核查证据；无当前测试文件名引用。"
+    },
+    {
+      "path": "research/archives/mapnav-960/adventure_panel_travel.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/adventure_panel_travel.jpg",
+      "sha256": "6d68cb555ed69438109ce1042830d17d9d7105474be18b6c7dd82173c505e496",
+      "bytes": 97767,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/item-chest-travel.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/item-chest-travel.jpg",
+      "sha256": "6d68cb555ed69438109ce1042830d17d9d7105474be18b6c7dd82173c505e496",
+      "bytes": 97767,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-g6.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-g6.jpg",
+      "sha256": "26cfad3a4a5de22082b9f6df49285330a7621e4ffec68ed04de412180909c986",
+      "bytes": 86511,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-g7.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-g7.jpg",
+      "sha256": "1af83d3e396d35d139de8e75cd7592e93c8f072786039f1da01926a78fa9ef7c",
+      "bytes": 86619,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-green.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-green.jpg",
+      "sha256": "5958069ac50aa06ddce5c4805fd10454896d0503260577447325b19dd060bc81",
+      "bytes": 86576,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-heroicon.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-heroicon.jpg",
+      "sha256": "d009a54dc0b4803ab4aac053109d4944216fae94fc1c2710223374beb4c6cb3b",
+      "bytes": 87879,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-map.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-map.jpg",
+      "sha256": "5e4f2100df9a429e137ca5e95ac1ead01eb641d1a1524062c284df24698a4b5f",
+      "bytes": 50045,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-node1.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-node1.jpg",
+      "sha256": "c20ebc82805dce9182f887de72c6b26c9852d52820e51decff232e7e67dd593a",
+      "bytes": 87550,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-node2.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-node2.jpg",
+      "sha256": "2b2c9307fc1552a68894d6f0ca4497480b7027c2d7d1d83cf508adf063f71577",
+      "bytes": 90654,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-node3.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-node3.jpg",
+      "sha256": "60203bd677faa94be679bcae635acf62f2e84bdcc4d5c40462f1ed819d985d92",
+      "bytes": 85026,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-re.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-re.jpg",
+      "sha256": "7c07b9902d1696ad600edde3b91f62fe412db6881a9cd3a096071b717f33f5fd",
+      "bytes": 86656,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-shopD.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-shopD.jpg",
+      "sha256": "c5dd6fed60054599babde7d9b5312841e7d7b08456366a555de6ed59ddc944b2",
+      "bytes": 84776,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/m3-zoom.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/m3-zoom.jpg",
+      "sha256": "46c4929e0ff290a46c0ad7869c688bb9f9641caab607e816bbdc80f0e32594ce",
+      "bytes": 84977,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/monthly2-boss-node.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/monthly2-boss-node.jpg",
+      "sha256": "090eca02a045459accf831e143bc46496d171d4eb32c46ead467958875e1f7ff",
+      "bytes": 81082,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/monthly2-event-node.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/monthly2-event-node.jpg",
+      "sha256": "6fbe5b2a1611db1f012523240b5f9a044a3641f51daa4087f2faae6b2d67b8b2",
+      "bytes": 83488,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/monthly2-map.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/monthly2-map.jpg",
+      "sha256": "7a4d83c0be128347687434621aa3e5a956a3d7b2186e8bd63a721143f7080ebf",
+      "bytes": 93092,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/n-green.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/n-green.jpg",
+      "sha256": "59920dccdf1d11a44a8d4c1cfb42fb4dc0f219760a3d20494a4c6b15e8e6a0b4",
+      "bytes": 86567,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/poppy-node.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/poppy-node.jpg",
+      "sha256": "ee9912ce51ee088e0050de2cbe9c8ee5d463377121711ecb049930db053f994b",
+      "bytes": 107965,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/r2-map.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/r2-map.jpg",
+      "sha256": "411e1ad956e1ed2b5925cfbba60be719f69c253ce3b3f2387c3c649596a151d1",
+      "bytes": 8788,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/re2-map.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/re2-map.jpg",
+      "sha256": "3e2e96ee8015e6aa5d476869a236941637db25556b9eee70ce80d66ffd7175d7",
+      "bytes": 50243,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/mapnav-960/re2-map2.jpg",
+      "original_path": "tests/fixtures/mapnav_960_legacy/re2-map2.jpg",
+      "sha256": "cf0ff8b3daf77794fbf316586a809e49de2e9f58aabc343f27ff76afc97e0b4c",
+      "bytes": 107818,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "旧 960×540 地图迁移对照；已退出当前回归，不能放大后重新标定 1080p。"
+    },
+    {
+      "path": "research/archives/support/jinx-1080-deck-after-confirm.jpg",
+      "original_path": "tests/fixtures/support/jinx-1080-deck-after-confirm.jpg",
+      "sha256": "9d5bc508d5ea9ed5fb002ce5ef69e0c4fc1ce0ab83dd0561489decbbce033703",
+      "bytes": 159093,
+      "width": 650,
+      "height": 1080,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史地图或确认后牌组人工核查；不证明辅助英雄奖励到账。"
+    },
+    {
+      "path": "research/archives/support/monthly2-support-pick.jpg",
+      "original_path": "tests/fixtures/support/monthly2-support-pick.jpg",
+      "sha256": "0a607efdf03a43b1315edd996a601da73607be4002b713aa93b092f37c373287",
+      "bytes": 82775,
+      "width": 960,
+      "height": 540,
+      "source": "f1 ADB 截图或其裁剪；JPEG 为有损预览，具体拍摄时间仅沿用已有文件名/交接记录。",
+      "reason": "历史地图或确认后牌组人工核查；不证明辅助英雄奖励到账。"
+    }
+  ],
+  "historical_documents": [
+    {
+      "path": "research/archives/mapnav-960/README.md",
+      "original_path": "tests/fixtures/mapnav_960_legacy/README.md"
+    },
+    {
+      "path": "research/archives/mapnav-960/test-notes.md",
+      "original_path": "tests/legacy/README.md",
+      "note": "仅更新迁移后的图片路径。"
+    },
+    {
+      "path": "research/archives/mapnav-960/test_mapnav_960.py.txt",
+      "original_path": "tests/legacy/test_mapnav_960.py.txt",
+      "note": "保留原测试文本，不参与 pytest；其中相对路径是历史代码，不是当前执行入口。"
+    }
+  ],
+  "identical_content": [
+    {
+      "canonical": "research/archives/mapnav-960/item-chest-travel.jpg",
+      "alias": "research/archives/mapnav-960/adventure_panel_travel.jpg",
+      "note": "SHA-256 相同；后续引用统一使用 canonical，alias 原文件保留以保存历史文件名。"
+    }
+  ],
+  "limits": [
+    "静态未见引用不是 unused 证明；已核对当前代码、测试、文档及目录扫描消费者。",
+    "tools/route_lab/diag.py 可批量扫描当前 fixtures；归档后不再将这张历史治疗师面板当作当前实验输入。",
+    "原 277+ 张仓库外底稿仍在外部本地目录，不在此次迁移范围，也不能当作已有备份。"
+  ]
+}

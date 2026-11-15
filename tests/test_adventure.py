@@ -15,6 +15,7 @@ import pytest
 from lorwright.champions import load
 from lorwright.config import load_settings
 from lorwright.loop.adventure import AdventureLoop
+from lorwright.loop.outcome import LoopResult
 from lorwright.models import UIState
 from lorwright.perceive.adventure_scene import find_home_adventure_entry
 from lorwright.perceive.mapnav import empty_point
@@ -73,8 +74,9 @@ class FakeEngine:
         self.parser = FakeParser(script)
         self.run_calls: list[int | None] = []
 
-    def run(self, max_ticks: int | None = None) -> None:
+    def run(self, max_ticks: int | None = None, *, close_device: bool = True) -> LoopResult:
         self.run_calls.append(max_ticks)
+        return LoopResult("completed", "battle_end")
 
 
 @pytest.fixture
@@ -438,6 +440,40 @@ def test_battle_takeover_runs_engine(adventure):
     loop.run(max_nodes=1)
     assert engine.run_calls == [400]  # settings.adventure.battle_max_ticks
     assert device.taps == []
+
+
+def test_battle_safety_stop_is_propagated_without_restarting(adventure, monkeypatch):
+    loop, device, engine, _, _ = adventure(
+        [_blank(), _blank()], [UIState.MULLIGAN, UIState.MULLIGAN],
+    )
+    calls = []
+    result = LoopResult("stopped", "action_timeout")
+
+    def stop_battle(*, max_ticks, close_device):
+        calls.append((max_ticks, close_device))
+        return result
+
+    monkeypatch.setattr(engine, "run", stop_battle)
+    assert loop.run(max_nodes=4) == result
+    assert calls == [(400, False)]
+    assert device.taps == []
+
+
+def test_iteration_limit_does_not_claim_completed_nodes(adventure):
+    loop, _, _, _, _ = adventure([], [])
+    assert loop.run(max_nodes=0) == LoopResult("stopped", "iteration_limit")
+
+
+def test_adventure_stop_reports_snapshot_to_session(adventure, tmp_path):
+    from lorwright.runtime.session import RunSession, read_status
+
+    loop, _, _, _, _ = adventure([_blank()], [UIState.UNKNOWN])
+    with RunSession(tmp_path, mode="adventure", champion="test", device="synthetic") as session:
+        assert loop.run(max_nodes=2) == LoopResult("stopped", "unknown_scene")
+        status = read_status(tmp_path, session.run_id)
+        assert status["reason"] == "unknown_scene"
+        assert status["details"]["snapshot"] == "/tmp/fake.png"
+        assert status["details"]["iteration"] == 1
 
 
 def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):

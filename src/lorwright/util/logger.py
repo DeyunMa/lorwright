@@ -17,6 +17,7 @@ def setup_logger(base_dir: str = "logs", level: str = "INFO", by_date: bool = Tr
         sys.stderr,
         level=level,
         format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | {message}",
+        filter=lambda r: r["extra"].get("event") is not True,
     )
 
     # 文件：完整结构化，按日期分目录
@@ -31,6 +32,7 @@ def setup_logger(base_dir: str = "logs", level: str = "INFO", by_date: bool = Tr
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {name}:{line} | {message}",
         rotation="50 MB",
         encoding="utf-8",
+        filter=lambda r: r["extra"].get("event") is not True,
     )
 
     # 结构化事件流（每回合一行 JSON，供 LLM 复盘）

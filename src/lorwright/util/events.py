@@ -10,7 +10,12 @@ from typing import Any
 
 from loguru import logger
 
+from lorwright.runtime.session import current_session, record_event
+
 
 def emit(**fields: Any) -> None:
-    """写一行结构化事件（不影响终端日志）。"""
-    logger.bind(event=True).info(json.dumps(fields, ensure_ascii=False, default=str))
+    """运行中写入会话事件；独立调用仍保留日期日志供已有复盘工具使用。"""
+    if current_session() is not None:
+        record_event(str(fields.get("event", "tick")), **fields)
+    else:
+        logger.bind(event=True).info(json.dumps(fields, ensure_ascii=False, default=str))

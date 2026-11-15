@@ -20,7 +20,13 @@ def load(path: Path) -> list[dict]:
             if not line:
                 continue
             try:
-                events.append(json.loads(line))
+                event = json.loads(line)
+                if event.get("schema_version") == 1 and "payload" in event:
+                    # 会话事件包含生命周期与心跳；只把战斗事件交给既有统计。
+                    if event.get("type") not in {"tick", "action_outcome"}:
+                        continue
+                    event = event["payload"]
+                events.append(event)
             except json.JSONDecodeError:
                 continue
     return events
@@ -28,7 +34,7 @@ def load(path: Path) -> list[dict]:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("用法: python tools/analyze.py <logs/日期目录>")
+        print("用法: python tools/analyze.py <logs/日期目录或 logs/runs/run_id>")
         raise SystemExit(1)
 
     root = Path(sys.argv[1])

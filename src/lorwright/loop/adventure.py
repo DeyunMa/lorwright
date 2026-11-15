@@ -25,6 +25,8 @@ from lorwright.act.translate import ActionTranslator
 from lorwright.decide.rewards import pick_card_reward, pick_reward
 from lorwright.decide.support import pick_support_group
 from lorwright.device.base import Device
+from lorwright.loop.engine import Engine
+from lorwright.loop.outcome import LoopResult
 from lorwright.models import Action, ActionType, GameState, UIState
 from lorwright.perceive.adventure_scene import (
     button_is,
@@ -61,6 +63,7 @@ from lorwright.perceive.support_screen import (
     support_confirm_button,
     support_selection,
 )
+from lorwright.runtime.session import StopRequested, checkpoint, record_event, report
 from lorwright.util import snapshot
 from lorwright.util.logger import logger
 
@@ -92,26 +95,52 @@ class AdventureLoop:
         self.translator = ActionTranslator(settings.layout.to_layout())
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self.rng = random.Random()
+        self.result = LoopResult("stopped", "iteration_limit")
+        self._last_scene = None
+        self._details: dict = {}
 
-    def run(self, max_nodes: int = 30) -> None:
+    def run(self, max_nodes: int = 30) -> LoopResult:
+        """max_nodes 是冒险循环迭代预算，不是已完成节点数。"""
+        self.result = LoopResult("stopped", "iteration_limit")
+        self._details = dict(iteration=0, iteration_limit=max_nodes)
+        try:
+            battle_result = self._run(max_nodes)
+        except StopRequested:
+            report("stopping", "stop_requested", **self._details)
+            raise
+        except Exception as exc:
+            report("error", type(exc).__name__, error=str(exc), **self._details)
+            raise
+        if battle_result is not None:
+            return battle_result
+        report(self.result.status, self.result.reason, **self._details)
+        return self.result
+
+    def _run(self, max_nodes: int) -> LoopResult | None:
         self.engine.parser.load()
         last_continue = None
         last_continue_view = None
-        for _ in range(max_nodes):
+        for iteration in range(1, max_nodes + 1):
+            self._details.update(iteration=iteration)
+            report("adventure", **self._details)
             image = self._frame()
             if shop_leave_button(image) is not None:
+                self._scene("shop")
                 if not self._handle_shop(image):
                     return
                 continue
             if self._is_healer(image):
+                self._scene("healer")
                 if not self._handle_healer(image):
                     return
                 continue
             if self._is_support(image):
+                self._scene("support")
                 if not self._handle_support(image):
                     return
                 continue
             if self._is_card_reward(image):
+                self._scene("card_reward")
                 if not self._handle_card_reward(image):
                     return
                 continue
@@ -121,13 +150,20 @@ class AdventureLoop:
             if ui in self.BATTLE_STATES:
                 last_continue = None
                 logger.info("adventure: 进入战斗，引擎接管")
-                self.engine.run(max_ticks=self.coords.battle_max_ticks)
+                self._scene("battle")
+                result = self.engine.run(max_ticks=self.coords.battle_max_ticks, close_device=False)
+                if result.reason != "battle_end":
+                    self.result = result
+                    return result
                 continue
+            self._details.update(ui=ui.value)
+            report("recognized", **self._details)
             if ui is UIState.BATTLE_END:
+                self._scene("battle_end")
                 button = find_continue_button(image)
                 if button is None:
-                    snapshot.save_snapshot(
-                        image, self.settings.perception.snapshot_dir, tag="continue_missing"
+                    self._snapshot(
+                        image, tag="continue_missing"
                     )
                     return
                 x, y = button.center
@@ -136,19 +172,20 @@ class AdventureLoop:
                 ) and last_continue_view is not None and (
                     np.mean(cv2.absdiff(_continue_view(image), last_continue_view)) < 15
                 ):
-                    snapshot.save_snapshot(
-                        image, self.settings.perception.snapshot_dir, tag="continue_unchanged"
+                    self._snapshot(
+                        image, tag="continue_unchanged"
                     )
                     return
                 plan = self.translator.translate(
                     Action(ActionType.CONTINUE), GameState(continue_button=button)
                 )
                 if plan is None:
+                    self._snapshot(image, tag="continue_plan_missing")
                     return
-                self.device.tap(*plan.points[0])
+                self._tap(*plan.points[0])
                 last_continue = (x, y)
                 last_continue_view = _continue_view(image)
-                time.sleep(3)
+                self._wait(3)
                 continue
             last_continue = None
             if is_power_screen(image):
@@ -167,55 +204,54 @@ class AdventureLoop:
                     selected = getattr(self.pack, "recognize_selected_hero", None)
                     if selected is None or not selected(design_image):
                         logger.warning("adventure: 无法确认所选英雄，停止")
-                        snapshot.save_snapshot(
-                            image, self.settings.perception.snapshot_dir, tag="resume_hero_unknown"
+                        self._snapshot(
+                            image, tag="resume_hero_unknown"
                         )
                         return
-                    self.device.tap(*scale.to_device(*resume.center))
+                    self._tap(*scale.to_device(*resume.center))
                     for _ in range(6):
-                        time.sleep(2)
+                        self._wait(2, reason="resume_transition", wait_s=12)
                         after = self._frame()
                         if is_map(after):
                             logger.info("adventure: 已继续冒险，返回地图")
                             break
                     else:
-                        snapshot.save_snapshot(
-                            after, self.settings.perception.snapshot_dir,
-                            tag="resume_transition_unverified",
+                        self._snapshot(
+                            after, tag="resume_transition_unverified",
                         )
                         return
                     continue
                 entry = find_home_adventure_entry(design_image)
                 if entry is not None:
-                    self.device.tap(*scale.to_device(*entry.center))
-                    time.sleep(3)
+                    self._tap(*scale.to_device(*entry.center))
+                    self._wait(3)
                     next_image = self._frame()
-                    snapshot.save_snapshot(
-                        next_image, self.settings.perception.snapshot_dir, tag="home_entry_after"
+                    self._snapshot(
+                        next_image, tag="home_entry_after"
                     )
                     logger.info("adventure: 已点击英雄之路入口，等待下一场景识别")
                     return
             if not is_map(image):
                 logger.warning("adventure: 未识别地图画面，停止（保存快照）")
-                snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="unknown_scene")
+                self._snapshot(image, tag="unknown_scene")
                 return
+            self._scene("map")
             nxt = self._find_next(image)
             if nxt is None:
                 if is_completed_panel(image):
                     if self._close_panel(image):
                         continue
                     logger.warning("adventure: 面板打开但找不到空白点，停止")
-                    snapshot.save_snapshot(
-                        image, self.settings.perception.snapshot_dir, tag="panel_no_empty_point"
+                    self._snapshot(
+                        image, tag="panel_no_empty_point"
                     )
                     return
                 logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
-                from lorwright.util.snapshot import save_snapshot
-                save_snapshot(image, self.settings.perception.snapshot_dir, tag="map_no_next")
+                self._snapshot(image, tag="map_no_next")
                 return
             # mapnav 返回的是输入帧像素坐标；_find_next 已统一换算到设计尺寸。
-            self.device.tap(nxt.x, nxt.y)
-            time.sleep(3)
+            self._tap(nxt.x, nxt.y)
+            self._wait(3)
             if not self._handle_node_panel():
                 return
 
@@ -233,11 +269,14 @@ class AdventureLoop:
         if candidates is not None:
             picked = pick_reward(candidates, self.pack.power_preferences)
             if picked is not None:
+                self._details.update(recommendation=picked.candidate.name,
+                                     recommendation_reason=picked.reason)
+                report("waiting", "power_confirmation_required", **self._details)
                 logger.info("adventure: 能力推荐 {}（{}），等待确认流程素材",
                             picked.candidate.name, picked.reason)
         else:
             logger.warning("adventure: 能力候选无法完整识别，停止")
-        snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="power_choice")
+        self._snapshot(image, tag="power_choice")
 
     def _reward_design(self, image):
         height, width = image.shape[:2]
@@ -263,14 +302,15 @@ class AdventureLoop:
         """按当前通用规则离开商店，核实返回地图后继续。"""
         button = shop_leave_button(image)
         if button is None:
+            self._snapshot(image, tag="shop_leave_missing")
             return False
-        self.device.tap(*button.center)
-        time.sleep(3)
+        self._tap(*button.center)
+        self._wait(3)
         after = self._frame()
         if is_map(after) and not panel_open(after):
             logger.info("adventure: 已离开商店，继续寻找下一节点")
             return True
-        snapshot.save_snapshot(after, self.settings.perception.snapshot_dir, tag="shop_leave_unverified")
+        self._snapshot(after, tag="shop_leave_unverified")
         return False
 
     def _handle_healer(self, image) -> bool:
@@ -279,14 +319,14 @@ class AdventureLoop:
         button = healer_heal_button(normalized[0]) if normalized is not None else None
         if normalized is None or button is None:
             logger.warning("adventure: 治疗师选项或按钮无法确认，停止")
-            snapshot.save_snapshot(
-                image, self.settings.perception.snapshot_dir, tag="healer_unknown"
+            self._snapshot(
+                image, tag="healer_unknown"
             )
             return False
         _, scale = normalized
-        self.device.tap(*scale.to_device(*button.center))
+        self._tap(*scale.to_device(*button.center))
         logger.info("adventure: 已点击治疗，等待核对结果")
-        time.sleep(3)
+        self._wait(3)
         after = self._frame()
         if self._is_healer(after):
             logger.warning("adventure: 治疗后仍在治疗师页面，停止")
@@ -296,8 +336,8 @@ class AdventureLoop:
             hero = recognize_hero(after) if recognize_hero is not None else None
             if hero is not None and _current_completed_node_visible(after, hero):
                 logger.info("adventure: 治疗节点已完成，继续冒险")
-                snapshot.save_snapshot(
-                    after, self.settings.perception.snapshot_dir, tag="healer_completed"
+                self._snapshot(
+                    after, tag="healer_completed"
                 )
                 return True
             logger.warning("adventure: 治疗后回到地图，但无法确认节点完成")
@@ -305,63 +345,66 @@ class AdventureLoop:
         else:
             logger.warning("adventure: 治疗后状态无法确认，停止")
             tag = "healer_after_unknown"
-        snapshot.save_snapshot(after, self.settings.perception.snapshot_dir, tag=tag)
+        self._snapshot(after, tag=tag)
         return False
 
     def _handle_support(self, image) -> bool:
         """选择援军并核对选中状态；确认后无法验证到账则停止。"""
         normalized = self._reward_design(image)
         if normalized is None:
+            self._snapshot(image, tag="support_unknown")
             return False
         design, scale = normalized
         choices = recognize_support_choices(design)
         if choices is None:
-            snapshot.save_snapshot(
-                image, self.settings.perception.snapshot_dir, tag="support_unknown"
+            self._snapshot(
+                image, tag="support_unknown"
             )
             return False
         index = pick_support_group([choice.group for choice in choices])
         if index is None:
             logger.warning("adventure: 辅助英雄费用不足以排序，停止")
-            snapshot.save_snapshot(
-                image, self.settings.perception.snapshot_dir, tag="support_undecided"
+            self._snapshot(
+                image, tag="support_undecided"
             )
             return False
         logger.info("adventure: 选择第 {} 组辅助英雄（英雄 {} 费）", index + 1,
                     choices[index].group.hero_cost)
-        self.device.tap(*scale.to_device(*choices[index].target.center))
-        time.sleep(3)
+        report("decided", "support_choice", selection=index, hero_cost=choices[index].group.hero_cost)
+        self._tap(*scale.to_device(*choices[index].target.center))
+        self._wait(3)
         selected_image = self._frame()
         selected = self._reward_design(selected_image)
         if (selected is None or support_selection(selected[0]) != index
                 or not same_support_choices(design, selected[0], index)):
-            snapshot.save_snapshot(
-                selected_image, self.settings.perception.snapshot_dir, tag="support_selection_failed"
+            self._snapshot(
+                selected_image, tag="support_selection_failed"
             )
             return False
+        report("verified", "support_selected", progress=True, selection=index)
         button = support_confirm_button(selected[0])
         if button is None:
-            snapshot.save_snapshot(
-                selected_image, self.settings.perception.snapshot_dir, tag="support_confirm_missing"
+            self._snapshot(
+                selected_image, tag="support_confirm_missing"
             )
             return False
-        self.device.tap(*selected[1].to_device(*button.center))
-        time.sleep(3)
+        self._tap(*selected[1].to_device(*button.center))
+        self._wait(3)
         next_image = self._frame()
         next_design = self._reward_design(next_image)
         if next_design is None or is_support_screen(next_design[0]):
-            snapshot.save_snapshot(
-                next_image, self.settings.perception.snapshot_dir, tag="support_confirm_unchanged"
+            self._snapshot(
+                next_image, tag="support_confirm_unchanged"
             )
             return False
         if not is_map(next_design[0]):
-            snapshot.save_snapshot(
-                next_image, self.settings.perception.snapshot_dir, tag="support_after_unknown"
+            self._snapshot(
+                next_image, tag="support_after_unknown"
             )
             return False
         logger.warning("adventure: 辅助英雄确认后已转场，但尚无法验证卡牌到账，停止")
-        snapshot.save_snapshot(
-            next_image, self.settings.perception.snapshot_dir, tag="support_reward_unverified"
+        self._snapshot(
+            next_image, tag="support_reward_unverified"
         )
         return False
 
@@ -369,12 +412,13 @@ class AdventureLoop:
         """逐步选牌并核对转场；到账尚不可验证时停止。"""
         normalized = self._reward_design(image)
         if normalized is None:
+            self._snapshot(image, tag="card_reward_unknown")
             return False
         design, scale = normalized
         candidates = recognize_card_rewards(design)
         if candidates is None:
             logger.warning("adventure: 卡牌奖励信息不完整或已选中，停止")
-            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="card_reward_unknown")
+            self._snapshot(image, tag="card_reward_unknown")
             return False
         champion_pick = getattr(self.pack, "pick_card_reward", None)
         picked = champion_pick(candidates) if champion_pick is not None else pick_card_reward(
@@ -383,49 +427,52 @@ class AdventureLoop:
         )
         if picked is None:
             logger.warning("adventure: 卡牌奖励无法安全排序，停止")
-            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="card_reward_undecided")
+            self._snapshot(image, tag="card_reward_undecided")
             return False
         index = candidates.index(picked.candidate)
+        report("decided", "card_reward_choice", selection=index,
+               recommendation=picked.candidate.card.name, recommendation_reason=picked.reason)
         logger.info("adventure: 选择奖励 {}（{}）", picked.candidate.card.name, picked.reason)
         target = card_reward_target(design, index, picked.candidate.card.name)
         if target is None:
-            snapshot.save_snapshot(
-                image, self.settings.perception.snapshot_dir, tag="card_reward_target_obscured"
+            self._snapshot(
+                image, tag="card_reward_target_obscured"
             )
             return False
-        self.device.tap(*scale.to_device(*target.center))
-        time.sleep(3)
+        self._tap(*scale.to_device(*target.center))
+        self._wait(3)
         selected_image = self._frame()
         selected = self._reward_design(selected_image)
         if selected is None or card_reward_selection(selected[0]) != index:
-            snapshot.save_snapshot(
-                selected_image, self.settings.perception.snapshot_dir, tag="card_reward_selection_failed"
+            self._snapshot(
+                selected_image, tag="card_reward_selection_failed"
             )
             return False
+        report("verified", "card_reward_selected", progress=True, selection=index)
         button = card_reward_confirm_button(selected[0])
         if button is None:
-            snapshot.save_snapshot(
-                selected_image, self.settings.perception.snapshot_dir, tag="card_reward_confirm_missing"
+            self._snapshot(
+                selected_image, tag="card_reward_confirm_missing"
             )
             return False
-        self.device.tap(*selected[1].to_device(*button.center))
-        time.sleep(3)
+        self._tap(*selected[1].to_device(*button.center))
+        self._wait(3)
         next_image = self._frame()
         next_design = self._reward_design(next_image)
         if next_design is None or is_card_reward_screen(next_design[0]):
-            snapshot.save_snapshot(
-                next_image, self.settings.perception.snapshot_dir, tag="card_reward_confirm_unchanged"
+            self._snapshot(
+                next_image, tag="card_reward_confirm_unchanged"
             )
             return False
         if not (is_map(next_design[0]) or is_power_screen(next_design[0])):
-            snapshot.save_snapshot(
-                next_image, self.settings.perception.snapshot_dir, tag="card_reward_after_unknown"
+            self._snapshot(
+                next_image, tag="card_reward_after_unknown"
             )
             return False
         # 回到地图或进入能力页不代表服务端已把奖励加入牌组。
         logger.warning("adventure: 奖励确认后已转场，但尚无法验证卡牌到账，停止")
-        snapshot.save_snapshot(
-            next_image, self.settings.perception.snapshot_dir, tag="card_reward_unverified"
+        self._snapshot(
+            next_image, tag="card_reward_unverified"
         )
         return False
 
@@ -435,9 +482,9 @@ class AdventureLoop:
         if point is None:
             return False
         for _ in range(2):
-            self.device.tap(*point)
+            self._tap(*point)
             logger.info("adventure: 点击空白处关闭面板 ({}, {})", *point)
-            time.sleep(4)
+            self._wait(4)
             image = self._frame()
             if is_map(image) and not panel_open(image):
                 return True
@@ -465,14 +512,14 @@ class AdventureLoop:
             return False
         if not is_map(image) and not is_battle_detail(image):
             logger.warning("adventure: 未识别节点面板，停止（保存快照）")
-            snapshot.save_snapshot(image, self.settings.perception.snapshot_dir, tag="panel_unknown")
+            self._snapshot(image, tag="panel_unknown")
             return False
         # 点了节点但还在地图：说明这次点击没打开面板（坐标/动画/网络问题）。
         # 此时不能再盲点「旅行」，否则会把地图上的空白当成按钮。
         if is_map(image) and self._find_next(image) is not None:
             logger.warning("adventure: 节点点击后仍在地图，停止盲点（保存快照）")
-            snapshot.save_snapshot(
-                image, self.settings.perception.snapshot_dir, tag="map_panel_not_open"
+            self._snapshot(
+                image, tag="map_panel_not_open"
             )
             return False
         # 每个阶段只点一次；下一帧必须进入下一阶段，不能重复点同一按钮。
@@ -488,10 +535,11 @@ class AdventureLoop:
                 action = "battle"
             else:
                 break
-            self.device.tap(*button.center)
+            self._scene("node_" + action)
+            self._tap(*button.center)
             last_action = action
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
-            time.sleep(4)
+            self._wait(4, reason="node_transition", wait_s=24)
             # 旅行或战斗可能先出现载入画面。只等待新帧，绝不重复点击；
             # 看到可识别的场景再交给对应处理，超时仍未知则停止。
             for attempt in range(11):
@@ -513,11 +561,11 @@ class AdventureLoop:
                 if is_map(image) or is_battle_detail(image):
                     break
                 if attempt < 10:
-                    time.sleep(2)
+                    self._wait(2, reason="node_transition", wait_s=24)
             else:
                 logger.warning("adventure: 节点转场后画面仍无法识别，停止")
-                snapshot.save_snapshot(
-                    image, self.settings.perception.snapshot_dir, tag="panel_transition_timeout"
+                self._snapshot(
+                    image, tag="panel_transition_timeout"
                 )
                 return False
         # 旅行后回到地图：说明这个节点只是移动，继续下一轮找节点。
@@ -525,12 +573,48 @@ class AdventureLoop:
             return True
         # 没有金色按钮（能力三选一／商店／信息面板）：不盲点，存快照停下。
         logger.warning("adventure: 面板未进入预期的下一阶段，停止（保存快照）")
-        snapshot.save_snapshot(
-            image, self.settings.perception.snapshot_dir,
-            tag="panel_no_action_button" if last_action else "panel_unknown",
+        self._snapshot(
+            image, tag="panel_no_action_button" if last_action else "panel_unknown",
         )
         return False
 
+    def _scene(self, scene: str) -> None:
+        changed = scene != self._last_scene
+        if changed:
+            record_event("adventure_scene", scene=scene)
+        self._details.update(scene=scene)
+        report("adventure", progress=changed, **self._details)
+        self._last_scene = scene
+
+    def _snapshot(self, image, out_dir=None, *, tag: str):
+        path = snapshot.save_snapshot(
+            image, out_dir or self.settings.perception.snapshot_dir, tag=tag,
+        )
+        if tag == "healer_completed":
+            report("verified", tag, progress=True, snapshot=str(path))
+        else:
+            self.result = LoopResult("stopped", tag)
+            self._details.update(snapshot=str(path))
+            report("stopped", tag, **self._details)
+        return path
+
+    def _tap(self, *point) -> None:
+        checkpoint()
+        report("execute", "adventure_tap", target=list(point), **self._details)
+        self.device.tap(*point)
+
+    def _wait(
+        self, seconds: float, *, reason: str = "adventure_transition", wait_s: float | None = None,
+    ) -> None:
+        # 轮询沿用整个转场的观察期限，不能把每次 sleep 当成新的进展。
+        report("waiting", reason, wait_s=seconds + 5 if wait_s is None else wait_s,
+               **self._details)
+        Engine._wait(seconds)
+
     def _frame(self):
+        checkpoint()
+        report("capture", **self._details)
+        started = time.time()
         frame = self.device.screencap()
+        report("recognize", capture_ms=round((time.time() - started) * 1000), **self._details)
         return frame.image

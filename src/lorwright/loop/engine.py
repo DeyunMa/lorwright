@@ -9,7 +9,7 @@ from lorwright.act.translate import ActionTranslator
 from lorwright.config import Settings
 from lorwright.decide.router import Router
 from lorwright.device.base import Device
-from lorwright.loop.outcome import ActionOutcome, OutcomeStatus
+from lorwright.loop.outcome import ActionOutcome, LoopResult, OutcomeStatus
 from lorwright.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.loop.watchdog import Watchdog
 from lorwright.models import Action, ActionType, ClickPlan, GameState, Layout, UIState
@@ -17,6 +17,13 @@ from lorwright.perceive.digits import DigitReader
 from lorwright.perceive.normalize import Normalizer, Scale
 from lorwright.perceive.state import StateParser
 from lorwright.perceive.ui_state import UIStateDetector
+from lorwright.runtime.session import (
+    StopRequested,
+    checkpoint,
+    current_session,
+    record_event,
+    report,
+)
 from lorwright.util.events import emit
 from lorwright.util.logger import logger
 from lorwright.util.snapshot import save_snapshot
@@ -71,8 +78,11 @@ class Engine:
         self._pending: ActionOutcome | None = None
         #: 待确认的出牌；出现确认按钮只表示还需输入，不算出牌已成功。
         self._staged_play: tuple[Action, GameState] | None = None
+        self._wait_deadlines: dict[str, float] = {}
+        self._observation: dict = {}
+        self._stop_details: dict = {}
 
-    def run(self, max_ticks: int | None = None) -> None:
+    def run(self, max_ticks: int | None = None, *, close_device: bool = True) -> LoopResult:
         self.parser.load()
 
         w, h = self.device.size()
@@ -92,6 +102,10 @@ class Engine:
             logger.warning("layout 未标定，动作会被跳过。先跑 `lorwright shot` 量坐标。")
 
         ticks = 0
+        previous_ui = None
+        self._wait_deadlines.clear()
+        self._stop_details.clear()
+        self.result = LoopResult("stopped", "tick_limit")
         self._confirmed_zero_mana = False
         self._unreadable_mana_frames = 0
         try:
@@ -99,17 +113,38 @@ class Engine:
                 ticks += 1
                 t0 = time.time()
 
+                checkpoint()
+                report("capture", tick=ticks)
+                captured_at = time.time()
                 frame = self.device.screencap()
+                report("recognize", capture_ms=round((time.time() - captured_at) * 1000))
+                recognition_started = time.time()
                 image, self._scale = self.normalizer.fit(frame.image)
                 state = self._build_state(image)
+                age = frame.age_s()
+                self._observation = dict(
+                    tick=ticks, ui=state.ui_state.value, summary=state.summary(),
+                    readings={name: asdict(reading) for name, reading in state.readings.items()},
+                )
+                changed = (age <= self.settings.loop.max_frame_age_s
+                           and state.ui_state is not UIState.UNKNOWN
+                           and state.ui_state != previous_ui)
+                if changed:
+                    self._wait_deadlines.clear()
+                    record_event("battle_scene", ui=state.ui_state.value)
+                report("recognized", ui=state.ui_state.value, summary=state.summary(),
+                       progress=changed,
+                       recognition_ms=round((time.time() - recognition_started) * 1000))
+                if changed:
+                    previous_ui = state.ui_state
                 if state.ui_state is not UIState.MY_TURN_IDLE:
                     self._confirmed_zero_mana = False
 
                 # 帧时效：截图 + 识别 + 决策如果已经花了太久，画面可能早变了。
                 # 拿旧帧去点就是「状态不明还点」，宁可这一轮什么都不做。
-                age = frame.age_s()
                 if age > self.settings.loop.max_frame_age_s:
                     self._skipped_stale += 1
+                    self._report_wait("stale_frame", self.settings.loop.max_frame_age_s)
                     logger.warning(
                         "stale frame: age={:.2f}s > {:.2f}s，本轮不动作（累计 {}）",
                         age, self.settings.loop.max_frame_age_s, self._skipped_stale,
@@ -125,15 +160,17 @@ class Engine:
                             action=self._pending.action.type.value, status="timed_out",
                             reason="no_fresh_frame_before_deadline", clicks=0,
                         )
-                        save_snapshot(frame.image, self.settings.perception.snapshot_dir, tag="action_timeout")
+                        self._stop_snapshot(frame.image, "action_timeout")
                         break
-                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
                 # 对局结束后由外层流程处理结果界面。
                 if state.ui_state is UIState.BATTLE_END:
                     self._pending = None
                     self._staged_play = None
+                    self.result = LoopResult("completed", "battle_end")
+                    report("completed", "battle_end", progress=True)
                     break
 
                 # 已发送的输入先等新帧证明结果，不能每 tick 重放同一个手势。
@@ -176,14 +213,13 @@ class Engine:
                             )
                             self._pending = None
                         else:
-                            save_snapshot(
-                                frame.image, self.settings.perception.snapshot_dir,
-                                tag="action_timeout",
-                            )
+                            self._stop_snapshot(frame.image, "action_timeout")
                             logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
                             break
                     if outcome.status is OutcomeStatus.WAITING:
-                        time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                        self._report_wait(outcome.reason, self.settings.loop.action_timeout_s,
+                                          action=self._pending.action.type.value)
+                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                         continue
                     if (outcome.status is OutcomeStatus.NEEDS_INPUT
                             and outcome.reason == "confirmation_required"):
@@ -198,10 +234,12 @@ class Engine:
                             if not confirmed_play:
                                 # 确认按钮消失并不证明原来的牌已经打出，
                                 # 避免策略把同一张火箭当成下一张再次尝试。
-                                save_snapshot(frame.image, self.settings.perception.snapshot_dir,
-                                              tag="staged_play_unverified")
+                                self._stop_snapshot(frame.image, "staged_play_unverified")
                                 logger.warning("确认后无法核实原出牌结果，停止")
                                 break
+                        self._wait_deadlines.clear()
+                        report("verified", outcome.reason, progress=True,
+                               action=self._pending.action.type.value)
                         for layer in self.router.layers:
                             callback = getattr(layer, "on_action_outcome", None)
                             if callback is not None:
@@ -216,8 +254,9 @@ class Engine:
 
                 # 安全约束由执行入口保障，不能依赖每一个英雄包都正确弃权。
                 if state.ui_state is UIState.UNKNOWN:
+                    self._report_wait("unknown_ui", self.settings.loop.action_timeout_s)
                     emit(tick=ticks, layer="unknown", action="no_op", clicks=0)
-                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
                 # 法力/我方血量必须新鲜；敌方血量被特效遮住时不能卡住整局，
@@ -253,20 +292,29 @@ class Engine:
                     state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING)
                     and unreadable and not zero_mana_stall
                 ):
+                    self._report_wait("unreadable", self.settings.loop.action_timeout_s,
+                                      missing_readings=unreadable)
                     emit(
                         tick=ticks, layer="unreadable", action="no_op", clicks=0,
                         readings={name: asdict(reading) for name, reading in state.readings.items()},
                     )
-                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
+                report("decide")
+                decision_at = time.time()
                 result = self.router.decide(state)
+                self._observation.update(action=result.action.type.value, strategy=result.layer)
+                report("decided", action=result.action.type.value, strategy=result.layer,
+                       decision_ms=round((time.time() - decision_at) * 1000))
                 # 网络决策也可能耗时；执行前必须再次确认这张图仍然新鲜。
                 if frame.age_s() > self.settings.loop.max_frame_age_s:
                     self._skipped_stale += 1
+                    self._report_wait("frame_expired_during_decision",
+                                      self.settings.loop.max_frame_age_s)
                     emit(tick=ticks, layer="stale", action="no_op", clicks=0,
                          reason="frame_expired_during_decision")
-                    time.sleep(max(0.0, self.settings.loop.tick_ms / 1000))
+                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
                 # NO_OP 不计入卡死：对手回合状态本来就不变
                 stuck = self.watchdog.observe(state, result.action.type)
@@ -276,13 +324,25 @@ class Engine:
                 clicks = 0
                 if stuck:
                     logger.warning("stuck: {}", state.summary())
-                    save_snapshot(
+                    path = save_snapshot(
                         frame.image, self.settings.perception.snapshot_dir, tag="stuck"
                     )
+                    self._stop_details = dict(snapshot=str(path) if path is not None else None)
                     if not self._recover(state):
                         break
+                    self._stop_details.clear()
                 else:
+                    report("execute", action=result.action.type.value)
+                    execution_at = time.time()
                     clicks = self._execute(self.translator.translate(result.action, state))
+                    self._report_wait(
+                        "action_result" if clicks else (
+                            "enemy_turn" if state.ui_state is UIState.ENEMY_TURN else "no_action"
+                        ),
+                        60 if state.ui_state is UIState.ENEMY_TURN
+                        else self.settings.loop.action_timeout_s,
+                        execution_ms=round((time.time() - execution_at) * 1000),
+                    )
                     if clicks and result.action.type is not ActionType.NO_OP:
                         self._confirmed_zero_mana = False
                         self._pending = ActionOutcome(
@@ -306,10 +366,48 @@ class Engine:
                     readings={name: asdict(reading) for name, reading in state.readings.items()},
                 )
 
-                time.sleep(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))
+                self._wait(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))
+            report(self.result.status, self.result.reason, **self._observation, **self._stop_details)
+            return self.result
+        except StopRequested:
+            report("stopping", "stop_requested")
+            raise
+        except Exception as exc:
+            report("error", type(exc).__name__, error=str(exc))
+            raise
         finally:
-            self.device.close()
+            if close_device:
+                self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
+
+    def _report_wait(self, reason: str, wait_s: float, **details) -> None:
+        """重复帧沿用首次等待期限，不能靠轮询延后停滞判定。"""
+        if current_session() is None:
+            return
+        now = time.time()
+        deadline = self._wait_deadlines.setdefault(reason, now + wait_s)
+        remaining = deadline - now
+        report("waiting", reason, wait_s=remaining if remaining > 0 else None,
+               wait_until=deadline, **(self._observation | details))
+
+    def _stop_snapshot(self, image, reason: str) -> None:
+        path = save_snapshot(image, self.settings.perception.snapshot_dir, tag=reason)
+        self.result = LoopResult("stopped", reason)
+        self._stop_details = dict(snapshot=str(path) if path is not None else None)
+        report("stopped", reason, **self._observation, **self._stop_details)
+
+    @staticmethod
+    def _wait(seconds: float) -> None:
+        if current_session() is None:
+            time.sleep(seconds)
+            return
+        remaining = max(0.0, seconds)
+        while remaining > 0:
+            checkpoint()
+            step = min(0.1, remaining)
+            time.sleep(step)
+            remaining -= step
+        checkpoint()
 
     def _execute(self, plan: ClickPlan | None) -> int:
         """执行点击计划，返回实际操作次数。
@@ -325,20 +423,23 @@ class Engine:
             for (x1, y1), (x2, y2) in plan.drags:
                 dx1, dy1 = sc.to_device(x1, y1)
                 dx2, dy2 = sc.to_device(x2, y2)
+                checkpoint()
                 self.device.drag(dx1, dy1, dx2, dy2, plan.drag_hold_ms, plan.drag_ms)
-                time.sleep(plan.wait_ms / 1000)
+                self._wait(plan.wait_ms / 1000)
             return len(plan.drags)
 
         if plan.drag and len(plan.points) == 2:
             (x1, y1), (x2, y2) = plan.points
             dx1, dy1 = sc.to_device(x1, y1)
             dx2, dy2 = sc.to_device(x2, y2)
+            checkpoint()
             self.device.drag(dx1, dy1, dx2, dy2, plan.drag_hold_ms, plan.drag_ms)
             return 2
 
         for x, y in plan.points:
+            checkpoint()
             self.device.tap(*sc.to_device(x, y))
-            time.sleep(plan.wait_ms / 1000)
+            self._wait(plan.wait_ms / 1000)
         return len(plan.points)
 
     def _recover(self, state: GameState) -> bool:
@@ -361,10 +462,14 @@ class Engine:
                 logger.error(
                     "recovery: 重启客户端会掉登录态，未开启 recovery.allow_client_restart；停止主循环"
                 )
+                self.result = LoopResult("stopped", "recovery_disabled")
+                report("stopped", self.result.reason)
                 return False
             self._restart_client()
         else:
             logger.error("recovery: 已耗尽，停止主循环（{}）", state.summary())
+            self.result = LoopResult("stopped", "recovery_exhausted")
+            report("stopped", self.result.reason)
             return False
 
         self.watchdog.reset()
@@ -373,6 +478,7 @@ class Engine:
     def _restart_client(self) -> None:
         package = self.settings.adb.package
         logger.warning("recovery: 重启客户端 {}", package)
+        checkpoint()
         self.device.restart_app(package)
 
     def _build_state(self, image) -> GameState:

@@ -70,6 +70,19 @@ lorwright shot --grid --out logs/probe.png   # 截图 + 坐标网格
 lorwright run --max-ticks 50
 ```
 
+Agent 优先通过 CLI 查询运行，不必反复截图判断程序是否卡住：
+
+```bash
+lorwright sessions start --mode adventure --champion jinx --json
+lorwright sessions status RUN_ID --wait 30 --json
+lorwright sessions events RUN_ID --after 0 --jsonl
+lorwright sessions stop RUN_ID --json
+```
+
+`RUN_ID` 使用启动回执中的值；停止回执只表示请求已写入，需要再查终态。
+前台 `run` / `adventure` 支持 `--jsonl`，运行文件位于已忽略的 `logs/runs/`。
+阶段、等待、停滞及退出码见 [`docs/cli.md`](docs/cli.md)。
+
 配置在 `config/settings.yaml`（`champion` / `layout` / `adb` / `loop`）。
 
 ---
@@ -93,6 +106,7 @@ lorwright run --max-ticks 50
 ```
 src/lorwright/
 ├── models.py         # 数据契约：GameState / Action / Layout
+├── runtime/          # 通用运行会话、状态/事件、后台启动与安全停止
 ├── device/           # ADB / 桌面设备抽象
 ├── perceive/         # 截图 → UI 状态、卡牌、场面
 ├── decide/           # 决策机制（不认识任何英雄）
@@ -109,7 +123,12 @@ src/lorwright/
 └── loop/             # 主循环、看门狗、恢复
 ```
 
-**加英雄 = 加 `champions/<name>/` 目录，不改核心层。**
+**基础层提供通用能力，英雄层提供具体知识。** `runtime/` 和现有设备、感知、
+决策、操作、循环均属基础层；牌表、专属识别与打法仍在 `champions/<name>/`。
+CLI 会话不包含英雄分支，本阶段不引入可视化或网络服务。
+
+运行模板位于 `assets/`，当前回归截图位于 `tests/fixtures/`，历史证据集中到
+`research/archives/`，按用途分开保存。
 
 ---
 
@@ -137,6 +156,7 @@ src/lorwright/
 |---|---|
 | [`docs/handoff.md`](docs/handoff.md) | **交接入口** |
 | [`docs/architecture.md`](docs/architecture.md) | 核心设计 |
+| [`docs/cli.md`](docs/cli.md) | Agent CLI：状态、事件、停滞诊断和停止协议 |
 | [`docs/status.md`](docs/status.md) | 当前状态 |
 | [`docs/decision-l1-rules.md`](docs/decision-l1-rules.md) | 历史规则设计与加英雄检查清单 |
 | [`docs/decision-l2-jev.md`](docs/decision-l2-jev.md) | 历史设计（ADR-0004 已废弃） |

@@ -4,7 +4,26 @@
 
 ---
 
-## 当前接手入口：先确认 f1 画面，再继续冒险
+## 当前接手入口：先查 CLI 状态，再按需核对画面
+
+### 当前本地变更：素材归档与 CLI 观测
+
+- 先用 `lorwright sessions status RUN_ID --wait 30 --json` 和
+  `lorwright sessions events RUN_ID --after SEQ --jsonl` 了解运行阶段、等待原因、
+  心跳和最后进展；遇到视觉阻塞，再查看状态/事件引用的截图。没有活动会话时，
+  仍须获取当前画面核实后再启动；历史状态不授权点击。
+- 基础层新增 `runtime/`，集中管理运行会话、事件、设备占用和停止请求；
+  英雄知识仍由 `champions/<name>/` 提供。本阶段不做 GUI 或网络服务。
+- 前台 `run` / `adventure` 支持 `--jsonl`；后台使用 `sessions start`，协作停止
+  使用 `sessions stop` 并再次查询终态。协议和退出码见 [`cli.md`](cli.md)。
+- 战斗安全停止会将原因返回冒险外层，避免下一轮重进；达到观察预算不视为通关。
+- 28 张历史图片迁到 `research/archives/`，原字节、旧路径和 SHA-256 已保留；
+  当前回归截图留在 `tests/fixtures/`。审计用 `python tools/audit_assets.py --json`。
+- 本地全套 `pytest` 740 项通过，Ruff 与空白检查通过；最终状态字段和协作停止的
+  专项回归另行通过。真实后台 CLI 用合成未知帧回放，约 9 秒返回
+  `stalled / unknown_ui`，请求停止后进入 `cancelled / stop_requested`。
+  Windows 分支仅做模拟测试。本轮未同步 f1、未操作游戏；下方记录的 f1 画面
+  和旧版本仍需重新核实，不能当作当前实时状态。
 
 > **阅读顺序**：本节按日期记录较新的进展；后面 §1–§2、§4 的旧进度和
 > §9 的旧 issue 列表是历史记录，不作为当前待办。以本节、`status.md`
@@ -137,7 +156,7 @@
   再次核对原决策、唯一选中组、卡牌内容与按钮，受控发送一次确认。
   这不是一次从选组到确认的连续自动运行；确认后回到地图。
 - 随后人工打开牌组：仍显示 20 张，未见伊莉丝及其两种配套卡；侧栏
-  截图裁剪为 `tests/fixtures/support/jinx-1080-deck-after-confirm.jpg`。
+  截图裁剪为 `research/archives/support/jinx-1080-deck-after-confirm.jpg`。
   因此无法确认奖励到账，原因尚未确定。关闭侧栏并点击当前位置的
   节点没有打开选择页。点击地图返回键并确认保存进度后，游戏显示
   服务错误 `170000`，提示连接服务器失败。稍后重试成功回到主页；
@@ -204,11 +223,11 @@
 - 按用户要求重启 LoR 并重新登录后，继续冒险再次出现同一战斗奖励。
   按用户此前指定重新选择左侧普羅大砲并确认；随后牌组显示 20 张，
   其中普羅大砲两张。截图为
-  `tests/fixtures/card_rewards/deck-after-restart.jpg`。这次到账已经
+  `research/archives/card_rewards/deck-after-restart.jpg`。这次到账已经
   人工核对，但原因和此前那次未到账的原因尚不明确，不能据此移除
   程序的 `card_reward_unverified` 停止保护。
 - 重启并确认奖励后，地图出现从 Jinx 指向右侧节点的亮线，原始截图为
-  `tests/fixtures/card_rewards/map-after-restart.png`。离线识别该帧的
+  `research/archives/card_rewards/map-after-restart.png`。离线识别该帧的
   Jinx 为 (932,226)，下一节点为 (1128,349)，位于右侧亮起的节点上。
   随后 f1 上运行一次 `adventure --champion jinx --max-nodes 1`，
   程序点击节点和旅行按钮后进入「輔助英雄」三组援军选择页，并在
@@ -237,10 +256,10 @@
 - 随后打开牌组，显示 18 张、九种起始牌各两张，没有看到普羅大砲；
   奖励页写明应加入两张，现有画面不能证明此次奖励到账，原因未知。
   牌组原帧为 `logs/f1-reward-deck-check-20261112.png`，左侧牌组裁剪
-  为 `tests/fixtures/card_rewards/deck-after-crop.png`。因此程序确认
+  为 `research/archives/card_rewards/deck-after-crop.png`。因此程序确认
   选牌并识别转场后会保存 `card_reward_unverified` 并停止，等待可
   验证的到账证据；不能把返回地图视为成功领取。
-- 复核 `tests/fixtures/mapnav_960_legacy/m3-g6.jpg` 与 `m3-shopD.jpg`：
+- 复核 `research/archives/mapnav-960/m3-g6.jpg` 与 `m3-shopD.jpg`：
   两张现存图片均有通往钱袋节点的发光线，与下文旧记录称前者全图无
   可走线不符；不能用这两张图证明事件完成前后的路线变化。
 - 用户指定左侧普羅大砲；手动点击卡牌并确认后回到地图。连续截图为
@@ -590,7 +609,7 @@ mulligan 確定、手牌展开、两张单位牌下场；`汙水坑疏濬機器�
 
 **素材问题结论（用户问）**：截图全部是程序产物（f1 上 adb screencap，
 与运行时同一管线）。旧地图图是 960×540；2026-11-06 起 mapnav 直接用
-1920×1080 原帧，旧图已归档到 `tests/fixtures/mapnav_960_legacy/`。
+1920×1080 原帧，旧图已归档到 `research/archives/mapnav-960/`。
 
 ### 2026-11-06：奖励决策模块落地（decide/rewards.py）
 
@@ -622,7 +641,7 @@ mulligan 確定、手牌展开、两张单位牌下场；`汙水坑疏濬機器�
    发光采样（dist/16、窗口 ±24）与面板阈值（blue ≥5000）；
 2. ✅ 删除 `_find_next` 缩半与 ×2，`next_node` 直接吃 1080p，英雄=画面中心；
 3. 🚧 fixtures 已换 2 张实机 1080p 帧（`1080p_map.png` / `1080p_panel.png`），
-   旧 960 图归档到 `mapnav_960_legacy/`；剩余 18 个场景待补采；
+   旧 960 图归档到 `research/archives/mapnav-960/`；剩余 18 个场景待补采；
 4. 🚧 当前 1080p 基准 + pytest 全绿；完整 20 帧回归待补采后收尾。
 
 ### 2026-11-06：research 逆向资料包接入

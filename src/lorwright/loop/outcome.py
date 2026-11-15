@@ -8,6 +8,14 @@ from enum import StrEnum
 from lorwright.models import Action, ActionType, GameState, UIState
 
 
+@dataclass(frozen=True)
+class LoopResult:
+    """循环退出事实；battle_end 不代表战斗获胜。"""
+
+    status: str
+    reason: str
+
+
 class OutcomeStatus(StrEnum):
     WAITING = "waiting"
     SUCCEEDED = "succeeded"

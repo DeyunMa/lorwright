@@ -249,7 +249,8 @@ def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
         monkeypatch, [before, staged, after],
         [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
     )
-    engine.run(max_ticks=3)
+    result = engine.run(max_ticks=3)
+    assert result.status == "stopped" and result.reason == "staged_play_unverified"
     assert len(device.drags) == 1 and device.taps == [(20, 20)]
     assert router.calls == 2
     assert snapshots == [{"tag": "staged_play_unverified"}]

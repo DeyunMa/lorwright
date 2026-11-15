@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import os
+import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -10,17 +14,21 @@ from rich.console import Console
 from rich.table import Table
 
 from lorwright.config import load_settings
-from lorwright.perceive.login import LoginDetector, LoginScreen
-from lorwright.util.logger import setup_logger
+from lorwright.runtime.cli import app as sessions_app
+from lorwright.util.logger import logger, setup_logger
 
 app = typer.Typer(add_completion=False, help="lorwright — LoR 英雄之路自动化")
+app.add_typer(sessions_app, name="sessions")
 console = Console()
 
 
 @app.callback()
-def _init() -> None:
-    settings = load_settings()
-    setup_logger(settings.logging.dir, settings.logging.level, settings.logging.by_date)
+def _init(ctx: typer.Context) -> None:
+    # 查询运行状态不依赖游戏配置、视觉库或设备；运行入口在会话内加载配置，
+    # 保证启动失败也有机器可读结果。
+    if ctx.invoked_subcommand not in {"sessions", "run", "adventure"}:
+        settings = load_settings()
+        setup_logger(settings.logging.dir, settings.logging.level, settings.logging.by_date)
 
 
 def _make_device(kind: str):
@@ -242,6 +250,8 @@ def login(
     模拟器重启会清掉登录态，而客户端卡在登录页时 `ui_state` 只能是 UNKNOWN，
     看门狗只会判「卡住」。所以登录得是个显式步骤。
     """
+    from lorwright.perceive.login import LoginDetector, LoginScreen
+
     settings = load_settings()
     user, pwd = settings.lor_username, settings.lor_password
     if not user or not pwd:
@@ -401,79 +411,139 @@ def _jinx_policy_kwargs(
     return kwargs or None
 
 
+def _execute_session(
+    *, mode: str, device: str, replay: str, champion: str,
+    max_ticks: int, max_nodes: int, jsonl: bool, run_id: str | None,
+    stall_timeout: float, spell_already_played: bool, jinx_summoned: bool,
+) -> None:
+    """两种运行入口共用生命周期；英雄策略仍由英雄包装配。"""
+    from lorwright.runtime.session import RunSession, StopRequested, checkpoint, report
+
+    root = Path(os.environ.get("LORWRIGHT_RUNS_DIR", "logs/runs"))
+    device_key = f"replay:{Path(replay).resolve()}" if replay else device
+    exit_code = 1
+    session = None
+    try:
+        session = RunSession(
+            root, mode=mode, champion=champion or "config", device=device_key,
+            jsonl=jsonl, run_id=run_id, stall_timeout_s=stall_timeout,
+        )
+        with session:
+            try:
+                from lorwright.champions import load as load_champion
+                from lorwright.decide.router import Router
+                from lorwright.loop.adventure import AdventureLoop
+                from lorwright.loop.engine import Engine
+
+                report("starting", "loading_configuration")
+                settings = load_settings()
+                setup_logger(settings.logging.dir, settings.logging.level, settings.logging.by_date)
+                settings.perception.snapshot_dir = str(root / session.run_id / "snapshots")
+                pack = load_champion(champion or settings.champion)
+                report("starting", "opening_device", champion=pack.name, replay=bool(replay))
+                checkpoint()
+                if not jsonl:
+                    console.print(f"运行：{session.run_id}  英雄：{pack.display_name}")
+                if replay:
+                    from lorwright.device.replay import ReplayDevice
+
+                    dev = ReplayDevice(replay)
+                else:
+                    if device not in {"adb", "desktop"}:
+                        raise ValueError("device 必须是 adb 或 desktop")
+                    dev = _make_device(device)
+                try:
+                    kwargs = _jinx_policy_kwargs(
+                        pack, spell_already_played=spell_already_played,
+                        jinx_summoned=jinx_summoned,
+                    )
+                    engine = Engine(
+                        settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
+                        card_recognizer=getattr(pack, "recognize_hand", None),
+                        mulligan_recognizer=getattr(pack, "recognize_mulligan", None),
+                    )
+                    if mode == "adventure":
+                        result = AdventureLoop(settings, engine, dev, pack=pack).run(
+                            max_nodes=max_nodes
+                        )
+                    else:
+                        result = engine.run(max_ticks=max_ticks or None)
+                finally:
+                    dev.close()
+                session.finish(result.status, result.reason)
+                # 达到调用者指定的观察预算是正常返回，但不是通关。
+                limited = result.reason in {"tick_limit", "node_limit", "iteration_limit"}
+                exit_code = 0 if result.status == "completed" or limited else 3
+            except (StopRequested, KeyboardInterrupt) as exc:
+                reason = "stop_requested" if isinstance(exc, StopRequested) else "interrupted"
+                session.finish("cancelled", reason)
+                exit_code = 130
+            except Exception as exc:
+                session.finish("failed", "execution_error", error_type=type(exc).__name__,
+                               message=str(exc))
+                logger.exception("运行失败：{}", type(exc).__name__)
+                exit_code = 1
+            if not jsonl:
+                console.print(f"运行已结束，可查询：lorwright sessions status {session.run_id}")
+    except Exception as exc:
+        # 目录或设备锁失败也保持机器输出可解析，不把 traceback 写入 stdout。
+        if jsonl and (session is None or not session.finished):
+            record = {
+                "schema_version": 1, "run_id": run_id, "seq": 0,
+                "ts_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                "type": "error", "payload": {
+                    "reason": "session_start_failed", "error_type": type(exc).__name__,
+                    "message": str(exc),
+                },
+            }
+            print(json.dumps(record, ensure_ascii=True), flush=True)
+        elif not jsonl:
+            print(f"无法启动运行：{exc}", file=sys.stderr)
+        exit_code = 1
+    if exit_code:
+        raise typer.Exit(exit_code)
+
+
 @app.command()
 def adventure(
-    max_nodes: int = typer.Option(30, help="max nodes"),
+    max_nodes: int = typer.Option(30, min=1, help="冒险外层的最大观察轮数（不是完成节点数）"),
     device: str = typer.Option("adb", help="adb | desktop"),
-    champion: str = typer.Option("", help="覆盖 config 的 champion（如 jinx）"),
+    replay: str = typer.Option("", help="离线回放目录，不连接设备"),
+    champion: str = typer.Option("", help="覆盖 config 的 champion"),
+    jsonl: bool = typer.Option(False, "--jsonl", help="stdout 输出会话 JSONL 事件"),
+    run_id: str | None = typer.Option(None, hidden=True),
+    stall_timeout: float = typer.Option(30.0, min=0.1, help="默认无进展告警秒数"),
     spell_already_played: bool = typer.Option(False, help="Jinx 恢复中局：起手法术已打出"),
     jinx_summoned: bool = typer.Option(False, help="Jinx 恢复中局：Jinx 已下场，直接打飞逝牌"),
 ) -> None:
-    """adventure entry: map loop + battle engine."""
-    from lorwright.champions import load as load_champion
-    from lorwright.decide.router import Router
-    from lorwright.loop.adventure import AdventureLoop
-    from lorwright.loop.engine import Engine
-
-    settings = load_settings()
-    pack = load_champion(champion or settings.champion)
-    dev = _make_device(device)
-    kwargs = _jinx_policy_kwargs(
-        pack, spell_already_played=spell_already_played, jinx_summoned=jinx_summoned,
+    """运行冒险流程，输出可查询的阶段、等待和停止原因。"""
+    _execute_session(
+        mode="adventure", device=device, replay=replay, champion=champion,
+        max_ticks=0, max_nodes=max_nodes, jsonl=jsonl, run_id=run_id,
+        stall_timeout=stall_timeout, spell_already_played=spell_already_played,
+        jinx_summoned=jinx_summoned,
     )
-    engine = Engine(settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
-        card_recognizer=getattr(pack, "recognize_hand", None),
-        mulligan_recognizer=getattr(pack, "recognize_mulligan", None))
-    try:
-        AdventureLoop(settings, engine, dev, pack=pack).run(max_nodes=max_nodes)
-    except KeyboardInterrupt:
-        console.print("[yellow]adventure stopped[/yellow]")
-    finally:
-        dev.close()
 
 
 @app.command()
 def run(
-    max_ticks: int = typer.Option(0, help="最大循环次数，0 = 无限"),
+    max_ticks: int = typer.Option(0, min=0, help="最大循环次数，0 = 无限"),
     device: str = typer.Option("adb", help="adb | desktop"),
     replay: str = typer.Option("", help="回放目录：用历史截图跑，不碰设备"),
-    champion: str = typer.Option("", help="覆盖 config 的 champion（如 jinx）"),
+    champion: str = typer.Option("", help="覆盖 config 的 champion"),
+    jsonl: bool = typer.Option(False, "--jsonl", help="stdout 输出会话 JSONL 事件"),
+    run_id: str | None = typer.Option(None, hidden=True),
+    stall_timeout: float = typer.Option(30.0, min=0.1, help="默认无进展告警秒数"),
     spell_already_played: bool = typer.Option(False, help="Jinx 恢复中局：起手法术已打出"),
     jinx_summoned: bool = typer.Option(False, help="Jinx 恢复中局：Jinx 已下场，直接打飞逝牌"),
 ) -> None:
-    """运行主循环。
-
-    `--replay <dir>` 用目录里的截图当设备，动作只记录不执行，
-    适合离线调感知/决策（docs/maa/06-debugging.md）。
-    """
-    from lorwright.champions import load as load_champion
-    from lorwright.decide.router import Router
-    from lorwright.loop.engine import Engine
-
-    settings = load_settings()
-    pack = load_champion(champion or settings.champion)
-    console.print(f"英雄包：[bold]{pack.name}[/bold]（{pack.display_name}，{len(pack.deck)} 张牌）")
-
-    if replay:
-        from lorwright.device.replay import ReplayDevice
-
-        dev = ReplayDevice(replay)
-        console.print(f"回放：[bold]{replay}[/bold]（{len(dev.frames)} 帧）")
-    else:
-        dev = _make_device(device)
-
-    kwargs = _jinx_policy_kwargs(
-        pack, spell_already_played=spell_already_played, jinx_summoned=jinx_summoned,
+    """运行单场战斗；--replay 仅回放，--jsonl 提供机器事件流。"""
+    _execute_session(
+        mode="battle", device=device, replay=replay, champion=champion,
+        max_ticks=max_ticks, max_nodes=0, jsonl=jsonl, run_id=run_id,
+        stall_timeout=stall_timeout, spell_already_played=spell_already_played,
+        jinx_summoned=jinx_summoned,
     )
-    engine = Engine(settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
-                    card_recognizer=getattr(pack, "recognize_hand", None),
-                    mulligan_recognizer=getattr(pack, "recognize_mulligan", None))
-    try:
-        engine.run(max_ticks=max_ticks or None)
-    except KeyboardInterrupt:
-        console.print("[yellow]已停止[/yellow]")
-    if replay:
-        console.print(f"回放动作：{dev.actions}")
 
 
 if __name__ == "__main__":

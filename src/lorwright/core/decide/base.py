@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from lorwright.core.models import Action, GameState
+
+
+@dataclass(frozen=True)
+class PlayExpectation:
+    """策略可为特殊出牌提供后验；核心仍负责交互步骤与超时。"""
+
+    verify: Callable[[GameState], bool]
+    reason: str
+    timeout_s: float
 
 
 @runtime_checkable

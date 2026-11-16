@@ -256,7 +256,7 @@ def test_existing_unit_is_not_mistaken_for_new_crab():
     )
 
 
-def test_hero_is_not_played_twice_while_board_confirmation_is_pending():
+def test_verified_hero_does_not_wait_again_for_old_board_baseline():
     policy = load("jinx").make_policy()
     unit = Unit("", -1, -1, Rect(0, 0, 10, 10))
     hero = card(1, "吉茵珂絲", 2)
@@ -265,10 +265,10 @@ def test_hero_is_not_played_twice_while_board_confirmation_is_pending():
     before = state([hero, card(2, "吉茵珂絲", 2)])
     action = policy.decide(before)
     policy.on_action_outcome(action, before, state([hero], [unit], mana=0))
-    assert policy.decide(state([hero], [unit], mana=2)).type is ActionType.NO_OP
-    assert policy.step == 1
-    assert policy.decide(state([], [unit, unit], mana=0)).type is ActionType.NO_OP
+    # 回调仅由动作后验成功触发，不能再按收手时的旧基线等待一次。
     assert policy.step == 2
+    assert policy.decide(state([card(0, "", 1)], [unit], mana=2)) is None
+    assert policy.decide(state([], [unit, unit], mana=0)) is None
 
 
 def test_post_jinx_plays_two_rockets_then_pow_pow():

@@ -1,5 +1,6 @@
 """用户指定的起手：應急裝置 → 减费 Jinx → 打掉 Jinx 生成的飞逝牌。"""
 
+from lorwright.core.decide.base import PlayExpectation
 from lorwright.core.decide.rewards import QUALITY_RANK, CardRewardCandidate, CardRewardPick
 from lorwright.core.models import Action, ActionType, GameState, UIState
 
@@ -43,7 +44,6 @@ class JinxOpeningPolicy:
         self._mulligan = False
         self._mulligan_targets: tuple[bool, ...] | None = None
         self._awaiting_crab = False
-        self._awaiting_hero = False
         self._board_before: int | None = None
         self._last_opening_view = None
         self._stable_views = 0
@@ -55,7 +55,6 @@ class JinxOpeningPolicy:
             if not self._mulligan:
                 self.step = 0
                 self._awaiting_crab = False
-                self._awaiting_hero = False
                 self._board_before = None
                 self._last_opening_view = None
                 self._stable_views = 0
@@ -116,11 +115,6 @@ class JinxOpeningPolicy:
                 return Action(type=ActionType.NO_OP)
             self._awaiting_crab = False
             self.step = 1
-        if self._awaiting_hero:
-            if self._board_before is not None and len(state.my_units) > self._board_before:
-                self.step = 2
-                self._awaiting_hero = False
-            return Action(type=ActionType.NO_OP)
         if not state.hand_expanded:
             self._board_before = len(state.my_units)
             # PLAY_CARD 在收起态只展开手牌，不会打出该索引的牌；
@@ -174,6 +168,28 @@ class JinxOpeningPolicy:
                                   raw={"spell_mana_only": True})
         return None
 
+    def play_expectation(self, action: Action, before: GameState) -> PlayExpectation | None:
+        """Jinx 下场弃手转砰砰并生成两枚火箭，手牌应为出牌前数量加一。"""
+        card = next((c for c in before.hand if c.index == action.card_index), None)
+        if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
+                or card is None or card.name != "吉茵珂絲" or card.cost < 0):
+            return None
+
+        def verify(after: GameState) -> bool:
+            if (after.ui_state not in (UIState.MY_TURN_IDLE, UIState.ENEMY_TURN)
+                    or len(after.my_units) <= len(before.my_units)
+                    or len(after.hand) != len(before.hand) + 1):
+                return False
+            paid = (card.cost > 0 and before.has_fresh_readings("mana")
+                    and after.has_fresh_readings("mana")
+                    and before.mana - after.mana >= card.cost)
+            generated = (sum(c.name in ROCKET_NAMES for c in after.hand) == 2
+                         and all(c.name in ROCKET_NAMES | POW_POW_NAMES for c in after.hand))
+            # 数量增加或露出旧单位本身不足以证明召唤，还需支付或生成牌依据。
+            return paid or generated
+
+        return PlayExpectation(verify, "jinx_hand_rebuilt_and_summoned", 20.0)
+
     def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
         """只在执行器确认动作成功后推进；展开手牌不算出牌。"""
         if action.type is not ActionType.PLAY_CARD or not before.hand_expanded:
@@ -181,7 +197,11 @@ class JinxOpeningPolicy:
         card = next((c for c in before.hand if c.index == action.card_index), None)
         if card is None:
             return
-        if self.step == 2:
+        if card.name == "吉茵珂絲" and card.cost >= 0:
+            # 已通过专属后验；旧场面基线可能受手牌遮挡，不能再次否定结果。
+            self.step = 2
+            self._rockets_played = 0
+        elif self.step == 2:
             if action.raw.get("jinx_rocket") is True and card.name in ROCKET_NAMES:
                 self._rockets_played += 1
         elif self.step == 0 and card.name == "應急裝置" and 0 <= card.cost <= 3:
@@ -189,9 +209,3 @@ class JinxOpeningPolicy:
                 self.step = 1
             else:
                 self._awaiting_crab = True
-        elif self.step == 1 and card.name == "吉茵珂絲" and card.cost >= 0:
-            if self._board_before is not None and len(after.my_units) > self._board_before:
-                self.step = 2
-                self._rockets_played = 0
-            else:
-                self._awaiting_hero = True

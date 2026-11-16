@@ -66,6 +66,34 @@ class Router:
         return {}
 
 
+def test_jinx_rebuild_uses_special_window_and_advances_once(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+
+    cards = [CardInHand(i, "吉茵珂絲" if i == 2 else "", 2 if i == 2 else 1,
+                        Rect(400 + i * 80, 800, 50, 50)) for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True)
+    after = ready(hand=[replace(cards[0], index=i) for i in range(7)],
+                  mana=1, readings={"mana": Reading(1, 0)},
+                  my_units=[Unit("", 6, 7, Rect(1000, 850, 100, 150))])
+    animation = replace(after, ui_state=UIState.UNKNOWN, hand=after.hand[:4])
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, animation, after],
+        [Action(ActionType.PLAY_CARD, card_index=2), Action(ActionType.NO_OP)], timeout=8,
+    )
+    policy = JinxOpeningPolicy()
+    policy._board_before = 10
+    router.layers = [policy]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: device.frames * 6.0)
+    engine.run(max_ticks=3)
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert [e["status"] for e in outcomes] == ["waiting", "succeeded"]
+    assert outcomes[-1]["reason"] == "jinx_hand_rebuilt_and_summoned"
+    assert policy.step == 2
+    assert len(device.drags) == 1
+    assert router.calls == 2
+    assert snapshots == []
+
+
 def test_inspect_board_collapses_once_then_attacks(monkeypatch):
     from lorwright.core.decide.generic import AttackWhenTokenPolicy, ExpandHandPolicy
     from lorwright.core.decide.router import Router as RealRouter

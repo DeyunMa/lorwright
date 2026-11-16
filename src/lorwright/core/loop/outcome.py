@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from lorwright.core.decide.base import PlayExpectation
 from lorwright.core.models import Action, ActionType, GameState, UIState
 
 
@@ -39,11 +40,13 @@ class ActionOutcome:
     def __init__(
         self, action: Action, before: GameState, deadline: float,
         combat_row_min_move_px: int = 80,
+        play_expectation: PlayExpectation | None = None,
     ) -> None:
         self.action = action
         self.before = before
         self.deadline = deadline
         self.combat_row_min_move_px = combat_row_min_move_px
+        self.play_expectation = play_expectation
 
     def observe(self, after: GameState, now: float) -> Outcome:
         if now >= self.deadline:
@@ -77,6 +80,9 @@ class ActionOutcome:
                       and after.ui_state is UIState.COMBAT_RESOLVING):
                     # 慢速法术先进入堆栈，要点「確認」后才会真正结算。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_required")
+                elif self.play_expectation is not None:
+                    if self.play_expectation.verify(after):
+                        reason = self.play_expectation.reason
                 elif len(after.hand) < len(before.hand) and (
                     (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")
                      and after.mana < before.mana)

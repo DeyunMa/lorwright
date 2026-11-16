@@ -264,7 +264,7 @@ class Engine:
                         confirmed_play = False
                         if (self._staged_play is not None
                                 and self._pending.action.type is ActionType.CONFIRM):
-                            confirmed_play = ActionOutcome(
+                            confirmed_play = self._make_outcome(
                                 *self._staged_play, float("inf")
                             ).observe(state, time.monotonic()).status is OutcomeStatus.SUCCEEDED
                             if not confirmed_play:
@@ -444,10 +444,7 @@ class Engine:
                                          and result.layer == "combat_confirm"))):
                             # 法术和战斗确认后的结算动画可能超过普通动作观察窗口。
                             timeout = max(timeout, 20.0)
-                        self._pending = ActionOutcome(
-                            result.action, state, time.monotonic() + timeout,
-                            combat_row_min_move_px=self.settings.loop.combat_row_min_move_px,
-                        )
+                        self._pending = self._make_outcome(result.action, state, timeout)
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(
@@ -477,6 +474,22 @@ class Engine:
             if close_device:
                 self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
+
+    def _make_outcome(self, action: Action, before: GameState, timeout: float) -> ActionOutcome:
+        expectation = None
+        if action.type is ActionType.PLAY_CARD and before.hand_expanded:
+            for layer in self.router.layers:
+                factory = getattr(layer, "play_expectation", None)
+                if factory is not None:
+                    expectation = factory(action, before)
+                    if expectation is not None:
+                        timeout = max(timeout, expectation.timeout_s)
+                        break
+        return ActionOutcome(
+            action, before, time.monotonic() + timeout,
+            combat_row_min_move_px=self.settings.loop.combat_row_min_move_px,
+            play_expectation=expectation,
+        )
 
     @staticmethod
     def _missing_action_evidence(action: Action, state: GameState) -> list[str]:

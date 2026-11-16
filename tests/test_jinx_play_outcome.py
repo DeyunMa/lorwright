@@ -1,0 +1,88 @@
+"""Jinx 召唤重建手牌的后验；合成序列不作为实机成功证据。"""
+
+from dataclasses import replace
+
+import pytest
+
+from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+from lorwright.core.models import (
+    Action,
+    ActionType,
+    CardInHand,
+    GameState,
+    Reading,
+    Rect,
+    UIState,
+    Unit,
+)
+
+
+def summon_states(cost=2):
+    action = Action(ActionType.PLAY_CARD, card_index=2)
+    hand = [CardInHand(i, "吉茵珂絲" if i == 2 else "", cost if i == 2 else 1,
+                       Rect(400 + i * 80, 800, 50, 50)) for i in range(6)]
+    before = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand=hand,
+                       hand_expanded=True, readings={"mana": Reading(3, 0)})
+    after = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3 - cost,
+                      hand=[replace(hand[0], index=i) for i in range(7)],
+                      my_units=[Unit("", 6, 7, Rect(1000, 850, 100, 150))],
+                      readings={"mana": Reading(3 - cost, 0)})
+    return action, before, after
+
+
+def test_jinx_rebuild_succeeds_while_generic_hand_reduction_does_not():
+    action, before, after = summon_states()
+    policy = JinxOpeningPolicy()
+    expectation = policy.play_expectation(action, before)
+    assert expectation is not None
+    assert expectation.timeout_s == 20
+    generic = ActionOutcome(action, before, 20)
+    assert generic.observe(after, 12).status is OutcomeStatus.WAITING
+    special = ActionOutcome(action, before, 20, play_expectation=expectation)
+    assert special.observe(after, 12).status is OutcomeStatus.SUCCEEDED
+    assert special.observe(after, 20).status is OutcomeStatus.TIMED_OUT
+    # 旧的收手场面基线即使高于当前识别数量，也不能否定已验证的出牌。
+    policy._board_before = 10
+    policy.on_action_outcome(action, before, after)
+    assert policy.step == 2
+    assert policy._rockets_played == 0
+
+
+@pytest.mark.parametrize("change", [
+    {"ui_state": UIState.UNKNOWN},
+    {"my_units": []},
+    {"mana": 3, "readings": {"mana": Reading(3, 0)}},
+    {"readings": {"mana": Reading(1, 1)}},
+    {"hand": []},
+])
+def test_jinx_rebuild_requires_independent_result_evidence(change):
+    action, before, after = summon_states()
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert not expectation.verify(replace(after, **change))
+
+
+def test_zero_cost_jinx_needs_generated_card_identities():
+    action, before, after = summon_states(cost=0)
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert not expectation.verify(after)
+    generated = [replace(card, name="超威能死亡火箭！" if i < 2 else "砰砰")
+                 for i, card in enumerate(after.hand)]
+    assert expectation.verify(replace(after, hand=generated))
+
+
+def test_special_outcome_cannot_accept_generic_hand_reduction_during_animation():
+    action, before, after = summon_states()
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    animation = replace(after, ui_state=UIState.UNKNOWN, hand=after.hand[:4])
+    assert ActionOutcome(action, before, 20).observe(animation, 2).status is OutcomeStatus.SUCCEEDED
+    assert ActionOutcome(action, before, 20, play_expectation=expectation).observe(
+        animation, 2
+    ).status is OutcomeStatus.WAITING
+
+
+def test_expansion_and_other_cards_keep_generic_result_checks():
+    action, before, _ = summon_states()
+    policy = JinxOpeningPolicy()
+    assert policy.play_expectation(action, replace(before, hand_expanded=False)) is None
+    assert policy.play_expectation(replace(action, card_index=0), before) is None

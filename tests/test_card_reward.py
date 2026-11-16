@@ -15,6 +15,7 @@ from lorwright.core.perceive.reward_screen import (
     card_reward_target,
     is_card_reward_screen,
     recognize_card_rewards,
+    same_card_reward_choices,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "card_rewards"
@@ -167,3 +168,118 @@ def test_jinx_reward_waits_when_cost_or_required_tiebreak_is_uncertain():
     assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 1)]) is None
     # 最低费用唯一时，其他候选品质不影响排序。
     assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 4)]).candidate == common
+
+
+def test_weekly_real_reward_page_and_unknown_candidates():
+    image = _image("f1-weekly-reward-20261116.png")
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    assert card_reward_confirm_button(image) is None
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [(c.card.name, c.card.quality, c.card.cost) for c in candidates] == [
+        ("", "rare", 5), ("", "unknown", 2), ("", "unknown", 2),
+    ]
+    assert all(c.item_name == "" and not c.cost_certain and c.preview_cost_verified
+               for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+    # 通用品质优先规则仍不能把缺失徽记当成普通或无品质。
+    assert pick_card_reward(candidates) is None
+    assert all(card_reward_target(image, i, "") is not None for i in range(3))
+
+
+@pytest.mark.parametrize("index", range(3))
+def test_weekly_candidates_move_with_slots_instead_of_fixed_lowest_position(index):
+    image = _image("f1-weekly-reward-20261116.png")
+    slots = (354, 769, 1184)
+    unit = image[255:780, 409:684].copy()
+    spell = image[255:780, 824:1099].copy()
+    for i, x in enumerate(slots):
+        image[255:780, x + 55:x + 330] = spell if i == index else unit
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [2 if i == index else 5 for i in range(3)]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[index]
+
+
+@pytest.mark.parametrize("region", [
+    (18, 110, 760, 1160), (130, 195, 590, 1330), (960, 1045, 800, 1120),
+])
+def test_weekly_page_still_requires_all_three_visible_anchors(region):
+    image = _image("f1-weekly-reward-20261116.png")
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    assert not is_card_reward_screen(image)
+    assert recognize_card_rewards(image) is None
+
+
+@pytest.mark.parametrize("region", [
+    (276, 309, 428, 464),  # 独立费用字形
+    (487, 514, 889, 1069),  # 未知法术名
+    (533, 554, 429, 669),  # 未知单位名
+    (665, 690, 894, 1084),  # 未知道具名
+    (337, 450, 899, 1039),  # 未知插画可见性
+    (300, 780, 775, 780),  # 未选中的外框遮挡
+])
+def test_weekly_obscured_evidence_does_not_produce_candidates(region):
+    image = _image("f1-weekly-reward-20261116.png")
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
+def test_weekly_dimmed_reward_is_not_actionable():
+    image = _image("f1-weekly-reward-20261116.png") // 2
+    assert not is_card_reward_screen(image)
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 1, "") is None
+
+
+def test_weekly_unknown_target_requires_visible_click_point_and_card_frame():
+    image = _image("f1-weekly-reward-20261116.png")
+    target = card_reward_target(image, 1, "")
+    assert target is not None
+    cx, cy = target.center
+    image[cy - 2:cy + 3, cx - 2:cx + 3] = 0
+    assert card_reward_target(image, 1, "") is None
+    assert card_reward_target(_image("f1-weekly-reward-20261116.png"), 1, "猜测牌名") is None
+
+
+@pytest.mark.parametrize("change", ["missing", "wrong_color"])
+def test_weekly_badge_absence_or_wrong_color_remains_unknown(change):
+    image = _image("f1-weekly-reward-20261116.png")
+    if change == "missing":
+        image[635:668, 520:570] = 0
+    else:
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv[635:668, 520:570, 0] = 145
+        image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert all(c.card.quality == "unknown" for c in candidates)
+
+
+def test_real_choice_identity_survives_selected_card_scaling():
+    before, selected = (_image(name) for name in ("before.png", "selected-left.png"))
+    assert same_card_reward_choices(before, selected, 0)
+    assert not same_card_reward_choices(before, selected, 1)
+    assert not same_card_reward_choices(before, before, 0)
+    selected[337:425, 899:1019] = 0
+    assert not same_card_reward_choices(before, selected, 0)
+
+
+def test_weekly_synthetic_selection_is_unique_and_keeps_choice_identity():
+    # 选中态是合成回放，当前实拍只提供未选图，不能当作该奖励实机选中证据。
+    image = _image("f1-weekly-reward-20261116.png")
+    selected = image.copy()
+    old_selected = _image("selected-left.png")
+    selected[968:1030, 810:1110] = old_selected[968:1030, 810:1110]
+    selected[300:780, 775:780] = old_selected[300:780, 360:365]
+    assert card_reward_selection(selected) == 1
+    assert card_reward_confirm_button(selected) is not None
+    assert same_card_reward_choices(image, selected, 1)
+    assert card_reward_target(selected, 1, "") is None
+    selected[300:780, 1190:1195] = old_selected[300:780, 360:365]
+    assert card_reward_selection(selected) is None
+    assert card_reward_confirm_button(selected) is None
+    assert not same_card_reward_choices(image, selected, 1)

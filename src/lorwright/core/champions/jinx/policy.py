@@ -14,9 +14,10 @@ POW_POW_NAMES = frozenset({"砰砰", "碰碰", "Pow-Pow"})
 
 
 def pick_card_reward(candidates: list[CardRewardCandidate]) -> CardRewardPick | None:
-    """Jinx 战斗奖励：先比较有效费用，同费用再比较卡牌品质。"""
+    """Jinx 奖励按已核实预览费用选择；同费比较已知品质，未知保留未知。"""
     if not candidates or any(
-        c.card.cost is None or c.card.cost < 0 or not c.cost_certain for c in candidates
+        c.card.cost is None or c.card.cost < 0
+        or not (c.cost_certain or c.preview_cost_verified) for c in candidates
     ):
         return None
     lowest = min(c.card.cost for c in candidates)
@@ -24,7 +25,11 @@ def pick_card_reward(candidates: list[CardRewardCandidate]) -> CardRewardPick | 
     if len(cheapest) == 1:
         return CardRewardPick(cheapest[0], "Jinx：费用最低优先")
     if any(c.card.quality not in QUALITY_RANK for c in cheapest):
-        return None
+        if not all(c.preview_cost_verified for c in cheapest):
+            return None
+        known = [c for c in cheapest if c.card.quality in QUALITY_RANK]
+        chosen = max(known, key=lambda c: QUALITY_RANK[c.card.quality]) if known else cheapest[0]
+        return CardRewardPick(chosen, "Jinx：预览费用最低；品质不全，已知优先，同级按显示顺序")
     chosen = max(cheapest, key=lambda c: QUALITY_RANK[c.card.quality])
     return CardRewardPick(chosen, "Jinx：费用相同时品质最高优先")
 

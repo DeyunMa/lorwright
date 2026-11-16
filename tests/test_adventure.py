@@ -1163,7 +1163,57 @@ def test_hero_item_sampling_rejects_unknown_page(adventure):
     assert saved == ["hero_item_sample_precondition_failed"]
 
 
-def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure):
+def test_map_wait_redispatches_card_reward(adventure, monkeypatch):
+    reward = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
+    loop, device, _, saved, _ = adventure([_img("1080p_jinx_map.png"), reward], [])
+    monkeypatch.setattr(loop, "_find_next", lambda image: None)
+    handled = []
+    monkeypatch.setattr(loop, "_handle_card_reward", lambda image: handled.append(image) or False)
+    loop.run(max_nodes=2)
+    assert len(handled) == 1
+    assert np.array_equal(handled[0], reward)
+    assert device.taps == []
+    assert saved == []
+
+
+def test_battle_end_waits_for_reward_before_map_node(adventure, monkeypatch):
+    reward = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
+    loop, device, engine, saved, _ = adventure(
+        [_blank(), _img("1080p_jinx_map.png"), reward], [UIState.MY_TURN_IDLE]
+    )
+    handled = []
+    monkeypatch.setattr(loop, "_handle_card_reward", lambda image: handled.append(image) or False)
+    loop.run(max_nodes=3)
+    assert engine.run_calls == [loop.coords.battle_max_ticks]
+    assert len(handled) == 1
+    assert device.taps == []
+    assert saved == []
+
+
+def test_battle_end_missing_reward_stops_without_map_input(adventure):
+    loop, device, engine, saved, _ = adventure(
+        [_blank()] + [_img("1080p_jinx_map.png")] * 7, [UIState.MY_TURN_IDLE]
+    )
+    loop.run(max_nodes=3)
+    assert engine.run_calls == [loop.coords.battle_max_ticks]
+    assert device.taps == []
+    assert saved == ["battle_reward_missing"]
+
+
+def test_jinx_unknown_rewards_use_verified_preview_cost():
+    from lorwright.core.champions.jinx.policy import pick_card_reward
+    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
+
+    candidates = [CardRewardCandidate(RewardCandidate("", quality, cost), "", False, True)
+                  for quality, cost in (("rare", 5), ("unknown", 2), ("unknown", 2))]
+    assert pick_card_reward(candidates).candidate is candidates[1]
+    candidates[2] = CardRewardCandidate(RewardCandidate("", "rare", 2), "", False, True)
+    assert pick_card_reward(candidates).candidate is candidates[2]
+    candidates[0] = CardRewardCandidate(RewardCandidate("", "rare", 5), "", False)
+    assert pick_card_reward(candidates) is None
+
+
+def test_card_reward_continues_to_map_after_verified_transition(adventure):
     from lorwright.core.champions.base import Preference
 
     reward = FIXTURES.parent / "card_rewards"
@@ -1184,8 +1234,8 @@ def test_card_reward_stops_after_confirmation_until_reward_is_verified(adventure
     )
     engine.parser.ui.load()
     loop.run(max_nodes=2)
-    assert device.taps == [(555, 393), (960, 1003)]
-    assert saved == ["card_reward_unverified"]
+    assert device.taps == [(555, 393), (960, 1003), (982, 334)]
+    assert saved == ["panel_unknown"]
     assert engine.run_calls == []
 
 
@@ -1210,7 +1260,7 @@ def test_jinx_card_reward_uses_champion_cost_rule_before_default(adventure):
             patch("lorwright.core.loop.adventure.card_reward_target", return_value=Rect(551, 389, 8, 8)):
         loop.run(max_nodes=1)
     assert device.taps == [(555, 393), (960, 1003)]
-    assert saved == ["card_reward_unverified"]
+    assert saved == []
 
 
 def test_card_reward_does_not_confirm_when_wrong_card_is_highlighted(adventure):
@@ -1231,7 +1281,7 @@ def test_card_reward_confirmation_is_not_repeated(adventure):
     reward = FIXTURES.parent / "card_rewards"
     before = cv2.imread(str(reward / "before.png"))
     selected = cv2.imread(str(reward / "selected-left.png"))
-    loop, device, _, saved, _ = adventure([before, selected, selected], [])
+    loop, device, _, saved, _ = adventure([before] + [selected] * 7, [])
     loop.pack = type("Pack", (), {
         "card_preferences": (Preference(("普羅大砲",)),), "item_preferences": (),
     })()

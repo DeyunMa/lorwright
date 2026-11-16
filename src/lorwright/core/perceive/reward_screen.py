@@ -362,7 +362,7 @@ def card_reward_selection(image: np.ndarray) -> int | None:
             & (button[:, :, 1] > 90) & (button[:, :, 2] > 130))
     enabled = float(gold.mean())
     if max(ratios) < 0.15 and enabled < 0.02:
-        return -1
+        return -1 if all(_reward_frame_visible(image, x) for x in _CARD_SLOTS) else None
     selected = [i for i, ratio in enumerate(ratios) if ratio > 0.5]
     if enabled > 0.08 and len(selected) == 1 and all(
         ratio < 0.15 for i, ratio in enumerate(ratios) if i != selected[0]
@@ -380,7 +380,18 @@ def card_reward_target(image: np.ndarray, index: int, name: str) -> Rect | None:
         return None
     card = next((entry for entry in catalog["cards"] if entry["name"] == name), None)
     if card is None:
-        return None
+        if name:
+            return None
+        x = _CARD_SLOTS[index]
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if not _card_visible(gray, x) or _card_cost(image, x) is None:
+            return None
+        # 卡框内的插画中心；不需要先给这张卡建立身份模板。
+        target = Rect(x + 191, 383, 20, 20)
+        patch = gray[target.y:target.y + target.h, target.x:target.x + target.w]
+        if float((patch < 8).mean()) > 0.05 or float(patch.std()) < 5:
+            return None
+        return target
     template = _template(card["art"])
     if template is None:
         return None
@@ -438,8 +449,50 @@ def _card_cost(image: np.ndarray, x: int) -> int | None:
     return hit[0] if hit else None
 
 
+def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
+    """奖励外框必须存在，两侧检查带不能被黑色遮挡。"""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if _visible_match(gray, "card_reward_frame_corner", (x - 3, 228, x + 30, 255)) < 0.75:
+        return False
+    return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01
+               for offset in (6, 375))
+
+
+def _card_visible(gray: np.ndarray, x: int) -> bool:
+    """独立识别法术或单位框及相应标题位置，不从插画猜身份。"""
+    spell = _visible_match(gray, "card_reward_spell_frame", (x + 50, 590, x + 85, 640)) >= 0.93
+    unit = _visible_match(gray, "card_reward_unit_frame", (x + 50, 250, x + 100, 290)) >= 0.93
+    if not spell and not unit:
+        return False
+    title = gray[487:514, x + 120:x + 300] if spell else gray[533:554, x + 75:x + 315]
+    art = gray[337:450, x + 130:x + 270]
+    return (int((title > 170).sum()) >= 120
+            and float((art < 8).mean()) < 0.05 and float(art.std()) > 10)
+
+
+def _card_badge_quality(image: np.ndarray, x: int) -> str:
+    """徽记图案及颜色必须一致；缺徽记不等于普通或无品质。"""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    rect = (x + 150, 625, x + 235, 670)
+    scores = sorted((_visible_match(gray, "card_reward_" + quality + "_badge", rect), quality)
+                    for quality in ("common", "rare"))
+    if scores[-1][0] < 0.93 or scores[-1][0] - scores[-2][0] < 0.05:
+        return "unknown"
+    quality = scores[-1][1]
+    template = _template("card_reward_" + quality + "_badge")
+    x1, y1, x2, y2 = rect
+    _, _, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
+        gray[y1:y2, x1:x2], template, cv2.TM_CCOEFF_NORMED))
+    h, w = template.shape
+    hsv = cv2.cvtColor(image[y1 + dy:y1 + dy + h, x1 + dx:x1 + dx + w], cv2.COLOR_BGR2HSV)
+    low, high = (35, 85) if quality == "common" else (85, 115)
+    colored = ((hsv[:, :, 0] >= low) & (hsv[:, :, 0] <= high)
+               & (hsv[:, :, 1] > 100) & (hsv[:, :, 2] > 100))
+    return quality if int(colored.sum()) >= 60 else "unknown"
+
+
 def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | None:
-    """识别未选中的三张奖励卡；任何卡、道具或费用不明时弃权。"""
+    """识别可见候选；未知名为空，预览费用与道具费用契约分别记录。"""
     if card_reward_selection(image) != -1:
         return None
     catalog = _card_catalog()
@@ -452,12 +505,53 @@ def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | Non
         card = _card_entry(gray, cards, (x + 45, 470, x + 330, 575))
         item = _card_entry(gray, items, (x + 100, 655, x + 300, 700))
         cost = _card_cost(image, x)
-        if card is None or item is None or cost is None:
+        if cost is None:
             return None
-        if _visible_match(gray, card["art"], (x + 55, 300, x + 325, 465)) < 0.93:
+        if card is not None:
+            if _visible_match(gray, card["art"], (x + 55, 300, x + 325, 465)) < 0.93:
+                return None
+        elif not _card_visible(gray, x):
+            return None
+        if item is None and int((gray[665:690, x + 125:x + 315] > 170).sum()) < 120:
             return None
         result.append(CardRewardCandidate(
-            card=RewardCandidate(name=card["name"], quality=card["quality"], cost=cost),
-            item_name=item["name"], cost_certain=item["cost_certain"],
+            card=RewardCandidate(name=card["name"] if card else "",
+                                 quality=card["quality"] if card else _card_badge_quality(image, x),
+                                 cost=cost),
+            item_name=item["name"] if item else "",
+            cost_certain=item["cost_certain"] if item else False,
+            preview_cost_verified=True,
         ))
     return result
+
+
+def same_card_reward_choices(before: np.ndarray, after: np.ndarray, index: int) -> bool:
+    """核对选择前后三槽插画与道具名；允许实拍选中卡的放大和上移。"""
+    if (index not in range(len(_CARD_SLOTS)) or card_reward_selection(before) != -1
+            or card_reward_selection(after) != index):
+        return False
+    old, new = (cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in (before, after))
+    # 选中动画会缩放整个候选，局部模板在同槽搜索，不跨槽匹配。
+    for slot, x in enumerate(_CARD_SLOTS):
+        for y1, y2, dx1, dx2, search in (
+            (337, 425, 130, 250, (x + 55, 245, x + 325, 480)),
+            (665, 690, 125, 315, (x + 90, 650, x + 330, 715)),
+        ):
+            reference = old[y1:y2, x + dx1:x + dx2]
+            sx1, sy1, sx2, sy2 = search
+            region = new[sy1:sy2, sx1:sx2]
+            best = -1.0
+            scales = np.arange(0.98, 1.181, 0.01) if slot == index else (1.0,)
+            for scale in scales:
+                template = cv2.resize(reference, None, fx=scale, fy=scale)
+                scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+                _, score, _, (mx, my) = cv2.minMaxLoc(scores)
+                h, w = template.shape
+                actual = region[my:my + h, mx:mx + w]
+                # 局部遮挡不能只靠整块相关系数通过。
+                error = float((cv2.absdiff(actual, template) > 45).mean())
+                if float(actual.mean()) >= float(template.mean()) * 0.78 and error < 0.08:
+                    best = max(best, score)
+            if best < 0.93:
+                return False
+    return True

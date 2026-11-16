@@ -63,6 +63,8 @@ class CardRewardCandidate:
     card: RewardCandidate
     item_name: str
     cost_certain: bool
+    #: 画面预览费用已独立读出；不代表未知道具不会影响入组后的费用。
+    preview_cost_verified: bool = False
 
 
 @dataclass(frozen=True)

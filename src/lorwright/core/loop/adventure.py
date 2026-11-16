@@ -73,6 +73,7 @@ from lorwright.core.perceive.reward_screen import (
     recognize_hero_item_cards,
     recognize_hero_items,
     recognize_powers,
+    same_card_reward_choices,
 )
 from lorwright.core.perceive.support_screen import (
     is_support_screen,
@@ -118,6 +119,7 @@ class AdventureLoop:
         self.result = LoopResult("stopped", "iteration_limit")
         self._last_scene = None
         self._details: dict = {}
+        self._awaiting_battle_reward = False
 
     def run(self, max_nodes: int = 30) -> LoopResult:
         """max_nodes 是冒险循环迭代预算，不是已完成节点数。"""
@@ -201,6 +203,32 @@ class AdventureLoop:
                     self._snapshot(after, tag="revive_transition_unverified")
                     return
                 continue
+            if self._is_card_reward(image):
+                self._scene("card_reward")
+                if not self._handle_card_reward(image):
+                    return
+                self._awaiting_battle_reward = False
+                continue
+            post_battle_ui = None
+            if self._awaiting_battle_reward:
+                # 战斗结束后的地图背景不授权找节点，先核实奖励或结算页面。
+                for attempt in range(7):
+                    design = self._reward_design(image)
+                    post_battle_ui = self.engine.parser.ui.detect(
+                        design[0] if design is not None else image
+                    )
+                    if post_battle_ui is UIState.BATTLE_END:
+                        break
+                    if self._is_card_reward(image):
+                        pending_image = image
+                        break
+                    if attempt == 6:
+                        self._snapshot(image, tag="battle_reward_missing")
+                        return
+                    self._wait(2, reason="battle_reward_pending", wait_s=12)
+                    image = self._frame()
+                if pending_image is not None:
+                    continue
             if shop_leave_button(image) is not None:
                 self._scene("shop")
                 if not self._handle_shop(image):
@@ -222,14 +250,9 @@ class AdventureLoop:
                 if pending_image is None:
                     return
                 continue
-            if self._is_card_reward(image):
-                self._scene("card_reward")
-                if not self._handle_card_reward(image):
-                    return
-                continue
             normalized = self._reward_design(image)
             design = normalized[0] if normalized is not None else image
-            ui = self.engine.parser.ui.detect(design)
+            ui = post_battle_ui if post_battle_ui is not None else self.engine.parser.ui.detect(design)
             if ui in self.BATTLE_STATES:
                 last_continue = None
                 logger.info("adventure: 进入战斗，引擎接管")
@@ -240,10 +263,12 @@ class AdventureLoop:
                 if result.reason != "battle_end":
                     self.result = result
                     return result
+                self._awaiting_battle_reward = True
                 continue
             self._details.update(ui=ui.value)
             report("recognized", **self._details)
             if ui is UIState.BATTLE_END:
+                self._awaiting_battle_reward = True
                 self._scene("battle_end")
                 if normalized is not None and result_screen(design) == "missions":
                     # 用户确认该任务结算页通过右下角继续；只点击一次。
@@ -450,10 +475,16 @@ class AdventureLoop:
                 for _ in range(6):
                     self._wait(2, reason="map_next_node", wait_s=12)
                     image = self._frame()
+                    if (self._is_card_reward(image) or self._is_hero_item_reward(image)
+                            or self._is_support(image) or is_power_screen(image)):
+                        pending_image = image
+                        break
                     if is_map(image) and not is_completed_panel(image):
                         nxt = self._find_next(image)
                         if nxt is not None:
                             break
+                if pending_image is not None:
+                    continue
                 if nxt is None:
                     logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
                     self._snapshot(image, tag="map_no_next")
@@ -744,7 +775,7 @@ class AdventureLoop:
         return False
 
     def _handle_card_reward(self, image) -> bool:
-        """逐步选牌并核对转场；到账尚不可验证时停止。"""
+        """核验选中、确认和后继界面后继续；转场不等于证明服务端到账。"""
         normalized = self._reward_design(image)
         if normalized is None:
             self._snapshot(image, tag="card_reward_unknown")
@@ -765,9 +796,12 @@ class AdventureLoop:
             self._snapshot(image, tag="card_reward_undecided")
             return False
         index = candidates.index(picked.candidate)
+        name = picked.candidate.card.name or "未知卡牌"
         report("decided", "card_reward_choice", selection=index,
-               recommendation=picked.candidate.card.name, recommendation_reason=picked.reason)
-        logger.info("adventure: 选择奖励 {}（{}）", picked.candidate.card.name, picked.reason)
+               recommendation=name, recommendation_reason=picked.reason,
+               preview_cost=picked.candidate.card.cost,
+               recommendation_quality=picked.candidate.card.quality)
+        logger.info("adventure: 选择奖励 {}（{}）", name, picked.reason)
         target = card_reward_target(design, index, picked.candidate.card.name)
         if target is None:
             self._snapshot(
@@ -778,7 +812,8 @@ class AdventureLoop:
         self._wait(3)
         selected_image = self._frame()
         selected = self._reward_design(selected_image)
-        if selected is None or card_reward_selection(selected[0]) != index:
+        if (selected is None or card_reward_selection(selected[0]) != index
+                or not same_card_reward_choices(design, selected[0], index)):
             self._snapshot(
                 selected_image, tag="card_reward_selection_failed"
             )
@@ -791,24 +826,20 @@ class AdventureLoop:
             )
             return False
         self._tap(*selected[1].to_device(*button.center))
-        self._wait(3)
-        next_image = self._frame()
-        next_design = self._reward_design(next_image)
-        if next_design is None or is_card_reward_screen(next_design[0]):
-            self._snapshot(
-                next_image, tag="card_reward_confirm_unchanged"
-            )
-            return False
-        if not (is_map(next_design[0]) or is_power_screen(next_design[0])):
-            self._snapshot(
-                next_image, tag="card_reward_after_unknown"
-            )
-            return False
-        # 回到地图或进入能力页不代表服务端已把奖励加入牌组。
-        logger.warning("adventure: 奖励确认后已转场，但尚无法验证卡牌到账，停止")
-        self._snapshot(
-            next_image, tag="card_reward_unverified"
-        )
+        for _ in range(6):
+            self._wait(2, reason="card_reward_transition", wait_s=12)
+            next_image = self._frame()
+            next_design = self._reward_design(next_image)
+            if next_design is None or is_card_reward_screen(next_design[0]):
+                continue
+            if is_map(next_design[0]) or is_power_screen(next_design[0]):
+                # 核验的是奖励交互结束，不能将它记作服务端到账证明。
+                report("verified", "card_reward_transition", progress=True, selection=index,
+                       reward_credited_verified=False)
+                return True
+        tag = ("card_reward_confirm_unchanged" if next_design is not None
+               and is_card_reward_screen(next_design[0]) else "card_reward_after_unknown")
+        self._snapshot(next_image, tag=tag)
         return False
 
     def _close_panel(self, image) -> bool:

@@ -1,7 +1,7 @@
 """场上单位的攻击/生命数字。
 
 单位卡左上角有两个方块：橙色攻击、红色生命。数字不是普通 UI 白字：
-攻击数字可能是白色或绿色（被 buff 时），生命数字是红底白字。
+攻击数字可能是白色或绿色（被 buff 时），生命数字还可能因减益变红。
 两者都按颜色掩膜切字形，再用 `Beaufort for LOL` 渲染的模板分类。
 
 模板来源：游戏资源 `BeaufortforLOL-Bold`（85KB TTF），预渲染到
@@ -40,23 +40,28 @@ class UnitStatsReader:
         self._ensure_loaded()
         return self._read_attack(image, badge), self._read_health(image, badge)
 
-    def _read_attack(self, image: np.ndarray, badge: Rect) -> int | None:
+    def read_badge(self, image: np.ndarray, badge: Rect, *, health: bool = False) -> int | None:
+        """读取已定位的数值框；生命数字还可能因减益变红。"""
+        self._ensure_loaded()
         patch = _inner(image, badge, 5)
         if patch.size == 0:
             return None
         blue, green, red = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
         white = patch.min(axis=2) >= 170
         buffed = (green >= 180) & (red <= 120) & (blue <= 120)
-        return self._read_mask((white | buffed).astype(np.uint8) * 255)
+        digits = white | buffed
+        if health:
+            digits |= (red >= 180) & (green <= 80) & (blue <= 80)
+        return self._read_mask(digits.astype(np.uint8) * 255)
+
+    def _read_attack(self, image: np.ndarray, badge: Rect) -> int | None:
+        return self.read_badge(image, badge)
 
     def _read_health(self, image: np.ndarray, badge: Rect) -> int | None:
         health = _find_health_badge(image, badge)
         if health is None:
             return None
-        patch = _inner(image, health, 5)
-        if patch.size == 0:
-            return None
-        return self._read_mask((patch.min(axis=2) >= 170).astype(np.uint8) * 255)
+        return self.read_badge(image, health, health=True)
 
     def _read_mask(self, mask: np.ndarray) -> int | None:
         count, _, stats, _ = cv2.connectedComponentsWithStats(mask, 8)

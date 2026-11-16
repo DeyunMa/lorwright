@@ -121,6 +121,50 @@ def test_gold_spill_below_attack_badge_keeps_the_visible_unit(name, attack):
     assert 105 <= units[0].rect.center[1] <= 125
 
 
+@pytest.mark.parametrize("name", ["f1-paired-unit-frames-20261116.png",
+                                  "f1-paired-unit-frames-timeout-20261116.png"])
+@pytest.mark.parametrize("offset", [(0, 0), (130, 65)])
+def test_paired_badges_survive_connected_card_frames(name, offset):
+    crop = cv2.imread(str(SCREENS / name))
+    assert crop is not None
+    dx, dy = offset
+    image = np.zeros((400, 600, 3), np.uint8)
+    image[dy:dy + 260, dx:dx + 370] = crop
+    units = to_units(find_unit_badges(image, Rect(0, 0, 600, 400)), image=image)
+    assert len(units) == 2
+    assert [unit.attack for unit in units] == [7, 7]
+    assert [unit.health for unit in units] == [8, 5]
+    assert 80 <= units[0].rect.center[0] - dx <= 110
+    assert 250 <= units[1].rect.center[0] - dx <= 290
+    assert all(100 <= unit.rect.center[1] - dy <= 125 for unit in units)
+
+
+@pytest.mark.parametrize("badge", ["attack", "health"])
+@pytest.mark.parametrize("shade", [0, 80, 160])
+def test_connected_card_frame_requires_visible_badge_pair(badge, shade):
+    image = cv2.imread(str(SCREENS / "f1-paired-unit-frames-timeout-20261116.png"))
+    assert image is not None
+    left, right = (20, 90) if badge == "attack" else (90, 165)
+    image[25:90, left:right] = shade
+    units = to_units(find_unit_badges(image, Rect(0, 0, 370, 260)), image=image)
+    assert len(units) == 1
+    assert units[0].rect.center[0] > 250
+
+
+@pytest.mark.parametrize("badge", ["attack", "health"])
+def test_connected_card_frame_requires_readable_badge_pair(badge):
+    image = cv2.imread(str(SCREENS / "f1-paired-unit-frames-timeout-20261116.png"))
+    assert image is not None
+    left, right = (20, 90) if badge == "attack" else (90, 165)
+    patch = image[25:90, left:right]
+    blue, green, red = (patch[:, :, i] for i in range(3))
+    digits = (green >= 180) & (red <= 120) & (blue <= 120)
+    patch[digits] = (20, 20, 20)
+    units = to_units(find_unit_badges(image, Rect(0, 0, 370, 260)), image=image)
+    assert len(units) == 1
+    assert units[0].rect.center[0] > 250
+
+
 @pytest.mark.parametrize("name", ["f1-jinx-short-gold-spill-20261116.png",
                                   "f1-jinx-buffed-badges-20261116.png"])
 @pytest.mark.parametrize("badge", ["attack", "health"])
@@ -165,11 +209,18 @@ def test_reads_attack_values_from_combat_units() -> None:
     ]
 
 
-def test_reads_visible_health_but_keeps_obscured_health_unknown() -> None:
+def test_reads_white_and_green_health_values() -> None:
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
     units = to_units(find_unit_badges(img, MY_BOARD), image=img)
-    # 第一个单位的生命徽章被红色高光盖住，不能猜；第二个清晰可读。
-    assert [u.health for u in units] == [-1, 6]
+    assert [u.health for u in units] == [3, 6]
+
+
+@pytest.mark.parametrize("shade", [0, 80, 160])
+def test_covered_health_stays_unknown(shade):
+    img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
+    img[850:910, 870:945] = shade
+    units = to_units(find_unit_badges(img, MY_BOARD), image=img)
+    assert [unit.health for unit in units] == [-1, 6]
 
 
 def test_attack_token_detected() -> None:

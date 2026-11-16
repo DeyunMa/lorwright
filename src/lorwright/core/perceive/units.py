@@ -7,16 +7,16 @@ buff 光效、装备图标、选中高亮都会改变像素，同一张截图里
 一个模板管不了两种状态，`my_units` 会在回合中途突然变 0，策略就以为没兵
 可打，整局不攻击。
 
-**改成认颜色。** 攻击力方块的橙色是固定的（H 8-30、S≥150、V≥140），
-生命值方块的红色也是固定的，两者都不随 buff/描边/选中状态变化。
-按连通域找方块，形状约束（长宽比 0.7-2.2、面积≥400）滤掉卡面上的装饰。
+**颜色与几何。** 橙色攻击底和红色生命底提供定位证据；数字、描边和光效
+会切碎色板，或把色板与整张卡框连通。普通徽章保留颜色和形状判据；异常
+色块只提供搜索起点，由字形中心恢复成对数值框，左右底色和数字均核实后接受。
 
 **方向差异。** 我方单位卡在己方半场，攻击力方块在**卡面顶部**，拖拽要往
 下落到卡身才抓得住（`MY_DRAG_OFFSET`）；敌方单位卡被屏幕下缘裁切，
 攻击力方块就在**卡面底部**，方块中心本身就是落点（`ENEMY_DRAG_OFFSET`）。
 
 攻击力/生命值数字由 `perceive/unit_stats.py` 读取：橙色攻击徽章的白/绿数字、
-红色生命徽章的白数字；读不出或置信度不足时保留 `-1`，由策略层保守处理。
+红色生命徽章的白/绿/红数字；读不出或置信度不足时保留 `-1`，由策略层保守处理。
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.models import Rect, Unit
-from lorwright.core.perceive.unit_stats import UnitStatsReader, _find_health_badge
+from lorwright.core.perceive.unit_stats import UnitStatsReader
 
 __all__ = [
     "ATTACK_BLOCK_MIN_AREA",
@@ -58,9 +58,7 @@ ATTACK_BLOCK_MIN_AREA = 1400
 #: 格挡阶段就找不到该拖到哪儿。上限放到 90×70 覆盖这层描边，
 #: 下限 35 仍然能滤掉卡面装饰（误检实测 19-39 高）。
 #:
-#: 另有一种情况这个窗口管不了：单位整圈套着「攻击中」橙色高亮时，
-#: 高亮和攻击力方块连通成一个 150×250 的大块（实测 7|9 那只）。
-#: 那需要单独按「高亮框」处理；当前没有实现，宁可漏检一个单位。
+#: 高亮和攻击方块连通时，可由字形与右侧生命框联合核验恢复徽章。
 ATTACK_BLOCK_SIZE = (50, 90, 35, 70)
 #: 同一单位卡上会出现第二个橙色元素（buff 图标），实测间距 68-95px；
 #: 正常单位间距 163px。100 能在两者之间干净切开。
@@ -148,25 +146,37 @@ def _orange_mask(hsv: np.ndarray) -> np.ndarray:
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
 
-def _paired_stat_badge(image: np.ndarray, plate: Rect) -> Rect | None:
-    """被光效缩小的色板须有同排红底和两个可读数字，才恢复完整徽章范围。"""
-    attack = Rect(plate.x - 10, plate.y - 5, plate.w + 20, plate.h + 10)
-    health = Rect(attack.x + attack.w, attack.y, attack.w, attack.h)
-    if (attack.x < 0 or attack.y < 0 or health.x + health.w > image.shape[1]
-            or health.y + health.h > image.shape[0]):
-        return None
-    patch = image[health.y + 5:health.y + health.h - 5,
-                  health.x + 5:health.x + health.w - 5]
-    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
-    red = (cv2.inRange(hsv, (0, 120, 100), (10, 255, 255))
-           | cv2.inRange(hsv, (170, 120, 100), (180, 255, 255)))
-    if float((red > 0).mean()) < 0.2:
-        return None
-    # 两个徽章使用同一套白/绿数字字形；read 的首项读取传入框的数字。
-    if (_DEFAULT_STATS.read(image, attack)[0] is None
-            or _DEFAULT_STATS.read(image, health)[0] is None):
-        return None
-    return attack
+def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[Rect]:
+    """色块仅提供搜索起点；字形定位数值框，再核验左右底色与读数。"""
+    x0, y0 = max(0, plate.x - 10), max(0, plate.y - 5)
+    x1 = min(image.shape[1], plate.x + min(plate.w, 90) + 10)
+    patch = image[y0:plate.y + 50, x0:x1]
+    blue, green, red = (patch[:, :, i] for i in range(3))
+    digits = ((patch.min(axis=2) >= 170)
+              | ((green >= 180) & (red <= 120) & (blue <= 120)))
+    _, _, stats, _ = cv2.connectedComponentsWithStats(digits.astype(np.uint8))
+    found = []
+    for x, y, w, h, area in stats[1:]:
+        if area < 12 or not (18 <= h <= 38) or w > h * 1.6:
+            continue
+        # 原生 1080p 徽章内框约 56×48，数值中心略偏左；两框中心相距 64px。
+        attack = Rect(x0 + int(x + w // 2) - 24, y0 + int(y + h // 2) - 24, 56, 48)
+        health = Rect(attack.x + 64, attack.y, 56, 48)
+        if (attack.x < 0 or attack.y < 0 or health.x + health.w > image.shape[1]
+                or health.y + health.h > image.shape[0]):
+            continue
+        attack_patch = image[attack.y + 5:attack.y + 43, attack.x + 5:attack.x + 51]
+        health_patch = image[health.y + 5:health.y + 43, health.x + 5:health.x + 51]
+        orange = _orange_mask(cv2.cvtColor(attack_patch, cv2.COLOR_BGR2HSV))
+        hsv = cv2.cvtColor(health_patch, cv2.COLOR_BGR2HSV)
+        red_mask = (cv2.inRange(hsv, (0, 120, 100), (10, 255, 255))
+                    | cv2.inRange(hsv, (170, 120, 100), (180, 255, 255)))
+        if float((orange > 0).mean()) < 0.2 or float((red_mask > 0).mean()) < 0.2:
+            continue
+        if (_DEFAULT_STATS.read_badge(image, attack) is not None
+                and _DEFAULT_STATS.read_badge(image, health, health=True) is not None):
+            found.append(attack)
+    return found
 
 
 def find_unit_badges(
@@ -191,23 +201,11 @@ def find_unit_badges(
     candidates: list[UnitBadge] = []
     for i in range(1, count):
         x, y, w, h, area = (int(v) for v in stats[i])
-        if (not enemy and area >= min_area and w_min <= w <= w_max
-                and h_max < h <= 210):
-            # 金色装饰可能从徽章延伸到卡身；只取顶部并核对相邻生命徽章。
-            _, _, top_stats, _ = cv2.connectedComponentsWithStats(mask[y:y + 50, x:x + w])
-            for tx, ty, tw, th, top_area in top_stats[1:]:
-                if top_area < min_area or not (50 <= tw <= 90 and 35 <= th <= 50):
-                    continue
-                rect = Rect(region.x + x + int(tx), region.y + y + int(ty), int(tw), int(th))
-                if _find_health_badge(image, rect) is not None:
-                    candidates.append(UnitBadge(rect.center, min(1.0, top_area / 2000.0), rect))
-            continue
-        if not enemy and 500 <= area < min_area and 30 <= w < w_min and 30 <= h <= 50:
-            rect = _paired_stat_badge(image, Rect(region.x + x, region.y + y, w, h))
-            if rect is not None:
-                candidates.append(UnitBadge(rect.center, min(1.0, area / 2000.0), rect))
-            continue
-        if area < min_area or not (w_min <= w <= w_max and h_min <= h <= h_max):
+        regular = area >= min_area and w_min <= w <= w_max and h_min <= h <= h_max
+        if not regular:
+            if not enemy and area >= 500 and w >= 30 and h >= 30:
+                for rect in _paired_stat_badges(image, Rect(region.x + x, region.y + y, w, h)):
+                    candidates.append(UnitBadge(rect.center, min(1.0, area / 2000.0), rect))
             continue
         candidates.append(
             UnitBadge(

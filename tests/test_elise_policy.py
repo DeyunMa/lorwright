@@ -234,8 +234,8 @@ def test_unplayable_card_is_skipped_on_retry() -> None:
     """
     policy = SpiderAggroPolicy()
     hand = [
-        CardInHand(index=0, name="", cost=1, rect=RECT),
-        CardInHand(index=1, name="", cost=3, rect=RECT),
+        CardInHand(index=0, name="", cost=1, rect=RECT, visible_playable_unit=True),
+        CardInHand(index=1, name="", cost=3, rect=RECT, visible_playable_unit=True),
     ]
     state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand, hand_expanded=True)
 
@@ -250,7 +250,7 @@ def test_unplayable_card_is_skipped_on_retry() -> None:
 def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
     """全都拖不动时不能死循环，要落到结束回合。"""
     policy = SpiderAggroPolicy()
-    hand = [CardInHand(index=0, name="", cost=1, rect=RECT)]
+    hand = [CardInHand(index=0, name="", cost=1, rect=RECT, visible_playable_unit=True)]
     state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand, hand_expanded=True)
 
     assert policy.decide(state).type is ActionType.PLAY_CARD
@@ -267,7 +267,7 @@ def test_targeting_state_cancels_instead_of_playing() -> None:
         ui_state=UIState.TARGETING,
         mana=6,
         max_mana=6,
-        hand=[CardInHand(index=0, name="", cost=0, rect=RECT)],
+        hand=[CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True)],
     )
     action = POLICY.decide(state)
     assert action is not None
@@ -278,8 +278,8 @@ def test_card_that_opens_targeting_is_marked_unplayable() -> None:
     """取消后手牌没减少 → 那张牌记成不可用，下次换别的。"""
     policy = SpiderAggroPolicy()
     hand = [
-        CardInHand(index=0, name="", cost=0, rect=RECT),
-        CardInHand(index=1, name="", cost=3, rect=RECT),
+        CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True),
+        CardInHand(index=1, name="", cost=3, rect=RECT, visible_playable_unit=True),
     ]
     state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
     first = policy.decide(state)
@@ -300,8 +300,8 @@ def test_needs_target_survives_hand_size_change() -> None:
     """
     policy = SpiderAggroPolicy()
     hand = [
-        CardInHand(index=0, name="", cost=0, rect=RECT),
-        CardInHand(index=1, name="", cost=3, rect=RECT),
+        CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True),
+        CardInHand(index=1, name="", cost=3, rect=RECT, visible_playable_unit=True),
     ]
     state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
     assert policy.decide(state).type is ActionType.PLAY_CARD
@@ -312,7 +312,7 @@ def test_needs_target_survives_hand_size_change() -> None:
         ui_state=UIState.MY_TURN_IDLE,
         mana=6,
         max_mana=6,
-        hand=[CardInHand(index=0, name="", cost=0, rect=RECT)],
+        hand=[CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True)],
     )
     assert policy.decide(shorter).type is ActionType.END_TURN
 

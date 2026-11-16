@@ -30,6 +30,61 @@ def saved_events(run):
     return [json.loads(line) for line in (run.path / "events.jsonl").read_text().splitlines()]
 
 
+def test_decision_input_and_verification_have_distinct_cli_messages(tmp_path):
+    with RunSession(tmp_path, mode="battle", champion="jinx", device="fake") as run:
+        report("decided", action="attack", strategy="attack_when_token",
+               decision_reason="有攻击令牌，未知手牌不影响攻击", unknown_cards=[0, 2])
+        result = runner.invoke(cli.app, ["status", run.run_id, "--root", str(tmp_path)])
+        assert result.exit_code == 0, result.output
+        assert "未知牌槽位：[0, 2]" in result.stdout
+        assert "未知手牌不影响攻击" in result.stdout
+        report("input_sent", action="attack", inputs=1)
+        sent = read_status(tmp_path, run.run_id)
+        assert "尚未确认游戏结果" in sent["message"]
+        assert sent["last_decision"]["action"] == "attack"
+        report("verified", "selected_units_moved_to_combat_row", progress=True)
+        assert "已验证" in read_status(tmp_path, run.run_id)["message"]
+        report("stopped", "unknown_target", snapshot="snapshots/unknown_target.png")
+        run.finish("stopped", "unknown_target")
+    result = runner.invoke(cli.app, ["status", run.run_id, "--root", str(tmp_path)])
+    assert "unknown_target" in result.stdout
+    assert "snapshots/unknown_target.png" in result.stdout
+    events = saved_events(run)
+    phases = [e["payload"] for e in events if e["type"] == "phase"]
+    assert [p["phase"] for p in phases] == ["decided", "input_sent", "verified", "stopped"]
+    assert all(p["message"] for p in phases)
+
+
+def test_human_events_hide_repeated_polling_but_jsonl_keeps_every_event(tmp_path):
+    with RunSession(tmp_path, mode="battle", champion="", device="fake") as run:
+        for _ in range(2):
+            report("capture")
+            report("recognized", ui="my_turn_idle", summary="same")
+            report("waiting", "enemy_turn", wait_s=60)
+        run.finish("stopped", "tick_limit")
+    human = runner.invoke(cli.app, ["events", run.run_id, "--root", str(tmp_path)])
+    assert human.exit_code == 0, human.output
+    assert human.stdout.count("识别到 my_turn_idle") == 1
+    assert human.stdout.count("等待对手") == 1
+    detailed = runner.invoke(cli.app, ["events", run.run_id, "--root", str(tmp_path), "--verbose"])
+    assert '"phase": "capture"' in detailed.stdout
+    machine = runner.invoke(cli.app, ["events", run.run_id, "--root", str(tmp_path), "--jsonl"])
+    assert [json.loads(line) for line in machine.stdout.splitlines()] == saved_events(run)
+
+
+def test_human_events_preserve_each_input_and_verified_result(tmp_path):
+    with RunSession(tmp_path, mode="battle", champion="", device="fake") as run:
+        for _ in range(2):
+            report("decided", action="play_card", decision_reason="选择可出单位")
+            report("input_sent", action="play_card")
+            report("verified", "hand_reduced_and_mana_or_board_changed", progress=True)
+    result = runner.invoke(cli.app, ["events", run.run_id, "--root", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert result.stdout.count("选择可出单位") == 2
+    assert result.stdout.count("尚未确认游戏结果") == 2
+    assert result.stdout.count("已验证可见结果") == 2
+
+
 def test_jsonl_sequence_unique_terminal_and_scope(tmp_path, capsys):
     assert current_session() is None
     report("outside")

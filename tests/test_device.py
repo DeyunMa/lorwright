@@ -37,10 +37,11 @@ class _Router:
     calls = 0
 
     def decide(self, state):
+        from lorwright.core.decide.router import RouteResult
         from lorwright.core.models import Action, ActionType
 
         type(self).calls += 1
-        return type("R", (), {"action": Action(type=ActionType.END_TURN), "layer": "test"})()
+        return RouteResult(Action(type=ActionType.CONFIRM), "test")
 
     def coverage(self):
         return {}

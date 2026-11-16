@@ -31,27 +31,35 @@ def test_engine_returns_exit_fact(monkeypatch, states, expected):
 
 @pytest.mark.parametrize(("state", "reason"), [
     (GameState(), "unknown_ui"),
-    (ready(readings={}), "unreadable"),
+    (ready(hand_expanded=True, readings={},
+           hand=[CardInHand(0, "unit", 1, Rect(300, 900, 20, 20))]),
+     "action_preconditions_unverified"),
 ])
-def test_unknown_wait_does_not_refresh_progress_or_deadline(monkeypatch, tmp_path, state, reason):
+def test_wait_deadline_is_stable_and_core_stops_before_external_intervention(
+    monkeypatch, tmp_path, state, reason,
+):
     now = [1000.0]
     monkeypatch.setattr("time.time", lambda: now[0])
-    engine, device, router, _, _ = engine_for(monkeypatch, [state] * 4, [], timeout=2)
+    monkeypatch.setattr("time.monotonic", lambda: now[0] - 1000.0)
+    actions = [] if state.ui_state is UIState.UNKNOWN else [Action(ActionType.PLAY_CARD, 0)] * 3
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [state] * 3, actions, timeout=2)
     observed = []
     with RunSession(tmp_path, mode="run", champion="test", device="synthetic",
                     heartbeat_s=1000, stall_timeout_s=3) as session:
         def observe(_):
             observed.append(read_status(tmp_path, session.run_id))
-            now[0] += 2
+            now[0] += 1
         monkeypatch.setattr(engine, "_wait", observe)
-        engine.run(max_ticks=4)
-    assert router.calls == 0 and device.taps == []
-    assert observed[0]["health"] == "waiting"
-    assert observed[-1]["health"] == "stalled"
-    assert {status["last_progress_at"] for status in observed} == {1000.0}
-    assert {status["details"]["wait_until"] for status in observed} == {1002.0}
-    assert observed[-1]["details"]["tick"] == 4
-    assert observed[-1]["reason"] == reason
+        result = engine.run(max_ticks=5)
+        session.finish(result.status, result.reason)
+        final = read_status(tmp_path, session.run_id)
+    assert not device.taps and not device.drags
+    assert len(observed) == 2 and all(item["health"] == "waiting" for item in observed)
+    assert {item["last_progress_at"] for item in observed} == {1000.0}
+    assert {item["details"]["wait_until"] for item in observed} == {1002.0}
+    assert (final["status"], final["reason"]) == ("stopped", reason)
+    assert final["details"]["tick"] == 3
+    assert snapshots == [{"tag": reason}]
 
 
 def test_verified_action_updates_session_progress(monkeypatch, tmp_path):

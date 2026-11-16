@@ -16,6 +16,7 @@ from lorwright.core.runtime.session import (
     TERMINAL,
     _atomic_json,
     _utc,
+    describe_status,
     new_run_id,
     read_status,
     run_path,
@@ -35,6 +36,25 @@ def _output(value: dict, machine: bool):
     if machine:
         _utf8_stdout()
         typer.echo(json.dumps(value, ensure_ascii=False))
+    elif "health" in value:
+        typer.echo(f"会话：{value['run_id']}")
+        typer.echo(f"状态：{value['status']} / {value['health']}；阶段：{value['phase']}")
+        details = value.get("details", {})
+        typer.echo(value.get("message") or describe_status(value["phase"], value.get("reason"), details))
+        if value.get("reason"):
+            typer.echo(f"原因：{value['reason']}")
+        decision = value.get("last_decision")
+        if decision:
+            typer.echo(f"最近决策：{decision.get('action')} / {decision.get('strategy')}；"
+                       f"{decision.get('decision_reason', '')}")
+            if decision.get("unknown_cards"):
+                typer.echo(f"未知牌槽位：{decision['unknown_cards']}（从 0 开始，不代表全局阻塞）")
+        if value.get("wait_deadline") is not None:
+            remaining = max(0.0, value["wait_deadline"] - time.time())
+            typer.echo(f"等待：{value.get('wait_reason')}；剩余 {remaining:.1f} 秒")
+        if value.get("last_snapshot"):
+            typer.echo(f"截图：{value['last_snapshot']}")
+        typer.echo(f"事件游标：{value['seq']}")
     else:
         for key, item in value.items():
             typer.echo(f"{key}: {item}")
@@ -215,6 +235,7 @@ def events(
     jsonl: Annotated[bool, typer.Option("--jsonl")] = False,
     follow: Annotated[bool, typer.Option("--follow")] = False,
     after: Annotated[int, typer.Option(min=0, help="只返回 seq 大于此值的事件")] = 0,
+    verbose: Annotated[bool, typer.Option("--verbose", help="人读模式显示完整事件及逐帧阶段")] = False,
 ):
     """补读完整事件行；终态或心跳失联后停止跟随。"""
     if jsonl:
@@ -223,6 +244,7 @@ def events(
     run_id = saved["run_id"]
     path = run_path(root, run_id) / "events.jsonl"
     position = 0
+    shown_phases: dict[str, tuple] = {}
     while True:
         # Read status before draining: a newly observed terminal event is included.
         saved = _status(root, run_id, jsonl)
@@ -238,8 +260,22 @@ def events(
                         if jsonl:
                             typer.echo(json.dumps(event, ensure_ascii=False))
                         else:
-                            typer.echo(f"{event['seq']} {event['ts_utc']} {event['type']} "
-                                       f"{json.dumps(event['payload'], ensure_ascii=False)}")
+                            payload = event["payload"]
+                            if not verbose and event["type"] == "phase":
+                                phase = payload["phase"]
+                                if phase in {"capture", "recognize", "decide", "execute"}:
+                                    continue
+                                signature = (payload.get("message"), payload.get("reason"),
+                                             payload.get("action"), payload.get("unknown_cards"))
+                                if phase in {"input_sent", "verified", "stopped", "completed"}:
+                                    shown_phases.clear()
+                                else:
+                                    if shown_phases.get(phase) == signature:
+                                        continue
+                                    shown_phases[phase] = signature
+                            message = (payload.get("message") if not verbose else None)
+                            text = message or json.dumps(payload, ensure_ascii=False)
+                            typer.echo(f"{event['seq']} {event['ts_utc']} {event['type']} {text}")
         if follow and saved["health"] == "unresponsive":
             typer.echo(f"会话 {run_id} 心跳失联（unresponsive），已停止跟随事件", err=True)
             raise typer.Exit(2)

@@ -70,7 +70,7 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
 
     buff 牌先出是这套牌的确定性规则：所有 buff 都是给「其他蜘蛛」的，
     先出只会让后面的牌更值，不会更亏。
-    查不到的牌（识别错字/新卡）按 0 费、0 分处理，排在最后但不会被丢掉。
+    牌名未知时仅使用独立的可出单位证据；其余未知牌跳过，不阻塞攻击或收尾。
     """
     # 这套牌场上单位全是蜘蛛（含小蜘蛛 token），所以直接取单位数。
     # 换其他英雄时这段逻辑会跟着英雄包一起换掉。
@@ -79,9 +79,15 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
 
     playable: list[tuple[CardInHand, EliseCard, float]] = []
     for card in state.hand:
-        if not (0 <= card.cost <= state.mana):
+        if not (0 <= card.cost <= max(0, state.mana)):
             continue
-        definition = lookup(card.name) or EliseCard(card.name, cost=card.cost)
+        if state.hand_expanded and not card.drag_point_valid:
+            continue
+        definition = lookup(card.name)
+        if definition is None:
+            if not card.visible_playable_unit:
+                continue
+            definition = EliseCard(card.name, cost=card.cost)
         playable.append(
             (
                 card,

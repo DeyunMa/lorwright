@@ -22,6 +22,39 @@ class StopRequested(Exception):
     """调用方在安全点观察到停止请求。"""
 
 
+def describe_status(phase: str, reason: str | None, details: dict) -> str:
+    """可读说明与稳定的阶段、原因代码并存，不参与游戏决策。"""
+    reasons = {
+        "unknown_ui": "当前界面无法识别，等待新画面；到期仍未知则保存截图并停止",
+        "unknown_target": "目标要求无法确认，等待重新识别；到期停止",
+        "action_preconditions_unverified": "当前动作缺少必要证据："
+            + ", ".join(details.get("missing_readings", [])),
+        "action_plan_unavailable": "当前动作无法生成有效输入计划，等待重新识别",
+        "no_action": "策略正在等待，当前没有可执行动作",
+        "enemy_turn": "等待对手行动或游戏转场，正常运行无需外部命令",
+        "action_result": "输入已发送，等待可见结果验证",
+        "action_timeout": "未能在期限内验证动作结果，已停止，避免重复输入",
+        "stale_frame": "画面已过期，重新截图；持续过期将停止",
+        "frame_expired_during_decision": "决策时画面已过期，重新截图",
+        "battle_end": "已识别战斗结束画面，尚不代表获胜或冒险完成",
+        "discard_sample": "已选择一次弃牌并保存截图，后续确认流程尚未实现",
+        "stop_requested": "已收到协作停止请求",
+    }
+    if phase in {"stopped", "failed", "cancelled"}:
+        return f"运行已停止（{reason or phase}）；" + reasons.get(reason, "请查看事件与关联截图")
+    if reason in reasons:
+        return reasons[reason]
+    if phase == "decided":
+        return details.get("decision_reason") or f"已选择动作 {details.get('action', '')}"
+    if phase == "recognized":
+        return f"识别到 {details.get('ui', 'unknown')}；{details.get('summary', '')}"
+    if phase == "input_sent":
+        return f"已发送 {details.get('action', '')} 输入，尚未确认游戏结果"
+    if phase == "verified":
+        return f"已验证可见结果：{reason or details.get('action', '')}"
+    return f"{phase}" + (f"（{reason}）" if reason else "")
+
+
 def runs_root(root: str | Path | None = None) -> Path:
     return Path(root or os.environ.get("LORWRIGHT_RUNS_DIR", "logs/runs")).resolve()
 
@@ -118,7 +151,8 @@ def read_status(root: str | Path | None, run_id: str | None = None) -> dict:
         health = "starting"
     elif not process_alive(status.get("pid")):
         health = "unresponsive"
-        status.update(status="failed", reason="process_exited_without_terminal")
+        status.update(status="failed", reason="process_exited_without_terminal",
+                      message="工作进程已退出且没有写入终态，请查看启动日志和事件")
     elif age > max(5.0, status["heartbeat_s"] * 3):
         health = "unresponsive"
     elif status["status"] == "starting":
@@ -304,7 +338,13 @@ class RunSession:
             if wait_s is not None and self._wait_key != (phase, reason):
                 self._wait_key = (phase, reason)
                 self._wait_deadline = now + wait_s
-            self._status.update(phase=phase, reason=reason,
+            message = details.get("message") or describe_status(phase, reason, details)
+            if phase == "decided":
+                self._status["last_decision"] = {
+                    key: details[key] for key in ("action", "strategy", "decision_reason", "unknown_cards")
+                    if key in details
+                }
+            self._status.update(phase=phase, reason=reason, message=message,
                                 details={**self._status["details"], **details},
                                 wait_deadline=self._wait_deadline,
                                 wait_phase=self._wait_key[0] if self._wait_key else None,
@@ -312,7 +352,7 @@ class RunSession:
             if details.get("snapshot") is not None:
                 self._status["last_snapshot"] = details["snapshot"]
             self.event("phase", phase=phase, reason=reason, progress=progress,
-                       wait_deadline=self._status["wait_deadline"], **details)
+                       wait_deadline=self._status["wait_deadline"], **(details | {"message": message}))
 
     def finish(self, status, reason, **details):
         if status not in TERMINAL:
@@ -321,11 +361,13 @@ class RunSession:
             if self._status["status"] in TERMINAL:
                 return
             self.path.mkdir(parents=True, exist_ok=True)
-            self._status.update(status=status, reason=reason,
+            message = details.get("message") or describe_status(status, reason, self._status["details"] | details)
+            self._status.update(status=status, reason=reason, message=message,
                                 details={**self._status["details"], **details},
                                 finished_at=_utc(), wait_deadline=None,
                                 wait_phase=None, wait_reason=None)
-            self._append("session_finished", dict(status=status, reason=reason, **details))
+            self._append("session_finished", dict(status=status, reason=reason,
+                                                  **(details | {"message": message})))
             self._persist()
             self._stop.set()
 

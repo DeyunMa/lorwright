@@ -76,6 +76,11 @@ class ActionOutcome:
                 if after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
                 if not before.hand_expanded:
+                    if (after.ui_state is UIState.COMBAT_RESOLVING
+                            and after.action_prompt in {"action_confirm", "action_commit"}):
+                        # 只点过展开，可能被对手技能打断；交给确认策略，
+                        # 不把原动作记为成功或暂存为已拖出的待确认牌。
+                        return Outcome(OutcomeStatus.NEEDS_INPUT, "hand_expansion_interrupted")
                     if known and after.hand_expanded:
                         reason = "hand_expanded"
                 elif (before.ui_state is UIState.MY_TURN_IDLE

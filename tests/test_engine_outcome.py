@@ -426,6 +426,105 @@ def test_expand_then_drag_waits_for_result_without_repeating_input(monkeypatch):
     assert device.closed
 
 
+@pytest.mark.parametrize("action_prompt", ["action_commit", "action_confirm"])
+@pytest.mark.parametrize("hand_expanded", [False, True])
+def test_expand_interrupted_by_combat_confirmation_yields_without_play_success(
+    monkeypatch, hand_expanded, action_prompt,
+):
+    from lorwright.core.decide.generic import CombatConfirmPolicy, ExpandHandPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    # 按 run 20261116T140322-bbb448edad6f 的中断状态构造；不是逐帧图像回放。
+    before = ready(hand=[CardInHand(0, "", 1, Rect(300, 800, 50, 50))])
+    animation = replace(before, ui_state=UIState.UNKNOWN, hand_expanded=True,
+                        action_prompt=action_prompt)
+    commit = replace(before, ui_state=UIState.COMBAT_RESOLVING,
+                     action_prompt=action_prompt, hand_expanded=hand_expanded)
+    after = replace(before, ui_state=UIState.ENEMY_TURN)
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, before, animation, commit, commit, animation, after], [],
+    )
+    notifications = []
+
+    class Observer:
+        def decide(self, state):
+            return None
+
+        def on_action_outcome(self, action, previous, current):
+            notifications.append((action.type, current.ui_state))
+
+    engine.router = RealRouter([Observer(), ExpandHandPolicy(), CombatConfirmPolicy()])
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 1.0, 2.0, 3.0, 4.0, 10.0, 12.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=7)
+    assert result.reason == "tick_limit"
+    assert device.taps == [engine.layout.hand_region.center, engine.layout.end_turn.center]
+    assert device.drags == []
+    assert engine.router.stats == {"expand_hand": 1, "combat_confirm": 1, "fallback": 1}
+    assert notifications == [(ActionType.CONFIRM, UIState.ENEMY_TURN)]
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert [(e["action"], e["status"], e["reason"]) for e in outcomes] == [
+        ("play_card", "waiting", "awaiting_visible_result"),
+        ("play_card", "waiting", "awaiting_visible_result"),
+        ("play_card", "needs_input", "hand_expansion_interrupted"),
+        ("confirm", "waiting", "awaiting_visible_result"),
+        ("confirm", "waiting", "awaiting_visible_result"),
+        ("confirm", "succeeded", "ui_transition"),
+    ]
+    assert snapshots == []
+
+
+@pytest.mark.parametrize("ui,action_prompt,hand_expanded", [
+    (UIState.UNKNOWN, "action_commit", True),
+    (UIState.UNKNOWN, "action_confirm", True),
+    (UIState.COMBAT_RESOLVING, None, False),
+    (UIState.COMBAT_RESOLVING, "unrecognized", False),
+    (UIState.MY_TURN_IDLE, "action_commit", False),
+])
+def test_expand_wait_requires_known_confirmation_before_original_deadline(
+    monkeypatch, ui, action_prompt, hand_expanded,
+):
+    from lorwright.core.decide.generic import CombatConfirmPolicy, ExpandHandPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    before = ready(hand=[CardInHand(0, "", 1, Rect(300, 800, 50, 50))])
+    unverified = replace(before, ui_state=ui, action_prompt=action_prompt,
+                         hand_expanded=hand_expanded)
+    late_commit = replace(before, ui_state=UIState.COMBAT_RESOLVING,
+                          action_prompt="action_commit")
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, unverified, unverified, late_commit], [],
+    )
+    engine.router = RealRouter([ExpandHandPolicy(), CombatConfirmPolicy()])
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 3.0, 7.0, 8.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=4)
+    assert (result.status, result.reason) == ("stopped", "action_timeout")
+    assert device.taps == [engine.layout.hand_region.center]
+    assert device.drags == []
+    assert engine.router.stats == {"expand_hand": 1}
+    assert [e["status"] for e in events if e.get("event") == "action_outcome"] == [
+        "waiting", "waiting", "timed_out",
+    ]
+    assert snapshots == [{"tag": "action_timeout"}]
+
+
 def test_unrecognized_target_stops_without_input(monkeypatch):
     s = ready(ui_state=UIState.TARGETING)
     engine, device, _, _, snapshots = engine_for(

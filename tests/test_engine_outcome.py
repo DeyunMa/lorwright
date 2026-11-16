@@ -473,6 +473,29 @@ def test_rocket_confirmation_accepts_damage_with_refilled_mana(monkeypatch):
     assert len(device.drags) == 2
 
 
+def test_rocket_confirmation_accepts_collapsed_hand_with_same_visible_count(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.generic import CombatConfirmPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    cards = [CardInHand(i, "超威能死亡火箭！", 1, Rect(300 + i * 100, 800, 50, 50))
+             for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True, mana=1, spell_mana=3, enemy_nexus_hp=13,
+                   readings={"mana": Reading(1, 0), "spell_mana": Reading(3, 0),
+                             "enemy_nexus_hp": Reading(13, 0)})
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(before, hand_expanded=False, enemy_nexus_hp=6,
+                    readings={**before.readings, "enemy_nexus_hp": Reading(6, 0)})
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [before, staged, after], [])
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    engine.router = RealRouter([policy, CombatConfirmPolicy()])
+    engine.run(max_ticks=3)
+    assert policy._rockets_played == 1
+    # 结果核验后第三帧正常回退结束回合，不重复拖火箭或重复计数。
+    assert len(device.drags) == 1 and device.taps == [(20, 20), (20, 20)]
+    assert snapshots == []
+
+
 def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
     from lorwright.core.decide.generic import CombatConfirmPolicy

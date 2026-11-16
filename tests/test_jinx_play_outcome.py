@@ -97,6 +97,31 @@ def test_rocket_accepts_fresh_damage_when_mana_is_refilled(damage_reading):
     assert not expectation.verify(replace(after, ui_state=UIState.UNKNOWN))
 
 
+@pytest.mark.parametrize("ui,reading,expected", [
+    (UIState.MY_TURN_IDLE, Reading(6, 0), True),
+    (UIState.MY_TURN_IDLE, Reading(6, 1), False),
+    (UIState.MY_TURN_IDLE, Reading(13, 0), False),
+    (UIState.UNKNOWN, Reading(6, 0), False),
+    (UIState.ENEMY_TURN, Reading(6, 0), False),
+    (UIState.BLOCKING, Reading(6, 0), False),
+])
+def test_rocket_collapsed_hand_uses_fresh_damage_instead_of_cross_view_count(ui, reading, expected):
+    rocket = CardInHand(0, "超威能死亡火箭！", 1, Rect(400, 800, 50, 50))
+    before = GameState(ui_state=UIState.MY_TURN_IDLE, hand=[rocket] * 6,
+                       hand_expanded=True, mana=1, enemy_nexus_hp=13,
+                       readings={"mana": Reading(1, 0), "enemy_nexus_hp": Reading(13, 0)})
+    action = Action(ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    after = replace(before, ui_state=ui, hand_expanded=False, enemy_nexus_hp=reading.value,
+                    readings={**before.readings, "enemy_nexus_hp": reading})
+    assert expectation.verify(after) is expected
+    # 不能用支付或视图变化替代伤害证据。
+    assert not expectation.verify(replace(after, mana=0, enemy_nexus_hp=13,
+                                         readings={"mana": Reading(0, 0),
+                                                   "enemy_nexus_hp": Reading(13, 0)}))
+    assert not expectation.verify(replace(after, readings={"enemy_nexus_hp": Reading(6, 1)}))
+
+
 def test_expansion_and_other_cards_keep_generic_result_checks():
     action, before, _ = summon_states()
     policy = JinxOpeningPolicy()

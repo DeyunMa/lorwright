@@ -181,9 +181,8 @@ class JinxOpeningPolicy:
             return None
         if card.name in ROCKET_NAMES and action.raw.get("jinx_rocket") is True:
             def verify_rocket(after: GameState) -> bool:
-                if (after.ui_state not in (UIState.MY_TURN_IDLE, UIState.ENEMY_TURN,
-                                           UIState.BLOCKING)
-                        or len(after.hand) >= len(before.hand)):
+                if after.ui_state not in (UIState.MY_TURN_IDLE, UIState.ENEMY_TURN,
+                                          UIState.BLOCKING):
                     return False
                 mana_paid = (before.has_fresh_readings("mana")
                              and after.has_fresh_readings("mana") and after.mana < before.mana)
@@ -194,7 +193,11 @@ class JinxOpeningPolicy:
                 damaged = (before.has_fresh_readings("enemy_nexus_hp")
                            and after.has_fresh_readings("enemy_nexus_hp")
                            and after.enemy_nexus_hp < before.enemy_nexus_hp)
-                return mana_paid or spell_paid or damaged
+                if not after.hand_expanded:
+                    # 展开与收起视图的可见牌数不可直接比较；确认结算后仅凭
+                    # 新鲜伤害且回到己方行动核验，不以法力回填或视图变化放行。
+                    return after.ui_state is UIState.MY_TURN_IDLE and damaged
+                return len(after.hand) < len(before.hand) and (mana_paid or spell_paid or damaged)
 
             return PlayExpectation(verify_rocket, "jinx_rocket_payment_or_damage_verified", 20.0)
         if card.name != "吉茵珂絲":

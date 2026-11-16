@@ -173,6 +173,66 @@ def test_reward_timeout_unknown_transition_stops_without_repeating(adventure):
     assert saved == ["reward_timeout_transition_unverified"]
 
 
+@pytest.mark.parametrize("awaiting_reward", [False, True])
+def test_adventure_victory_completes_instead_of_waiting_for_reward(adventure, awaiting_reward):
+    image = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    assert image is not None
+    loop, device, engine, saved, _ = adventure([image] * 7, [UIState.UNKNOWN] * 7)
+    loop._awaiting_battle_reward = awaiting_reward
+    result = loop.run(max_nodes=1)
+    assert result == LoopResult("completed", "adventure_victory")
+    assert device.taps == []
+    assert engine.run_calls == []
+    assert saved == ["adventure_victory"]
+
+
+def test_final_victory_is_readable_through_cli(adventure, tmp_path):
+    import json
+
+    from typer.testing import CliRunner
+
+    from lorwright.cli.sessions import app
+    from lorwright.core.runtime.session import RunSession
+
+    image = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    assert image is not None
+    loop, device, _, _, _ = adventure([image], [UIState.UNKNOWN])
+    with RunSession(tmp_path, mode="adventure", champion="jinx", device="fake") as run:
+        result = loop.run(max_nodes=1)
+        run.finish(result.status, result.reason)
+    response = CliRunner().invoke(app, ["status", run.run_id, "--root", str(tmp_path), "--json"])
+    assert response.exit_code == 0, response.output
+    status = json.loads(response.stdout)
+    assert status["status"] == "completed"
+    assert status["reason"] == "adventure_victory"
+    assert status["details"]["outcome"] == "victory"
+    assert status["last_snapshot"] == "/tmp/fake.png"
+    assert "最终胜利结算页" in status["message"]
+    assert "是否全程无人介入" in status["message"]
+    assert device.taps == []
+
+
+@pytest.mark.parametrize("source", ["reward_wait", "missions", "vault"])
+def test_final_victory_is_a_recognized_post_battle_destination(adventure, source):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    assert victory is not None
+    if source == "reward_wait":
+        frames, script = [_blank(), victory], [UIState.UNKNOWN]
+    else:
+        name = "f1-missions-20261115.png" if source == "missions" else "vault_experience.png"
+        before = cv2.imread(str(FIXTURES.parent / "continue" / name))
+        assert before is not None
+        before = cv2.resize(before, (1920, 1080))
+        frames, script = [before, victory], [UIState.BATTLE_END, UIState.UNKNOWN]
+    loop, device, engine, saved, _ = adventure(frames, script)
+    loop._awaiting_battle_reward = source == "reward_wait"
+    result = loop.run(max_nodes=2)
+    assert result == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == (0 if source == "reward_wait" else 1)
+    assert engine.run_calls == []
+    assert saved == ["adventure_victory"]
+
+
 def test_missions_clicks_once_and_accepts_recognized_vault(adventure):
     mission = cv2.imread(str(FIXTURES.parent / "continue" / "f1-missions-20261115.png"))
     vault = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
@@ -938,6 +998,7 @@ def test_unknown_screen_with_continue_does_not_tap(adventure):
     image = cv2.imread(str(FIXTURES.parent / "continue" / "challenge_result.png"))
     assert image is not None
     image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
+    image[96:146, 205:288] = 0  # 合成未知页：保留按钮，去掉最终胜利证据。
     loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
     loop.run(max_nodes=1)
     assert device.taps == []
@@ -948,6 +1009,7 @@ def test_battle_end_with_unchanged_continue_does_not_tap_twice(adventure):
     image = cv2.imread(str(FIXTURES.parent / "continue" / "challenge_result.png"))
     assert image is not None
     image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
+    image[96:146, 205:288] = 0  # 合成普通结算页，不满足最终胜利条件。
     loop, device, _, saved, _ = adventure(
         [image, image], [UIState.BATTLE_END, UIState.BATTLE_END],
     )
@@ -1001,6 +1063,7 @@ def test_different_result_pages_can_have_continue_in_same_place(adventure):
     assert all(image is not None for image in images)
     images = [cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
               for image in images]
+    images[0][96:146, 205:288] = 0  # 合成普通结算页，专测同坐标按钮的转场。
     loop, device, _, saved, _ = adventure(
         images + [_blank()] * 6,
         [UIState.BATTLE_END, UIState.BATTLE_END, UIState.BATTLE_END],

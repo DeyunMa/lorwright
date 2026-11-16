@@ -7,7 +7,7 @@ import pytest
 
 from lorwright.core.models import UIState
 from lorwright.core.perceive.buttons import find_continue_button
-from lorwright.core.perceive.result_screen import result_screen
+from lorwright.core.perceive.result_screen import is_adventure_victory, result_screen
 from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path("tests/fixtures/continue")
@@ -50,6 +50,36 @@ def test_mission_page_has_no_confirmed_continue_but_vault_does():
     assert find_continue_button(_load("f1-missions-20261113.jpg")) is None
     button = find_continue_button(_load("f1-vault-20261113.jpg"))
     assert button is not None and abs(button.center[0] - 1270) < 20
+
+
+@pytest.mark.parametrize("name", ["f1-adventure-victory-20261116.png", "challenge_result.png"])
+def test_adventure_victory_requires_all_three_visible_labels(name):
+    image = _load(name)
+    assert is_adventure_victory(image)
+    assert not is_adventure_victory((image * 0.6).astype("uint8"))
+    assert not is_adventure_victory(image[:540, :960])
+    for x1, y1, x2, y2 in ((205, 96, 288, 146), (182, 266, 321, 315),
+                             (182, 389, 321, 438)):
+        obscured = image.copy()
+        obscured[y1:y2, x1:x2] = 0
+        assert not is_adventure_victory(obscured)
+
+
+def test_adventure_victory_does_not_depend_on_hero_grade_name_or_values():
+    image = _load("f1-adventure-victory-20261116.png")
+    image[:104] = 0  # 冒险名称和评级顶部
+    image[104:250, :205] = 0  # 评级其余部分
+    image[145:250] = 0  # 账号
+    image[315:389, 180:600] = 0  # 完成时间值
+    image[438:] = 0  # 最短时间值、英雄、资源和继续按钮
+    image[:, 600:] = 0  # 卡牌与英雄详情
+    assert is_adventure_victory(image)
+
+
+@pytest.mark.parametrize("name", ["f1-missions-20261115.png", "vault_experience.png",
+                                  "challenge_experience.png", "victory_banner.png"])
+def test_intermediate_results_are_not_adventure_victory(name):
+    assert not is_adventure_victory(_load(name))
 
 
 @pytest.mark.parametrize("name", ["challenge_result.png", "challenge_experience.png",

@@ -67,7 +67,7 @@ from lorwright.core.perceive.mapnav import (
 )
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.panels import action_button
-from lorwright.core.perceive.result_screen import result_screen
+from lorwright.core.perceive.result_screen import is_adventure_victory, result_screen
 from lorwright.core.perceive.revive_screen import find_revive_button
 from lorwright.core.perceive.reward_screen import (
     card_reward_confirm_button,
@@ -166,6 +166,9 @@ class AdventureLoop:
             image = pending_image if pending_image is not None else self._frame()
             pending_image = None
             normalized = self._reward_design(image)
+            if normalized is not None and is_adventure_victory(normalized[0]):
+                self._complete_adventure(image)
+                return
             if self.sample_hero_item_jinx:
                 if normalized is not None:
                     design, scale = normalized
@@ -230,6 +233,9 @@ class AdventureLoop:
                 # 战斗结束后的地图背景不授权找节点，先核实奖励或结算页面。
                 for attempt in range(7):
                     design = self._reward_design(image)
+                    if design is not None and is_adventure_victory(design[0]):
+                        self._complete_adventure(image)
+                        return
                     post_battle_ui = self.engine.parser.ui.detect(
                         design[0] if design is not None else image
                     )
@@ -524,8 +530,19 @@ class AdventureLoop:
             if not self._handle_node_panel():
                 return
 
+    def _complete_adventure(self, image) -> None:
+        self._scene("adventure_victory")
+        path = snapshot.save_snapshot(
+            image, self.settings.perception.snapshot_dir, tag="adventure_victory",
+        )
+        self._details.update(snapshot=str(path), outcome="victory")
+        self.result = LoopResult("completed", "adventure_victory")
+
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""
+        normalized = self._reward_design(image)
+        if normalized is not None and is_adventure_victory(normalized[0]):
+            return True
         if (is_power_vendor(image) or shop_leave_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)
                 or self._is_hero_item_reward(image)

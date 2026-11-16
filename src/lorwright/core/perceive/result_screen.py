@@ -8,7 +8,8 @@ import numpy as np
 from lorwright.core.perceive.adventure_scene import _template
 
 
-def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int]) -> bool:
+def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
+             *, text_min: int = 160) -> bool:
     template = _template(name)
     if template is None:
         return False
@@ -20,9 +21,20 @@ def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int]) ->
     _, score, _, (x, y) = cv2.minMaxLoc(scores)
     h, w = template.shape
     patch = region[y:y + h, x:x + w]
-    bright = template >= 160
+    bright = template >= text_min
     return bool(score >= 0.83 and bright.any()
                 and float(patch[bright].mean()) >= float(template[bright].mean()) * 0.8)
+
+
+def is_adventure_victory(image: np.ndarray) -> bool:
+    """最终胜利页须同时具有胜利和两项完成时间标签，不依赖英雄、评级或数值。"""
+    if image.shape != (1080, 1920, 3):
+        return False
+    return (
+        _visible(image, "adventure_victory_label", (205, 96, 288, 146))
+        and _visible(image, "adventure_completion_time", (182, 266, 321, 315), text_min=100)
+        and _visible(image, "adventure_best_time", (182, 389, 321, 438), text_min=100)
+    )
 
 
 def result_screen(image: np.ndarray) -> str | None:

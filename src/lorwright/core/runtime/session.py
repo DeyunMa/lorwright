@@ -37,6 +37,7 @@ def describe_status(phase: str, reason: str | None, details: dict) -> str:
         "stale_frame": "画面已过期，重新截图；持续过期将停止",
         "frame_expired_during_decision": "决策时画面已过期，重新截图",
         "battle_end": "已识别战斗结束画面，尚不代表获胜或冒险完成",
+        "adventure_victory": "已识别冒险最终胜利结算页；是否全程无人介入须结合完整运行记录确认",
         "discard_sample": "已选择一次弃牌并保存截图，后续确认流程尚未实现",
         "stop_requested": "已收到协作停止请求",
     }

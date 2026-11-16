@@ -105,7 +105,7 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 3. `stopped / failed / unresponsive`：读取最终原因与截图引用，再按需查看对应截图；不要直接重新启动并重复点击。
 4. `cancelled`：确认请求确已到安全点生效。
 
-`completed / battle_end` 只说明单场战斗出现结束画面，不证明战斗获胜或整个冒险通关。`tick_limit / node_limit / iteration_limit` 表示调用预算耗尽。`adventure --max-nodes` 是外层观察轮数的上限，不能当作已完成的节点数。
+`completed / battle_end` 只说明单场战斗出现结束画面，不证明战斗获胜或整个冒险通关。`completed / adventure_victory` 表示同时识别到最终结算页的胜利、完成时间和最短时间标签，保存结算截图后结束会话，不点击该页继续按钮；它证明已到冒险最终胜利页，是否全程无人介入仍须结合完整运行记录。`tick_limit / node_limit / iteration_limit` 表示调用预算耗尽。`adventure --max-nodes` 是外层观察轮数的上限，不能当作已完成的节点数。
 
 ## 决策、局部未知与阻塞
 

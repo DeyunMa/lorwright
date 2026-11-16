@@ -50,6 +50,7 @@ from lorwright.core.perceive.astrologer import (
     astrologer_buy_button,
     astrologer_gold,
     astrologer_leave_button,
+    astrologer_map_gold,
     astrologer_offers,
     astrologer_selection,
     is_astrologer,
@@ -736,10 +737,14 @@ class AdventureLoop:
         for _ in range(6):
             self._wait(2, reason="astrologer_purchase", wait_s=12)
             after = self._frame()
-            if astrologer_gold(after) == expected_gold:
+            map_gold = astrologer_map_gold(after)
+            if astrologer_gold(after) == expected_gold or map_gold == expected_gold:
                 report("verified", "astrologer_currency_paid", progress=True,
                        selection=index, price=offers[index].cost, gold=expected_gold,
                        reward_credited_verified=False)
+                if map_gold == expected_gold:
+                    report("verified", "astrologer_map_transition", progress=True)
+                    return True
                 return self._leave_astrologer(after)
         self._snapshot(after, tag="astrologer_purchase_unverified")
         return False

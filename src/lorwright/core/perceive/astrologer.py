@@ -7,8 +7,9 @@ import numpy as np
 
 from lorwright.core.decide.rewards import RewardCandidate
 from lorwright.core.models import Rect
-from lorwright.core.perceive.adventure_scene import _matches
+from lorwright.core.perceive.adventure_scene import _matches, is_map
 from lorwright.core.perceive.digits import DigitReader, segment_glyphs
+from lorwright.core.perceive.mapnav import panel_open
 from lorwright.core.perceive.reward_screen import _best, _names, _power_quality
 
 SLOTS = (985, 1307, 1629)
@@ -39,6 +40,13 @@ def _number(image: np.ndarray, rect: Rect, *, balance: bool = False) -> int | No
 
 def astrologer_gold(image: np.ndarray) -> int | None:
     return _number(image, Rect(1064, 977, 140, 52), balance=True) if is_astrologer(image) else None
+
+
+def astrologer_map_gold(image: np.ndarray) -> int | None:
+    """购买后直接回图时读取地图余额，仅覆盖已标定的原生布局。"""
+    if image.shape[:2] != (1080, 1920) or not is_map(image) or panel_open(image):
+        return None
+    return _number(image, Rect(477, 1003, 65, 35))
 
 
 def astrologer_offers(image: np.ndarray) -> list[RewardCandidate] | None:

@@ -236,6 +236,25 @@ def test_astrologer_buys_once_and_requires_exact_payment_before_leaving(adventur
         assert saved == ["astrologer_purchase_unverified"]
 
 
+@pytest.mark.parametrize("balance", [550, 950, 500, None])
+def test_astrologer_purchase_can_return_directly_to_map(adventure, balance):
+    from test_astrologer import selected_frame
+
+    after = cv2.imread(str(FIXTURES.parent / "screens/f1-astrologer-purchased-map-20261116.png"))
+    assert after is not None
+    if balance == 950:
+        before = selected_frame()
+        after[1012:1031, 483:496] = cv2.resize(before[984:1023, 1068:1094], (13, 19))
+    elif balance == 500:
+        after[1012:1031, 500:512] = after[1012:1031, 516:528].copy()
+    elif balance is None:
+        after[1003:1038, 477:542] = 0
+    loop, device, _, saved, _ = adventure([after] * 6, [])
+    assert loop._handle_astrologer(selected_frame()) is (balance == 550)
+    assert device.taps == [(1440, 1005)]
+    assert saved == ([] if balance == 550 else ["astrologer_purchase_unverified"])
+
+
 def test_astrologer_unknown_selection_never_purchases(adventure):
     from test_astrologer import image
 

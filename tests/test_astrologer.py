@@ -10,6 +10,7 @@ from lorwright.core.decide.rewards import RewardCandidate
 from lorwright.core.perceive.astrologer import (
     astrologer_buy_button,
     astrologer_gold,
+    astrologer_map_gold,
     astrologer_offers,
     astrologer_selection,
     is_astrologer,
@@ -72,6 +73,20 @@ def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
     assert astrologer_gold(selected) == 950
     assert same_astrologer_offers(image(), selected)
     assert astrologer_buy_button(selected) is not None
+
+
+def test_real_purchased_map_reads_exact_balance_and_rejects_obscured_digits():
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-purchased-map-20261116.png"))
+    assert frame is not None
+    assert astrologer_map_gold(frame) == 550
+    assert astrologer_map_gold(selected_frame()) is None
+    assert astrologer_map_gold(cv2.resize(frame, (1280, 720))) is None
+    for left, right in [(483, 496), (500, 512), (516, 528)]:
+        obscured = frame.copy()
+        obscured[1012:1031, left:right] = 0
+        assert astrologer_map_gold(obscured) != 550
+    frame[1003:1038, 477:542] = 0
+    assert astrologer_map_gold(frame) is None
 
 
 def selected_frame():

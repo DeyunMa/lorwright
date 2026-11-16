@@ -103,11 +103,8 @@ def adventure(monkeypatch):
 @pytest.mark.parametrize("moved", [False, True])
 def test_bottom_map_target_is_revealed_once_before_click(adventure, monkeypatch, moved):
     before = _img("f1-weekly-after-hero-reward-20261116.png")
-    after = cv2.warpAffine(before, np.float32([[1, 0, 0], [0, 1, -200]]), (1920, 1080))
-    # 固定 UI 不随地图内容平移；这是合成视口后继，不是连续实机截图。
-    after[:120] = before[:120]
-    after[:, :240] = before[:, :240]
-    after[:, 1750:] = before[:, 1750:]
+    # 原图与平移后的停止实拍，非逐帧录像；后继还包含一次无效果图标点击。
+    after = _img("f1-weekly-panned-gold-20261116.png")
     frames = [before, after if moved else before] + [before] * 6
     loop, device, _, saved, _ = adventure(frames, [UIState.UNKNOWN])
     loop.pack = load("jinx")
@@ -118,7 +115,7 @@ def test_bottom_map_target_is_revealed_once_before_click(adventure, monkeypatch,
     assert len(drags) == 1
     if moved:
         assert len(device.taps) == 1
-        assert 800 < device.taps[0][1] < 900
+        assert 985 < device.taps[0][1] < 1025
         assert saved == []
     else:
         assert device.taps == []
@@ -320,7 +317,8 @@ def test_map_waits_for_confirmed_node_before_clicking(adventure, monkeypatch):
     monkeypatch.setattr("lorwright.core.loop.adventure.is_completed_panel", lambda _: False)
     from types import SimpleNamespace
 
-    monkeypatch.setattr(loop, "_find_next", lambda image: SimpleNamespace(x=100, y=200, radius=40)
+    monkeypatch.setattr(loop, "_find_next", lambda image: SimpleNamespace(
+        x=100, y=200, radius=40, needs_reveal=False)
                         if image is stable else None)
     monkeypatch.setattr(loop, "_handle_node_panel", lambda: False)
     loop.run(max_nodes=1)

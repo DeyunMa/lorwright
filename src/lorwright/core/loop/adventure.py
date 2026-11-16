@@ -512,7 +512,7 @@ class AdventureLoop:
                     logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
                     self._snapshot(image, tag="map_no_next")
                     return
-            if nxt.y + max(nxt.radius, 80) >= image.shape[0] - 40:
+            if nxt.needs_reveal or nxt.y + max(nxt.radius, 80) >= image.shape[0] - 40:
                 revealed = self._reveal_bottom_map_node(image, nxt)
                 if revealed is None:
                     return
@@ -569,7 +569,8 @@ class AdventureLoop:
                     or abs(moved[1] - (hero[1] - distance)) > 75):
                 continue
             fresh = self._find_next(after)
-            if fresh is not None and fresh.y + max(fresh.radius, 80) < after.shape[0] - 40:
+            if (fresh is not None and not fresh.needs_reveal
+                    and fresh.y + fresh.radius + 20 < after.shape[0]):
                 report("verified", "map_pan_transition", progress=True, **self._details)
                 return after, fresh
         self._snapshot(after, tag="map_pan_unverified")

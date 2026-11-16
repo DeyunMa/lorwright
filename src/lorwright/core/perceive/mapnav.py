@@ -44,6 +44,7 @@ class MapNode:
     x: int
     y: int
     radius: int
+    needs_reveal: bool = False  # 仅见上方展示图标，需平移后核实真实节点
 
     @property
     def center(self) -> tuple[int, int]:
@@ -160,7 +161,24 @@ def detect_ability_nodes(image: np.ndarray) -> list[MapNode]:
         if center.size and float((center > 0).mean()) >= 0.3:
             continue
         nodes.append(MapNode(x + cw // 2, y + ch // 2, max(cw, ch) // 2))
+    template = _lit_diamond_template()
+    if template is not None:
+        region = image[120:, 240:w - 440]
+        scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+        for dy, dx in zip(*np.where(scores >= 0.93), strict=True):
+            x, y = int(dx) + 240, int(dy) + 120
+            actual = image[y:y + template.shape[0], x:x + template.shape[1]]
+            if float((cv2.absdiff(actual, template) > 45).mean()) >= 0.08:
+                continue
+            node = MapNode(x + template.shape[1] // 2, y + template.shape[0] // 2, 32)
+            if all(math.hypot(node.x - old.x, node.y - old.y) >= 40 for old in nodes):
+                nodes.append(node)
     return nodes
+
+
+@cache
+def _lit_diamond_template() -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure/map_lit_diamond.png")))
 
 
 def has_checkmark(image: np.ndarray, node: MapNode) -> bool:
@@ -523,7 +541,8 @@ def _lit_gold_routes(
         actual = image[y:y + template.shape[0], x:x + template.shape[1]]
         if float((cv2.absdiff(actual, template) > 45).mean()) >= 0.08:
             continue
-        node = MapNode(x + template.shape[1] // 2, y + template.shape[0] // 2, 38)
+        node = MapNode(x + template.shape[1] // 2, y + template.shape[0] // 2, 38,
+                       needs_reveal=True)
         if any(math.hypot(node.x - n.x, node.y - n.y) < 60 for n in result):
             continue
         if not 120 < math.hypot(node.x - anchor.x, node.y - anchor.y) < 800:
@@ -593,7 +612,7 @@ def _lit_diamond_routes(
         # 向上路线被英雄头像遮住一段，只核验头像边缘之外的可见亮线。
         route_anchor = hero if support else anchor
         distance = math.hypot(x - route_anchor[0], icon_y - route_anchor[1])
-        if not 110 <= distance <= 240:
+        if not 110 <= distance <= 800:
             continue
         # 空心菱形四边须具备蓝白高亮，不能仅凭金色装饰判定。
         patch = image[y - 55:y + 56, x - 55:x + 56].astype(np.int16)

@@ -36,6 +36,7 @@ def test_completed_node_follows_cyan_route_to_visible_bottom_gold_target():
     node = next_node(image, hero=hero)
     assert node is not None
     assert (node.x - 940) ** 2 + (node.y - 1040) ** 2 < 20 ** 2
+    assert node.needs_reveal
 
 
 @pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim", "origin"])
@@ -66,6 +67,30 @@ def test_gold_target_moves_with_map_content():
     node = next_node(image, hero=hero)
     assert node is not None
     assert (node.x - 990) ** 2 + (node.y - 940) ** 2 < 20 ** 2
+
+
+def test_long_cyan_route_targets_real_diamond_instead_of_display_icon():
+    image = _load("f1-weekly-panned-gold-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - 940) ** 2 + (node.y - 1003) ** 2 < 20 ** 2
+    assert not node.needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["cut", "obscured", "dim"])
+def test_long_diamond_route_rejects_missing_evidence(damage):
+    image = _load("f1-weekly-panned-gold-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        image[650:680, 900:990] = 0
+    elif damage == "obscured":
+        image[961:1046, 897:982] = 128
+    else:
+        image[950:1060, 885:995] //= 3
+    assert all(node.needs_reveal for node in reachable_nodes(image, hero=hero))
 
 
 def test_gold_icon_does_not_duplicate_its_complete_diamond_destination():

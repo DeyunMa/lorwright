@@ -1,7 +1,24 @@
 """每周冒险的纯语义选择；信息不全时不能证明最低难度。"""
 
 import math
+import random
 from collections.abc import Sequence
+
+from lorwright.core.models import MapNodeKind
+
+
+def pick_map_node(kinds: Sequence[MapNodeKind | None], *, rng: random.Random) -> int | None:
+    """已知分叉按事件、商店、道具/法术、金币排序，同级随机。"""
+    if not kinds:
+        return None
+    priorities = {MapNodeKind.EVENT: 0, MapNodeKind.SHOP: 1,
+                  MapNodeKind.ITEM: 2, MapNodeKind.SPELL: 2, MapNodeKind.GOLD: 3}
+    known = [i for i, kind in enumerate(kinds) if kind in priorities]
+    if not known:
+        # 未知图标不猜类型，保留原先对已核实可达路线的随机选择。
+        return rng.choice(range(len(kinds)))
+    best = min(priorities[kinds[i]] for i in known)
+    return rng.choice([i for i in known if priorities[kinds[i]] == best])
 
 
 def pick_lowest_weekly(stars: Sequence[float | None]) -> int | None:

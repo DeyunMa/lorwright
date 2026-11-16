@@ -28,6 +28,53 @@ def _load(name: str) -> np.ndarray:
     return image
 
 
+def test_completed_weekly_round_node_follows_one_of_its_cyan_routes() -> None:
+    image = _load("f1-weekly-after-second-reward-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    found = set()
+    for seed in range(6):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is not None
+        target = min(((689, 151), (910, 233)),
+                     key=lambda p: (node.x - p[0]) ** 2 + (node.y - p[1]) ** 2)
+        assert (node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 < 15 ** 2
+        found.add(target)
+    assert len(found) == 2
+
+
+@pytest.mark.parametrize("target", [(689, 151), (910, 233)])
+@pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim"])
+def test_completed_weekly_round_node_rejects_each_damaged_branch(target, damage) -> None:
+    image = _load("f1-weekly-after-second-reward-20261116.png")
+    x, y = target
+    if damage == "cut":
+        cut_x, cut_y = (800, 320) if x == 689 else (929, 340)
+        cv2.line(image, (cut_x - 40, cut_y), (cut_x + 40, cut_y), (0, 0, 0), 20)
+    elif damage == "lock":
+        image[y - 18:y + 18, x - 18:x + 18] = image[137:173, 1101:1137]
+    elif damage == "completed":
+        image[y - 18:y + 18, x - 18:x + 18] = image[520:556, 942:978]
+    elif damage == "obscured":
+        image[y - 18:y + 18, x - 18:x + 18] = 128
+    else:
+        image[y - 70:y + 70, x - 70:x + 70] //= 3
+    hero = recognize_hero(image)
+    assert hero is not None
+    other = (910, 233) if x == 689 else (689, 151)
+    for seed in range(3):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        assert node is not None
+        assert (node.x - other[0]) ** 2 + (node.y - other[1]) ** 2 < 15 ** 2
+
+
+def test_completed_weekly_round_node_requires_its_completion_mark() -> None:
+    image = _load("f1-weekly-after-second-reward-20261116.png")
+    hero = recognize_hero(image)
+    image[515:565, 935:990] = 0
+    assert next_node(image, hero=hero) is None
+
+
 def test_hero_node_is_nearest_center_real_node() -> None:
     image = _load("1080p_zoommax.png")
     hero = hero_node(image)

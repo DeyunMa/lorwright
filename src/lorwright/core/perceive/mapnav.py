@@ -6,8 +6,8 @@
 
 地圖上的可走路徑是發光的淺藍白線（高亮、帶人字紋），
 在亮度閾值下非常容易分離；節點是帶亮環的圓圈。
-用戶規則：英雄節點到下一個節點只有一條線就走它，
-分叉多條就隨機選一條。
+感知层返回已核实可达节点及图标类型；冒险层按语义优先级选择。
+next_node 保留随机选择接口，用于已有诊断调用。
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from lorwright.core.models import Rect
+from lorwright.core.models import MapNodeKind, Rect
 
 __all__ = [
     "MapNode",
@@ -33,7 +33,9 @@ __all__ = [
     "hero_node",
     "next_node",
     "next_node_by_path",
+    "node_kind",
     "panel_open",
+    "reachable_nodes",
 ]
 
 
@@ -249,35 +251,81 @@ def empty_point(image: np.ndarray) -> tuple[int, int] | None:
     return best[1] if best else None
 
 
+@cache
+def _node_kind_templates() -> tuple[tuple[MapNodeKind, np.ndarray], ...]:
+    result = []
+    for kind in (MapNodeKind.EVENT, MapNodeKind.SHOP, MapNodeKind.GOLD):
+        template = cv2.imread(str(Path("assets/adventure") / f"map_{kind.value}_icon.png"))
+        if template is not None:
+            result.append((kind, template))
+    return tuple(result)
+
+
+def node_kind(image: np.ndarray, node: MapNode) -> MapNodeKind | None:
+    """只读节点中心图标，不从左右位置或相邻路线推断类型。"""
+    x, y = node.center
+    if (image.shape != (1080, 1920, 3) or x < 40 or y < 40
+            or x + 40 > image.shape[1] or y + 40 > image.shape[0]):
+        return None
+    region = image[y - 40:y + 40, x - 40:x + 40]
+    matches = []
+    for kind, template in _node_kind_templates():
+        _, score, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
+            region, template, cv2.TM_CCOEFF_NORMED,
+        ))
+        h, w = template.shape[:2]
+        actual = region[dy:dy + h, dx:dx + w]
+        if score >= 0.93 and float((cv2.absdiff(actual, template) > 45).mean()) < 0.08:
+            matches.append((score, kind))
+    matches.sort(reverse=True)
+    if not matches or (len(matches) > 1 and matches[0][0] - matches[1][0] < 0.05):
+        return None
+    return matches[0][1]
+
+
 def next_node(
     image: np.ndarray,
     *,
     rng: random.Random | None = None,
     hero: tuple[int, int] | None = None,
 ) -> MapNode | None:
-    """沿發光線找下一個節點；分叉時隨機選。無可走節點/面板打開返回 None。"""
+    """随机返回一个已核实可达节点；冒险层另外按语义优先级选择。"""
+    nodes = reachable_nodes(image, hero=hero, rng=rng)
+    return (rng or random).choice(nodes) if nodes else None
+
+
+def reachable_nodes(
+    image: np.ndarray, *, hero: tuple[int, int] | None = None, rng: random.Random | None = None,
+) -> list[MapNode]:
+    """只返回通过亮线和目标状态检查的节点，不在感知层决定优先级。"""
     if panel_open(image):
-        return None
+        return []
     mask = glow_mask(image)
     if hero is not None:
         routes = _lit_routes_from_ability(image, hero, mask)
         if routes is not None:
-            return (rng or random).choice(routes) if routes else None
+            return routes
         if _current_battle_node_visible(image, hero):
-            return MapNode(hero[0], hero[1] + 95, 48)
-        if (_current_completed_node_visible(image, hero)
-                or _current_node_halo_visible(image, hero)):
-            routes = _lit_routes_from_round(image, hero, mask)
-            if _current_completed_node_visible(image, hero):
+            return [MapNode(hero[0], hero[1] + 95, 48)]
+        completed = _current_completed_node_visible(image, hero)
+        if completed or _current_node_halo_visible(image, hero):
+            round_mask = mask
+            if completed:
+                blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
+                cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+                round_mask = mask | cyan.astype(np.uint8)
+            routes = _lit_routes_from_round(image, hero, round_mask, hero_occlusion=completed)
+            if completed:
                 routes += _lit_diamond_routes(image, hero, mask)
-            return (rng or random).choice(routes) if routes else None
-        return None
+            return routes
+        return []
     nodes = detect_nodes(image)
-    current = MapNode(*hero, 60) if hero is not None else hero_node(image, nodes)
+    current = hero_node(image, nodes)
     reachable = _reachable_nodes(image, current, nodes, mask)
     if not reachable:
-        return next_node_by_path(image, hero=current.center, rng=rng)
-    return (rng or random).choice(reachable)
+        node = next_node_by_path(image, hero=current.center, rng=rng)
+        return [node] if node is not None else []
+    return reachable
 
 
 @cache
@@ -366,7 +414,7 @@ def _component_between_nodes(
 
 def _lit_routes_from_round(
     image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
-    *, origin: MapNode | None = None,
+    *, origin: MapNode | None = None, hero_occlusion: bool = False,
 ) -> list[MapNode]:
     """从圆节点找与其连续连接的可见蓝环，不按节点类型或坐标选择。"""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -384,6 +432,8 @@ def _lit_routes_from_round(
     anchor = origin or min(anchors, key=lambda n: (n.x - guess[0]) ** 2 + (n.y - guess[1]) ** 2)
     # 亮线与当前节点的光环可能因阈值分割出现几像素的间隙。
     extent = anchor.radius + 18
+    if hero_occlusion:
+        extent = max(extent, math.ceil(math.hypot(hero[0] - anchor.x, hero[1] - anchor.y)) + 68)
     if (anchor.x < extent or anchor.y < extent or anchor.x + extent >= image.shape[1]
             or anchor.y + extent >= image.shape[0]):
         return []
@@ -404,9 +454,22 @@ def _lit_routes_from_round(
                 continue
             if (node.x - anchor.x) ** 2 + (node.y - anchor.y) ** 2 < 120 ** 2:
                 continue
-            if not _component_between_nodes(distances, anchor, node):
+            route_anchor = anchor
+            if hero_occlusion:
+                # 已识别头像半径约 50px；只沿穿过头像的方向跳过其遮挡，
+                # 其他方向及头像之外的断线仍需完整核验。
+                dx, dy = node.x - anchor.x, node.y - anchor.y
+                length = math.hypot(dx, dy)
+                hx, hy = hero[0] - anchor.x, hero[1] - anchor.y
+                projection = (hx * dx + hy * dy) / length
+                perpendicular_sq = hx * hx + hy * hy - projection * projection
+                if 0 < projection < length and perpendicular_sq < 50 ** 2:
+                    hidden_until = projection + math.sqrt(50 ** 2 - perpendicular_sq)
+                    route_anchor = MapNode(anchor.x, anchor.y,
+                                           max(anchor.radius, math.ceil(hidden_until)))
+            if not _component_between_nodes(distances, route_anchor, node):
                 continue
-            if not _node_edge_visible(image, anchor, node):
+            if not _node_edge_visible(image, route_anchor, node):
                 continue
             if not _lit_unfinished_ring(
                 image, labels, int(label), node.x, node.y, node.radius,

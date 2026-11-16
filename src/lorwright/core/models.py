@@ -34,6 +34,14 @@ class UIState(StrEnum):
     BATTLE_END = "battle_end"
 
 
+class MapNodeKind(StrEnum):
+    EVENT = "event"
+    SHOP = "shop"
+    ITEM = "item"
+    SPELL = "spell"
+    GOLD = "gold"
+
+
 class ActionType(StrEnum):
     PLAY_CARD = "play_card"
     COLLAPSE_HAND = "collapse_hand"

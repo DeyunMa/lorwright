@@ -192,6 +192,24 @@ def test_missions_transition_obeys_stop(adventure, monkeypatch):
     assert device.taps == [(1850, 1020)]
 
 
+@pytest.mark.parametrize("swapped", [False, True])
+def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, swapped):
+    image = _img("f1-weekly-after-second-reward-20261116.png")
+    if swapped:
+        event = image[111:191, 649:729].copy()
+        gold = image[193:273, 870:950].copy()
+        image[111:191, 649:729] = gold
+        image[193:273, 870:950] = event
+    loop, _, _, _, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    expected = (910, 233) if swapped else (689, 151)
+    for seed in range(6):
+        loop.rng.seed(seed)
+        node = loop._find_next(image)
+        assert node is not None
+        assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
+
+
 def test_no_next_node_saves_snapshot_and_stops(adventure):
     # 空白画面不能识别为地图 → 快照 + 停止，不点击任何东西
     loop, device, engine, saved, coords = adventure([_blank()], [UIState.UNKNOWN])

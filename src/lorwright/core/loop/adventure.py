@@ -6,7 +6,7 @@
 - 战斗节点：战斗按钮 → Engine 接管；
 - 休息节点（加号）：点第一个选项加血，满血点不动就离开；
 - 节点内操作完成后英雄不自动离开，必须点击下一节点移动；
-- 分叉多条线时随机选一条（mapnav 已实现）。
+- 分叉按随机事件 > 商店 > 道具或法术 > 金币赠送选择，同级随机。
 
 坐标空间：1920×1080 设计尺寸。mapnav 直接吃设计帧，点击不再 x2。
 节点面板的金色按钮（旅行／战斗）由 perceive.panels.action_button 动态检测，
@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.act.translate import ActionTranslator
-from lorwright.core.decide.adventure import pick_lowest_weekly
+from lorwright.core.decide.adventure import pick_lowest_weekly, pick_map_node
 from lorwright.core.decide.rewards import pick_card_reward, pick_hero_item_reward, pick_reward
 from lorwright.core.decide.support import pick_support_group
 from lorwright.core.device.base import Device
@@ -48,8 +48,9 @@ from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 from lorwright.core.perceive.mapnav import (
     _current_completed_node_visible,
     empty_point,
-    next_node,
+    node_kind,
     panel_open,
+    reachable_nodes,
 )
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.panels import action_button
@@ -516,12 +517,19 @@ class AdventureLoop:
 
     def _find_next(self, image):
         recognize_hero = getattr(self.pack, "recognize_map_hero", None)
-        if recognize_hero is not None:
-            hero = recognize_hero(image)
-            if hero is None:
-                return None
-            return next_node(image, rng=self.rng, hero=hero)
-        return next_node(image, rng=self.rng)
+        hero = recognize_hero(image) if recognize_hero is not None else None
+        if recognize_hero is not None and hero is None:
+            return None
+        nodes = reachable_nodes(image, hero=hero, rng=self.rng)
+        kinds = [node_kind(image, node) for node in nodes]
+        index = pick_map_node(kinds, rng=self.rng)
+        if index is None:
+            return None
+        record_event("map_node_selected", candidates=[
+            {"x": node.x, "y": node.y, "kind": kind.value if kind else None}
+            for node, kind in zip(nodes, kinds, strict=True)
+        ], selection=index, kind=kinds[index].value if kinds[index] else None)
+        return nodes[index]
 
     def _handle_power(self, image):
         normalized = self._reward_design(image)

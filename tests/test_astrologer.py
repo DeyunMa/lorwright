@@ -105,6 +105,16 @@ def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
     assert astrologer_buy_button(selected) is not None
 
 
+def test_soloist_purchased_map_reads_exact_balance():
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-purchased-map-20261116.jpg"))
+    assert frame is not None
+    assert astrologer_map_gold(frame) == 670
+    for left, right in [(483, 497), (500, 513), (516, 530)]:
+        obscured = frame.copy()
+        obscured[1010:1034, left:right] = 0
+        assert astrologer_map_gold(obscured) != 670
+
+
 def test_real_purchased_map_reads_exact_balance_and_rejects_obscured_digits():
     frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-purchased-map-20261116.png"))
     assert frame is not None

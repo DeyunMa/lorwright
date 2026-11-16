@@ -47,7 +47,7 @@ class JinxOpeningPolicy:
         # 恢复已有对局时，调用方必须依据可靠记录或人工确认显式提供此信息。
         self.step = 2 if jinx_summoned else (1 if spell_already_played else 0)
         self._mulligan = False
-        self._mulligan_targets: tuple[bool, ...] | None = None
+        self._mulligan_targets: tuple[bool | None, ...] | None = None
         self._awaiting_crab = False
         self._board_before: int | None = None
         self._last_opening_view = None
@@ -74,19 +74,22 @@ class JinxOpeningPolicy:
                 return Action(type=ActionType.NO_OP)
             observed = tuple(card.matches_target for card in cards)
             if self._mulligan_targets is None:
-                # 选中后的特效会遮挡卡面；必须在四张均未选中且可见时
-                # 建立本局判断，重启后不能猜测已经选中的牌。
-                if any(selected) or any(value is None for value in observed):
+                # 选中特效会遮挡卡面；只在四槽均未选中时建立判断。
+                # 未知身份保留，不阻塞其他槽位；重启后不猜已选中的牌。
+                if any(selected):
                     return Action(type=ActionType.NO_OP)
                 self._mulligan_targets = observed
             elif any(
-                not selected[i] and observed[i] != self._mulligan_targets[i]
+                not selected[i] and self._mulligan_targets[i] is not None
+                and observed[i] != self._mulligan_targets[i]
                 for i in range(4)
             ):
                 return Action(type=ActionType.NO_OP)
             heroes = [i for i, matches in enumerate(self._mulligan_targets) if matches]
-            # 有 Jinx 时只替换多余的 Jinx；没有则四张都替换。
-            desired = set(heroes[1:]) if heroes else set(range(4))
+            # 有 Jinx 时只替换多余 Jinx；否则替换已知非目标，保留未知。
+            desired = set(heroes[1:]) if heroes else {
+                i for i, matches in enumerate(self._mulligan_targets) if matches is False
+            }
             for card, current in zip(cards, selected, strict=True):
                 target = card.index in desired
                 if current != target:

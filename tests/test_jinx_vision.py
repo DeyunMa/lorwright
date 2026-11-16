@@ -165,6 +165,20 @@ def test_mulligan_does_not_need_support_or_reward_card_names():
     assert [card.matches_target for card in cards] == [False, False, False, False]
 
 
+def test_real_unknown_mulligan_slots_preserve_independent_replacement():
+    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-weekly-unknown-20261116.png")))
+    assert image is not None
+    cards = recognize_mulligan(image)
+    assert [card.matches_target for card in cards] == [None, False, None, False]
+    selection = recognize_mulligan_selection(image)
+    assert selection == (False,) * 4
+    action = JinxOpeningPolicy().decide(GameState(
+        ui_state=UIState.MULLIGAN, mulligan_cards=cards, mulligan_selected=selection,
+    ))
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["mulligan_index"] == 1
+
+
 def test_mulligan_selected_card_is_unknown_without_prior_view():
     image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-first-selected.png")))
     assert image is not None

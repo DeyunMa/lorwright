@@ -185,14 +185,42 @@ def test_mulligan_only_replaces_duplicate_jinx():
     )
 
 
-def test_mulligan_waits_if_any_card_is_unknown_or_missing():
+def test_mulligan_keeps_unknown_slot_and_replaces_known_duplicate():
     policy = load("jinx").make_policy()
     cards = [mulligan_card(0, "吉茵珂絲"), mulligan_card(1, ""),
              mulligan_card(2, "其他牌"), mulligan_card(3, "吉茵珂絲")]
     mulligan = GameState(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4,
                          mulligan_cards=cards)
-    assert policy.decide(mulligan).type is ActionType.NO_OP
+    action = policy.decide(mulligan)
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["mulligan_index"] == 3
     assert policy.decide(replace(mulligan, mulligan_cards=cards[:3])).type is ActionType.NO_OP
+    selected = replace(mulligan, mulligan_selected=(False, False, False, True))
+    assert policy.decide(selected).type is ActionType.CONFIRM
+
+
+@pytest.mark.parametrize("targets,desired", [
+    ([None, False, None, False], {1, 3}),
+    ([None, None, None, None], set()),
+    ([None, True, False, None], set()),
+])
+def test_mulligan_unknown_slots_do_not_block_known_actions(targets, desired):
+    policy = load("jinx").make_policy()
+    cards = [MulliganCard(i, target, Rect(i * 100, 0, 8, 8))
+             for i, target in enumerate(targets)]
+    selected = [False] * 4
+    for index in sorted(desired):
+        current = GameState(ui_state=UIState.MULLIGAN, mulligan_cards=cards,
+                            mulligan_selected=tuple(selected))
+        action = policy.decide(current)
+        assert action.type is ActionType.MULLIGAN_REPLACE
+        assert action.raw["mulligan_index"] == index
+        selected[index] = True
+        cards[index] = replace(cards[index], matches_target=None)
+    assert policy.decide(GameState(
+        ui_state=UIState.MULLIGAN, mulligan_cards=cards,
+        mulligan_selected=tuple(selected),
+    )).type is ActionType.CONFIRM
 
 
 def test_mulligan_replaces_all_cards_when_jinx_missing():

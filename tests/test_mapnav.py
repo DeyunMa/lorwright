@@ -93,6 +93,35 @@ def test_long_diamond_route_rejects_missing_evidence(damage):
     assert all(node.needs_reveal for node in reachable_nodes(image, hero=hero))
 
 
+def test_completed_power_diamond_follows_cyan_route_to_battle():
+    image = _load("f1-weekly-after-power-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - 1263) ** 2 + (nodes[0].y - 430) ** 2 < 20 ** 2
+
+
+@pytest.mark.parametrize("damage", ["origin", "cut", "lock", "completed", "obscured", "dim"])
+def test_power_diamond_route_rejects_missing_evidence(damage):
+    image = _load("f1-weekly-after-power-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "origin":
+        image[516:565, 930:991] = 0
+    elif damage == "cut":
+        image[450:520, 1090:1110] = 0
+    elif damage == "lock":
+        image[412:448, 1245:1281] = image[62:98, 1512:1548]
+    elif damage == "completed":
+        image[412:448, 1245:1281] = image[352:388, 525:561]
+    elif damage == "obscured":
+        image[390:470, 1223:1303] = 128
+    else:
+        image[360:500, 1193:1333] //= 3
+    assert reachable_nodes(image, hero=hero) == []
+
+
 def test_gold_icon_does_not_duplicate_its_complete_diamond_destination():
     image = _load("map-frame-1.png")
     hero = recognize_hero(image)

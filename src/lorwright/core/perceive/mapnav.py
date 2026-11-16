@@ -714,24 +714,26 @@ def _current_battle_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bo
 
 
 @cache
-def _current_diamond_template() -> np.ndarray | None:
-    return cv2.imread(str(Path("assets/adventure/map_current_diamond.png")))
+def _current_diamond_templates() -> tuple[np.ndarray, ...]:
+    return tuple(image for name in ("map_current_diamond", "map_current_power_diamond")
+                 if (image := cv2.imread(str(Path("assets/adventure") / f"{name}.png")))
+                 is not None)
 
 
 def _current_diamond_visible(image: np.ndarray, hero: tuple[int, int]) -> MapNode | None:
     """在已识别头像下核实菱形，避免同色地形吞并其全图轮廓。"""
     x, y = hero
-    template = _current_diamond_template()
-    if template is None or x < 50 or x + 50 >= 1920 or y < 0 or y + 140 >= 1080:
+    if x < 50 or x + 50 >= 1920 or y < 0 or y + 140 >= 1080:
         return None
     region = image[y + 55:y + 140, x - 50:x + 50]
-    _, score, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
-        region, template, cv2.TM_CCOEFF_NORMED))
-    h, w = template.shape[:2]
-    actual = region[dy:dy + h, dx:dx + w]
-    if score < 0.93 or float((cv2.absdiff(actual, template) > 45).mean()) >= 0.08:
-        return None
-    return MapNode(x - 50 + dx + w // 2, y + 55 + dy + h // 2, 28)
+    for template in _current_diamond_templates():
+        _, score, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
+            region, template, cv2.TM_CCOEFF_NORMED))
+        h, w = template.shape[:2]
+        actual = region[dy:dy + h, dx:dx + w]
+        if score >= 0.93 and float((cv2.absdiff(actual, template) > 45).mean()) < 0.08:
+            return MapNode(x - 50 + dx + w // 2, y + 55 + dy + h // 2, 28)
+    return None
 
 
 def _lit_routes_from_ability(

@@ -19,7 +19,19 @@ def test_best_quality_tie_is_random():
     assert picks == {"a", "b"}
 
 
+def test_known_preference_survives_unknown_other_name_and_quality():
+    choices = [RewardCandidate("", "unknown"), RewardCandidate("preferred", "rare")]
+    pick = pick_hero_item_reward(choices, (Preference(names=("preferred",), note=""),), Random(1))
+    assert pick is not None and pick.candidate is choices[1]
+
+
+def test_known_quality_survives_unknown_names_or_other_unknown_quality():
+    choices = [RewardCandidate("", "rare"), RewardCandidate("other", "unknown")]
+    pick = pick_hero_item_reward(choices, (), Random(1))
+    assert pick is not None and pick.candidate is choices[0]
+
+
 def test_incomplete_candidates_abstain():
-    assert pick_hero_item_reward([RewardCandidate("", "rare")], (), Random(1)) is None
+    assert pick_hero_item_reward([RewardCandidate("", "unknown")], (), Random(1)) is None
     assert pick_hero_item_reward([RewardCandidate("a", "unknown")], (), Random(1)) is None
     assert pick_hero_item_reward([], (), Random(1)) is None

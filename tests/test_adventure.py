@@ -1289,6 +1289,23 @@ def test_battle_end_waits_for_reward_before_map_node(adventure, monkeypatch):
     assert saved == []
 
 
+@pytest.mark.parametrize("delayed", [False, True])
+def test_battle_end_hero_item_reward_continues_to_map(adventure, monkeypatch, delayed):
+    reward = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
+    after = _img("1080p_map.png")
+    frames = [_blank()]
+    if delayed:
+        frames.append(_img("1080p_jinx_map.png"))
+    frames.extend([reward, after])
+    loop, device, engine, saved, _ = adventure(frames, [UIState.MY_TURN_IDLE])
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    loop.run(max_nodes=4)
+    assert engine.run_calls == [loop.coords.battle_max_ticks]
+    assert device.taps == [(960, 1003)]
+    assert saved == ["map_no_next"]
+
+
 def test_battle_end_missing_reward_stops_without_map_input(adventure):
     loop, device, engine, saved, _ = adventure(
         [_blank()] + [_img("1080p_jinx_map.png")] * 7, [UIState.MY_TURN_IDLE]

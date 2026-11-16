@@ -117,18 +117,19 @@ def pick_hero_item_reward(
     preferences: tuple[Preference, ...],
     rng: Random,
 ) -> RewardPick | None:
-    """英雄道具：偏好、品质，同级随机；名称或必要品质未知时弃权。"""
-    if not candidates or any(not candidate.name.strip() for candidate in candidates):
+    """英雄道具：已知偏好优先，否则在已知品质中择优，同级随机。"""
+    if not candidates:
         return None
     for preference in preferences:
         names = {_norm(name) for name in preference.names}
         matches = [candidate for candidate in candidates if _norm(candidate.name) in names]
         if matches:
             return RewardPick(rng.choice(matches), f"英雄偏好 {preference.names[0]}")
-    if any(candidate.quality.strip() not in QUALITY_RANK for candidate in candidates):
+    known = [candidate for candidate in candidates if candidate.quality.strip() in QUALITY_RANK]
+    if not known:
         return None
-    highest = max(QUALITY_RANK[candidate.quality.strip()] for candidate in candidates)
-    best = [candidate for candidate in candidates if QUALITY_RANK[candidate.quality.strip()] == highest]
+    highest = max(QUALITY_RANK[candidate.quality.strip()] for candidate in known)
+    best = [candidate for candidate in known if QUALITY_RANK[candidate.quality.strip()] == highest]
     return RewardPick(rng.choice(best), "默认规则：品质优先，同品质随机")
 
 

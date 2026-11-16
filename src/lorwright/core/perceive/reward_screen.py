@@ -264,7 +264,7 @@ def _hero_item_templates():
 
 
 def recognize_hero_item_cards(image: np.ndarray) -> tuple[str, str] | None:
-    """识别两张英雄卡的身份；不推断选中状态或授权点击。"""
+    """独立识别两槽英雄；可见但未建档的辅助英雄保留空身份。"""
     if not is_hero_item_reward_screen(image):
         return None
     orb, templates = _hero_item_templates()
@@ -283,9 +283,11 @@ def recognize_hero_item_cards(image: np.ndarray) -> tuple[str, str] | None:
              for name, reference in templates.items()), reverse=True,
         )
         if scores[0][0] < 60 or scores[0][0] - scores[1][0] < 30:
-            return None
-        result.append(scores[0][1])
-    if len(set(result)) != 2:
+            result.append("")
+        else:
+            result.append(scores[0][1])
+    known = [name for name in result if name]
+    if not known or len(set(known)) != len(known):
         return None
     return result[0], result[1]
 
@@ -314,25 +316,31 @@ def hero_item_hero_selection(image: np.ndarray) -> int | None:
 
 
 def recognize_hero_items(image: np.ndarray) -> list[RewardCandidate] | None:
-    """所有道具名称和品质都可靠匹配时才返回候选。"""
-    if not is_hero_item_reward_screen(image):
+    """保留可见未知道具；结构或文字遮挡时弃权。"""
+    if not is_hero_item_reward_screen(image) or hero_item_item_selection(image) is None:
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     names = (("hero_item_vampiric", "吸血鬼權杖"),
              ("hero_item_scout", "鑽探衝鋒"), ("hero_item_sword", "軍隊長劍"))
-    qualities = (("hero_item_rare", "rare"), ("hero_item_common", "common"))
+    qualities = (("hero_item_rare", "rare"), ("hero_item_common", "common"),
+                 ("hero_item_epic", "epic"))
     result = []
     for x in (563, 906, 1249):
-        name = _best(gray[700:726, x:x + 130], names)
-        quality = _best(gray[725:744, x:x + 80], qualities)
-        if name is None or quality is None:
+        title = gray[700:726, x:x + 130]
+        rarity = gray[725:744, x:x + 80]
+        if int((title > 170).sum()) < 100 or int((rarity > 120).sum()) < 12:
             return None
-        name_template = next(template for template, value in names if value == name)
-        quality_template = next(template for template, value in qualities if value == quality)
-        if (_visible_match(gray, name_template, (x, 700, x + 130, 726)) < _MIN_SCORE
-                or _visible_match(gray, quality_template, (x, 725, x + 80, 744)) < _MIN_SCORE):
-            return None
-        result.append(RewardCandidate(name, quality))
+        name = _best(title, names)
+        quality = _best(rarity, qualities)
+        for value, choices, area in (
+            (name, names, (x, 700, x + 130, 726)),
+            (quality, qualities, (x, 725, x + 80, 744)),
+        ):
+            if value is not None:
+                template = next(template for template, candidate in choices if candidate == value)
+                if _visible_match(gray, template, area) < _MIN_SCORE:
+                    return None
+        result.append(RewardCandidate(name or "", quality or "unknown"))
     return result
 
 

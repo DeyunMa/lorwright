@@ -234,6 +234,8 @@ class AdventureLoop:
                     )
                     if post_battle_ui is UIState.BATTLE_END:
                         break
+                    if self._is_hero_item_reward(image):
+                        break
                     if self._is_card_reward(image):
                         pending_image = image
                         break
@@ -269,6 +271,7 @@ class AdventureLoop:
                 pending_image = self._handle_hero_item_reward(image)
                 if pending_image is None:
                     return
+                self._awaiting_battle_reward = False
                 continue
             normalized = self._reward_design(image)
             design = normalized[0] if normalized is not None else image

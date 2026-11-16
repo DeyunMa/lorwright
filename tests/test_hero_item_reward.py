@@ -18,6 +18,48 @@ from lorwright.core.perceive.reward_screen import (
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def test_main_hero_and_item_quality_survive_other_unknown_identities():
+    from random import Random
+
+    from lorwright.core.champions import load
+    from lorwright.core.decide.rewards import pick_hero_item_reward
+
+    image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-weekly-reksai-20261116.png"))
+    assert recognize_hero_item_cards(image) == ("jinx", "")
+    assert hero_item_hero_selection(image) == -1
+    items = recognize_hero_items(image)
+    assert items is not None
+    assert items[1].name == "吸血鬼權杖"
+    assert items[2].name == "" and items[2].quality == "epic"
+    pick = pick_hero_item_reward(items, load("jinx").item_preferences, Random(1))
+    assert pick is not None and pick.candidate is items[2]
+
+
+def test_real_unknown_item_preserves_visible_known_items():
+    image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-weekly-reksai-20261116.png"))
+    items = recognize_hero_items(image)
+    assert items is not None
+    assert [item.name for item in items] == ["鑽探衝鋒", "吸血鬼權杖", ""]
+
+
+@pytest.mark.parametrize("region", [
+    (275, 455, 680, 875),  # 主英雄插画
+    (700, 726, 563, 693),
+    (700, 726, 906, 1036),
+    (700, 726, 1249, 1379),
+    (725, 744, 1249, 1329),
+    (690, 816, 1157, 1161),
+])
+def test_unknown_candidates_do_not_relax_visibility_checks(region):
+    image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-weekly-reksai-20261116.png"))
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    if y1 == 275:
+        assert recognize_hero_item_cards(image) is None
+    else:
+        assert recognize_hero_items(image) is None
+
+
 def test_hero_item_reward_with_variable_content():
     image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-20261115.png"))
     assert is_hero_item_reward_screen(image)

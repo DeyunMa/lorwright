@@ -431,22 +431,25 @@ def _lit_routes_from_round(
 
 
 @cache
-def _support_marker_template() -> np.ndarray | None:
-    return cv2.imread(str(Path("assets/adventure/map_support_marker.png")))
+def _support_marker_templates() -> tuple[np.ndarray, ...]:
+    return tuple(image for name in ("map_support_marker", "map_support_marker_dim")
+                 if (image := cv2.imread(str(Path("assets/adventure") / f"{name}.png"))) is not None)
 
 
 def _support_marker_visible(image: np.ndarray, x: int, y: int) -> bool:
     """辅助英雄金色徽记须完整可见，不能只凭菱形或背景亮色推断。"""
-    template = _support_marker_template()
     region = image[y - 130:y - 40, x - 50:x + 50]
-    if template is None or region.shape[:2] != (90, 100):
+    if region.shape[:2] != (90, 100):
         return False
-    scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
-    _, score, _, (dx, dy) = cv2.minMaxLoc(scores)
-    h, w = template.shape[:2]
-    actual = region[dy:dy + h, dx:dx + w]
-    error = float((cv2.absdiff(actual, template) > 45).mean())
-    return score >= 0.93 and error < 0.08
+    for template in _support_marker_templates():
+        scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+        _, score, _, (dx, dy) = cv2.minMaxLoc(scores)
+        h, w = template.shape[:2]
+        actual = region[dy:dy + h, dx:dx + w]
+        error = float((cv2.absdiff(actual, template) > 45).mean())
+        if score >= 0.93 and error < 0.08:
+            return True
+    return False
 
 
 def _lit_diamond_routes(

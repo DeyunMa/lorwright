@@ -103,9 +103,11 @@ def test_lit_diamond_rejects_unsafe_states(damage: str) -> None:
     assert next_node(image, hero=hero) is None
 
 
+@pytest.mark.parametrize("name", ["f1-weekly-after-card-reward-20261116.png",
+                                  "f1-weekly-support-dim-20261116.png"])
 @pytest.mark.parametrize("offset", [(0, 0), (-120, 20), (100, -100)])
-def test_weekly_completed_battle_follows_lit_support_node(offset) -> None:
-    image = _load("f1-weekly-after-card-reward-20261116.png")
+def test_weekly_completed_battle_follows_lit_support_node(name, offset) -> None:
+    image = _load(name)
     dx, dy = offset
     image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
     hero = recognize_hero(image)

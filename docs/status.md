@@ -34,6 +34,12 @@
 
 付费能力与冒险专项 **177 passed**，包含真实字段、旅行后分派及标题/离开/余额/品质/价格遮挡反例；Ruff、差异检查通过。独奏家购买与转场仍待实机。
 
+## 当前现场与连接阻塞（2026-11-16）
+
+本地、GitHub、f1 均已同步 `3d816f7`。会话 `20261116T095201-59602c6ce861` 选中独奏家右侧史诗（400/1070），通过 `astrologer_selected`，购买只点击一次，随后以 `astrologer_purchase_unverified` 停止。停止原图保存在该会话的 `snapshots/astrologer_purchase_unverified_20261116_175224_351846.png`；另存实时图 `logs/soloist-purchase-stable.jpg`。远端对实时图的只读识别为 `is_map=True`、`panel_open=False`、`is_power_vendor=False`，页面与地图余额读取均为 `None`。可确认返回无面板地图，不能确认精确扣款或服务端到账，不重试购买。
+
+PNG 与 JPEG 的多次 SCP 均因 SSH 超时失败；Tailscale 一度经 DERP(sin) 回复，但连接间歇中断。未修改网络或权限配置。当前没有活动控制会话，下一步须取回原图查清余额缺失，再恢复冒险。`3d816f7` 完整回归 **1285 passed**，errors/failures/skipped 均为 0；本地无关原型文件保持未提交。
+
 ## 目标与已确认原则
 
 `core/` 自主完成识别、决策、执行、验证和后续推进；CLI 用于启动、观测、控制，Agent 在开发期补能力。GUI 待整体能力稳定后再做。

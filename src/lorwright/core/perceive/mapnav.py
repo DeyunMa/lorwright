@@ -317,6 +317,7 @@ def reachable_nodes(
             routes = _lit_routes_from_round(image, hero, round_mask, hero_occlusion=completed)
             if completed:
                 routes += _lit_diamond_routes(image, hero, mask)
+                routes += _lit_gold_routes(image, hero, round_mask)
             return routes
         return []
     nodes = detect_nodes(image)
@@ -491,6 +492,55 @@ def _lit_routes_from_round(
     for _, node in sorted(found, key=lambda item: item[0], reverse=True):
         if all((n.x - node.x) ** 2 + (n.y - node.y) ** 2 >= 70 ** 2 for n in result):
             result.append(node)
+    return result
+
+
+@cache
+def _gold_node_template() -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure/map_gold_node_visible.png")))
+
+
+def _lit_gold_routes(
+    image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
+) -> list[MapNode]:
+    """核实可见金色节点及直连亮线；模板只依赖完整可见的中心和内框。"""
+    template = _gold_node_template()
+    lock = _map_lock_template()
+    if image.shape != (1080, 1920, 3) or template is None or lock is None:
+        return []
+    region = image[120:, 240:1750]
+    scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    anchor = MapNode(hero[0], hero[1] + 90, 48)
+    nearby = np.unique(labels[max(0, anchor.y - 66):anchor.y + 67,
+                              max(0, anchor.x - 66):anchor.x + 67])
+    result = []
+    for dy, dx in zip(*np.where(scores >= 0.93), strict=True):
+        x, y = int(dx) + 240, int(dy) + 120
+        actual = image[y:y + template.shape[0], x:x + template.shape[1]]
+        if float((cv2.absdiff(actual, template) > 45).mean()) >= 0.08:
+            continue
+        node = MapNode(x + template.shape[1] // 2, y + template.shape[0] // 2, 38)
+        if any(math.hypot(node.x - n.x, node.y - n.y) < 60 for n in result):
+            continue
+        if not 120 < math.hypot(node.x - anchor.x, node.y - anchor.y) < 800:
+            continue
+        center = cv2.cvtColor(image[node.y - 30:node.y + 31,
+                                        node.x - 30:node.x + 31], cv2.COLOR_BGR2GRAY)
+        if (cv2.matchTemplate(center, lock, cv2.TM_CCOEFF_NORMED).max() >= 0.8
+                or _checkmark_visible(image, (node.x - 35, node.y - 30,
+                                              node.x + 36, node.y + 31))):
+            continue
+        if not _node_edge_visible(image, anchor, node):
+            continue
+        for label in nearby:
+            if label == 0 or stats[label, cv2.CC_STAT_AREA] < 300:
+                continue
+            distances = cv2.distanceTransform((labels != label).astype(np.uint8),
+                                              cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+            if _component_between_nodes(distances, anchor, node):
+                result.append(node)
+                break
     return result
 
 

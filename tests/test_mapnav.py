@@ -28,6 +28,45 @@ def _load(name: str) -> np.ndarray:
     return image
 
 
+def test_completed_node_follows_cyan_route_to_visible_bottom_gold_target():
+    image = _load("f1-weekly-after-hero-reward-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - 940) ** 2 + (node.y - 1040) ** 2 < 20 ** 2
+
+
+@pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim", "origin"])
+def test_bottom_gold_target_rejects_missing_route_or_state_evidence(damage):
+    image = _load("f1-weekly-after-hero-reward-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        image[780:810, 900:990] = 0
+    elif damage == "lock":
+        image[1022:1058, 922:958] = image[568:604, 665:701]
+    elif damage == "completed":
+        image[1022:1058, 922:958] = image[520:556, 942:978]
+    elif damage == "obscured":
+        image[1002:1078, 902:978] = 128
+    elif damage == "dim":
+        image[990:1080, 885:995] //= 3
+    else:
+        image[515:565, 935:990] = 0
+    assert next_node(image, hero=hero) is None
+
+
+def test_gold_target_moves_with_map_content():
+    image = _load("f1-weekly-after-hero-reward-20261116.png")
+    image = cv2.warpAffine(image, np.float32([[1, 0, 50], [0, 1, -100]]), (1920, 1080))
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert (node.x - 990) ** 2 + (node.y - 940) ** 2 < 20 ** 2
+
+
 def test_completed_weekly_round_node_follows_one_of_its_cyan_routes() -> None:
     image = _load("f1-weekly-after-second-reward-20261116.png")
     hero = recognize_hero(image)

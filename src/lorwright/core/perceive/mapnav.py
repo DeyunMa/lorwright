@@ -430,6 +430,25 @@ def _lit_routes_from_round(
     return result
 
 
+@cache
+def _support_marker_template() -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure/map_support_marker.png")))
+
+
+def _support_marker_visible(image: np.ndarray, x: int, y: int) -> bool:
+    """辅助英雄金色徽记须完整可见，不能只凭菱形或背景亮色推断。"""
+    template = _support_marker_template()
+    region = image[y - 130:y - 40, x - 50:x + 50]
+    if template is None or region.shape[:2] != (90, 100):
+        return False
+    scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
+    _, score, _, (dx, dy) = cv2.minMaxLoc(scores)
+    h, w = template.shape[:2]
+    actual = region[dy:dy + h, dx:dx + w]
+    error = float((cv2.absdiff(actual, template) > 45).mean())
+    return score >= 0.93 and error < 0.08
+
+
 def _lit_diamond_routes(
     image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
 ) -> list[MapNode]:
@@ -444,10 +463,16 @@ def _lit_diamond_routes(
         if not 30 <= r <= 45:
             continue
         x, y = node.x, node.y
-        icon_y = y - 3 * r
-        if x < 80 or x + 80 >= image.shape[1] or icon_y < 80 or y + 60 >= image.shape[0]:
+        if x < 80 or x + 80 >= image.shape[1] or y + 60 >= image.shape[0]:
             continue
-        distance = math.hypot(x - anchor[0], icon_y - anchor[1])
+        support = _support_marker_visible(image, x, y)
+        # 辅助英雄的亮线连接菱形本体；旧方形节点连接其上方图标。
+        icon_y = y if support else y - 3 * r
+        if icon_y < 80:
+            continue
+        # 向上路线被英雄头像遮住一段，只核验头像边缘之外的可见亮线。
+        route_anchor = hero if support else anchor
+        distance = math.hypot(x - route_anchor[0], icon_y - route_anchor[1])
         if not 110 <= distance <= 240:
             continue
         # 空心菱形四边须具备蓝白高亮，不能仅凭金色装饰判定。
@@ -471,28 +496,29 @@ def _lit_diamond_routes(
                 or any(int((cv2.Canny(center, 70, 140) > 0).sum()) > limit
                        for center, limit in zip(centers, (8, 45), strict=True))):
             continue
-        # 方形外框需要四边亮起，排除沿途孤立菱形和背景装饰。
-        icon = gray[icon_y - 48:icon_y + 49, x - 48:x + 49]
-        if any(float((edge > 180).mean()) < 0.12 for edge in (
-            icon[0:12, 20:77], icon[85:97, 20:77],
-            icon[20:77, 0:12], icon[20:77, 85:97],
-        )):
-            continue
+        # 方形外框需要四边亮起；辅助英雄则已独立核实金色徽记。
+        if not support:
+            icon = gray[icon_y - 48:icon_y + 49, x - 48:x + 49]
+            if any(float((edge > 180).mean()) < 0.12 for edge in (
+                icon[0:12, 20:77], icon[85:97, 20:77],
+                icon[20:77, 0:12], icon[20:77, 85:97],
+            )):
+                continue
         # 同一亮线连通域须贴近起点及方形，且沿两者间直线贯通。
         for label in range(1, len(stats)):
             left, top, width, height, area = stats[label]
-            if (area < 100 or left > max(anchor[0], x) + 55
-                    or left + width < min(anchor[0], x) - 55
-                    or top > max(anchor[1], icon_y) + 55
-                    or top + height < min(anchor[1], icon_y) - 55):
+            if (area < 100 or left > max(route_anchor[0], x) + 55
+                    or left + width < min(route_anchor[0], x) - 55
+                    or top > max(route_anchor[1], icon_y) + 55
+                    or top + height < min(route_anchor[1], icon_y) - 55):
                 continue
             distances = cv2.distanceTransform((labels != label).astype(np.uint8), cv2.DIST_L2,
                                               cv2.DIST_MASK_PRECISE)
             positions = np.arange(45, distance - 45, 3)
             if len(positions) < 5:
                 continue
-            if all(distances[round(anchor[1] + (icon_y - anchor[1]) * t / distance),
-                             round(anchor[0] + (x - anchor[0]) * t / distance)] <= 7
+            if all(distances[round(route_anchor[1] + (icon_y - route_anchor[1]) * t / distance),
+                             round(route_anchor[0] + (x - route_anchor[0]) * t / distance)] <= 7
                    for t in positions):
                 result.append(node)
                 break

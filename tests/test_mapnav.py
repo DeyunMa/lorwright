@@ -103,6 +103,39 @@ def test_lit_diamond_rejects_unsafe_states(damage: str) -> None:
     assert next_node(image, hero=hero) is None
 
 
+@pytest.mark.parametrize("offset", [(0, 0), (-120, 20), (100, -100)])
+def test_weekly_completed_battle_follows_lit_support_node(offset) -> None:
+    image = _load("f1-weekly-after-card-reward-20261116.png")
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    hero = recognize_hero(image)
+    assert hero is not None
+    node = next_node(image, hero=hero)
+    assert node is not None
+    assert abs(node.x - (992 + dx)) < 8 and abs(node.y - (510 + dy)) < 8
+
+
+@pytest.mark.parametrize("damage", ["cut", "marker", "locked", "completed", "rim", "current"])
+def test_weekly_support_node_requires_complete_route_evidence(damage) -> None:
+    image = _load("f1-weekly-after-card-reward-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        image[566:583, 960:1010] = 0
+    elif damage == "marker":
+        image[390:450, 966:1023] = 0
+    elif damage == "locked":
+        image[496:524, 978:1006] = image[245:273, 1684:1712]
+    elif damage == "completed":
+        cv2.line(image, (974, 510), (986, 520), (40, 220, 40), 11)
+        cv2.line(image, (986, 520), (1010, 493), (40, 220, 40), 11)
+    elif damage == "rim":
+        image[463:558, 945:1042] = (image[463:558, 945:1042] * 0.4).astype(np.uint8)
+    else:
+        image[683:753, 908:1018] = 0
+    assert next_node(image, hero=hero) is None
+
+
 def test_blank_frame_has_no_next() -> None:
     blank = np.zeros((1080, 1920, 3), np.uint8)
     assert next_node(blank) is None

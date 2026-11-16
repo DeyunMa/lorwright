@@ -11,7 +11,10 @@ from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-@pytest.fixture(params=["healer/f1-full-health.png", "screens/f1-field-cook-20261116.png"])
+@pytest.fixture(params=[
+    "healer/f1-full-health.png", "screens/f1-field-cook-20261116.png",
+    "screens/f1-weekly-healer-20261116.png",
+])
 def healer_image(request) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / request.param))
     assert image is not None

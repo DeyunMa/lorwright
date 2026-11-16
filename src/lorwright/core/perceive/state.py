@@ -146,6 +146,15 @@ class StateParser:
         return state
 
     def _observe(self, name, image, rect, readable: bool, state: GameState) -> int | None:
+        if readable and name == "mana" and rect is not None:
+            # 普通法力是白字；令牌橙色特效不能作为同一行的额外数字。
+            patch = image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w]
+            if patch.ndim == 3:
+                spread = patch.max(axis=2).astype(np.int16) - patch.min(axis=2)
+                image = image.copy()
+                image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w] = np.where(
+                    (spread <= 70)[:, :, None], patch, 0,
+                )
         value = self._read(image, rect) if readable else None
         previous = self._readings.get(name, Reading())
         reading = (Reading(value, 0) if value is not None else Reading(

@@ -87,6 +87,27 @@ def test_state_parser_reads_unit_attack_values() -> None:
     assert [unit.attack for unit in state.enemy_units] == [8, 2]
 
 
+def test_white_mana_ignores_orange_attack_token_effect() -> None:
+    from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+    from lorwright.core.models import Action, ActionType, GameState, Reading
+
+    image = _load("f1-weekly-mana-token-20261116.png")
+    parser = _parser()
+    parser._mana = 1
+    parser._readings["mana"] = Reading(1, 0)
+    before = GameState(ui_state=UIState.MY_TURN_IDLE, mana=1,
+                       readings={"mana": Reading(1, 0)})
+    after = parser.parse(image)
+    assert after.mana == 4 and after.has_fresh_readings("mana")
+    outcome = ActionOutcome(Action(ActionType.END_TURN), before, 20)
+    assert outcome.observe(after, 4).status is OutcomeStatus.SUCCEEDED
+    roi = parser.layout.mana
+    image[roi.y:roi.y + roi.h, roi.x:roi.x + roi.w] = (0, 165, 255)
+    obscured = parser.parse(image)
+    assert not obscured.has_fresh_readings("mana")
+    assert outcome.observe(obscured, 4).status is OutcomeStatus.WAITING
+
+
 def test_assets_exist() -> None:
     """模板和字形库必须在仓库里，否则真机上会静默失效。"""
     assert (Path("assets/buttons") / "mulligan.png").exists()

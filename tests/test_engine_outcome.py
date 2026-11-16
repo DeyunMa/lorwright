@@ -217,6 +217,27 @@ def test_inspect_board_collapses_once_then_attacks(monkeypatch):
     assert len(device.drags) == 1
 
 
+def test_expanded_attack_collapses_before_using_fresh_unit_coordinates(monkeypatch):
+    from lorwright.core.decide.generic import AttackWhenTokenPolicy, ExpandHandPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    card = CardInHand(0, "砰砰", 1, Rect(1300, 850, 80, 100))
+    mistaken = Unit("", 1, 1, Rect(1300, 850, 80, 100))
+    expanded = ready(hand=[card], hand_expanded=True, has_attack_token=True,
+                     my_units=[mistaken])
+    real_unit = Unit("", 6, 7, Rect(1000, 850, 100, 150))
+    collapsed = replace(expanded, hand_expanded=False, my_units=[real_unit])
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [expanded, collapsed], [])
+    engine.layout.collapse_hand_point = Rect(499, 619, 2, 2)
+    engine.layout.attack_row = Rect(700, 470, 520, 70)
+    engine.router = RealRouter([ExpandHandPolicy(), AttackWhenTokenPolicy()])
+    engine.run(max_ticks=2)
+    assert device.taps == [(500, 620)]
+    assert len(device.drags) == 1
+    assert device.drags[0][:4] == (*real_unit.rect.center, *engine.layout.attack_row.center)
+    assert snapshots == []
+
+
 @pytest.mark.parametrize("ui,action", [
     (UIState.UNKNOWN, Action(ActionType.NO_OP, raw={"inspect_board": True})),
     (UIState.TARGETING, Action(ActionType.NO_OP)),

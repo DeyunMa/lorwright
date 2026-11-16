@@ -332,8 +332,9 @@ class Engine:
                 if (not inspecting_board and state.ui_state is UIState.MY_TURN_IDLE
                         and state.hand_expanded and state.has_attack_token
                         and self.layout.collapse_hand_point is not None
-                        and ((result.action.type is ActionType.NO_OP
-                              and result.action.raw.get("inspect_board") is True)
+                        and (result.action.type is ActionType.ATTACK
+                             or (result.action.type is ActionType.NO_OP
+                                 and result.action.raw.get("inspect_board") is True)
                              or (result.layer == "fallback"
                                  and result.action.type is ActionType.END_TURN))):
                     result.action = Action(type=ActionType.COLLAPSE_HAND)

@@ -138,6 +138,42 @@ def test_weekly_support_node_requires_complete_route_evidence(damage) -> None:
     assert next_node(image, hero=hero) is None
 
 
+def test_weekly_support_fork_follows_either_verified_lit_battle() -> None:
+    image = _load("f1-weekly-after-support-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    choices = {next_node(image, hero=hero, rng=random.Random(seed)).center for seed in range(8)}
+    assert len(choices) == 2
+    assert all(min((x - tx) ** 2 + (y - ty) ** 2 for tx, ty in ((825, 345), (1107, 337)))
+               < 12 ** 2 for x, y in choices)
+
+
+@pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim", "current"])
+def test_weekly_support_fork_does_not_choose_damaged_left_branch(damage) -> None:
+    image = _load("f1-weekly-after-support-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        cv2.line(image, (855, 455), (895, 415), (0, 0, 0), 20)
+    elif damage == "lock":
+        image[327:363, 807:843] = image[270:306, 1651:1687]
+    elif damage == "completed":
+        cv2.line(image, (807, 345), (819, 355), (40, 220, 40), 11)
+        cv2.line(image, (819, 355), (843, 328), (40, 220, 40), 11)
+    elif damage == "obscured":
+        image[335:355, 815:835] = 0
+    elif damage == "dim":
+        image[280:410, 760:890] = (image[280:410, 760:890] * 0.4).astype(np.uint8)
+    else:
+        image[516:565, 930:991] = 0
+    for seed in range(3):
+        node = next_node(image, hero=hero, rng=random.Random(seed))
+        if damage == "current":
+            assert node is None
+        else:
+            assert node is not None and (node.x - 1107) ** 2 + (node.y - 337) ** 2 < 12 ** 2
+
+
 def test_blank_frame_has_no_next() -> None:
     blank = np.zeros((1080, 1920, 3), np.uint8)
     assert next_node(blank) is None

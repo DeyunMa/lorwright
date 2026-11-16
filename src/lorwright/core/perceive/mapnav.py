@@ -366,6 +366,7 @@ def _component_between_nodes(
 
 def _lit_routes_from_round(
     image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
+    *, origin: MapNode | None = None,
 ) -> list[MapNode]:
     """从圆节点找与其连续连接的可见蓝环，不按节点类型或坐标选择。"""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -378,9 +379,9 @@ def _lit_routes_from_round(
     candidates = [MapNode(int(x), int(y), int(r)) for x, y, r in circles[0]]
     guess = (hero[0], hero[1] + 90)
     anchors = [n for n in candidates if (n.x - guess[0]) ** 2 + (n.y - guess[1]) ** 2 < 18 ** 2]
-    if not anchors:
+    if origin is None and not anchors:
         return []
-    anchor = min(anchors, key=lambda n: (n.x - guess[0]) ** 2 + (n.y - guess[1]) ** 2)
+    anchor = origin or min(anchors, key=lambda n: (n.x - guess[0]) ** 2 + (n.y - guess[1]) ** 2)
     # 亮线与当前节点的光环可能因阈值分割出现几像素的间隙。
     extent = anchor.radius + 18
     if (anchor.x < extent or anchor.y < extent or anchor.x + extent >= image.shape[1]
@@ -577,6 +578,27 @@ def _current_battle_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bo
             and int(bright_halo.sum()) >= 200 and float(center.std()) >= 5)
 
 
+@cache
+def _current_diamond_template() -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure/map_current_diamond.png")))
+
+
+def _current_diamond_visible(image: np.ndarray, hero: tuple[int, int]) -> MapNode | None:
+    """在已识别头像下核实菱形，避免同色地形吞并其全图轮廓。"""
+    x, y = hero
+    template = _current_diamond_template()
+    if template is None or x < 50 or x + 50 >= 1920 or y < 0 or y + 140 >= 1080:
+        return None
+    region = image[y + 55:y + 140, x - 50:x + 50]
+    _, score, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
+        region, template, cv2.TM_CCOEFF_NORMED))
+    h, w = template.shape[:2]
+    actual = region[dy:dy + h, dx:dx + w]
+    if score < 0.93 or float((cv2.absdiff(actual, template) > 45).mean()) >= 0.08:
+        return None
+    return MapNode(x - 50 + dx + w // 2, y + 55 + dy + h // 2, 28)
+
+
 def _lit_routes_from_ability(
     image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
 ) -> list[MapNode] | None:
@@ -587,6 +609,13 @@ def _lit_routes_from_ability(
     """
     if image.shape != (1080, 1920, 3):
         return None
+    current = _current_diamond_visible(image, hero)
+    if current is not None:
+        # 当前头像遮住路线的起始部分；从遮挡范围外核验连续青色亮线。
+        blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
+        cyan = ((blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20))
+        origin = MapNode(current.x, current.y, current.y - hero[1])
+        return _lit_routes_from_round(image, hero, cyan.astype(np.uint8), origin=origin)
     anchors = [
         node for node in detect_ability_nodes(image)
         if abs(node.x - hero[0]) <= 30 and 55 <= node.y - hero[1] <= 125
@@ -670,6 +699,10 @@ def _lit_unfinished_ring(
         return False
     component = labels[y - extent:y + extent + 1, x - extent:x + extent + 1] == label
     if int(np.count_nonzero(component & annulus & cyan)) < min_connected_cyan:
+        return False
+    lock = _map_lock_template()
+    center_region = cv2.cvtColor(image[y - 30:y + 30, x - 30:x + 30], cv2.COLOR_BGR2GRAY)
+    if lock is None or cv2.matchTemplate(center_region, lock, cv2.TM_CCOEFF_NORMED).max() >= 0.8:
         return False
     center_gray = cv2.cvtColor(image[y - 10:y + 10, x - 10:x + 10], cv2.COLOR_BGR2GRAY)
     if float(center_gray.std()) < 12 or float(center_gray[5:15, 5:15].std()) < 5:

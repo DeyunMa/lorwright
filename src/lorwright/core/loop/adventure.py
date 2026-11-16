@@ -53,7 +53,7 @@ from lorwright.core.perceive.astrologer import (
     astrologer_map_gold,
     astrologer_offers,
     astrologer_selection,
-    is_astrologer,
+    is_power_vendor,
     same_astrologer_offers,
 )
 from lorwright.core.perceive.buttons import find_continue_button
@@ -246,7 +246,7 @@ class AdventureLoop:
                     image = self._frame()
                 if pending_image is not None:
                     continue
-            if is_astrologer(image):
+            if is_power_vendor(image):
                 self._scene("astrologer")
                 if not self._handle_astrologer(image):
                     return
@@ -525,7 +525,7 @@ class AdventureLoop:
 
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""
-        if (is_astrologer(image) or shop_leave_button(image) is not None or self._is_healer(image)
+        if (is_power_vendor(image) or shop_leave_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)
                 or self._is_hero_item_reward(image)
                 or is_power_screen(image) or is_battle_detail(image) or is_map(image)):
@@ -986,7 +986,7 @@ class AdventureLoop:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         if image is None:
             image = self._frame()
-        if is_astrologer(image):
+        if is_power_vendor(image):
             return self._handle_astrologer(image)
         if shop_leave_button(image) is not None:
             return self._handle_shop(image)
@@ -1035,7 +1035,7 @@ class AdventureLoop:
             # 看到可识别的场景再交给对应处理，超时仍未知则停止。
             for attempt in range(11):
                 image = self._frame()
-                if is_astrologer(image):
+                if is_power_vendor(image):
                     return self._handle_astrologer(image)
                 if shop_leave_button(image) is not None:
                     return self._handle_shop(image)

@@ -13,7 +13,7 @@ from lorwright.core.perceive.astrologer import (
     astrologer_map_gold,
     astrologer_offers,
     astrologer_selection,
-    is_astrologer,
+    is_power_vendor,
     same_astrologer_offers,
 )
 
@@ -24,9 +24,39 @@ def image():
     return result
 
 
+def test_soloist_reuses_paid_power_offer_contract():
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-20261116.png"))
+    assert frame is not None
+    offers = astrologer_offers(frame)
+    assert offers is not None
+    assert [(c.quality, c.cost) for c in offers] == [("rare", 300), ("rare", 300), ("epic", 400)]
+    assert astrologer_gold(frame) == 1070
+    assert pick_affordable_power(offers, 1070) == 2
+    assert astrologer_selection(frame) == -1
+    assert astrologer_buy_button(frame) is None
+    assert is_power_vendor(frame)
+
+
+@pytest.mark.parametrize("damage", ["title", "leave", "balance", "quality", "price"])
+def test_soloist_missing_evidence_does_not_authorize_purchase(damage):
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-20261116.png"))
+    if damage == "title":
+        frame[350:425, 560:850] = 0
+    elif damage == "leave":
+        frame[910:990, 630:755] = 0
+    elif damage == "balance":
+        frame[977:1029, 1064:1204] = 0
+    elif damage == "quality":
+        frame[503:529, 1629:1899] = 0
+    else:
+        frame[700:734, 1759:1814] = 0
+    assert astrologer_gold(frame) is None or astrologer_offers(frame) is None
+    assert astrologer_buy_button(frame) is None
+
+
 def test_real_astrologer_reads_prices_gold_and_unknown_power_qualities():
     frame = image()
-    assert is_astrologer(frame)
+    assert is_power_vendor(frame)
     assert astrologer_gold(frame) == 950
     offers = astrologer_offers(frame)
     assert offers is not None

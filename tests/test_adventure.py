@@ -1084,6 +1084,23 @@ def _power_fixture(name):
     return image
 
 
+def test_node_travel_dispatches_soloist_to_paid_power_handler(adventure, monkeypatch):
+    vendor = cv2.imread(str(FIXTURES.parent / "screens/f1-soloist-20261116.png"))
+    assert vendor is not None
+    loop, device, _, saved, _ = adventure([_img("1080p_node_panel.png"), vendor], [])
+    handled = []
+
+    def handle(image):
+        handled.append(image)
+        return True
+
+    monkeypatch.setattr(loop, "_handle_astrologer", handle)
+    assert loop._handle_node_panel()
+    assert handled == [vendor]
+    assert device.taps == [(817, 485)]
+    assert saved == []
+
+
 def test_node_travel_dispatches_weekly_power_page(adventure, monkeypatch):
     power = _power_fixture("f1-weekly-diamond-20261116.png")
     loop, device, _, saved, _ = adventure([_img("1080p_node_panel.png"), power], [])

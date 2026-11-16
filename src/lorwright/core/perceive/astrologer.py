@@ -1,4 +1,4 @@
-"""占星家付费能力页；费用、金币和按钮均使用本帧证据。"""
+"""已知付费能力事件页；费用、金币和按钮均使用本帧证据。"""
 
 from functools import cache
 
@@ -15,8 +15,9 @@ from lorwright.core.perceive.reward_screen import _best, _names, _power_quality
 SLOTS = (985, 1307, 1629)
 
 
-def is_astrologer(image: np.ndarray) -> bool:
-    return (_matches(image, "astrologer_title", (560, 350, 750, 425), 0.93)
+def is_power_vendor(image: np.ndarray) -> bool:
+    return ((_matches(image, "astrologer_title", (560, 350, 750, 425), 0.93)
+             or _matches(image, "soloist_title", (560, 350, 850, 425), 0.93))
             and _matches(image, "astrologer_leave", (630, 910, 755, 990), 0.93))
 
 
@@ -39,7 +40,7 @@ def _number(image: np.ndarray, rect: Rect, *, balance: bool = False) -> int | No
 
 
 def astrologer_gold(image: np.ndarray) -> int | None:
-    return _number(image, Rect(1064, 977, 140, 52), balance=True) if is_astrologer(image) else None
+    return _number(image, Rect(1064, 977, 140, 52), balance=True) if is_power_vendor(image) else None
 
 
 def astrologer_map_gold(image: np.ndarray) -> int | None:
@@ -50,7 +51,7 @@ def astrologer_map_gold(image: np.ndarray) -> int | None:
 
 
 def astrologer_offers(image: np.ndarray) -> list[RewardCandidate] | None:
-    if not is_astrologer(image) or not _matches(
+    if not is_power_vendor(image) or not _matches(
         image, "astrologer_offer_title", (1305, 25, 1575, 95), 0.93,
     ):
         return None
@@ -71,7 +72,7 @@ def astrologer_offers(image: np.ndarray) -> list[RewardCandidate] | None:
 
 
 def astrologer_selection(image: np.ndarray) -> int | None:
-    if not is_astrologer(image):
+    if not is_power_vendor(image):
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     states = []
@@ -104,7 +105,7 @@ def same_astrologer_offers(before: np.ndarray, after: np.ndarray) -> bool:
 
 
 def astrologer_buy_button(image: np.ndarray) -> Rect | None:
-    if not is_astrologer(image) or not _matches(
+    if not is_power_vendor(image) or not _matches(
         image, "astrologer_buy", (1375, 970, 1510, 1040), 0.93,
     ):
         return None
@@ -115,4 +116,4 @@ def astrologer_buy_button(image: np.ndarray) -> Rect | None:
 
 
 def astrologer_leave_button(image: np.ndarray) -> Rect | None:
-    return Rect(540, 904, 425, 99) if is_astrologer(image) else None
+    return Rect(540, 904, 425, 99) if is_power_vendor(image) else None

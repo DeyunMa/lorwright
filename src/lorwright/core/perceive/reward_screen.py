@@ -460,11 +460,18 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
 
 def _card_visible(gray: np.ndarray, x: int) -> bool:
     """独立识别法术或单位框及相应标题位置，不从插画猜身份。"""
-    spell = _visible_match(gray, "card_reward_spell_frame", (x + 50, 590, x + 85, 640)) >= 0.93
+    spell = any(_visible_match(gray, name, (x + 50, 590, x + 85, 640)) >= 0.93
+                for name in ("card_reward_spell_frame", "card_reward_spell_frame_teal"))
     unit = _visible_match(gray, "card_reward_unit_frame", (x + 50, 250, x + 100, 290)) >= 0.93
-    if not spell and not unit:
+    champion = _visible_match(gray, "card_reward_champion_frame", (x + 265, 245, x + 320, 295)) >= 0.93
+    if spell:
+        title = gray[487:514, x + 120:x + 300]
+    elif unit:
+        title = gray[533:554, x + 75:x + 315]
+    elif champion:
+        title = gray[397:430, x + 75:x + 315]
+    else:
         return False
-    title = gray[487:514, x + 120:x + 300] if spell else gray[533:554, x + 75:x + 315]
     art = gray[337:450, x + 130:x + 270]
     return (int((title > 170).sum()) >= 120
             and float((art < 8).mean()) < 0.05 and float(art.std()) > 10)

@@ -439,7 +439,7 @@ class AdventureLoop:
                 weekly = recognize_weekly_adventures(design_image)
                 if weekly is not None:
                     self._scene("weekly_list")
-                    index = pick_lowest_weekly([candidate.stars for candidate in weekly])
+                    index = pick_lowest_weekly([candidate.stars for candidate in weekly], rng=self.rng)
                     if index is None:
                         self._snapshot(image, tag="weekly_stars_unknown")
                         return

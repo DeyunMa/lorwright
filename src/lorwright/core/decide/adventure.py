@@ -32,12 +32,13 @@ def pick_map_node(kinds: Sequence[MapNodeKind | None], *, rng: random.Random) ->
     return rng.choice([i for i in known if priorities[kinds[i]] == best])
 
 
-def pick_lowest_weekly(stars: Sequence[float | None]) -> int | None:
-    """返回最低星级索引；并列按观察顺序，未知或越界则整组弃权。"""
+def pick_lowest_weekly(stars: Sequence[float | None], *, rng: random.Random) -> int | None:
+    """返回最低星级索引，同星级随机；未知或越界则整组弃权。"""
     if not stars or any(
         value is None or not math.isfinite(value) or not 0.5 <= value <= 6.5
         or value * 2 != int(value * 2)
         for value in stars
     ):
         return None
-    return min(range(len(stars)), key=lambda index: stars[index])
+    lowest = min(stars)
+    return rng.choice([i for i, value in enumerate(stars) if value == lowest])

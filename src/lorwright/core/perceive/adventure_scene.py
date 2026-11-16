@@ -211,8 +211,8 @@ def find_weekly_entry(image: np.ndarray) -> Rect | None:
     return icon
 
 
-def _weekly_clocks(image: np.ndarray) -> list[Rect]:
-    template = _template("weekly_clock")
+def _weekly_markers(image: np.ndarray, name: str) -> list[Rect]:
+    template = _template(name)
     if template is None or not _world_controls(image):
         return []
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -255,13 +255,14 @@ def _rating_matches(image: np.ndarray, name: str, bounds: tuple[int, int, int, i
 
 
 def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...] | None:
-    """动态定位三个时钟标记，再读取各自星标/数字；未知值保留为 None。
+    """动态定位未完成时钟，结合完成勾核对三个位置，再读取星级。
 
     当前视觉字库仅含实拍 1.5 和 2，未采样数字一律弃权。没有借用只读
     整数的 DigitReader，以免小数点被分割规则滤掉后错误排序。
     """
-    clocks = _weekly_clocks(image)
-    if len(clocks) != 3:
+    clocks = _weekly_markers(image, "weekly_clock")
+    completed = _weekly_markers(image, "weekly_completed")
+    if not clocks or len(clocks) + len(completed) != 3:
         return None
     adventures = []
     for clock in clocks:
@@ -269,6 +270,8 @@ def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...
         values = {
             value for name, value in (("weekly_rating_2_top", 2.0),
                                       ("weekly_rating_2_left", 2.0),
+                                      ("weekly_rating_2_current", 2.0),
+                                      ("weekly_rating_2_remaining_left", 2.0),
                                       ("weekly_rating_1_5", 1.5))
             if _rating_matches(image, name, bounds)
         }
@@ -282,11 +285,13 @@ def weekly_detail_stars(image: np.ndarray) -> float | None:
     """只接受已采样的每周详情、难度星标和完整小数。"""
     if (_visible_patch(image, "world_back", (65, 45, 140, 125)) is None
             or _visible_patch(image, "weekly_detail_label", (1385, 108, 1555, 150)) is None
-            or _visible_patch(image, "weekly_detail_difficulty", (1385, 295, 1505, 375)) is None
-            or _visible_patch(image, "weekly_detail_rating", (1444, 340, 1487, 368),
-                              threshold=0.99) is None):
+            or not any(_visible_patch(image, name, (1385, 295, 1505, 375)) is not None
+                       for name in ("weekly_detail_difficulty", "weekly_detail_difficulty_2"))):
         return None
-    return 1.5
+    ratings = [value for name, value in (("weekly_detail_rating", 1.5),
+                                        ("weekly_detail_rating_2", 2.0))
+               if _visible_patch(image, name, (1444, 340, 1487, 368), threshold=0.99) is not None]
+    return ratings[0] if len(ratings) == 1 else None
 
 
 def find_weekly_start(image: np.ndarray) -> Rect | None:

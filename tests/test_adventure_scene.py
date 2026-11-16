@@ -1,5 +1,6 @@
 """地图控件在真实画面及遮挡时的识别回归。"""
 
+import random
 from pathlib import Path
 
 import cv2
@@ -96,12 +97,12 @@ def test_resume_adventure_does_not_recognize_home_or_map():
 
 @pytest.mark.parametrize(("stars", "expected"), [
     ([2, 2, 1.5], 2), ([1.5, 2, 2], 0), ([2, 0.5, 1.5], 1),
-    ([6.5, 6, 5.5], 2), ([2, 2, 2], 0), ([], None),
+    ([6.5, 6, 5.5], 2), ([], None),
     ([None, 2, 1.5], None), ([2, float("nan"), 1.5], None),
     ([0, 1.5, 2], None), ([7, 1.5, 2], None), ([1.2, 1.5, 2], None),
 ])
 def test_pick_lowest_weekly(stars, expected):
-    assert pick_lowest_weekly(stars) == expected
+    assert pick_lowest_weekly(stars, rng=random.Random(0)) == expected
 
 
 def test_weekly_entry_requires_label_and_icon_and_moves_with_them():
@@ -126,11 +127,47 @@ def test_weekly_entry_obscured_does_not_authorize_click(bounds):
     assert find_weekly_entry(image) is None
 
 
+@pytest.mark.parametrize("stars,choices", [([2, 2], {0, 1}), ([3, 2, 2], {1, 2}),
+                                           ([2], {0})])
+def test_weekly_randomizes_only_lowest_star_ties(stars, choices):
+    picked = {pick_lowest_weekly(stars, rng=random.Random(seed)) for seed in range(20)}
+    assert picked == choices
+
+
+def test_weekly_two_remaining_candidates_and_two_star_detail():
+    candidates = recognize_weekly_adventures(_image("screens/weekly-two-remaining-20261116.png"))
+    assert candidates is not None and len(candidates) == 2
+    assert [candidate.stars for candidate in candidates] == [2, 2]
+    image = _image("screens/weekly-two-detail-20261116.png")
+    assert weekly_detail_stars(image) == 2
+    assert find_weekly_start(image) is not None
+
+
+def test_weekly_last_candidate_needs_two_completed_markers():
+    image = _image("screens/weekly-two-remaining-20261116.png")
+    marker = image[614:694, 1215:1295].copy()
+    image[108:320, 850:1020] = 0
+    assert recognize_weekly_adventures(image) is None  # 时钟消失不能假定已完成。
+    image[150:230, 895:975] = marker
+    candidates = recognize_weekly_adventures(image)
+    assert candidates is not None and len(candidates) == 1
+    assert candidates[0].stars == 2
+
+
+@pytest.mark.parametrize("bounds", [(1395, 116, 1543, 143), (1444, 340, 1487, 368)])
+def test_two_star_detail_requires_visible_label_and_rating(bounds):
+    image = _image("screens/weekly-two-detail-20261116.png")
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = 0
+    assert weekly_detail_stars(image) is None
+    assert find_weekly_start(image) is None
+
+
 def test_weekly_list_reads_real_half_stars_at_dynamic_positions():
     candidates = recognize_weekly_adventures(_image("screens/weekly-list-20261115.png"))
     assert candidates is not None
     assert sorted(candidate.stars for candidate in candidates) == [1.5, 2, 2]
-    lowest = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates])]
+    lowest = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates], rng=random.Random(0))]
     assert abs(lowest.target.center[0] - 1265) < 3
     assert abs(lowest.target.center[1] - 530) < 5
 
@@ -146,7 +183,7 @@ def test_weekly_lowest_follows_badge_when_moved_to_another_node(lowest):
     candidates = recognize_weekly_adventures(image)
     assert candidates is not None
     assert all(candidate.stars is not None for candidate in candidates)
-    chosen = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates])]
+    chosen = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates], rng=random.Random(0))]
     x, y = boxes[lowest]
     assert abs(chosen.target.center[0] - (x + 50)) < 3
     assert abs(chosen.target.center[1] - (y - 43)) < 5
@@ -164,7 +201,7 @@ def test_weekly_unknown_or_obscured_rating_abstains(bounds):
     image[y1:y2, x1:x2] = 0
     candidates = recognize_weekly_adventures(image)
     assert candidates is not None
-    assert pick_lowest_weekly([candidate.stars for candidate in candidates]) is None
+    assert pick_lowest_weekly([candidate.stars for candidate in candidates], rng=random.Random(0)) is None
 
 
 @pytest.mark.parametrize("name", [

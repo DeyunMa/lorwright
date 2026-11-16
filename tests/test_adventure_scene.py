@@ -7,7 +7,15 @@ import numpy as np
 import pytest
 
 from lorwright.core.champions.jinx.vision import recognize_selected_hero
-from lorwright.core.perceive.adventure_scene import find_resume_adventure_button, is_map
+from lorwright.core.decide.adventure import pick_lowest_weekly
+from lorwright.core.perceive.adventure_scene import (
+    find_resume_adventure_button,
+    find_weekly_entry,
+    find_weekly_start,
+    is_map,
+    recognize_weekly_adventures,
+    weekly_detail_stars,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -84,3 +92,118 @@ def test_resume_adventure_rejects_dimmed_page():
 def test_resume_adventure_does_not_recognize_home_or_map():
     assert find_resume_adventure_button(_image("screens/1080p_home_adventure_entry.png")) is None
     assert find_resume_adventure_button(_image("mapnav/1080p_map.png")) is None
+
+
+@pytest.mark.parametrize(("stars", "expected"), [
+    ([2, 2, 1.5], 2), ([1.5, 2, 2], 0), ([2, 0.5, 1.5], 1),
+    ([6.5, 6, 5.5], 2), ([2, 2, 2], 0), ([], None),
+    ([None, 2, 1.5], None), ([2, float("nan"), 1.5], None),
+    ([0, 1.5, 2], None), ([7, 1.5, 2], None), ([1.2, 1.5, 2], None),
+])
+def test_pick_lowest_weekly(stars, expected):
+    assert pick_lowest_weekly(stars) == expected
+
+
+def test_weekly_entry_requires_label_and_icon_and_moves_with_them():
+    image = _image("screens/world-weekly-20261115.png")
+    entry = find_weekly_entry(image)
+    assert entry is not None
+    assert abs(entry.center[0] - 1380) < 3
+    assert abs(entry.center[1] - 465) < 3
+    patch = image[410:520, 1180:1440].copy()
+    image[410:520, 1180:1440] = 0
+    image[510:620, 830:1090] = patch
+    moved = find_weekly_entry(image)
+    assert moved is not None
+    assert moved.center == (entry.center[0] - 350, entry.center[1] + 100)
+
+
+@pytest.mark.parametrize("bounds", [(1190, 450, 1302, 482), (1334, 420, 1427, 509)])
+def test_weekly_entry_obscured_does_not_authorize_click(bounds):
+    image = _image("screens/world-weekly-20261115.png")
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = 0
+    assert find_weekly_entry(image) is None
+
+
+def test_weekly_list_reads_real_half_stars_at_dynamic_positions():
+    candidates = recognize_weekly_adventures(_image("screens/weekly-list-20261115.png"))
+    assert candidates is not None
+    assert sorted(candidate.stars for candidate in candidates) == [1.5, 2, 2]
+    lowest = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates])]
+    assert abs(lowest.target.center[0] - 1265) < 3
+    assert abs(lowest.target.center[1] - 530) < 5
+
+
+@pytest.mark.parametrize("lowest", [0, 1, 2])
+def test_weekly_lowest_follows_badge_when_moved_to_another_node(lowest):
+    image = _image("screens/weekly-list-20261115.png")
+    boxes = [(894, 236), (670, 598), (1215, 576)]
+    two = image[236:316, 894:995].copy()
+    half = image[576:656, 1215:1316].copy()
+    for index, (x, y) in enumerate(boxes):
+        image[y:y + 80, x:x + 101] = half if index == lowest else two
+    candidates = recognize_weekly_adventures(image)
+    assert candidates is not None
+    assert all(candidate.stars is not None for candidate in candidates)
+    chosen = candidates[pick_lowest_weekly([candidate.stars for candidate in candidates])]
+    x, y = boxes[lowest]
+    assert abs(chosen.target.center[0] - (x + 50)) < 3
+    assert abs(chosen.target.center[1] - (y - 43)) < 5
+
+
+@pytest.mark.parametrize("bounds", [
+    (933, 283, 956, 306),  # 未知/消失的 2
+    (1258, 637, 1266, 646),  # 1.5 的小数点
+    (1243, 623, 1287, 647),  # 整个 1.5
+    (900, 240, 986, 279),  # 星标
+])
+def test_weekly_unknown_or_obscured_rating_abstains(bounds):
+    image = _image("screens/weekly-list-20261115.png")
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = 0
+    candidates = recognize_weekly_adventures(image)
+    assert candidates is not None
+    assert pick_lowest_weekly([candidate.stars for candidate in candidates]) is None
+
+
+@pytest.mark.parametrize("name", [
+    "world-weekly-20261115.png", "weekly-list-20261115.png",
+    "weekly-detail-20261115.png", "weekly-start-animation-20261115.png",
+])
+def test_weekly_dimmed_and_animation_do_not_authorize_actions(name):
+    image = _image("screens/" + name) // 2
+    assert find_weekly_entry(image) is None
+    assert recognize_weekly_adventures(image) is None
+    assert find_weekly_start(image) is None
+
+
+def test_weekly_detail_stars_and_start_match_real_frame():
+    image = _image("screens/weekly-detail-20261115.png")
+    assert weekly_detail_stars(image) == 1.5
+    button = find_weekly_start(image)
+    assert button is not None
+    assert abs(button.center[0] - 1576) < 3 and abs(button.center[1] - 980) < 3
+    assert recognize_weekly_adventures(image) is None
+
+
+@pytest.mark.parametrize("bounds", [
+    (1395, 116, 1543, 143), (1444, 340, 1487, 368), (1460, 357, 1466, 365),
+    (1508, 963, 1645, 1000),
+])
+def test_weekly_detail_obscured_label_decimal_or_start_abstains(bounds):
+    image = _image("screens/weekly-detail-20261115.png")
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = 0
+    assert find_weekly_start(image) is None
+
+
+@pytest.mark.parametrize("name", [
+    "weekly-start-animation-20261115.png", "weekly-after-start-20261115.png",
+    "1080p_home_adventure_entry.png", "f1-adventure-resume-20261114.png",
+])
+def test_weekly_does_not_authorize_other_scenes(name):
+    image = _image("screens/" + name)
+    assert find_weekly_entry(image) is None
+    assert recognize_weekly_adventures(image) is None
+    assert find_weekly_start(image) is None

@@ -45,6 +45,13 @@ def test_cost_tiebreak_within_quality():
     assert pick.candidate.name == "便宜的"
 
 
+def test_unknown_power_names_follow_quality_order():
+    candidates = [RewardCandidate("", quality) for quality in
+                  ("common", "rare", "epic", "legendary")]
+    for end in range(1, len(candidates) + 1):
+        assert pick_reward(candidates[:end]).candidate is candidates[end - 1]
+
+
 def test_empty_candidates():
     assert pick_reward([], ()) is None
 

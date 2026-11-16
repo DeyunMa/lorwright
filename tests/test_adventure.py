@@ -1455,3 +1455,129 @@ def test_panel_close_retries_once_if_animation_is_slow(adventure):
     expected = empty_point(_img("1080p_panel.png"))
     assert device.taps == [expected, expected]
     assert saved == []
+
+
+def _weekly(name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    assert image is not None
+    return image
+
+
+def test_home_world_weekly_lowest_detail_start_and_map(adventure):
+    home = _weekly("1080p_home_adventure_entry.png")
+    world = _weekly("world-weekly-20261115.png")
+    listing = _weekly("weekly-list-20261115.png")
+    detail = _weekly("weekly-detail-20261115.png")
+    animation = _weekly("weekly-start-animation-20261115.png")
+    after = _weekly("weekly-after-start-20261115.png")
+    loop, device, engine, saved, _ = adventure(
+        [home, _blank(), world, world, listing, listing, detail, detail, animation, after], [],
+    )
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    result = loop.run(max_nodes=4)
+    assert device.taps[0] == find_home_adventure_entry(home).center
+    assert device.taps[1] == (1380, 464)
+    assert abs(device.taps[2][0] - 1265) < 3 and abs(device.taps[2][1] - 530) < 5
+    assert device.taps[3] == (1577, 981)
+    assert len(device.taps) == 4
+    assert result.reason == "iteration_limit"
+    assert saved == []
+    assert engine.run_calls == []
+
+
+@pytest.mark.parametrize(("name", "reason", "taps"), [
+    ("world-weekly-20261115.png", "weekly_entry_unverified", 1),
+    ("weekly-list-20261115.png", "weekly_selection_unverified", 1),
+    ("weekly-detail-20261115.png", "weekly_detail_without_selection", 0),
+])
+def test_weekly_repeated_polling_never_repeats_input(adventure, name, reason, taps):
+    image = _weekly(name)
+    loop, device, engine, saved, _ = adventure([image] * 7, [])
+    result = loop.run(max_nodes=6)
+    assert len(device.taps) == taps
+    assert saved == [reason]
+    assert result.reason == reason
+    assert engine.run_calls == []
+
+
+@pytest.mark.parametrize("obscure", ["rating", "decimal", "star", "clock"])
+def test_weekly_unknown_evidence_never_clicks(adventure, obscure):
+    image = _weekly("weekly-list-20261115.png")
+    boxes = {"rating": (933, 283, 956, 306), "decimal": (1258, 637, 1266, 646),
+             "star": (900, 240, 986, 279), "clock": (930, 123, 960, 155)}
+    x1, y1, x2, y2 = boxes[obscure]
+    image[y1:y2, x1:x2] = 0
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.run(max_nodes=3)
+    assert device.taps == []
+    assert saved == ["unknown_scene" if obscure == "clock" else "weekly_stars_unknown"]
+
+
+@pytest.mark.parametrize("after_name", ["weekly-detail-20261115.png",
+                                         "weekly-start-animation-20261115.png"])
+def test_weekly_start_requires_stable_successor_and_never_repeats(adventure, after_name):
+    listing = _weekly("weekly-list-20261115.png")
+    detail = _weekly("weekly-detail-20261115.png")
+    after = _weekly(after_name)
+    loop, device, _, saved, _ = adventure([listing, detail] + [after] * 6, [])
+    loop.run(max_nodes=4)
+    assert len(device.taps) == 2
+    assert saved == ["weekly_start_unverified"]
+
+
+def test_weekly_selection_rejects_detail_with_different_star_rating(adventure):
+    listing = _weekly("weekly-list-20261115.png")
+    # 让列表全部为 2，详情仍为实拍 1.5，必须拒绝开始。
+    listing[576:656, 1215:1316] = listing[236:316, 894:995]
+    detail = _weekly("weekly-detail-20261115.png")
+    loop, device, _, saved, _ = adventure([listing] + [detail] * 6, [])
+    loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == ["weekly_selection_unverified"]
+
+
+def test_resume_has_priority_over_weekly_entry(adventure, monkeypatch):
+    from lorwright.core.models import Rect
+
+    image = _weekly("f1-adventure-resume-20261114.png")
+    after = _weekly("weekly-after-start-20261115.png")
+    loop, device, _, saved, _ = adventure([image, after], [])
+    loop.pack = load("jinx")
+    monkeypatch.setattr("lorwright.core.loop.adventure.find_weekly_entry",
+                        lambda image: Rect(1300, 400, 100, 100))
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert 1500 < device.taps[0][0] < 1650 and 950 < device.taps[0][1] < 1010
+    assert saved == []
+
+
+def test_unknown_power_reports_readable_name_quality_and_selection(adventure, monkeypatch):
+    image = _power_fixture("f1-power-legendary-20261116.png")
+    loop, device, _, saved, _ = adventure([image], [])
+    reports = []
+    monkeypatch.setattr("lorwright.core.loop.adventure.report",
+                        lambda phase, reason=None, **details: reports.append((phase, reason, details)))
+    assert loop._handle_power(image) is None
+    decisions = [details for phase, reason, details in reports
+                 if phase == "decided" and reason == "power_choice"]
+    assert len(decisions) == 1
+    assert decisions[0]["recommendation"] == "未知能力"
+    assert decisions[0]["recommendation_quality"] == "legendary"
+    assert decisions[0]["selection"] == 2
+    assert device.taps == [(1303, 430)]
+    assert saved == ["power_selected_unverified"]
+
+
+def test_weekly_transition_obeys_cooperative_stop(adventure, monkeypatch):
+    from lorwright.core.runtime.session import StopRequested
+
+    loop, device, _, saved, _ = adventure([_weekly("world-weekly-20261115.png")], [])
+    monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: (_ for _ in ()).throw(StopRequested()))
+    with pytest.raises(StopRequested):
+        loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == []

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
@@ -159,6 +160,145 @@ def shop_leave_button(image: np.ndarray) -> Rect | None:
     if not bright.any() or float(region[bright].mean()) < 160:
         return None
     return Rect(648, 984, 87, 41)
+
+
+@dataclass(frozen=True)
+class WeeklyAdventure:
+    target: Rect
+    stars: float | None
+
+
+def _visible_patch(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
+                   threshold: float = 0.94) -> Rect | None:
+    """模板定位后还检查亮度和像素残差，排除遮罩及部分遮挡。"""
+    template = _template(name)
+    if template is None or image.shape != (1080, 1920, 3):
+        return None
+    x1, y1, x2, y2 = bounds
+    if x1 < 0 or y1 < 0 or x2 > 1920 or y2 > 1080:
+        return None
+    gray = cv2.cvtColor(image[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
+    h, w = template.shape
+    if gray.shape[0] < h or gray.shape[1] < w:
+        return None
+    scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    _, score, _, (x, y) = cv2.minMaxLoc(scores)
+    patch = gray[y:y + h, x:x + w]
+    bright = template >= 130
+    if (score < threshold or not bright.any()
+            or np.mean(cv2.absdiff(patch, template)[bright]) > 15
+            or np.percentile(patch[bright], 10) < 110):
+        return None
+    return Rect(x1 + x, y1 + y, w, h)
+
+
+def _world_controls(image: np.ndarray) -> bool:
+    return (_visible_patch(image, "world_back", (65, 45, 140, 125)) is not None
+            and _map_zoom_visible(image))
+
+
+def find_weekly_entry(image: np.ndarray) -> Rect | None:
+    """世界地图上同时看见每周文字和紫色图标才授权入口。"""
+    if not _world_controls(image):
+        return None
+    label = _visible_patch(image, "weekly_entry", (350, 150, 1750, 940))
+    if label is None:
+        return None
+    # 图标相对文字定位，地图上的入口可移动。
+    icon = _visible_patch(image, "weekly_icon",
+                          (label.x + label.w + 10, label.y - 50,
+                           label.x + label.w + 145, label.y + 75))
+    return icon
+
+
+def _weekly_clocks(image: np.ndarray) -> list[Rect]:
+    template = _template("weekly_clock")
+    if template is None or not _world_controls(image):
+        return []
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    h, w = template.shape
+    hits = []
+    for _ in range(5):
+        _, score, _, (x, y) = cv2.minMaxLoc(scores)
+        if score < 0.88:
+            break
+        bright = template >= 170
+        patch = gray[y:y + h, x:x + w]
+        if not bright.any() or np.percentile(patch[bright], 10) < 150:
+            return []
+        hits.append(Rect(x, y, w, h))
+        scores[max(0, y - h):y + h, max(0, x - w):x + w] = -1
+    return sorted(hits, key=lambda hit: (hit.y, hit.x))
+
+
+def _rating_matches(image: np.ndarray, name: str, bounds: tuple[int, int, int, int]) -> bool:
+    hit = _visible_patch(image, name, bounds)
+    if hit is None:
+        return False
+    template = _template(name)
+    # 星标占徽章大部分面积；单独核对数字及小数点，不能让星标掩盖未知数字。
+    patch = cv2.cvtColor(image[hit.y:hit.y + hit.h, hit.x:hit.x + hit.w],
+                         cv2.COLOR_BGR2GRAY)
+    expected = template[44:73, 18:84] >= 160
+    actual = patch[44:73, 18:84] >= 160
+    union = np.count_nonzero(expected | actual)
+    if not union or np.count_nonzero(expected & actual) / union < 0.94:
+        return False
+    # 小数点面积很小，整体相似度会掩盖其缺失；每个笔画连通块都必须在。
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(expected.astype(np.uint8))
+    for component in range(1, count):
+        mask = labels == component
+        if stats[component, cv2.CC_STAT_AREA] >= 3 and np.mean(actual[mask]) < 0.95:
+            return False
+    return True
+
+
+def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...] | None:
+    """动态定位三个时钟标记，再读取各自星标/数字；未知值保留为 None。
+
+    当前视觉字库仅含实拍 1.5 和 2，未采样数字一律弃权。没有借用只读
+    整数的 DigitReader，以免小数点被分割规则滤掉后错误排序。
+    """
+    clocks = _weekly_clocks(image)
+    if len(clocks) != 3:
+        return None
+    adventures = []
+    for clock in clocks:
+        bounds = (clock.x - 40, clock.y + 109, clock.x + 70, clock.y + 197)
+        values = {
+            value for name, value in (("weekly_rating_2_top", 2.0),
+                                      ("weekly_rating_2_left", 2.0),
+                                      ("weekly_rating_1_5", 1.5))
+            if _rating_matches(image, name, bounds)
+        }
+        # 点击动态定位的关卡肖像中心，坐标只来自当前帧的时钟标记。
+        adventures.append(WeeklyAdventure(Rect(clock.x - 15, clock.y + 45, 60, 50),
+                                           values.pop() if len(values) == 1 else None))
+    return tuple(adventures)
+
+
+def weekly_detail_stars(image: np.ndarray) -> float | None:
+    """只接受已采样的每周详情、难度星标和完整小数。"""
+    if (_visible_patch(image, "world_back", (65, 45, 140, 125)) is None
+            or _visible_patch(image, "weekly_detail_label", (1385, 108, 1555, 150)) is None
+            or _visible_patch(image, "weekly_detail_difficulty", (1385, 295, 1505, 375)) is None
+            or _visible_patch(image, "weekly_detail_rating", (1444, 340, 1487, 368),
+                              threshold=0.99) is None):
+        return None
+    return 1.5
+
+
+def find_weekly_start(image: np.ndarray) -> Rect | None:
+    if weekly_detail_stars(image) is None:
+        return None
+    button = action_button(image)
+    if button is None or button.x < 1300 or button.y < 900:
+        return None
+    if _visible_patch(image, "weekly_start", (button.x, button.y,
+                                             button.x + button.w, button.y + button.h)) is None:
+        return None
+    return button
 
 
 def button_is(image: np.ndarray, button: Rect, name: str) -> bool:

@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.act.translate import ActionTranslator
+from lorwright.core.decide.adventure import pick_lowest_weekly
 from lorwright.core.decide.rewards import pick_card_reward, pick_hero_item_reward, pick_reward
 from lorwright.core.decide.support import pick_support_group
 from lorwright.core.device.base import Device
@@ -32,11 +33,15 @@ from lorwright.core.perceive.adventure_scene import (
     button_is,
     find_home_adventure_entry,
     find_resume_adventure_button,
+    find_weekly_entry,
+    find_weekly_start,
     is_battle_detail,
     is_completed_panel,
     is_map,
+    recognize_weekly_adventures,
     reward_timeout_continue,
     shop_leave_button,
+    weekly_detail_stars,
 )
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
@@ -136,6 +141,7 @@ class AdventureLoop:
         last_continue = None
         last_continue_view = None
         pending_image = None
+        selected_weekly_stars = None
         for iteration in range(1, max_nodes + 1):
             self._details.update(iteration=iteration)
             report("adventure", **self._details)
@@ -344,6 +350,73 @@ class AdventureLoop:
                         )
                         return
                     continue
+                weekly_entry = find_weekly_entry(design_image)
+                if weekly_entry is not None:
+                    self._scene("world_map")
+                    self._tap(*scale.to_device(*weekly_entry.center))
+                    for _ in range(6):
+                        self._wait(2, reason="weekly_entry_transition", wait_s=12)
+                        after = self._frame()
+                        after_design = self._reward_design(after)
+                        if (after_design is not None
+                                and recognize_weekly_adventures(after_design[0]) is not None):
+                            pending_image = after
+                            report("verified", "weekly_entry_transition", progress=True,
+                                   **self._details)
+                            break
+                    else:
+                        self._snapshot(after, tag="weekly_entry_unverified")
+                        return
+                    continue
+                weekly = recognize_weekly_adventures(design_image)
+                if weekly is not None:
+                    self._scene("weekly_list")
+                    index = pick_lowest_weekly([candidate.stars for candidate in weekly])
+                    if index is None:
+                        self._snapshot(image, tag="weekly_stars_unknown")
+                        return
+                    selected_weekly_stars = weekly[index].stars
+                    report("decided", "lowest_weekly_stars", stars=selected_weekly_stars,
+                           candidates=[candidate.stars for candidate in weekly], **self._details)
+                    self._tap(*scale.to_device(*weekly[index].target.center))
+                    for _ in range(6):
+                        self._wait(2, reason="weekly_selection_transition", wait_s=12)
+                        after = self._frame()
+                        after_design = self._reward_design(after)
+                        if (after_design is not None
+                                and weekly_detail_stars(after_design[0]) == selected_weekly_stars
+                                and find_weekly_start(after_design[0]) is not None):
+                            pending_image = after
+                            report("verified", "weekly_selected", progress=True,
+                                   stars=selected_weekly_stars, **self._details)
+                            break
+                    else:
+                        self._snapshot(after, tag="weekly_selection_unverified")
+                        return
+                    continue
+                detail_stars = weekly_detail_stars(design_image)
+                if detail_stars is not None:
+                    self._scene("weekly_detail")
+                    if selected_weekly_stars is None:
+                        self._snapshot(image, tag="weekly_detail_without_selection")
+                        return
+                    start = find_weekly_start(design_image)
+                    if detail_stars != selected_weekly_stars or start is None:
+                        self._snapshot(image, tag="weekly_selection_unverified")
+                        return
+                    self._tap(*scale.to_device(*start.center))
+                    for _ in range(6):
+                        self._wait(2, reason="weekly_start_transition", wait_s=12)
+                        after = self._frame()
+                        if is_map(after):
+                            pending_image = after
+                            selected_weekly_stars = None
+                            report("verified", "weekly_started", progress=True, **self._details)
+                            break
+                    else:
+                        self._snapshot(after, tag="weekly_start_unverified")
+                        return
+                    continue
                 entry = find_home_adventure_entry(design_image)
                 if entry is not None:
                     self._tap(*scale.to_device(*entry.center))
@@ -401,7 +474,10 @@ class AdventureLoop:
         height, width = image.shape[:2]
         if width and height and abs(width / height - 16 / 9) <= 0.02:
             design, _ = self.normalizer.fit(image)
-            if find_resume_adventure_button(design) is not None:
+            if (find_resume_adventure_button(design) is not None
+                    or find_weekly_entry(design) is not None
+                    or recognize_weekly_adventures(design) is not None
+                    or weekly_detail_stars(design) is not None):
                 return True
         # 主页转场中的动画可能触发战斗按钮探针；单独的战斗 UI 状态
         # 不能证明已进入冒险，应等待可识别的冒险页面。
@@ -432,8 +508,10 @@ class AdventureLoop:
             self._snapshot(image, tag="power_choice")
             return None
         index = candidates.index(picked.candidate)
-        self._details.update(recommendation=picked.candidate.name,
-                             recommendation_reason=picked.reason)
+        self._details.update(recommendation=picked.candidate.name or "未知能力",
+                             recommendation_quality=picked.candidate.quality,
+                             recommendation_reason=picked.reason, selection=index)
+        report("decided", "power_choice", **self._details)
         if selected == -1:
             if not power_unselected(design):
                 self._snapshot(image, tag="power_choice")

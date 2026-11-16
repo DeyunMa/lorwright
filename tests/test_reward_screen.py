@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import cv2
+import pytest
 
 from lorwright.core.champions.jinx import POWER_PREFERENCES
 from lorwright.core.decide.rewards import pick_reward
@@ -59,6 +60,44 @@ def test_selected_power_and_button_are_unambiguous():
     disabled = image.copy()
     disabled[960:1045, 800:1120] = 0
     assert not power_choose_enabled(disabled)
+
+
+def test_unknown_power_names_use_visible_quality():
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    candidates = recognize_powers(image)
+    assert candidates is not None
+    assert [(c.name, c.quality) for c in candidates] == [
+        ("", "rare"), ("", "rare"), ("", "legendary"),
+    ]
+    assert pick_reward(candidates, POWER_PREFERENCES).candidate is candidates[2]
+    assert power_unselected(image)
+
+
+@pytest.mark.parametrize("target", [0, 1, 2])
+def test_unknown_highest_quality_is_selected_in_any_slot(target):
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    slots = (472, 815, 1158)
+    rare = image[584:610, 472:762].copy()
+    legendary = image[584:610, 1158:1448].copy()
+    for index, x in enumerate(slots):
+        image[584:610, x:x + 290] = legendary if index == target else rare
+    candidates = recognize_powers(image)
+    assert candidates is not None
+    assert pick_reward(candidates).candidate is candidates[target]
+
+
+@pytest.mark.parametrize("change", ["dimmed", "unknown_quality", "wrong_color"])
+def test_uncertain_power_quality_does_not_authorize_selection(change):
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    if change == "dimmed":
+        image = (image * 0.3).astype("uint8")
+    elif change == "unknown_quality":
+        image[584:610, 1158:1448] = 0
+    else:
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv[584:610, 1158:1448, 0] = 70
+        image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    assert recognize_powers(image) is None
 
 
 def test_missing_candidate_or_quality_abstains():

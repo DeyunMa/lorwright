@@ -1,4 +1,4 @@
-"""识别已采集模板覆盖的能力三选一；不完整时弃权。"""
+"""识别奖励候选；能力名称可未知，候选可见性与品质须有依据。"""
 
 from __future__ import annotations
 
@@ -50,20 +50,41 @@ def _best(region: np.ndarray, choices: tuple[tuple[str, str], ...]) -> str | Non
     return scores[0][1]
 
 
+def _power_quality(image: np.ndarray, x: int) -> str | None:
+    """品质文字模板与颜色须一致，不从能力插画推断品质。"""
+    region = image[584:610, x:x + 290]
+    quality = _best(cv2.cvtColor(region, cv2.COLOR_BGR2GRAY), (
+        ("rarity_legendary", "legendary"), ("rarity_epic", "epic"),
+        ("rarity_rare", "rare"), ("rarity_common", "common"),
+    ))
+    hues = {"common": (35, 60), "rare": (90, 115),
+            "epic": (135, 160), "legendary": (15, 30)}
+    if quality is None:
+        return None
+    hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    visible = (hsv[:, :, 1] > 70) & (hsv[:, :, 2] > 100)
+    low, high = hues[quality]
+    matched = visible & (hsv[:, :, 0] >= low) & (hsv[:, :, 0] <= high)
+    if int(visible.sum()) < 60 or float(matched.sum() / visible.sum()) < 0.9:
+        return None
+    return quality
+
+
 def recognize_powers(image: np.ndarray) -> list[RewardCandidate] | None:
-    """返回左到右的候选；任一名称或品质未识别就返回 None。"""
-    if not is_power_screen(image):
+    """返回左到右的候选；未知名为空串，候选遮挡或品质未知则弃权。"""
+    if image.shape != (1080, 1920, 3) or not is_power_screen(image):
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     result = []
     for x in _SLOTS:
-        name = _best(gray[540:583, x:x + 290], _names())
-        quality = _best(gray[584:610, x:x + 290], (
-            ("rarity_epic", "epic"), ("rarity_rare", "rare"), ("rarity_common", "common"),
-        ))
-        if name is None or quality is None:
+        title = gray[540:583, x:x + 290]
+        if int((title > 170).sum()) < 100:
             return None
-        result.append(RewardCandidate(name=name, quality=quality))
+        name = _best(title, _names())
+        quality = _power_quality(image, x)
+        if quality is None:
+            return None
+        result.append(RewardCandidate(name=name or "", quality=quality))
     return result
 
 

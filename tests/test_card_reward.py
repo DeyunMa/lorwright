@@ -87,6 +87,29 @@ def test_weekly_champion_reward_still_requires_visible_card_data(region):
     assert recognize_card_rewards(image) is None
 
 
+def test_weekly_reward_frame_on_bright_map_fog():
+    image = _image("f1-weekly-third-reward-20261116.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [5, 2, 5]
+    assert pick_jinx_card_reward(candidates).candidate == candidates[1]
+    assert card_reward_target(image, 1, "") is not None
+
+
+@pytest.mark.parametrize("region", [
+    (228, 255, 351, 384),
+    (300, 780, 360, 365),
+    (276, 309, 843, 879),
+    (533, 554, 844, 1084),
+])
+def test_bright_map_reward_still_requires_corner_edges_cost_and_title(region):
+    image = _image("f1-weekly-third-reward-20261116.png")
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
 def test_real_selected_state_and_confirm_button():
     before, selected, after = (_image(name) for name in ("before.png", "selected-left.png", "after.png"))
     assert card_reward_selection(before) == -1

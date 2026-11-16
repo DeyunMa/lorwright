@@ -182,7 +182,7 @@ def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     if template_descriptors is None:
         return None
     # 左下固定状态栏也有 Jinx 头像；只搜索地图区域，不能把它当当前位置。
-    x0, y0 = 240, 60
+    x0, y0 = 240, 0
     map_area = image[y0:min(image.shape[0], 820), x0:min(image.shape[1], 1750)]
     if map_area.size == 0:
         return None

@@ -55,13 +55,15 @@ def describe(name, image):
             dist = cv2.pointPolygonTest(contour[0], (float(hx), float(hy)), True) if contour else None
             line += f" hero_label={near}{'(same)' if near == cid else ''} dist_to_hero={round(dist, 1)}"
         print(line)
+    reach = mapnav.reachable_nodes(image, hero=hero)
+    print("  reachable_nodes=", [
+        {"x": node.x, "y": node.y, "radius": node.radius,
+         "node_kind": mapnav.node_kind(image, node), "needs_reveal": node.needs_reveal}
+        for node in reach
+    ])
     if hero:
-        lit = mapnav._lit_routes_from_ability(image, hero, glow)
-        print("  lit_routes_from_ability=", None if lit is None else [(n.x, n.y, n.radius) for n in lit])
         print("  current_completed_visible=", mapnav._current_completed_node_visible(image, hero))
         print("  current_halo_visible=", mapnav._current_node_halo_visible(image, hero))
-        reach = mapnav._reachable_nodes(image, mapnav.MapNode(*hero, 60), mapnav.detect_nodes(image), glow)
-        print("  reachable_nodes=", [(n.x, n.y, n.radius) for n in reach])
         nxt = mapnav.next_node(image, hero=hero)
         by_path = mapnav.next_node_by_path(image, hero=hero)
         print("  next_node=", None if nxt is None else (nxt.x, nxt.y, nxt.radius))

@@ -1,5 +1,6 @@
 """mapnav 1080p 回归：最大视角，英雄节点 C3，下一关 C4。"""
 
+import math
 import random
 from pathlib import Path
 
@@ -27,6 +28,97 @@ def _load(name: str) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / name))
     assert image is not None, name
     return image
+
+
+@pytest.mark.parametrize("name", ["f1-two-star-after-first-battle-20261116.png",
+                                  "f1-two-star-after-first-battle-stable-20261116.png"])
+@pytest.mark.parametrize("offset", [(0, 0), (100, 100)])
+def test_two_star_first_victory_follows_lit_route_to_support_diamond(name, offset):
+    image = _load(name)
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - 792 - dx) ** 2 + (nodes[0].y - 263 - dy) ** 2 < 20 ** 2
+
+
+@pytest.mark.parametrize("name", ["f1-two-star-after-first-battle-20261116.png",
+                                  "f1-two-star-after-first-battle-stable-20261116.png"])
+@pytest.mark.parametrize("damage", ["hero", "origin", "cut", "lock", "rim", "center"])
+def test_two_star_support_route_requires_visible_origin_and_target(name, damage):
+    image = _load(name)
+    if damage == "hero":
+        image[15:120, 605:710] = 0
+        assert recognize_hero(image) is None
+        return
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "origin":
+        image[130:175, 630:680] = 0
+    elif damage == "cut":
+        image[190:215, 709:743] = 0
+    elif damage == "lock":
+        image[242:278, 774:810] = image[263:299, 1152:1188]
+    elif damage == "rim":
+        image[210:315, 737:847] //= 3
+    else:
+        image[251:269, 783:801] = 128
+    assert reachable_nodes(image, hero=hero) == []
+
+
+@pytest.mark.parametrize("name,bounds,target", [
+    ("f1-two-star-after-first-battle-20261116.png", (755, 130, 830, 215), (792, 260)),
+    ("f1-weekly-after-card-reward-20261116.png", (966, 390, 1023, 450), (992, 510)),
+])
+@pytest.mark.parametrize("replacement", [0, 128])
+def test_unknown_business_marker_preserves_verified_diamond_route(name, bounds, target, replacement):
+    image = _load(name)
+    hero = recognize_hero(image)
+    assert hero is not None
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = replacement
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert math.dist(nodes[0].center, target) < 10
+    assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("shape", ["round", "diamond"])
+@pytest.mark.parametrize("direction", [(1, 0), (-1, 0), (0, 1), (0, -1),
+                                       (1, 1), (-1, 1), (1, -1), (-1, -1)])
+@pytest.mark.parametrize("broken", [False, True])
+def test_shared_navigation_follows_visible_edges_in_each_direction(shape, direction, broken):
+    image = np.full((1080, 1920, 3), 70, np.uint8)
+    origin = _load("map-frame-1.png")
+    image[400:590, 880:1040] = origin[400:590, 880:1040]
+    anchor, hero = (961, 533), (963, 453)
+    dx, dy = direction
+    target = (anchor[0] + dx * 300, anchor[1] + dy * 280)
+    if shape == "round":
+        source = _load("f1-weekly-after-power-20261116.png")
+        patch = source[360:500, 1193:1333]
+    else:
+        source = _load("f1-two-star-after-first-battle-20261116.png")
+        patch = source[190:330, 722:862]
+    x, y = target
+    image[y - 70:y + 70, x - 70:x + 70] = patch
+    length = math.dist(anchor, target)
+    start = (round(anchor[0] + dx * 300 / length * 50),
+             round(anchor[1] + dy * 280 / length * 50))
+    end = (round(x - dx * 300 / length * 35), round(y - dy * 280 / length * 35))
+    cv2.line(image, start, end, (255, 255, 110), 5)
+    if broken:
+        cx, cy = (anchor[0] + x) // 2, (anchor[1] + y) // 2
+        image[cy - 20:cy + 21, cx - 20:cx + 21] = 70
+    nodes = reachable_nodes(image, hero=hero)
+    if broken:
+        assert nodes == []
+    else:
+        assert len(nodes) == 1
+        assert math.dist(nodes[0].center, target) < 15
+        assert not nodes[0].needs_reveal
 
 
 def test_weekly_home_follows_lit_route_to_first_power_diamond():
@@ -310,15 +402,13 @@ def test_weekly_completed_battle_follows_lit_support_node(name, offset) -> None:
     assert abs(node.x - (992 + dx)) < 8 and abs(node.y - (510 + dy)) < 8
 
 
-@pytest.mark.parametrize("damage", ["cut", "marker", "locked", "completed", "rim", "current"])
+@pytest.mark.parametrize("damage", ["cut", "locked", "completed", "rim", "current"])
 def test_weekly_support_node_requires_complete_route_evidence(damage) -> None:
     image = _load("f1-weekly-after-card-reward-20261116.png")
     hero = recognize_hero(image)
     assert hero is not None
     if damage == "cut":
         image[566:583, 960:1010] = 0
-    elif damage == "marker":
-        image[390:450, 966:1023] = 0
     elif damage == "locked":
         image[496:524, 978:1006] = image[245:273, 1684:1712]
     elif damage == "completed":

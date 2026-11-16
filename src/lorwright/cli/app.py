@@ -364,7 +364,7 @@ def doctor() -> None:
 
 
 def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
-    """对局内共用的决策层：英雄包 → 英雄优先 → 攻击 → 格挡。"""
+    """对局内共用决策层：可选选牌 → 英雄包 → 通用战斗策略。"""
     from lorwright.core.decide.card import CardKind
     from lorwright.core.decide.generic import (
         AttackWhenTokenPolicy,
@@ -372,6 +372,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
         CombatConfirmPolicy,
         ExpandHandPolicy,
         HeroFirstPolicy,
+        OptionalChoicePolicy,
         PlayUnitPolicy,
         TargetingPolicy,
         UnknownCardPolicy,
@@ -381,7 +382,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
         card.name for card in pack.deck if card.kind is CardKind.CHAMPION
     )
     policy = pack.make_policy(**(policy_kwargs or {})) if policy_kwargs else pack.make_policy()
-    layers = [policy, ExpandHandPolicy()]
+    layers = [OptionalChoicePolicy(), policy, ExpandHandPolicy()]
     lookup = getattr(pack, "lookup", None)
     if lookup is not None:
         layers.append(PlayUnitPolicy(lookup))

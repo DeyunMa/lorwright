@@ -66,6 +66,56 @@ class Router:
         return {}
 
 
+def test_play_choice_reroutes_without_play_success_then_verifies_skip(monkeypatch):
+    before = ready(hand_expanded=True,
+                   hand=[CardInHand(0, "", 1, Rect(200, 900, 80, 100))])
+    choice = replace(before, ui_state=UIState.OPTIONAL_CHOICE)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, choice, choice, before],
+        [Action(ActionType.PLAY_CARD, card_index=0), Action(ActionType.SKIP_CHOICE),
+         Action(ActionType.NO_OP)],
+    )
+    callbacks = []
+
+    class Layer:
+        def on_action_outcome(self, action, *_):
+            callbacks.append(action.type)
+
+    router.layers = [Layer()]
+    engine.run(max_ticks=4)
+    assert len(device.drags) == 1
+    assert device.taps == [(20, 20)]
+    assert router.calls == 3
+    assert callbacks == [ActionType.SKIP_CHOICE]
+    assert snapshots == []
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert [(event["status"], event["reason"]) for event in outcomes] == [
+        ("needs_input", "optional_choice_required"),
+        ("waiting", "awaiting_visible_result"),
+        ("succeeded", "optional_choice_closed"),
+    ]
+
+
+@pytest.mark.parametrize("closed", [False, True])
+def test_optional_skip_is_sent_once_and_waits_for_visible_exit(monkeypatch, closed):
+    choice = ready(ui_state=UIState.OPTIONAL_CHOICE)
+    successor = ready() if closed else choice
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [choice, choice, successor],
+        [Action(ActionType.SKIP_CHOICE), Action(ActionType.NO_OP)],
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 20.0 if device.frames >= 3 and not closed else 0.0)
+    engine.run(max_ticks=3)
+    assert device.taps == [(20, 20)]
+    assert router.calls == (2 if closed else 1)
+    assert bool(snapshots) is not closed
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == ("succeeded" if closed else "timed_out")
+    if closed:
+        assert outcomes[-1]["reason"] == "optional_choice_closed"
+
+
 def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch):
     before = ready(hand_expanded=True)
     after = replace(before, enemy_units=[Unit("", 2, 2, Rect(900, 100, 100, 150))])

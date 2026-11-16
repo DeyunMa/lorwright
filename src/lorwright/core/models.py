@@ -29,6 +29,7 @@ class UIState(StrEnum):
     BLOCKING = "blocking"              # 对手在攻击，等我方声明格挡（手牌拖不动）
     TARGETING = "targeting"            # 已选牌，等待选目标
     DISCARD = "discard"                # 等待弃牌选择
+    OPTIONAL_CHOICE = "optional_choice"  # 有明确跳过按钮的可选选牌
     ENEMY_TURN = "enemy_turn"          # 对手行动中
     COMBAT_RESOLVING = "combat_resolving"
     BATTLE_END = "battle_end"
@@ -56,6 +57,7 @@ class ActionType(StrEnum):
     CONTINUE = "continue"            # 点击当前画面中已识别的「继续」
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
+    SKIP_CHOICE = "skip_choice"  # 跳过已识别的可选选牌
 
 
 @dataclass(frozen=True)

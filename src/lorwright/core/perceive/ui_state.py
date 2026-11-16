@@ -123,6 +123,7 @@ class UIStateDetector:
         return self.ACTION_TEXTS[prompt] if prompt is not None else None
 
     def detect(self, frame: np.ndarray) -> UIState:
+        from lorwright.core.perceive.optional_choice import optional_choice_state
         from lorwright.core.perceive.result_screen import result_screen
 
         # 1. 起手换牌。它的「確定」按钮和动作按钮**同位置同颜色**
@@ -146,6 +147,10 @@ class UIStateDetector:
             score = cv2.matchTemplate(patch, self._discard_tpl, cv2.TM_CCOEFF_NORMED).max()
             if score >= 0.90:
                 return UIState.DISCARD
+
+        choice = optional_choice_state(frame)
+        if choice is not None:
+            return choice
 
         # 3. 动作按钮：**先读文字，再看颜色**。
         #    「選擇目標」按钮是深色半透明的，蓝色占比只有 0.2 上下，

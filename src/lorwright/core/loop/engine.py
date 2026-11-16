@@ -496,6 +496,8 @@ class Engine:
     @staticmethod
     def _missing_action_evidence(action: Action, state: GameState) -> list[str]:
         """只校验当前动作的必要证据；血量和无关手牌不作全局门槛。"""
+        if action.type is ActionType.SKIP_CHOICE:
+            return [] if state.ui_state is UIState.OPTIONAL_CHOICE else ["optional_choice"]
         if action.type is ActionType.ATTACK:
             if (state.ui_state is not UIState.MY_TURN_IDLE or not state.has_attack_token
                     or not any(unit.can_attack for unit in state.my_units)):

@@ -115,6 +115,7 @@ class AdventureLoop:
         UIState.MY_TURN_IDLE,
         UIState.BLOCKING,
         UIState.TARGETING,
+        UIState.OPTIONAL_CHOICE,
         UIState.COMBAT_RESOLVING,
         UIState.ENEMY_TURN,
     }

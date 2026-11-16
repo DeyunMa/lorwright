@@ -34,6 +34,11 @@ class ActionTranslator:
         if action.type is ActionType.NO_OP:
             return None
 
+        if action.type is ActionType.SKIP_CHOICE:
+            if state.ui_state is not UIState.OPTIONAL_CHOICE or not self.layout.end_turn:
+                return None
+            return ClickPlan(points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms)
+
         if action.type is ActionType.COLLAPSE_HAND:
             if (state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded
                     or self.layout.collapse_hand_point is None):

@@ -76,6 +76,11 @@ def test_real_pass_successor_exposes_new_opponent_unit_for_routing():
     assert outcome.reason == "opponent_unit_appeared"
 
 
+def test_optional_choice_is_not_an_idle_turn():
+    state = _parser().parse(_load("f1-optional-choice-20261116.png"))
+    assert state.ui_state.value == "optional_choice"
+
+
 class _BlockingUI:
     def load(self) -> None:
         pass

@@ -31,6 +31,7 @@ _LAYER_REASONS = {
     "hero_first": "优先打出可支付的英雄",
     "targeting": "目标类型尚未明确，等待识别",
     "attack_when_token": "有攻击令牌时进攻，已声明则确认",
+    "optional_choice": "明确识别可选选牌界面，跳过候选后继续",
     "combat_confirm": "确认战斗结算",
     "blocking": "按格挡资格与损失选择格挡，声明后确认",
 }

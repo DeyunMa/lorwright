@@ -38,6 +38,18 @@ class HeroFirstPolicy(Policy):
         return None
 
 
+class OptionalChoicePolicy(Policy):
+    """候选策略未知时，使用界面明确提供的跳过。"""
+
+    name = "optional_choice"
+    version = "1.0.0"
+
+    def decide(self, state: GameState) -> Action | None:
+        if state.ui_state is UIState.OPTIONAL_CHOICE:
+            return Action(type=ActionType.SKIP_CHOICE)
+        return None
+
+
 class CombatConfirmPolicy(Policy):
     """战斗结算/提交声明：按钮是「結算」，答案唯一，点确认。"""
 

@@ -71,6 +71,8 @@ class ActionOutcome:
         # UNKNOWN 动画期间仅凭单位数量增加不够：收起的手牌可能露出原有单位。
         if known or kind is ActionType.PLAY_CARD:
             if kind is ActionType.PLAY_CARD:
+                if after.ui_state is UIState.OPTIONAL_CHOICE:
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "optional_choice_required")
                 if after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
                 if not before.hand_expanded:
@@ -95,6 +97,12 @@ class ActionOutcome:
                     or (known and len(after.my_units) > len(before.my_units))
                 ):
                     reason = "hand_reduced_and_mana_or_board_changed"
+            elif kind is ActionType.SKIP_CHOICE:
+                if (before.ui_state is UIState.OPTIONAL_CHOICE and after.ui_state in {
+                    UIState.MY_TURN_IDLE, UIState.ENEMY_TURN, UIState.COMBAT_RESOLVING,
+                    UIState.BLOCKING, UIState.TARGETING, UIState.BATTLE_END,
+                }):
+                    reason = "optional_choice_closed"
             elif kind is ActionType.COLLAPSE_HAND:
                 if (before.ui_state is UIState.MY_TURN_IDLE and before.hand_expanded
                         and after.ui_state is UIState.MY_TURN_IDLE and not after.hand_expanded):

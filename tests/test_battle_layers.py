@@ -23,6 +23,7 @@ from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rec
 def test_battle_layers_include_blocking_policy():
     names = [layer.name for layer in _battle_layers(load("elise"))]
     assert names == [
+        "optional_choice",
         "elise_spider_aggro",
         "expand_hand",
         "play_unit",
@@ -37,7 +38,7 @@ def test_battle_layers_include_blocking_policy():
 
 def test_jinx_layers_include_play_unit():
     names = [layer.name for layer in _battle_layers(load("jinx"))]
-    assert names[:4] == ["jinx_opening", "expand_hand", "play_unit", "hero_first"]
+    assert names[:5] == ["optional_choice", "jinx_opening", "expand_hand", "play_unit", "hero_first"]
 
 
 def test_jinx_resume_count_reaches_router():
@@ -196,10 +197,11 @@ def test_jinx_pending_summon_still_stops_router_before_fallback():
                              CardInHand(1, "吉茵珂絲", 2, Rect(100, 900, 8, 8))])
     chosen = router.decide(before)
     after = replace(before, mana=2, hand=before.hand[1:])
-    router.layers[0].on_action_outcome(chosen.action, before, after)
+    hero_policy = next(layer for layer in router.layers if layer.name == "jinx_opening")
+    hero_policy.on_action_outcome(chosen.action, before, after)
     waiting = router.decide(after)
     assert waiting.action.type is ActionType.NO_OP
-    assert waiting.candidates == ["jinx_opening"]
+    assert waiting.candidates == ["optional_choice", "jinx_opening"]
     assert "等待交互结果" in waiting.reason
 
 
@@ -207,7 +209,7 @@ def test_unknown_target_stops_router_with_readable_reason():
     router = Router(_battle_layers(load("jinx")))
     result = router.decide(GameState(ui_state=UIState.TARGETING))
     assert result.action.type is ActionType.NO_OP
-    assert result.candidates == ["jinx_opening"]
+    assert result.candidates == ["optional_choice", "jinx_opening"]
     assert "目标类型尚未明确" in result.reason
 
 

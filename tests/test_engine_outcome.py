@@ -141,13 +141,44 @@ def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch)
     ]
 
 
+def test_jinx_summon_with_eight_collapsed_cards_advances_without_replaying(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+
+    # 复现 20261116T120041-d1f7775cd206 的解析字段；不是逐帧图像回放。
+    cards = [CardInHand(i, "吉茵珂絲" if i == 0 else "", 2,
+                        Rect(400 + i * 80, 800, 50, 50)) for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True, enemy_nexus_hp=33,
+                   readings={"mana": Reading(3, 0), "enemy_nexus_hp": Reading(33, 0)})
+    after = ready(hand=[replace(cards[1], index=i) for i in range(8)],
+                  hand_expanded=False, mana=1, enemy_nexus_hp=18,
+                  readings={"mana": Reading(1, 0), "enemy_nexus_hp": Reading(18, 0)},
+                  my_units=[Unit("", 6, 7, Rect(900 + i * 120, 850, 100, 150))
+                            for i in range(3)])
+    animation = replace(after, ui_state=UIState.UNKNOWN)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, animation, after],
+        [Action(ActionType.PLAY_CARD, card_index=0), Action(ActionType.NO_OP)], timeout=8,
+    )
+    policy = JinxOpeningPolicy()
+    router.layers = [policy]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: device.frames * 6.0)
+    engine.run(max_ticks=3)
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert [e["status"] for e in outcomes] == ["waiting", "succeeded"]
+    assert policy.step == 2
+    assert policy._rockets_played == 0
+    assert len(device.drags) == 1
+    assert router.calls == 2
+    assert snapshots == []
+
+
 def test_jinx_rebuild_uses_special_window_and_advances_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 
     cards = [CardInHand(i, "吉茵珂絲" if i == 2 else "", 2 if i == 2 else 1,
                         Rect(400 + i * 80, 800, 50, 50)) for i in range(6)]
     before = ready(hand=cards, hand_expanded=True)
-    after = ready(hand=[replace(cards[0], index=i) for i in range(7)],
+    after = ready(hand=[replace(cards[0], index=i) for i in range(7)], hand_expanded=True,
                   mana=1, readings={"mana": Reading(1, 0)},
                   my_units=[Unit("", 6, 7, Rect(1000, 850, 100, 150))])
     animation = replace(after, ui_state=UIState.UNKNOWN, hand=after.hand[:4])

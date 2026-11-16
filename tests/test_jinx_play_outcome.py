@@ -25,7 +25,7 @@ def summon_states(cost=2):
     before = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand=hand,
                        hand_expanded=True, readings={"mana": Reading(3, 0)})
     after = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3 - cost,
-                      hand=[replace(hand[0], index=i) for i in range(7)],
+                      hand=[replace(hand[0], index=i) for i in range(7)], hand_expanded=True,
                       my_units=[Unit("", 6, 7, Rect(1000, 850, 100, 150))],
                       readings={"mana": Reading(3 - cost, 0)})
     return action, before, after
@@ -60,6 +60,47 @@ def test_jinx_rebuild_requires_independent_result_evidence(change):
     action, before, after = summon_states()
     expectation = JinxOpeningPolicy().play_expectation(action, before)
     assert not expectation.verify(replace(after, **change))
+
+
+@pytest.mark.parametrize("hand_count", [6, 7, 8, 10])
+def test_collapsed_jinx_summon_uses_payment_damage_and_board(hand_count):
+    action, before, after = summon_states()
+    before = replace(before, enemy_nexus_hp=33,
+                     readings={**before.readings, "enemy_nexus_hp": Reading(33, 0)})
+    after = replace(after, hand_expanded=False,
+                    hand=[replace(after.hand[0], index=i) for i in range(hand_count)],
+                    enemy_nexus_hp=18,
+                    readings={**after.readings, "enemy_nexus_hp": Reading(18, 0)})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert expectation.verify(after)
+    # 任一独立依据缺失时，即便偶然数出七张，也不能接受跨视图牌数。
+    assert not expectation.verify(replace(after, my_units=[]))
+    assert not expectation.verify(replace(after, mana=3, readings={
+        "mana": Reading(3, 0), "enemy_nexus_hp": Reading(18, 0),
+    }))
+    assert not expectation.verify(replace(after, readings={
+        "mana": Reading(1, 1), "enemy_nexus_hp": Reading(18, 0),
+    }))
+    assert not expectation.verify(replace(after, readings={
+        "mana": Reading(1, 0), "enemy_nexus_hp": Reading(18, 1),
+    }))
+    assert not expectation.verify(replace(after, enemy_nexus_hp=33, readings={
+        "mana": Reading(1, 0), "enemy_nexus_hp": Reading(33, 0),
+    }))
+    for ui in (UIState.UNKNOWN, UIState.ENEMY_TURN, UIState.BLOCKING):
+        assert not expectation.verify(replace(after, ui_state=ui))
+    assert not JinxOpeningPolicy().play_expectation(action, replace(before, readings={
+        "mana": Reading(3, 0), "enemy_nexus_hp": Reading(33, 1),
+    })).verify(after)
+
+
+def test_zero_cost_collapsed_jinx_cannot_use_damage_without_payment():
+    action, before, after = summon_states(cost=0)
+    before = replace(before, enemy_nexus_hp=33,
+                     readings={**before.readings, "enemy_nexus_hp": Reading(33, 0)})
+    after = replace(after, hand_expanded=False, enemy_nexus_hp=18,
+                    readings={**after.readings, "enemy_nexus_hp": Reading(18, 0)})
+    assert not JinxOpeningPolicy().play_expectation(action, before).verify(after)
 
 
 def test_zero_cost_jinx_needs_generated_card_identities():

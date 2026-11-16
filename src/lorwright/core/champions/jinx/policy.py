@@ -177,7 +177,7 @@ class JinxOpeningPolicy:
         return None
 
     def play_expectation(self, action: Action, before: GameState) -> PlayExpectation | None:
-        """Jinx 下场弃手转砰砰并生成两枚火箭，手牌应为出牌前数量加一。"""
+        """展开态核验重建；收起态以新鲜支付、伤害和场面交叉核验。"""
         card = next((c for c in before.hand if c.index == action.card_index), None)
         if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
                 or card is None or card.cost < 0):
@@ -208,16 +208,22 @@ class JinxOpeningPolicy:
 
         def verify(after: GameState) -> bool:
             if (after.ui_state not in (UIState.MY_TURN_IDLE, UIState.ENEMY_TURN)
-                    or len(after.my_units) <= len(before.my_units)
-                    or len(after.hand) != len(before.hand) + 1):
+                    or len(after.my_units) <= len(before.my_units)):
                 return False
             paid = (card.cost > 0 and before.has_fresh_readings("mana")
                     and after.has_fresh_readings("mana")
                     and before.mana - after.mana >= card.cost)
+            if not after.hand_expanded:
+                # 收起后可见牌数不与展开态比较；支付或露出旧单位均不足，
+                # 还须结算回到己方行动且有新鲜伤害，零费不能走此分支。
+                damaged = (before.has_fresh_readings("enemy_nexus_hp")
+                           and after.has_fresh_readings("enemy_nexus_hp")
+                           and after.enemy_nexus_hp < before.enemy_nexus_hp)
+                return after.ui_state is UIState.MY_TURN_IDLE and paid and damaged
             generated = (sum(c.name in ROCKET_NAMES for c in after.hand) == 2
                          and all(c.name in ROCKET_NAMES | POW_POW_NAMES for c in after.hand))
-            # 数量增加或露出旧单位本身不足以证明召唤，还需支付或生成牌依据。
-            return paid or generated
+            # 同为展开态仍要求重建数量，并有支付或生成牌身份作为独立依据。
+            return len(after.hand) == len(before.hand) + 1 and (paid or generated)
 
         return PlayExpectation(verify, "jinx_hand_rebuilt_and_summoned", 20.0)
 

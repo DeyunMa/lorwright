@@ -11,9 +11,9 @@ from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-@pytest.fixture
-def healer_image() -> np.ndarray:
-    image = cv2.imread(str(FIXTURES / "healer" / "f1-full-health.png"))
+@pytest.fixture(params=["healer/f1-full-health.png", "screens/f1-field-cook-20261116.png"])
+def healer_image(request) -> np.ndarray:
+    image = cv2.imread(str(FIXTURES / request.param))
     assert image is not None
     return image
 
@@ -26,7 +26,7 @@ def test_healer_free_heal_is_recognized(healer_image):
 
 
 @pytest.mark.parametrize("bounds", [
-    (563, 357, 736, 416),  # 页面标题
+    (550, 335, 805, 435),  # 治疗师或战地厨师标题
     (932, 754, 979, 814),  # 免费治疗的选中标记
     (1204, 35, 1492, 75),  # 免费治疗说明
     (1397, 981, 1486, 1027),  # 治疗按钮文字

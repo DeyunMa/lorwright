@@ -210,6 +210,20 @@ def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, 
         assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
 
 
+@pytest.mark.parametrize("success", [True, False])
+def test_field_cook_heals_once_and_verifies_completed_map(adventure, success):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-field-cook-20261116.png"))
+    assert image is not None
+    after = cv2.imread(str(FIXTURES.parent / "healer/f1-after-heal.png")) if success else image
+    assert after is not None
+    loop, device, _, saved, _ = adventure([after], [])
+    loop.pack = load("jinx")
+    assert loop._recognized_after_home(image)
+    assert loop._handle_node_panel(image) is success
+    assert device.taps == [(1441, 1004)]
+    assert saved == (["healer_completed"] if success else ["healer_unchanged"])
+
+
 def test_astrologer_is_a_recognized_adventure_successor(adventure):
     image = cv2.imread(str(FIXTURES.parent / "screens/f1-astrologer-20261116.png"))
     assert image is not None

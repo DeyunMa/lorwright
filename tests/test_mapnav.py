@@ -17,6 +17,7 @@ from lorwright.core.perceive.mapnav import (
     next_node,
     next_node_by_path,
     panel_open,
+    reachable_nodes,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
@@ -65,6 +66,15 @@ def test_gold_target_moves_with_map_content():
     node = next_node(image, hero=hero)
     assert node is not None
     assert (node.x - 990) ** 2 + (node.y - 940) ** 2 < 20 ** 2
+
+
+def test_gold_icon_does_not_duplicate_its_complete_diamond_destination():
+    image = _load("map-frame-1.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - 937) ** 2 + (nodes[0].y - 772) ** 2 < 15 ** 2
 
 
 def test_completed_weekly_round_node_follows_one_of_its_cyan_routes() -> None:

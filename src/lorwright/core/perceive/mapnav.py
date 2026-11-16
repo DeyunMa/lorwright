@@ -317,7 +317,10 @@ def reachable_nodes(
             routes = _lit_routes_from_round(image, hero, round_mask, hero_occlusion=completed)
             if completed:
                 routes += _lit_diamond_routes(image, hero, mask)
-                routes += _lit_gold_routes(image, hero, round_mask)
+                # 金色方框可能属于同一菱形节点；已有完整目标时不重复加入其图标。
+                routes += [node for node in _lit_gold_routes(image, hero, round_mask)
+                           if all(math.hypot(node.x - old.x, node.y - old.y) >= 120
+                                  for old in routes)]
             return routes
         return []
     nodes = detect_nodes(image)

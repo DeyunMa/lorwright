@@ -512,6 +512,11 @@ class AdventureLoop:
                     logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
                     self._snapshot(image, tag="map_no_next")
                     return
+            if nxt.y + max(nxt.radius, 80) >= image.shape[0] - 40:
+                revealed = self._reveal_bottom_map_node(image, nxt)
+                if revealed is None:
+                    return
+                image, nxt = revealed
             # mapnav 返回的是输入帧像素坐标；_find_next 已统一换算到设计尺寸。
             self._tap(nxt.x, nxt.y)
             self._wait(3)
@@ -536,6 +541,39 @@ class AdventureLoop:
         # 主页转场中的动画可能触发战斗按钮探针；单独的战斗 UI 状态
         # 不能证明已进入冒险，应等待可识别的冒险页面。
         return False
+
+    def _reveal_bottom_map_node(self, image, node):
+        """底边目标先平移一次；新帧重新核实位置和路线后才允许点击。"""
+        recognize_hero = getattr(self.pack, "recognize_map_hero", None)
+        hero = recognize_hero(image) if recognize_hero is not None else None
+        point = empty_point(image) if is_map(image) and not panel_open(image) else None
+        if hero is None or point is None:
+            self._snapshot(image, tag="map_pan_precondition_failed")
+            return None
+        distance = min(240, node.y - (image.shape[0] - 240), point[1] - 150)
+        if distance < 80:
+            self._snapshot(image, tag="map_pan_precondition_failed")
+            return None
+        checkpoint()
+        report("execute", "map_pan", start=list(point),
+               end=[point[0], point[1] - distance], **self._details)
+        self.device.drag(*point, point[0], point[1] - distance, 150, 600)
+        after = image
+        for _ in range(6):
+            self._wait(2, reason="map_pan_transition", wait_s=12)
+            after = self._frame()
+            if not is_map(after) or panel_open(after):
+                continue
+            moved = recognize_hero(after)
+            if (moved is None or abs(moved[0] - hero[0]) > 75
+                    or abs(moved[1] - (hero[1] - distance)) > 75):
+                continue
+            fresh = self._find_next(after)
+            if fresh is not None and fresh.y + max(fresh.radius, 80) < after.shape[0] - 40:
+                report("verified", "map_pan_transition", progress=True, **self._details)
+                return after, fresh
+        self._snapshot(after, tag="map_pan_unverified")
+        return None
 
     def _find_next(self, image):
         recognize_hero = getattr(self.pack, "recognize_map_hero", None)

@@ -11,7 +11,7 @@ import numpy as np
 
 from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
 from lorwright.core.models import Rect
-from lorwright.core.perceive.adventure_scene import _matches, _template
+from lorwright.core.perceive.adventure_scene import _template
 from lorwright.core.perceive.digits import DigitReader, segment_glyphs
 
 _ASSETS = Path("assets/adventure")
@@ -30,8 +30,26 @@ def _names() -> tuple[tuple[str, str], ...]:
     )
 
 
+def _power_title_mask(image: np.ndarray) -> np.ndarray:
+    return cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
+                       (8, 80, 145), (40, 255, 255))
+
+
+@cache
+def _power_title_template() -> np.ndarray | None:
+    image = cv2.imread(str(_ASSETS / "power_title.png"))
+    return None if image is None else _power_title_mask(image)
+
+
 def is_power_screen(image: np.ndarray) -> bool:
-    return _matches(image, "power_title", (880, 25, 1036, 102), 0.93)
+    if image.shape != (1080, 1920, 3):
+        return False
+    template = _power_title_template()
+    if template is None:
+        return False
+    # 标题叠在地图上；只比较金色字形，避免背景地形改变匹配结果。
+    region = _power_title_mask(image[25:102, 880:1036])
+    return float(cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED).max()) >= 0.93
 
 
 def _best(region: np.ndarray, choices: tuple[tuple[str, str], ...]) -> str | None:

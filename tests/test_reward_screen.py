@@ -15,6 +15,35 @@ from lorwright.core.perceive.reward_screen import (
 )
 
 
+def test_recognizes_weekly_diamond_power_screen():
+    from lorwright.core.perceive.reward_screen import is_power_screen
+
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-weekly-diamond-20261116.png"))
+    assert is_power_screen(image)
+    candidates = recognize_powers(image)
+    assert candidates is not None
+    assert [candidate.quality for candidate in candidates] == ["common", "rare", "common"]
+    assert pick_reward(candidates, POWER_PREFERENCES).candidate is candidates[1]
+    assert power_unselected(image)
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "wrong_color"])
+def test_weekly_power_title_requires_visible_gold_text(damage):
+    from lorwright.core.perceive.reward_screen import is_power_screen
+
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-weekly-diamond-20261116.png"))
+    if damage == "missing":
+        image[25:102, 880:1036] = 0
+    elif damage == "dimmed":
+        image[25:102, 880:1036] //= 3
+    else:
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv[25:102, 880:1036, 0] = 100
+        image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    assert not is_power_screen(image)
+    assert recognize_powers(image) is None
+
+
 def test_recognizes_real_power_choices():
     path = Path(__file__).parent / "fixtures/mapnav/1080p_ability_select.png"
     image = cv2.imread(str(path))

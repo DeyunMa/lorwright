@@ -1084,6 +1084,22 @@ def _power_fixture(name):
     return image
 
 
+def test_node_travel_dispatches_weekly_power_page(adventure, monkeypatch):
+    power = _power_fixture("f1-weekly-diamond-20261116.png")
+    loop, device, _, saved, _ = adventure([_img("1080p_node_panel.png"), power], [])
+    handled = []
+
+    def handle(image):
+        handled.append(image)
+        return image
+
+    monkeypatch.setattr(loop, "_handle_power", handle)
+    assert loop._handle_node_panel()
+    assert handled == [power]
+    assert device.taps == [(817, 485)]
+    assert saved == []
+
+
 def test_power_resumes_selected_and_confirms_once(adventure, monkeypatch):
     selected = _power_fixture("f1-power-selected-20261115.png")
     next_scene = _img("1080p_zoommax.png")

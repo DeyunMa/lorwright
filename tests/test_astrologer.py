@@ -1,4 +1,4 @@
-"""占星家实拍、购买排序和未知证据保护；选中/扣款帧为合成。"""
+"""占星家实拍、购买排序和未知证据保护；扣款帧为合成。"""
 
 from pathlib import Path
 
@@ -65,12 +65,18 @@ def test_obscured_balance_cannot_reuse_previous_value():
     assert astrologer_gold(frame) is None
 
 
+def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
+    selected = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-selected-20261116.png"))
+    assert selected is not None
+    assert astrologer_selection(selected) == 2
+    assert astrologer_gold(selected) == 950
+    assert same_astrologer_offers(image(), selected)
+    assert astrologer_buy_button(selected) is not None
+
+
 def selected_frame():
-    frame = image()
-    frame[300:680, 1636:1639] = 240
-    label = frame[983:1025, 1395:1484].copy()
-    frame[980:1030, 1300:1585] = (20, 130, 190)
-    frame[983:1025, 1395:1484] = label
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-selected-20261116.png"))
+    assert frame is not None
     return frame
 
 
@@ -81,7 +87,20 @@ def paid_frame():
     return frame
 
 
-def test_synthetic_selection_and_exact_balance_change():
+@pytest.mark.parametrize("damage", ["left", "right", "multiple"])
+def test_real_selection_requires_both_edges_and_one_selected_slot(damage):
+    frame = selected_frame()
+    if damage == "left":
+        frame[300:680, 1629:1632] = 0
+    elif damage == "right":
+        frame[300:680, 1896:1899] = 0
+    else:
+        frame[300:680, 985:988] = 240
+        frame[300:680, 1252:1255] = 240
+    assert astrologer_selection(frame) is None
+
+
+def test_real_selection_and_synthetic_exact_balance_change():
     before = image()
     selected = selected_frame()
     assert astrologer_selection(selected) == 2

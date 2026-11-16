@@ -70,7 +70,9 @@ def astrologer_selection(image: np.ndarray) -> int | None:
     for x in SLOTS:
         edge = gray[300:680, x:x + 3]
         inside = gray[300:680, x + 7:x + 10]
-        if float((inside > 180).mean()) > 0.8 and float(inside.mean()) > 200:
+        right_edge = gray[300:680, x + 267:x + 270]
+        if all(float((part > 180).mean()) > 0.8 and float(part.mean()) > 200
+               for part in (edge, right_edge)):
             states.append(True)
         elif (55 < float(edge.mean()) < 105 and float((edge > 180).mean()) < 0.02
               and float(inside.mean()) < 50):

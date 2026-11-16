@@ -66,6 +66,31 @@ class Router:
         return {}
 
 
+def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch):
+    before = ready(hand_expanded=True)
+    after = replace(before, enemy_units=[Unit("", 2, 2, Rect(900, 100, 100, 150))])
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, after],
+        [Action(ActionType.END_TURN), Action(ActionType.NO_OP)],
+    )
+    callbacks = []
+
+    class Layer:
+        def on_action_outcome(self, *args):
+            callbacks.append(args)
+
+    router.layers = [Layer()]
+    engine.run(max_ticks=2)
+    assert router.calls == 2
+    assert len(device.taps) == 1
+    assert callbacks == []
+    assert snapshots == []
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert [(e["status"], e["reason"]) for e in outcomes] == [
+        ("needs_input", "opponent_unit_appeared"),
+    ]
+
+
 def test_jinx_rebuild_uses_special_window_and_advances_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 

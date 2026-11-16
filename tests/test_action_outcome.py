@@ -31,6 +31,35 @@ def units(*ys):
     return [Unit("", -1, -1, Rect(i * 150, y, 8, 8)) for i, y in enumerate(ys)]
 
 
+@pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
+def test_pass_reroutes_when_an_opponent_unit_appears_without_ui_change(kind):
+    before = state(enemy_units=[])
+    after = state(enemy_units=units(100))
+    outcome = ActionOutcome(Action(kind), before, 8).observe(after, 1)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "opponent_unit_appeared"
+
+
+@pytest.mark.parametrize("change", ["unknown", "view", "unchanged", "existing", "confirm"])
+def test_opponent_unit_reroute_requires_same_known_view_and_new_presence(change):
+    before = state(enemy_units=[])
+    after = state(enemy_units=units(100))
+    kind = ActionType.END_TURN
+    if change == "unknown":
+        after = replace(after, ui_state=UIState.UNKNOWN)
+    elif change == "view":
+        after = replace(after, hand_expanded=False)
+    elif change == "unchanged":
+        after = before
+    elif change == "existing":
+        before = replace(before, enemy_units=units(100))
+    else:
+        kind = ActionType.CONFIRM
+    pending = ActionOutcome(Action(kind), before, 8)
+    assert pending.observe(after, 1).status is OutcomeStatus.WAITING
+    assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
+
+
 def test_expanding_is_a_separate_step_from_playing():
     before = state(hand_expanded=False)
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)

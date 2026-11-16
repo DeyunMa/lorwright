@@ -132,6 +132,13 @@ class ActionOutcome:
                     # 攻击声明与堆栈结算共用状态；新提示需要重新路由，
                     # 不能把尚待结算的原出牌提前通知为成功。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_prompt_changed")
+                if (kind in (ActionType.END_TURN, ActionType.PASS)
+                        and before.ui_state is after.ui_state is UIState.MY_TURN_IDLE
+                        and before.hand_expanded == after.hand_expanded
+                        and not before.enemy_units and after.enemy_units):
+                    # 对手出单位后可能已交回优先权；新局面需要重新决策，
+                    # 不把漏掉的优先权变化记为结束回合已成功。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "opponent_unit_appeared")
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"
                 elif (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")

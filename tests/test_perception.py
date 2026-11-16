@@ -58,6 +58,24 @@ def _load(name: str):
     return img
 
 
+def test_real_pass_successor_exposes_new_opponent_unit_for_routing():
+    from dataclasses import replace
+
+    from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+    from lorwright.core.models import Action, ActionType
+
+    after = _parser().parse(_load("f1-pass-new-opponent-20261116.png"))
+    assert after.ui_state is UIState.MY_TURN_IDLE
+    assert after.mana == 4 and after.has_fresh_readings("mana")
+    assert after.enemy_nexus_hp == 2
+    assert len(after.enemy_units) == 1
+    # 前态按运行日志合成；未保留该次输入前的原始截图。
+    before = replace(after, enemy_units=[])
+    outcome = ActionOutcome(Action(ActionType.END_TURN), before, 8).observe(after, 1)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "opponent_unit_appeared"
+
+
 class _BlockingUI:
     def load(self) -> None:
         pass

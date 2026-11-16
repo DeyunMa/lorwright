@@ -148,6 +148,27 @@ def _orange_mask(hsv: np.ndarray) -> np.ndarray:
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
 
+def _paired_stat_badge(image: np.ndarray, plate: Rect) -> Rect | None:
+    """被光效缩小的色板须有同排红底和两个可读数字，才恢复完整徽章范围。"""
+    attack = Rect(plate.x - 10, plate.y - 5, plate.w + 20, plate.h + 10)
+    health = Rect(attack.x + attack.w, attack.y, attack.w, attack.h)
+    if (attack.x < 0 or attack.y < 0 or health.x + health.w > image.shape[1]
+            or health.y + health.h > image.shape[0]):
+        return None
+    patch = image[health.y + 5:health.y + health.h - 5,
+                  health.x + 5:health.x + health.w - 5]
+    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    red = (cv2.inRange(hsv, (0, 120, 100), (10, 255, 255))
+           | cv2.inRange(hsv, (170, 120, 100), (180, 255, 255)))
+    if float((red > 0).mean()) < 0.2:
+        return None
+    # 两个徽章使用同一套白/绿数字字形；read 的首项读取传入框的数字。
+    if (_DEFAULT_STATS.read(image, attack)[0] is None
+            or _DEFAULT_STATS.read(image, health)[0] is None):
+        return None
+    return attack
+
+
 def find_unit_badges(
     image: np.ndarray,
     region: Rect,
@@ -170,8 +191,9 @@ def find_unit_badges(
     candidates: list[UnitBadge] = []
     for i in range(1, count):
         x, y, w, h, area = (int(v) for v in stats[i])
-        if not enemy and area >= 2500 and 50 <= w <= 90 and 120 <= h <= 210:
-            # 金色卡框可能与攻击徽章连通；只截顶部，并用生命徽章交叉验证。
+        if (not enemy and area >= min_area and w_min <= w <= w_max
+                and h_max < h <= 210):
+            # 金色装饰可能从徽章延伸到卡身；只取顶部并核对相邻生命徽章。
             _, _, top_stats, _ = cv2.connectedComponentsWithStats(mask[y:y + 50, x:x + w])
             for tx, ty, tw, th, top_area in top_stats[1:]:
                 if top_area < min_area or not (50 <= tw <= 90 and 35 <= th <= 50):
@@ -179,6 +201,11 @@ def find_unit_badges(
                 rect = Rect(region.x + x + int(tx), region.y + y + int(ty), int(tw), int(th))
                 if _find_health_badge(image, rect) is not None:
                     candidates.append(UnitBadge(rect.center, min(1.0, top_area / 2000.0), rect))
+            continue
+        if not enemy and 500 <= area < min_area and 30 <= w < w_min and 30 <= h <= 50:
+            rect = _paired_stat_badge(image, Rect(region.x + x, region.y + y, w, h))
+            if rect is not None:
+                candidates.append(UnitBadge(rect.center, min(1.0, area / 2000.0), rect))
             continue
         if area < min_area or not (w_min <= w <= w_max and h_min <= h <= h_max):
             continue

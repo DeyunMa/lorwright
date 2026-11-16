@@ -102,12 +102,14 @@ def _find_health_badge(image: np.ndarray, attack: Rect) -> Rect | None:
     hsv = cv2.cvtColor(sub, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, np.array([0, 120, 100]), np.array([10, 255, 255]))
     mask |= cv2.inRange(hsv, np.array([170, 120, 100]), np.array([180, 255, 255]))
+    # 数字会切开红底；与攻击徽章一样先补齐细小间隙，再检查形状和面积。
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     count, _, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     attack_cy = attack.y + attack.h / 2
     candidates = []
     for i in range(1, count):
         x, y, w, h, area = (int(v) for v in stats[i])
-        if area < 800 or not (40 <= w <= 100 and 30 <= h <= 70):
+        if area < 800 or not (30 <= w <= 100 and 30 <= h <= 70):
             continue
         cy = y0 + y + h / 2
         candidates.append((abs(cy - attack_cy), x0 + x, y0 + y, w, h))

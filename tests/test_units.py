@@ -107,6 +107,44 @@ def test_connected_gold_frame_without_visible_badges_is_not_a_unit(shade, bounds
     assert all(not 1000 <= unit.rect.center[0] <= 1065 for unit in units)
 
 
+@pytest.mark.parametrize("name,attack", [
+    ("f1-jinx-short-gold-spill-20261116.png", 6),
+    ("f1-jinx-buffed-badges-20261116.png", 9),
+])
+def test_gold_spill_below_attack_badge_keeps_the_visible_unit(name, attack):
+    image = cv2.imread(str(SCREENS / name))
+    assert image is not None
+    units = to_units(find_unit_badges(image, Rect(0, 0, 280, 260)), image=image)
+    assert len(units) == 1
+    assert units[0].attack == attack
+    assert 150 <= units[0].rect.center[0] <= 175
+    assert 105 <= units[0].rect.center[1] <= 125
+
+
+@pytest.mark.parametrize("name", ["f1-jinx-short-gold-spill-20261116.png",
+                                  "f1-jinx-buffed-badges-20261116.png"])
+@pytest.mark.parametrize("badge", ["attack", "health"])
+@pytest.mark.parametrize("shade", [0, 80, 160])
+def test_short_gold_spill_requires_both_visible_badges(name, badge, shade):
+    image = cv2.imread(str(SCREENS / name))
+    assert image is not None
+    left, right = (80, 145) if badge == "attack" else (145, 215)
+    image[25:100, left:right] = shade
+    assert find_unit_badges(image, Rect(0, 0, 280, 260)) == []
+
+
+@pytest.mark.parametrize("badge", ["attack", "health"])
+def test_partial_badge_pair_requires_both_readable_numbers(badge):
+    image = cv2.imread(str(SCREENS / "f1-jinx-buffed-badges-20261116.png"))
+    assert image is not None
+    left, right = (80, 145) if badge == "attack" else (145, 215)
+    patch = image[25:100, left:right]
+    blue, green, red = (patch[:, :, i].astype(np.int16) for i in range(3))
+    digits = (green >= 180) & (red <= 120) & (blue <= 120)
+    patch[digits] = (20, 20, 20)
+    assert find_unit_badges(image, Rect(0, 0, 280, 260)) == []
+
+
 def test_reads_attack_values_from_idle_units() -> None:
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))
     mine = to_units(find_unit_badges(img, MY_BOARD), image=img)

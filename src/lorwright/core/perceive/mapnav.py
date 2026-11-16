@@ -325,6 +325,8 @@ def reachable_nodes(
             return routes
         if _current_battle_node_visible(image, hero):
             return [MapNode(hero[0], hero[1] + 95, 48)]
+        if _current_home_node_visible(image, hero):
+            return _lit_diamond_routes(image, hero, mask, from_home=True)
         completed = _current_completed_node_visible(image, hero)
         if completed or _current_node_halo_visible(image, hero):
             round_mask = mask
@@ -588,10 +590,33 @@ def _support_marker_visible(image: np.ndarray, x: int, y: int) -> bool:
     return False
 
 
+@cache
+def _home_route_template(name: str) -> np.ndarray | None:
+    return cv2.imread(str(Path("assets/adventure") / f"{name}.png"))
+
+
+def _home_route_marker_visible(image: np.ndarray, name: str, x: int, y: int) -> bool:
+    template = _home_route_template(name)
+    if template is None or x < 35 or y < 35 or x + 35 >= 1920 or y + 35 >= 1080:
+        return False
+    region = image[y - 35:y + 35, x - 35:x + 35]
+    _, score, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
+        region, template, cv2.TM_CCOEFF_NORMED,
+    ))
+    h, w = template.shape[:2]
+    actual = region[dy:dy + h, dx:dx + w]
+    return bool(score >= 0.93 and float((cv2.absdiff(actual, template) > 45).mean()) < 0.08)
+
+
+def _current_home_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
+    return (_current_node_halo_visible(image, hero)
+            and _home_route_marker_visible(image, "map_home_icon", hero[0], hero[1] + 90))
+
+
 def _lit_diamond_routes(
-    image: np.ndarray, hero: tuple[int, int], mask: np.ndarray,
+    image: np.ndarray, hero: tuple[int, int], mask: np.ndarray, *, from_home: bool = False,
 ) -> list[MapNode]:
-    """识别完成节点直连的高亮菱形；图标被遮挡或状态不明时弃权。"""
+    """识别完成节点或首页起点直连的高亮菱形；状态不明时弃权。"""
     anchor = (hero[0], hero[1] + 90)
     _, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -605,8 +630,10 @@ def _lit_diamond_routes(
         if x < 80 or x + 80 >= image.shape[1] or y + 60 >= image.shape[0]:
             continue
         support = _support_marker_visible(image, x, y)
-        # 辅助英雄的亮线连接菱形本体；旧方形节点连接其上方图标。
-        icon_y = y if support else y - 3 * r
+        if from_home and not _home_route_marker_visible(image, "map_first_power_arrow", x, y):
+            continue
+        # 首页箭头和辅助英雄的亮线连接菱形本体；旧方形节点连接其上方图标。
+        icon_y = y if support or from_home else y - 3 * r
         if icon_y < 80:
             continue
         # 向上路线被英雄头像遮住一段，只核验头像边缘之外的可见亮线。
@@ -631,12 +658,15 @@ def _lit_diamond_routes(
             continue
         centers = (image[y - 9:y + 9, x - 9:x + 9],
                    image[icon_y - 14:icon_y + 14, x - 14:x + 14])
-        if (float(centers[0].std()) < 4
+        if not from_home and (float(centers[0].std()) < 4
                 or any(int((cv2.Canny(center, 70, 140) > 0).sum()) > limit
                        for center, limit in zip(centers, (8, 45), strict=True))):
             continue
-        # 方形外框需要四边亮起；辅助英雄则已独立核实金色徽记。
-        if not support:
+        # 首页箭头已按完整图案核验，不能套用旧节点的空中心检查。
+        if from_home and not _node_edge_visible(image, MapNode(*anchor, 48), node):
+            continue
+        # 方形外框需要四边亮起；首页箭头和辅助英雄已独立核实。
+        if not support and not from_home:
             icon = gray[icon_y - 48:icon_y + 49, x - 48:x + 49]
             if any(float((edge > 180).mean()) < 0.12 for edge in (
                 icon[0:12, 20:77], icon[85:97, 20:77],

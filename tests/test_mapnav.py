@@ -29,6 +29,49 @@ def _load(name: str) -> np.ndarray:
     return image
 
 
+def test_weekly_home_follows_lit_route_to_first_power_diamond():
+    image = _load("f1-weekly-two-home-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - 514) ** 2 + (nodes[0].y - 273) ** 2 < 20 ** 2
+    assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["cut", "origin", "arrow", "lock", "completed", "dim", "edge"])
+def test_weekly_home_rejects_missing_route_or_state_evidence(damage):
+    image = _load("f1-weekly-two-home-20261116.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        image[220:250, 395:435] = 0
+    elif damage == "origin":
+        image[165:207, 270:315] = 0
+    elif damage == "arrow":
+        image[249:288, 490:531] = 128
+    elif damage == "lock":
+        image[251:287, 496:532] = image[515:551, 717:753]
+    elif damage == "completed":
+        source = _load("f1-weekly-after-hero-reward-20261116.png")
+        image[251:287, 496:532] = source[520:556, 942:978]
+    elif damage == "dim":
+        image //= 3
+    else:
+        image[198:229, 328:365] = 0
+    assert reachable_nodes(image, hero=hero) == []
+
+
+def test_weekly_home_target_moves_with_map_content():
+    image = _load("f1-weekly-two-home-20261116.png")
+    image = cv2.warpAffine(image, np.float32([[1, 0, 100], [0, 1, 100]]), (1920, 1080))
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - 614) ** 2 + (nodes[0].y - 373) ** 2 < 20 ** 2
+
+
 def test_completed_node_follows_cyan_route_to_visible_bottom_gold_target():
     image = _load("f1-weekly-after-hero-reward-20261116.png")
     hero = recognize_hero(image)

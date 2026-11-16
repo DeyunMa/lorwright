@@ -650,6 +650,32 @@ def test_rocket_confirmation_accepts_collapsed_hand_with_same_visible_count(monk
     assert snapshots == []
 
 
+def test_rocket_confirmation_accepts_fresh_net_payment_when_collapsed(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.generic import CombatConfirmPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    # 复用 run 20261116T130316-16a80a08bbff 的字段，不假定血量上升的原因。
+    cards = [CardInHand(i, "超威能死亡火箭！" if i == 0 else "砰砰", 1,
+                        Rect(300 + i * 100, 800, 50, 50)) for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True, mana=1, spell_mana=2, enemy_nexus_hp=10,
+                   readings={"mana": Reading(1, 0), "spell_mana": Reading(2, 0),
+                             "enemy_nexus_hp": Reading(10, 0)})
+    staged = replace(before, hand=cards[1:], hand_expanded=False,
+                     ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(staged, ui_state=UIState.MY_TURN_IDLE, spell_mana=1, enemy_nexus_hp=11,
+                    readings={"mana": Reading(1, 0), "spell_mana": Reading(1, 0),
+                              "enemy_nexus_hp": Reading(11, 0)})
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [before, staged, after], [])
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    engine.router = RealRouter([policy, CombatConfirmPolicy()])
+    result = engine.run(max_ticks=3)
+    assert result.reason != "staged_play_unverified"
+    assert policy._rockets_played == 1
+    assert len(device.drags) == 1
+    assert snapshots == []
+
+
 def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
     from lorwright.core.decide.generic import CombatConfirmPolicy

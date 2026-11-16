@@ -197,9 +197,15 @@ class JinxOpeningPolicy:
                            and after.has_fresh_readings("enemy_nexus_hp")
                            and after.enemy_nexus_hp < before.enemy_nexus_hp)
                 if not after.hand_expanded:
-                    # 展开与收起视图的可见牌数不可直接比较；确认结算后仅凭
-                    # 新鲜伤害且回到己方行动核验，不以法力回填或视图变化放行。
-                    return after.ui_state is UIState.MY_TURN_IDLE and damaged
+                    # 跨视图牌数不可比较；前后资源读数均新鲜且总额减少覆盖
+                    # 实际费用时可独立核验支付，资源回填不能伪装成净支付。
+                    paid = (card.cost > 0
+                            and before.has_fresh_readings("mana", "spell_mana")
+                            and after.has_fresh_readings("mana", "spell_mana")
+                            and before.spell_mana is not None and after.spell_mana is not None
+                            and before.mana + before.spell_mana - after.mana - after.spell_mana
+                            >= card.cost)
+                    return after.ui_state is UIState.MY_TURN_IDLE and (damaged or paid)
                 return len(after.hand) < len(before.hand) and (mana_paid or spell_paid or damaged)
 
             return PlayExpectation(verify_rocket, "jinx_rocket_payment_or_damage_verified", 20.0)

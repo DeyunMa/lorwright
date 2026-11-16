@@ -156,11 +156,50 @@ def test_rocket_collapsed_hand_uses_fresh_damage_instead_of_cross_view_count(ui,
     after = replace(before, ui_state=ui, hand_expanded=False, enemy_nexus_hp=reading.value,
                     readings={**before.readings, "enemy_nexus_hp": reading})
     assert expectation.verify(after) is expected
-    # 不能用支付或视图变化替代伤害证据。
+    # 缺少法术法力读数时，不以不完整支付或视图变化替代伤害证据。
     assert not expectation.verify(replace(after, mana=0, enemy_nexus_hp=13,
                                          readings={"mana": Reading(0, 0),
                                                    "enemy_nexus_hp": Reading(13, 0)}))
     assert not expectation.verify(replace(after, readings={"enemy_nexus_hp": Reading(6, 1)}))
+
+
+@pytest.mark.parametrize("change", ["none", "stale_before_mana", "stale_before_spell",
+                                    "stale_after_mana", "stale_after_spell", "missing_spell",
+                                    "refill", "no_payment", "cost_exceeds_payment", "zero_cost",
+                                    "unknown", "enemy", "blocking"])
+def test_collapsed_rocket_payment_requires_fresh_net_spending(change):
+    rocket = CardInHand(0, "超威能死亡火箭！", 1, Rect(400, 800, 50, 50))
+    before = GameState(ui_state=UIState.MY_TURN_IDLE, hand=[rocket] * 6,
+                       hand_expanded=True, mana=1, spell_mana=2, enemy_nexus_hp=10,
+                       readings={"mana": Reading(1, 0), "spell_mana": Reading(2, 0),
+                                 "enemy_nexus_hp": Reading(10, 0)})
+    after = replace(before, hand_expanded=False, hand=before.hand[:5], spell_mana=1,
+                    enemy_nexus_hp=11, readings={"mana": Reading(1, 0),
+                                               "spell_mana": Reading(1, 0),
+                                               "enemy_nexus_hp": Reading(11, 0)})
+    if change.startswith("stale_"):
+        _, side, field = change.split("_", 2)
+        name = "mana" if field == "mana" else "spell_mana"
+        state = before if side == "before" else after
+        state = replace(state, readings={**state.readings, name: Reading(state.readings[name].value, 1)})
+        if side == "before":
+            before = state
+        else:
+            after = state
+    elif change == "missing_spell":
+        after = replace(after, spell_mana=None, readings={"mana": Reading(1, 0)})
+    elif change == "refill":
+        after = replace(after, mana=2, readings={**after.readings, "mana": Reading(2, 0)})
+    elif change == "no_payment":
+        after = replace(after, spell_mana=2, readings={**after.readings, "spell_mana": Reading(2, 0)})
+    elif change in {"cost_exceeds_payment", "zero_cost"}:
+        before = replace(before, hand=[replace(rocket, cost=2 if change == "cost_exceeds_payment" else 0)])
+    elif change in {"unknown", "enemy", "blocking"}:
+        after = replace(after, ui_state={"unknown": UIState.UNKNOWN, "enemy": UIState.ENEMY_TURN,
+                                        "blocking": UIState.BLOCKING}[change])
+    action = Action(ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert expectation.verify(after) is (change == "none")
 
 
 def test_expansion_and_other_cards_keep_generic_result_checks():

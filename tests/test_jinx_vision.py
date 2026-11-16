@@ -127,17 +127,16 @@ def test_live_two_rockets_include_leftmost_before_selecting():
     assert [(card.name, card.cost) for card in s.hand[:2]] == [
         ("超威能死亡火箭！", 1), ("超威能死亡火箭！", 1),
     ]
-    # 火箭旁的动画遮住了普通法力数字；只注入画面可见的 2 费，
-    # 图片测试实际负责验证两张卡的检测、顺序和目标位置。
-    assert not s.has_fresh_readings("mana")
-    action = JinxOpeningPolicy(jinx_summoned=True).decide(replace(s, mana=2))
+    # 排除橙色令牌特效后直接读取可见白字，不再人工注入法力。
+    assert s.mana == 2 and s.has_fresh_readings("mana")
+    action = JinxOpeningPolicy(jinx_summoned=True).decide(s)
     assert action.type is ActionType.PLAY_CARD
     assert action.card_index == 0
     assert s.hand[0].rect.center[0] < s.hand[1].rect.center[0]
     # 左侧徽章被遮住时只能选择仍能识别到的火箭，不能猜测被遮住的牌。
     image[878:941, 336:400] = 0
     obscured = parser.parse(image)
-    action = JinxOpeningPolicy(jinx_summoned=True).decide(replace(obscured, mana=2))
+    action = JinxOpeningPolicy(jinx_summoned=True).decide(obscured)
     assert action.type is ActionType.PLAY_CARD
     assert obscured.hand[action.card_index].name == "超威能死亡火箭！"
 

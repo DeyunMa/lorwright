@@ -36,6 +36,9 @@ def _image(path: str) -> np.ndarray:
     ("support/support-options.jpg", [
         SupportGroup(4, (1, 6)), SupportGroup(5, (3, 5)), SupportGroup(1, (2, 3)),
     ], 2),
+    ("support/f1-weekly-options-20261116.png", [
+        SupportGroup(3, (1, 2)), SupportGroup(4, (3, 5)), SupportGroup(7, (3, 5)),
+    ], 0),
     ("support/monthly2-support-options.jpg", [
         SupportGroup(4, (1, 2)), SupportGroup(4, (3, 4)), SupportGroup(4, (2, 2)),
     ], 0),

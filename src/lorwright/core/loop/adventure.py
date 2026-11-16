@@ -715,7 +715,7 @@ class AdventureLoop:
         return False
 
     def _handle_support(self, image) -> bool:
-        """选择援军并核对选中状态；确认后无法验证到账则停止。"""
+        """选择援军，核验唯一选中、确认与返回地图后继续。"""
         normalized = self._reward_design(image)
         if normalized is None:
             self._snapshot(image, tag="support_unknown")
@@ -755,23 +755,19 @@ class AdventureLoop:
             )
             return False
         self._tap(*selected[1].to_device(*button.center))
-        self._wait(3)
-        next_image = self._frame()
-        next_design = self._reward_design(next_image)
-        if next_design is None or is_support_screen(next_design[0]):
-            self._snapshot(
-                next_image, tag="support_confirm_unchanged"
-            )
-            return False
-        if not is_map(next_design[0]):
-            self._snapshot(
-                next_image, tag="support_after_unknown"
-            )
-            return False
-        logger.warning("adventure: 辅助英雄确认后已转场，但尚无法验证卡牌到账，停止")
-        self._snapshot(
-            next_image, tag="support_reward_unverified"
-        )
+        for _ in range(6):
+            self._wait(2, reason="support_transition", wait_s=12)
+            next_image = self._frame()
+            next_design = self._reward_design(next_image)
+            if next_design is None or is_support_screen(next_design[0]):
+                continue
+            if is_map(next_design[0]):
+                report("verified", "support_transition", progress=True, selection=index,
+                       reward_credited_verified=False)
+                return True
+        tag = ("support_confirm_unchanged" if next_design is not None
+               and is_support_screen(next_design[0]) else "support_after_unknown")
+        self._snapshot(next_image, tag=tag)
         return False
 
     def _handle_card_reward(self, image) -> bool:

@@ -372,7 +372,7 @@ def test_native_1080_support_selection_confirms_after_real_selected_frame(advent
     loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
     loop.run(max_nodes=1)
     assert device.taps == [(342, 456), (960, 1003)]
-    assert saved == ["support_reward_unverified"]
+    assert saved == []
 
 
 def test_already_selected_support_screen_does_not_guess_prior_choice(adventure):
@@ -383,22 +383,22 @@ def test_already_selected_support_screen_does_not_guess_prior_choice(adventure):
     assert saved == ["support_unknown"]
 
 
-def test_support_selects_confirms_and_stops_when_reward_unverified(adventure):
+def test_support_selects_confirms_and_verifies_map_transition(adventure):
     before, selected = _support_middle_choice_frames()
     after = _support_fixture("m3-supp2.jpg")
     loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
-    loop.run(max_nodes=2)
+    loop.run(max_nodes=1)
     assert device.taps == [(812, 599), (960, 1003)]
-    assert saved == ["support_reward_unverified"]
+    assert saved == []
 
 
 def test_support_screen_after_travel_uses_same_selection_flow(adventure):
     before, selected = _support_middle_choice_frames()
     after = _support_fixture("m3-supp2.jpg")
     loop, device, _, saved, _ = adventure([before, selected, after], [UIState.UNKNOWN])
-    assert not loop._handle_node_panel()
+    assert loop._handle_node_panel()
     assert device.taps == [(812, 599), (960, 1003)]
-    assert saved == ["support_reward_unverified"]
+    assert saved == []
 
 
 def test_support_selection_or_confirmation_not_repeated(adventure):
@@ -407,10 +407,22 @@ def test_support_selection_or_confirmation_not_repeated(adventure):
     loop.run(max_nodes=3)
     assert len(device.taps) == 1
     assert saved == ["support_selection_failed"]
-    loop, device, _, saved, _ = adventure([before, selected, selected], [UIState.UNKNOWN])
+    loop, device, _, saved, _ = adventure([before] + [selected] * 7, [UIState.UNKNOWN])
     loop.run(max_nodes=3)
     assert len(device.taps) == 2
     assert saved == ["support_confirm_unchanged"]
+
+
+@pytest.mark.parametrize("transition", ["delayed", "unknown"])
+def test_support_transition_is_bounded_and_confirmation_not_repeated(adventure, transition):
+    before, selected = _support_middle_choice_frames()
+    frames = [before, selected] + [_blank()] * (2 if transition == "delayed" else 6)
+    if transition == "delayed":
+        frames.append(_support_fixture("m3-supp2.jpg"))
+    loop, device, _, saved, _ = adventure(frames, [])
+    loop.run(max_nodes=1)
+    assert device.taps == [(812, 599), (960, 1003)]
+    assert saved == ([] if transition == "delayed" else ["support_after_unknown"])
 
 
 def test_support_does_not_confirm_when_selected_cards_are_obscured(adventure):

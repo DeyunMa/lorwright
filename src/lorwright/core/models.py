@@ -154,6 +154,8 @@ class GameState:
     continue_button: Rect | None = None
     #: 本帧识别到的待选目标法术；无法可靠识别时为 None。
     targeted_spell: TargetedSpell | None = None
+    #: 本帧确认阶段的按钮文字身份；无法识别时为 None，不沿用旧值。
+    action_prompt: str | None = None
 
     def has_fresh_readings(self, *names: str) -> bool:
         return all(name in self.readings and self.readings[name].fresh for name in names)

@@ -108,6 +108,32 @@ def test_white_mana_ignores_orange_attack_token_effect() -> None:
     assert outcome.observe(obscured, 4).status is OutcomeStatus.WAITING
 
 
+def test_confirmation_to_stack_commit_is_visible_progress() -> None:
+    from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+    from lorwright.core.models import Action, ActionType
+
+    parser = _parser()
+    before = parser.parse(_load("1080p_confirm_phase.png"))
+    after = parser.parse(_load("f1-weekly-combat-stack-20261116.png"))
+    assert before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
+    # 两张实拍不是同一段录像；隔离按钮阶段变化，排除法力与单位变化。
+    from dataclasses import replace
+    after = replace(after, mana=before.mana, readings=before.readings,
+                    my_units=before.my_units, has_attack_token=before.has_attack_token)
+    outcome = ActionOutcome(Action(ActionType.CONFIRM), before, 8).observe(after, 1)
+    assert (before.action_prompt, after.action_prompt) == ("action_confirm", "action_commit")
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "confirmation_prompt_changed"
+
+
+def test_confirmation_prompt_is_not_carried_across_obscured_frames() -> None:
+    parser = _parser()
+    image = _load("f1-weekly-combat-stack-20261116.png")
+    assert parser.parse(image).action_prompt == "action_commit"
+    image[460:625, 1640:1840] = 0
+    assert parser.parse(image).action_prompt is None
+
+
 def test_assets_exist() -> None:
     """模板和字形库必须在仓库里，否则真机上会静默失效。"""
     assert (Path("assets/buttons") / "mulligan.png").exists()

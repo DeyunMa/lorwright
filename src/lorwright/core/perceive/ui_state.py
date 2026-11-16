@@ -89,8 +89,8 @@ class UIStateDetector:
                 continue
             self._tpl[png.stem] = load_template(png)
 
-    def action_text(self, frame: np.ndarray) -> UIState | None:
-        """读动作按钮上的文字。认不出返回 None（调用方按颜色兜底）。"""
+    def action_prompt(self, frame: np.ndarray) -> str | None:
+        """保留本帧匹配的按钮文字身份；认不出返回 None。"""
         if not self.action_button or not self._text_tpl:
             return None
         b = self.action_button
@@ -106,16 +106,21 @@ class UIStateDetector:
             return None
         gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
 
-        best: tuple[float, UIState] | None = None
+        best: tuple[float, str] | None = None
         for name, tpl in self._text_tpl.items():
             if tpl.shape[0] > gray.shape[0] or tpl.shape[1] > gray.shape[1]:
                 continue
             score = float(cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED).max())
             if best is None or score > best[0]:
-                best = (score, self.ACTION_TEXTS[name])
+                best = (score, name)
         if best is None or best[0] < TEXT_MIN_SCORE:
             return None
         return best[1]
+
+    def action_text(self, frame: np.ndarray) -> UIState | None:
+        """读动作按钮对应状态。认不出返回 None（调用方按颜色兜底）。"""
+        prompt = self.action_prompt(frame)
+        return self.ACTION_TEXTS[prompt] if prompt is not None else None
 
     def detect(self, frame: np.ndarray) -> UIState:
         from lorwright.core.perceive.result_screen import result_screen

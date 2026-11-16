@@ -245,6 +245,8 @@ class Engine:
                         card_index=self._pending.action.card_index,
                         status=outcome.status.value, reason=outcome.reason, clicks=0,
                         before=self._pending.before.summary(), after=state.summary(),
+                        before_action_prompt=self._pending.before.action_prompt,
+                        after_action_prompt=state.action_prompt,
                         readings={name: asdict(reading) for name, reading in state.readings.items()},
                     )
                     if outcome.status is OutcomeStatus.TIMED_OUT:

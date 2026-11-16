@@ -172,6 +172,23 @@ def test_attack_confirmation_requires_token_and_unit_return_evidence():
     assert pending.observe(replace(after, my_units=units(900)), 2).reason == "attack_token_spent_and_units_returned"
 
 
+@pytest.mark.parametrize("previous,current,ui,kind,expected", [
+    ("action_confirm", "action_commit", UIState.COMBAT_RESOLVING, ActionType.CONFIRM, OutcomeStatus.NEEDS_INPUT),
+    ("action_commit", "action_confirm", UIState.COMBAT_RESOLVING, ActionType.CONFIRM, OutcomeStatus.NEEDS_INPUT),
+    ("action_commit", "action_commit", UIState.COMBAT_RESOLVING, ActionType.CONFIRM, OutcomeStatus.WAITING),
+    ("action_confirm", None, UIState.COMBAT_RESOLVING, ActionType.CONFIRM, OutcomeStatus.WAITING),
+    (None, "action_commit", UIState.COMBAT_RESOLVING, ActionType.CONFIRM, OutcomeStatus.WAITING),
+    ("action_confirm", "action_commit", UIState.UNKNOWN, ActionType.CONFIRM, OutcomeStatus.WAITING),
+    ("action_confirm", "action_commit", UIState.COMBAT_RESOLVING, ActionType.END_TURN, OutcomeStatus.WAITING),
+])
+def test_only_a_new_known_confirmation_prompt_allows_further_input(previous, current, ui, kind, expected):
+    before = state(ui_state=UIState.COMBAT_RESOLVING, action_prompt=previous)
+    after = replace(before, ui_state=ui, action_prompt=current)
+    pending = ActionOutcome(Action(kind), before, 8)
+    assert pending.observe(after, 1).status is expected
+    assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
+
+
 def test_free_spell_without_correlated_evidence_stays_unverified():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)

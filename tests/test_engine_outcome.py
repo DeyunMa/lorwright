@@ -342,6 +342,54 @@ def test_successful_outcome_is_delivered_to_policy_once(monkeypatch):
     assert observer.outcomes == [(action, before, after)]
 
 
+def test_new_confirmation_prompt_is_handled_once_after_waiting(monkeypatch):
+    confirm = ready(ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_confirm")
+    commit = replace(confirm, action_prompt="action_commit")
+    after = replace(commit, ui_state=UIState.ENEMY_TURN, action_prompt=None)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [confirm, confirm, replace(confirm, ui_state=UIState.UNKNOWN),
+                      commit, commit, after],
+        [Action(ActionType.CONFIRM), Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
+    )
+    engine.run(max_ticks=6)
+    assert device.taps == [(20, 20), (20, 20)]
+    assert router.calls == 3
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert [e["status"] for e in outcomes] == [
+        "waiting", "waiting", "needs_input", "waiting", "succeeded",
+    ]
+    assert outcomes[2]["reason"] == "confirmation_prompt_changed"
+    assert snapshots == []
+
+
+def test_staged_spell_survives_intermediate_confirmation_prompt(monkeypatch):
+    before = ready(hand=[CardInHand(0, "spell", 1, Rect(400, 800, 80, 100))],
+                   hand_expanded=True)
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING,
+                     action_prompt="action_confirm")
+    commit = replace(staged, action_prompt="action_commit")
+    after = replace(before, ui_state=UIState.ENEMY_TURN, hand=[], mana=2,
+                    readings={"mana": Reading(2, 0)})
+    play = Action(ActionType.PLAY_CARD, 0)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, staged, commit, after],
+        [play, Action(ActionType.CONFIRM), Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
+    )
+    notifications = []
+
+    class Policy:
+        def on_action_outcome(self, action, previous, current):
+            notifications.append((action.type, current.ui_state))
+
+    router.layers = [Policy()]
+    engine.run(max_ticks=4)
+    assert len(device.drags) == 1
+    assert device.taps == [(20, 20), (20, 20)]
+    assert notifications == [(ActionType.CONFIRM, UIState.ENEMY_TURN),
+                             (ActionType.PLAY_CARD, UIState.ENEMY_TURN)]
+    assert snapshots == []
+
+
 def test_staged_spell_is_confirmed_before_notifying_policy(monkeypatch):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)

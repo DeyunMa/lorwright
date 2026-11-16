@@ -125,6 +125,13 @@ class ActionOutcome:
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"
             elif kind in (ActionType.CONFIRM, ActionType.END_TURN, ActionType.PASS):
+                if (kind is ActionType.CONFIRM
+                        and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
+                        and {before.action_prompt, after.action_prompt}
+                        == {"action_confirm", "action_commit"}):
+                    # 攻击声明与堆栈结算共用状态；新提示需要重新路由，
+                    # 不能把尚待结算的原出牌提前通知为成功。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_prompt_changed")
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"
                 elif (before.has_fresh_readings("mana") and after.has_fresh_readings("mana")

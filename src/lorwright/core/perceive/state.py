@@ -56,6 +56,8 @@ class StateParser:
         lay = self.layout
         state = GameState(ui_state=self.ui.detect(image),
                           continue_button=find_continue_button(image))
+        if state.ui_state is UIState.COMBAT_RESOLVING:
+            state.action_prompt = self.ui.action_prompt(image)
         if state.ui_state is UIState.TARGETING and self.targeted_spell_recognizer is not None:
             state.targeted_spell = self.targeted_spell_recognizer(image)
         if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:

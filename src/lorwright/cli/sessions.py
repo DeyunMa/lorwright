@@ -52,6 +52,12 @@ def _output(value: dict, machine: bool):
         if value.get("wait_deadline") is not None:
             remaining = max(0.0, value["wait_deadline"] - time.time())
             typer.echo(f"等待：{value.get('wait_reason')}；剩余 {remaining:.1f} 秒")
+        diagnostic = details.get("recognition_diagnostic")
+        if diagnostic:
+            failed = ", ".join(diagnostic["failed_checks"]) or "无"
+            scores = ", ".join(f"{name}={score:.3f}"
+                               for name, score in diagnostic["scores"].items())
+            typer.echo(f"奖励页识别：未通过 {failed}；阈值 {diagnostic['threshold']:.3f}；{scores}")
         if value.get("last_snapshot"):
             typer.echo(f"截图：{value['last_snapshot']}")
         typer.echo(f"事件游标：{value['seq']}")

@@ -1331,8 +1331,9 @@ def test_map_wait_redispatches_card_reward(adventure, monkeypatch):
     assert saved == []
 
 
-def test_battle_end_waits_for_reward_before_map_node(adventure, monkeypatch):
-    reward = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
+@pytest.mark.parametrize("name", ["before.png", "f1-weekly-fourth-reward-20261116.png"])
+def test_battle_end_waits_for_reward_before_map_node(adventure, monkeypatch, name):
+    reward = cv2.imread(str(FIXTURES.parent / "card_rewards" / name))
     loop, device, engine, saved, _ = adventure(
         [_blank(), _img("1080p_jinx_map.png"), reward], [UIState.MY_TURN_IDLE]
     )
@@ -1360,6 +1361,58 @@ def test_battle_end_hero_item_reward_continues_to_map(adventure, monkeypatch, de
     assert engine.run_calls == [loop.coords.battle_max_ticks]
     assert device.taps == [(960, 1003)]
     assert saved == ["map_no_next"]
+
+
+def test_reward_stop_diagnostics_are_readable_through_cli(adventure, tmp_path):
+    import json
+
+    from typer.testing import CliRunner
+
+    from lorwright.cli.app import app
+    from lorwright.core.runtime.session import RunSession
+
+    image = cv2.imread(str(FIXTURES.parent / "card_rewards/f1-weekly-fourth-reward-20261116.png"))
+    image[18:110, 760:1160] = 0
+    loop, device, _, saved, _ = adventure([], [])
+    with RunSession(tmp_path, mode="adventure", champion="jinx", device="replay") as session:
+        loop._snapshot(image, tag="battle_reward_missing")
+        session.finish("stopped", "battle_reward_missing")
+    runner = CliRunner()
+    status = runner.invoke(app, ["sessions", "status", session.run_id, "--root", str(tmp_path)])
+    assert status.exit_code == 0
+    assert "未通过 title" in status.stdout
+    assert "阈值 0.930" in status.stdout
+    events = runner.invoke(app, ["sessions", "events", session.run_id,
+                                 "--root", str(tmp_path), "--jsonl"])
+    assert events.exit_code == 0
+    diagnostics = [json.loads(line)["payload"] for line in events.stdout.splitlines()
+                   if json.loads(line)["type"] == "perception_diagnostic"]
+    assert len(diagnostics) == 1
+    evidence = diagnostics[0]
+    assert evidence["failed_checks"] == ["title"]
+    assert evidence["scores"]["title"] < evidence["threshold"]
+    assert evidence["scores"]["subtitle"] >= evidence["threshold"]
+    assert evidence["scores"]["choose_button"] >= evidence["threshold"]
+    assert evidence["expected_scene"] == "card_reward"
+    assert evidence["snapshot"] == "/tmp/fake.png"
+    assert saved == ["battle_reward_missing"] and device.taps == []
+
+
+def test_reward_decision_logs_all_candidate_costs(adventure, monkeypatch):
+    image = cv2.imread(str(FIXTURES.parent / "card_rewards/f1-weekly-fourth-reward-20261116.png"))
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    events = []
+    monkeypatch.setattr("lorwright.core.loop.adventure.record_event",
+                        lambda event_type, **payload: events.append((event_type, payload)))
+    assert not loop._handle_card_reward(image)
+    decisions = [payload for event_type, payload in events if event_type == "reward_decision"]
+    assert len(decisions) == 1
+    assert [candidate["preview_cost"] for candidate in decisions[0]["candidates"]] == [2, 2, 4]
+    assert decisions[0]["selection"] in (0, 1)
+    assert decisions[0]["reason"]
+    assert len(device.taps) == 1
+    assert saved == ["card_reward_selection_failed"]
 
 
 def test_battle_end_missing_reward_stops_without_map_input(adventure):

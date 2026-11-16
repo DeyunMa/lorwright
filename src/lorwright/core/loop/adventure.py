@@ -71,6 +71,7 @@ from lorwright.core.perceive.result_screen import result_screen
 from lorwright.core.perceive.revive_screen import find_revive_button
 from lorwright.core.perceive.reward_screen import (
     card_reward_confirm_button,
+    card_reward_diagnostics,
     card_reward_selection,
     card_reward_target,
     hero_item_choose_disabled,
@@ -921,6 +922,11 @@ class AdventureLoop:
             return False
         index = candidates.index(picked.candidate)
         name = picked.candidate.card.name or "未知卡牌"
+        record_event("reward_decision", kind="card_reward", selection=index, reason=picked.reason,
+                     candidates=[{"slot": slot, "name": candidate.card.name,
+                                  "preview_cost": candidate.card.cost,
+                                  "quality": candidate.card.quality}
+                                 for slot, candidate in enumerate(candidates)])
         report("decided", "card_reward_choice", selection=index,
                recommendation=name, recommendation_reason=picked.reason,
                preview_cost=picked.candidate.card.cost,
@@ -1087,6 +1093,12 @@ class AdventureLoop:
         else:
             self.result = LoopResult("stopped", tag)
             self._details.update(snapshot=str(path))
+            if tag == "battle_reward_missing" or tag.startswith("card_reward_"):
+                normalized = self._reward_design(image)
+                evidence = card_reward_diagnostics(normalized[0] if normalized is not None else image)
+                self._details["recognition_diagnostic"] = evidence
+                record_event("perception_diagnostic", reason=tag, expected_scene="card_reward",
+                             snapshot=str(path), **evidence)
             report("stopped", tag, **self._details)
         return path
 

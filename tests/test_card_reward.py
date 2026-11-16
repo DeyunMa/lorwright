@@ -33,6 +33,32 @@ def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
     )
 
 
+def test_fourth_weekly_reward_keeps_low_cost_choices_actionable():
+    image = _image("f1-weekly-fourth-reward-20261116.png")
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [candidate.card.cost for candidate in candidates] == [2, 2, 4]
+    pick = pick_jinx_card_reward(candidates)
+    assert pick is not None and pick.candidate in candidates[:2]
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "wrong_color"])
+def test_fourth_reward_requires_visible_gold_title(damage):
+    image = _image("f1-weekly-fourth-reward-20261116.png")
+    if damage == "missing":
+        image[18:110, 760:1160] = 0
+    elif damage == "dimmed":
+        image[18:110, 760:1160] //= 3
+    else:
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv[18:110, 760:1160, 0] = 100
+        image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    assert not is_card_reward_screen(image)
+    assert recognize_card_rewards(image) is None
+
+
 def test_real_reward_candidates_keep_card_quality_separate_from_item():
     image = _image("before.png")
     candidates = recognize_card_rewards(image)

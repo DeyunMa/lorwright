@@ -30,26 +30,31 @@ def _names() -> tuple[tuple[str, str], ...]:
     )
 
 
-def _power_title_mask(image: np.ndarray) -> np.ndarray:
+def _gold_text_mask(image: np.ndarray) -> np.ndarray:
     return cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                        (8, 80, 145), (40, 255, 255))
 
 
 @cache
-def _power_title_template() -> np.ndarray | None:
-    image = cv2.imread(str(_ASSETS / "power_title.png"))
-    return None if image is None else _power_title_mask(image)
+def _gold_title_template(name: str) -> np.ndarray | None:
+    image = cv2.imread(str(_ASSETS / f"{name}.png"))
+    return None if image is None else _gold_text_mask(image)
+
+
+def _gold_title_score(image: np.ndarray, name: str, rect: tuple[int, int, int, int]) -> float:
+    if image.shape != (1080, 1920, 3):
+        return -1.0
+    template = _gold_title_template(name)
+    if template is None:
+        return -1.0
+    # 标题叠在地图上；只比较金色字形，避免背景地形改变匹配结果。
+    x1, y1, x2, y2 = rect
+    region = _gold_text_mask(image[y1:y2, x1:x2])
+    return float(cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED).max())
 
 
 def is_power_screen(image: np.ndarray) -> bool:
-    if image.shape != (1080, 1920, 3):
-        return False
-    template = _power_title_template()
-    if template is None:
-        return False
-    # 标题叠在地图上；只比较金色字形，避免背景地形改变匹配结果。
-    region = _power_title_mask(image[25:102, 880:1036])
-    return float(cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED).max()) >= 0.93
+    return _gold_title_score(image, "power_title", (880, 25, 1036, 102)) >= 0.93
 
 
 def _best(region: np.ndarray, choices: tuple[tuple[str, str], ...]) -> str | None:
@@ -362,16 +367,24 @@ def recognize_hero_items(image: np.ndarray) -> list[RewardCandidate] | None:
     return result
 
 
+def card_reward_diagnostics(image: np.ndarray) -> dict:
+    """页面识别的实际分数与失败项；供停止事件读取，不授权输入。"""
+    threshold = 0.93
+    if image.shape != (1080, 1920, 3):
+        return {"threshold": threshold, "scores": {}, "failed_checks": ["resolution"]}
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    scores = {
+        "title": _gold_title_score(image, "card_reward_title", (760, 18, 1160, 110)),
+        "subtitle": _visible_match(gray, "card_reward_subtitle", (590, 130, 1330, 195)),
+        "choose_button": _visible_match(gray, "card_reward_choose", (800, 960, 1120, 1045)),
+    }
+    return {"threshold": threshold, "scores": scores,
+            "failed_checks": [name for name, score in scores.items() if score < threshold]}
+
+
 def is_card_reward_screen(image: np.ndarray) -> bool:
     """战斗卡牌奖励：标题、副标题和选择按钮必须同时可见。"""
-    if image.shape != (1080, 1920, 3):
-        return False
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return (
-        _visible_match(gray, "card_reward_title", (760, 18, 1160, 110)) >= 0.93
-        and _visible_match(gray, "card_reward_subtitle", (590, 130, 1330, 195)) >= 0.93
-        and _visible_match(gray, "card_reward_choose", (800, 960, 1120, 1045)) >= 0.93
-    )
+    return not card_reward_diagnostics(image)["failed_checks"]
 
 
 def card_reward_selection(image: np.ndarray) -> int | None:

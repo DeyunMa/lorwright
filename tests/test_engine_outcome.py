@@ -718,6 +718,36 @@ def test_combat_confirm_waits_for_settlement_without_repeating(monkeypatch, sett
         assert router.calls == 1
 
 
+@pytest.mark.parametrize("settled", [True, False])
+def test_round_end_waits_for_effects_without_repeating(monkeypatch, settled):
+    # 依据 f1 结束回合后动画仍在播放、随后新回合稳定的日志构造；不是逐帧录像。
+    before = ready(mana=1, readings={"mana": Reading(1, 0)})
+    animation = replace(before, ui_state=UIState.UNKNOWN)
+    final = ready(mana=4, readings={"mana": Reading(4, 0)}) if settled else animation
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, animation, final],
+        [Action(ActionType.END_TURN), Action(ActionType.NO_OP)],
+    )
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 10.0, 12.0 if settled else 20.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=3)
+    outcomes = [e["status"] for e in events if e.get("event") == "action_outcome"]
+    assert outcomes == ["waiting", "succeeded" if settled else "timed_out"]
+    assert device.taps == [(20, 20)]
+    assert snapshots == ([] if settled else [{"tag": "action_timeout"}])
+    if not settled:
+        assert result.reason == "action_timeout"
+        assert router.calls == 1
+
+
 def test_combat_confirm_wait_can_be_stopped(monkeypatch):
     from lorwright.core.runtime.session import StopRequested
 

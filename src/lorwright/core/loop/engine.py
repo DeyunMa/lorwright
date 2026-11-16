@@ -440,11 +440,12 @@ class Engine:
                     )
                     if clicks and result.action.type is not ActionType.NO_OP:
                         timeout = self.settings.loop.action_timeout_s
-                        if (result.action.type is ActionType.CONFIRM
-                                and (self._staged_play is not None
-                                     or (state.ui_state is UIState.COMBAT_RESOLVING
-                                         and result.layer == "combat_confirm"))):
-                            # 法术和战斗确认后的结算动画可能超过普通动作观察窗口。
+                        if (result.action.type is ActionType.END_TURN
+                                or (result.action.type is ActionType.CONFIRM
+                                    and (self._staged_play is not None
+                                         or (state.ui_state is UIState.COMBAT_RESOLVING
+                                             and result.layer == "combat_confirm")))):
+                            # 回合结束、法术和战斗确认后的结算可能超过普通观察窗口。
                             timeout = max(timeout, 20.0)
                         self._pending = self._make_outcome(result.action, state, timeout)
 

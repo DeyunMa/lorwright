@@ -874,6 +874,30 @@ def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):
     assert saved == ["shop_leave_unverified"]
 
 
+def test_shop_leave_waits_for_visible_map_after_fade(adventure):
+    from lorwright.core.perceive.adventure_scene import is_map
+
+    fading = _img("f1-shop-leave-fading-20261116.png")
+    stable = _img("f1-shop-leave-stable-20261116.jpg")
+    assert not is_map(fading) and is_map(stable)
+    # 两张独立实拍按观察顺序回放，不代表精确动画时长。
+    loop, device, _, saved, _ = adventure([fading, stable], [])
+    assert loop._handle_shop(_img("f1-shop-20261114.png"))
+    assert device.taps == [(691, 1004)]
+    assert saved == []
+
+
+@pytest.mark.parametrize("successor", ["f1-shop-20261114.png",
+                                       "f1-shop-leave-fading-20261116.png", None])
+def test_shop_leave_stops_after_bounded_observations(adventure, successor):
+    image = _img(successor) if successor is not None else _blank()
+    loop, device, _, saved, _ = adventure([image] * 6, [])
+    assert not loop._handle_shop(_img("f1-shop-20261114.png"))
+    assert device.taps == [(691, 1004)]
+    assert device._frames == []
+    assert saved == ["shop_leave_unverified"]
+
+
 def test_shop_does_not_click_when_title_or_leave_is_obscured(adventure):
     shop = _img("f1-shop-20261114.png")
     from lorwright.core.perceive.adventure_scene import shop_leave_button

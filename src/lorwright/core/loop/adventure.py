@@ -800,11 +800,13 @@ class AdventureLoop:
             self._snapshot(image, tag="shop_leave_missing")
             return False
         self._tap(*button.center)
-        self._wait(3)
-        after = self._frame()
-        if is_map(after) and not panel_open(after):
-            logger.info("adventure: 已离开商店，继续寻找下一节点")
-            return True
+        for _ in range(6):
+            self._wait(2, reason="shop_leave_transition", wait_s=12)
+            after = self._frame()
+            if is_map(after) and not panel_open(after):
+                report("verified", "shop_map_transition", progress=True)
+                logger.info("adventure: 已离开商店，继续寻找下一节点")
+                return True
         self._snapshot(after, tag="shop_leave_unverified")
         return False
 

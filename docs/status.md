@@ -6,7 +6,7 @@
 
 原程序没有最终胜利页处理器，且战后奖励等待只接受普通结算或奖励。新增胜利、完成时间、最短时间三个固定标签的联合识别；不依赖冒险名称、英雄、评级或数值。启动、战后等待及结算转场均可到达 `completed / adventure_victory`，保存最终截图并报告 `details.outcome=victory`，不点击最终页的继续按钮。任务/宝库的原有识别条件保留；灰色时间标签采用独立字形亮度掩码及既有相对亮度核验。
 
-两个实拍流程回归在修复前分别复现 `unknown_scene` 和 `battle_reward_missing`。修复后冒险、结算和会话专项 **228 passed**，errors/failures/skipped 均为 0；覆盖等待中出现最终页、任务/宝库转场、标签遮挡/变暗、普通结算反例及 CLI 完成状态。Ruff、`git diff --check` 通过。样本隐去账号，模板只含固定文字；组合转场序列为离线回放，不是新的实机操作。修复尚待部署并在当前最终页验证；Jinx 和 Elise 各自完整无人值守冒险仍待验收。
+两个实拍流程回归在修复前分别复现 `unknown_scene` 和 `battle_reward_missing`。修复后冒险、结算和会话专项 **228 passed**，errors/failures/skipped 均为 0；覆盖等待中出现最终页、任务/宝库转场、标签遮挡/变暗、普通结算反例及 CLI 完成状态。Ruff、`git diff --check` 通过。样本隐去账号，模板只含固定文字；组合转场序列为离线回放，不是新的实机操作。修复 `da3184a` 已推送并同步 f1；会话 `20261116T123149-b79d7155a8f1` 在 iteration 1 实机返回 `completed / adventure_victory`，保存 `snapshots/adventure_victory_20261116_203151_305901.png`，`details.outcome=victory`，事件中无输入。当前仍保留最终结算页。Jinx 和 Elise 各自完整无人值守冒险仍待验收。
 
 ## 当前对局已完成（2026-11-16）
 

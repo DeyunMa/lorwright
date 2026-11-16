@@ -450,6 +450,29 @@ def test_two_rockets_each_wait_for_confirmation_and_verified_payment(monkeypatch
     assert snapshots == []
 
 
+def test_rocket_confirmation_accepts_damage_with_refilled_mana(monkeypatch):
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.decide.generic import CombatConfirmPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    cards = [CardInHand(i, "超威能死亡火箭！", 1, Rect(300 + i * 100, 800, 50, 50))
+             for i in range(2)]
+    before = ready(hand=cards, hand_expanded=True, spell_mana=3, enemy_nexus_hp=8,
+                   readings={"mana": Reading(3, 0), "spell_mana": Reading(3, 0),
+                             "enemy_nexus_hp": Reading(8, 0)})
+    staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(before, hand=cards[:1], enemy_nexus_hp=1,
+                    readings={**before.readings, "enemy_nexus_hp": Reading(1, 0)})
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [before, staged, after], [])
+    policy = JinxOpeningPolicy(jinx_summoned=True)
+    engine.router = RealRouter([policy, CombatConfirmPolicy()])
+    engine.run(max_ticks=3)
+    assert policy._rockets_played == 1
+    assert snapshots == []
+    # 第三帧的新火箭决策可发下一枚，已确认的第一枚只计一次。
+    assert len(device.drags) == 2
+
+
 def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
     from lorwright.core.decide.generic import CombatConfirmPolicy

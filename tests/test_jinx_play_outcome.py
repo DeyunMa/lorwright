@@ -81,6 +81,22 @@ def test_special_outcome_cannot_accept_generic_hand_reduction_during_animation()
     ).status is OutcomeStatus.WAITING
 
 
+@pytest.mark.parametrize("damage_reading", [Reading(1, 0), Reading(1, 1), Reading(8, 0)])
+def test_rocket_accepts_fresh_damage_when_mana_is_refilled(damage_reading):
+    rocket = CardInHand(0, "超威能死亡火箭！", 1, Rect(400, 800, 50, 50))
+    before = GameState(ui_state=UIState.MY_TURN_IDLE, hand=[rocket, rocket],
+                       hand_expanded=True, mana=1, spell_mana=3, enemy_nexus_hp=8,
+                       readings={"mana": Reading(1, 0), "spell_mana": Reading(3, 0),
+                                 "enemy_nexus_hp": Reading(8, 0)})
+    after = replace(before, hand=[rocket], enemy_nexus_hp=damage_reading.value,
+                    readings={**before.readings, "enemy_nexus_hp": damage_reading})
+    action = Action(ActionType.PLAY_CARD, card_index=0, raw={"jinx_rocket": True})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert expectation.verify(after) is (damage_reading == Reading(1, 0))
+    assert not expectation.verify(replace(after, hand=before.hand))
+    assert not expectation.verify(replace(after, ui_state=UIState.UNKNOWN))
+
+
 def test_expansion_and_other_cards_keep_generic_result_checks():
     action, before, _ = summon_states()
     policy = JinxOpeningPolicy()

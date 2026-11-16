@@ -172,7 +172,27 @@ class JinxOpeningPolicy:
         """Jinx 下场弃手转砰砰并生成两枚火箭，手牌应为出牌前数量加一。"""
         card = next((c for c in before.hand if c.index == action.card_index), None)
         if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
-                or card is None or card.name != "吉茵珂絲" or card.cost < 0):
+                or card is None or card.cost < 0):
+            return None
+        if card.name in ROCKET_NAMES and action.raw.get("jinx_rocket") is True:
+            def verify_rocket(after: GameState) -> bool:
+                if (after.ui_state not in (UIState.MY_TURN_IDLE, UIState.ENEMY_TURN,
+                                           UIState.BLOCKING)
+                        or len(after.hand) >= len(before.hand)):
+                    return False
+                mana_paid = (before.has_fresh_readings("mana")
+                             and after.has_fresh_readings("mana") and after.mana < before.mana)
+                spell_paid = (before.has_fresh_readings("spell_mana")
+                              and after.has_fresh_readings("spell_mana")
+                              and before.spell_mana is not None and after.spell_mana is not None
+                              and after.spell_mana < before.spell_mana)
+                damaged = (before.has_fresh_readings("enemy_nexus_hp")
+                           and after.has_fresh_readings("enemy_nexus_hp")
+                           and after.enemy_nexus_hp < before.enemy_nexus_hp)
+                return mana_paid or spell_paid or damaged
+
+            return PlayExpectation(verify_rocket, "jinx_rocket_payment_or_damage_verified", 20.0)
+        if card.name != "吉茵珂絲":
             return None
 
         def verify(after: GameState) -> bool:

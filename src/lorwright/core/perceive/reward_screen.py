@@ -492,7 +492,7 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
     """奖励外框必须存在，两侧检查带不能被黑色遮挡。"""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if max(_visible_match(gray, name, (x - 3, 228, x + 30, 255)) for name in (
-        "card_reward_frame_corner", "card_reward_frame_corner_fog",
+        "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01

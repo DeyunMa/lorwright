@@ -33,6 +33,24 @@ def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
     )
 
 
+def test_two_star_first_battle_reward_selects_lowest_preview_cost():
+    image = _image("f1-two-star-first-reward-20261116.png")
+    assert is_card_reward_screen(image)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [candidate.card.cost for candidate in candidates] == [1, 3, 4]
+    assert pick_jinx_card_reward(candidates).candidate == candidates[0]
+
+
+@pytest.mark.parametrize("region", [(351, 228, 384, 255), (360, 300, 365, 780),
+                                    (428, 276, 464, 309), (429, 533, 669, 554)])
+def test_two_star_first_reward_rejects_obscured_candidate_evidence(region):
+    image = _image("f1-two-star-first-reward-20261116.png")
+    x1, y1, x2, y2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
 def test_fourth_weekly_reward_keeps_low_cost_choices_actionable():
     image = _image("f1-weekly-fourth-reward-20261116.png")
     assert is_card_reward_screen(image)

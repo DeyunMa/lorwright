@@ -1,180 +1,101 @@
 # LoRwright
 
-> 名字致敬 Microsoft 的 Playwright（*wright* = 工匠）。本项目**不依赖** Playwright。
+基于纯视觉的《符文大地传说》英雄之路（Path of Champions）自动化工具：截图 → 规则决策 → ADB 输入 → 结果验证 → 继续推进。名字致敬 Playwright（wright = 工匠），项目不依赖 Playwright。
 
-基于**纯视觉**的《符文大地传说》英雄之路（Path of Champions）自动化工具。
-截图 → 决策 → ADB 输入，不碰游戏内存、不接游戏 API。
+当前英雄包为伊莉絲（Elise）和金克丝（Jinx）。目标是程序自主完成设备就绪、启动、登录及整个冒险，并让两位英雄分别全自动完成冒险；这一目标尚未端到端验证。
 
----
+接手开发先读 [`docs/handoff.md`](docs/handoff.md)，能力与证据见 [`docs/status.md`](docs/status.md)。
 
-## 👉 接手开发从这里开始
+## 核心与入口
 
-**[`docs/handoff.md`](docs/handoff.md)** —— 现在卡在哪、按什么顺序做、有哪些踩过的坑。
+`core/` 自主完成识别、决策、执行、验证和流程推进。CLI 用于启动、观测与停止，Agent 在开发期根据事件和截图诊断并补能力。GUI 待整体能力稳定后再做。
 
----
+- ADB 提供截图、点击与输入，出牌使用事件级拖拽；桌面设备保留作调试回退。
+- 感知使用模板匹配、颜色和字形等视觉证据；决策使用英雄规则、通用评分及条件满足时的战斗穷举。
+- 局部未知只限制依赖它的动作：未知牌可跳过，其他有依据的动作继续；不要求冒险中新卡全部预先建档。
+- 界面、交互或动作结果未知时有界等待，超时保存截图并明确停止。当前实现不能自动恢复所有异常。
+- 采用 [ADR-0004](docs/adr/0004-pure-script-decision.md) 的纯脚本路线；不读写游戏内存、不修改游戏文件、不绕过反作弊。英雄之路状态不接本地 `localhost:21337`，依据见 [ADR-0002](docs/adr/0002-vision-only-perception.md)。
 
-## 它是什么
-
-- 用 **ADB** 从手机/模拟器截图，用**模板匹配 / 颜色探针**识别界面
-- 战斗和出牌使用规则与评分；通用格挡在条件满足时穷举分配，信息不足时使用贪心规则
-- 纯脚本决策（MAA 式），不接 LLM / 外部决策服务（见 ADR-0004）
-- 用 ADB 点击，出牌等手势通过事件级触控后端执行
-
-**当前英雄包**：伊莉絲（Elise）与金克丝（Jinx）。伊莉絲牌表见
-[`docs/champions/elise.md`](docs/champions/elise.md)。
-
-## 它不是什么
-
-- ❌ **不用游戏 API。** 英雄之路没有 API —— `localhost:21337` 只覆盖收藏/构筑/PvP，
-  证据：`RiotGames/developer-relations#773`（2023-05 提出，至今 open）。
-  这是项目早期最大的弯路，别再走一遍。
-- ❌ 不是通用 GUI Agent
-- ❌ 不读写游戏内存、不修改游戏文件、不绕过反作弊
-- ❌ 不保证胜率 —— 目标是「把局打完」
-
----
-
-## 架构
-
-**两条正交的链**，把它们混成一条是最容易犯的错。
-
-```
-A. 决策链 —— 现在该做什么
-   英雄包规则  →  通用规则/穷举  →  安全兜底
-
-B. 监督器 —— 是不是卡住了（不经过决策层）
-   Watchdog（画面/摘要不变） → RecoveryPolicy（重试→重开→重启→停）
-```
-
-**输出必须是受约束的**：规则层输出 `Action`；战斗中不认识的状态返回
-`NO_OP`；全部策略弃权且确认处于 `MY_TURN_IDLE` 时结束回合。
-
-「卡住」由程序判定（像素 hash 不变），不调模型 —— 画面不动是像素问题，不是语义问题。
-
-详见 [`docs/architecture.md`](docs/architecture.md)。
-
----
+详细职责与安全边界见 [`docs/architecture.md`](docs/architecture.md)。
 
 ## 快速开始
 
 ```bash
-git clone git@github.com:DeyunMa/lorwright.git
-cd lorwright
-pip install -e ".[dev]"
-
-pytest                      # 单测，不需要游戏
-ruff check src tests tools
-
-lorwright devices           # 列出 ADB 设备
-lorwright shot --grid --out logs/probe.png   # 截图 + 坐标网格
-lorwright run --max-ticks 50
+rtk git clone git@github.com:DeyunMa/lorwright.git
 ```
 
-Agent 优先通过 CLI 查询运行，不必反复截图判断程序是否卡住：
+进入仓库目录后安装依赖并检查：
 
 ```bash
-lorwright sessions start --mode adventure --champion jinx --json
-lorwright sessions status RUN_ID --wait 30 --json
-lorwright sessions events RUN_ID --after 0 --jsonl
-lorwright sessions stop RUN_ID --json
+rtk pip install -e ".[dev]"
+rtk pytest
+rtk ruff check src tests tools
+
+rtk lorwright devices
+rtk lorwright shot --grid 100 --out logs/probe.png
 ```
 
-`RUN_ID` 使用启动回执中的值；停止回执只表示请求已写入，需要再查终态。
-前台 `run` / `adventure` 支持 `--jsonl`，运行文件位于已忽略的 `logs/runs/`。
-f1 可在冒险启动命令中加 `--bootstrap-f1`，接管或启动 Pie64 和游戏；遇到
-登录页会停下，待用户登录后再启动。阶段、等待、停滞及退出码见
-[`docs/cli.md`](docs/cli.md)。
+确认设备、实时画面和操作授权后，启动后台冒险会话：
 
-配置在 `config/settings.yaml`（`champion` / `layout` / `adb` / `loop`）。
-
----
-
-## 技术栈
-
-| 层 | 选型 | 理由 |
-|---|---|---|
-| 设备 | **ADB**（`adb screencap` / `input`） | 坐标即屏幕坐标、可后台、多开靠 `-s`、快照可回滚 |
-| 图像 | `opencv-python` | 模板匹配 + 颜色探针 |
-| 状态校验 | `pydantic` | 配置与数据契约 |
-| 日志 | `loguru` | 按日期分目录 + JSONL 事件流 |
-| CLI | `typer` + `rich` | 轻量 |
-
-桌面模式（`mss` + `pynput`）保留为**调试回退**，不是主路径（见 `docs/adr/0003`）。
-
----
-
-## 目录结构
-
+```bash
+rtk lorwright sessions start --mode adventure --champion jinx --json
+rtk lorwright sessions status RUN_ID --wait 30 --json
+rtk lorwright sessions events RUN_ID --after 0 --jsonl
+rtk lorwright sessions stop RUN_ID --json
 ```
+
+`RUN_ID` 使用启动回执中的值；停止回执只表示请求已写入，再查状态确认终态。前台 `run` / `adventure` 支持 `--jsonl`，运行文件位于已忽略的 `logs/runs/`。配置见 `config/settings.yaml`。
+
+f1 冒险入口可选 `--bootstrap-f1` 接管或启动 Pie64 与游戏；`--open-riot-login` 已实机验证至 Riot 表单。可选 `--auto-login` 已有实现，但真实账号自动登录、模拟器关闭后的完整冷启动尚未实测。凭据加载及前置条件见 [`docs/cli.md`](docs/cli.md)，不要把凭据放进命令或日志。
+
+## 当前能力与验证范围
+
+| 范围 | 当前结论 |
+|---|---|
+| 战斗 | 换牌、部分出牌、Jinx 上场与火箭、目标选择、收起手牌及攻击有局部实机记录；部分战斗完成依赖人工确认或接管 |
+| 地图与节点 | 部分路线、战斗入口、商店离开、免费治疗、复活有局部实机记录；更多地图及完整连续过程待验收 |
+| 奖励 | 程序已实机选择英雄/道具并确认转场，已确认能力并进入战斗；识别覆盖有限，转场不证明奖励到账 |
+| 弃牌 | 单次选择后保存采样截图并停止，完整确认与转场仍未验证 |
+| 启动与登录 | 已接管运行中的模拟器和游戏、进入登录表单；可选自动登录及模拟器冷启动未完成真实验收 |
+| 完整目标 | Jinx、Elise 各自全自动完成整个冒险均未端到端验证 |
+
+离线测试、图片回放、局部实机和完整冒险分别记录。MAA/MaaFramework [研究笔记](docs/research/maa-maaframework-control-loop.md) 只提供设计参考，不作为本项目实机验收。
+
+## 目录与技术栈
+
+```text
 src/lorwright/
-├── core/             # 自动化核心，独立于入口
-│   ├── models.py     # 数据契约：GameState / Action / Layout
-│   ├── runtime/      # 会话、状态、事件和安全停止
-│   ├── device/       # ADB / 桌面设备抽象
-│   ├── perceive/     # 截图 → UI 状态、卡牌、场面
-│   ├── decide/       # 通用决策机制
-│   ├── act/          # 语义动作 → 坐标
-│   ├── loop/         # 主循环、看门狗、恢复
-│   └── champions/    # 英雄包：牌表、策略和识别
-│       ├── elise/
-│       └── jinx/
-└── cli/              # 命令行入口和会话命令
+├── core/
+│   ├── models.py       # 状态、动作与执行计划
+│   ├── runtime/        # 会话、事件、设备锁、协作停止
+│   ├── device/         # ADB 与桌面设备
+│   ├── perceive/       # 视觉感知
+│   ├── decide/         # 通用规则与战斗求解
+│   ├── act/            # 动作翻译
+│   ├── loop/           # 战斗与冒险闭环
+│   └── champions/      # Elise / Jinx 英雄包
+└── cli/                # 前台命令与后台会话入口
 ```
 
-**基础层提供通用能力，英雄层提供具体知识。** 两者都位于 `core/`；牌表、
-专属识别与打法位于 `core/champions/<name>/`。`cli/` 使用核心运行能力；
-后续 GUI 可使用同一核心，本阶段不引入可视化或网络服务。
-
-运行模板位于 `assets/`，当前回归截图位于 `tests/fixtures/`，历史证据集中到
-`research/archives/`，按用途分开保存。
-
----
-
-## 现状
-
-| 阶段 | 目标 | 状态 |
-|---|---|---|
-| M0 | 骨架 + 规则 + 单测 + CI | ✅ 完成 |
-| **M1** | 自动打完一场 PoC 战斗 | 🚧 进行中 |
-| M2 | 自动选奖励（三选一） | 🚧 偏好/排序已落，UI 识别待实机 |
-| M3 | 自动走地图 | 🚧 mapnav + AdventureLoop 已落，待实机验收 |
-| M4 | 跑完一个完整副本 | 待做 |
-
-**当前阻塞**：仍需完整自动战斗和起手换牌的连续实战复验；能力奖励仅支持
-已采集的三种名称并输出推荐，选择/确认及其他奖励界面待素材。敌方攻击行
-真实帧和生命遮挡样本也待补充。
-
-细节见 [`docs/status.md`](docs/status.md)。
-
----
+主要依赖为 `opencv-python`、`pydantic`、`loguru`、`typer` 和 `rich`；桌面回退使用 `mss` / `pynput`。运行模板在 `assets/`，回归截图在 `tests/fixtures/`，历史证据在 `research/archives/`。
 
 ## 文档
 
-| 文档 | 内容 |
+| 文档 | 用途 |
 |---|---|
-| [`docs/handoff.md`](docs/handoff.md) | **交接入口** |
-| [`docs/architecture.md`](docs/architecture.md) | 核心设计 |
-| [`docs/cli.md`](docs/cli.md) | Agent CLI：状态、事件、停滞诊断和停止协议 |
-| [`docs/status.md`](docs/status.md) | 当前状态 |
-| [`docs/decision-l1-rules.md`](docs/decision-l1-rules.md) | 历史规则设计与加英雄检查清单 |
-| [`docs/decision-l2-jev.md`](docs/decision-l2-jev.md) | 历史设计（ADR-0004 已废弃） |
-| [`docs/champions/elise.md`](docs/champions/elise.md) | 伊莉絲牌组与专属规则 |
-| [`docs/reference-prior-art.md`](docs/reference-prior-art.md) | MAA / ALAS 参考 |
+| [`docs/handoff.md`](docs/handoff.md) | 接手步骤、环境基线与待验证项 |
+| [`docs/status.md`](docs/status.md) | 当前能力与证据边界 |
+| [`docs/architecture.md`](docs/architecture.md) | 当前核心职责与闭环契约 |
+| [`docs/cli.md`](docs/cli.md) | 启动、状态、事件、停止和排障 |
+| [`docs/environment.md`](docs/environment.md) | f1、模拟器和 ADB 环境参考，历史结论需复核 |
+| [`docs/champions/elise.md`](docs/champions/elise.md) | Elise 专属规则与牌表 |
 | [`docs/adr/`](docs/adr/) | 架构决策记录 |
-| [`tools/f1/`](tools/f1/) | f1 网络/游戏看门狗与 Pie64 启动脚本 |
-| [`AGENTS.md`](AGENTS.md) | 给 AI agent 的硬约束 |
+| [`docs/research/maa-maaframework-control-loop.md`](docs/research/maa-maaframework-control-loop.md) | 上游机制研究及其适用限制 |
+| [`tools/f1/`](tools/f1/) | f1 运维脚本及说明 |
+| [`AGENTS.md`](AGENTS.md) | Agent 持续规则 |
 
----
+## 使用边界
 
-## 风险与免责
+自动化可能违反 Riot 的用户协议，存在账号风险，请使用测试账号。项目用于学习和研究自动化技术，不提供游戏代练服务。参考 MAA/ALAS 的设计时需尊重其许可证，避免直接引入与项目分发要求不兼容的代码。
 
-- **可能违反 Riot 的用户协议**，存在封号风险。请使用小号，风险自担。
-- 本项目仅供学习与研究自动化技术，不提供任何形式的游戏代练服务。
-- **只学 MAA / ALAS 的设计，不抄代码** —— 它们是 AGPL-3.0 / GPL-3.0，
-  会传染，与本项目的分发方式冲突。
-
----
-
-## 命名
-
-`LoRwright` = `LoR` + `wright`（工匠）。仓库名全小写 `lorwright`，展示名 `LoRwright`。
+仓库名为 `lorwright`，展示名为 `LoRwright`。

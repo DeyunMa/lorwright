@@ -144,46 +144,36 @@ def engine_for(monkeypatch, states, actions, timeout=8):
     return engine, device, router, events, snapshots
 
 
-@pytest.mark.parametrize("action_type,allowed", [
-    (ActionType.ATTACK, True),
-    (ActionType.PLAY_CARD, False),
-    (ActionType.END_TURN, False),
-    (ActionType.CONFIRM, False),
-])
-def test_stale_mana_only_allows_attack_with_confirmed_empty_hand(monkeypatch, action_type, allowed):
+@pytest.mark.parametrize("action_type", [ActionType.ATTACK, ActionType.END_TURN])
+def test_unrelated_missing_readings_do_not_block_attack_or_end_turn(monkeypatch, action_type):
     state = ready(
-        hand_empty_confirmed=True, has_attack_token=True,
-        my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
-        readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)},
+        hand=[CardInHand(0, "", 1, Rect(200, 900, 8, 8))],
+        has_attack_token=True, my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+        readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 1)},
     )
-    engine, device, router, events, _ = engine_for(
-        monkeypatch, [state], [Action(action_type)],
-    )
+    engine, device, router, _, _ = engine_for(monkeypatch, [state], [Action(action_type)])
     engine.layout.attack_row = Rect(500, 400, 100, 50)
     engine.run(max_ticks=1)
-
     assert router.calls == 1
-    assert bool(device.drags) is allowed
-    assert not device.taps
-    if not allowed:
-        assert events[-1]["layer"] == "unreadable"
+    assert bool(device.drags) is (action_type is ActionType.ATTACK)
+    assert bool(device.taps) is (action_type is ActionType.END_TURN)
 
 
 @pytest.mark.parametrize("change", [
-    {"hand_empty_confirmed": False},
     {"has_attack_token": False},
     {"my_units": []},
-    {"readings": {"mana": Reading(10, 1), "nexus_hp": Reading(20, 1)}},
+    {"my_units": [Unit("unit", 1, 1, Rect(200, 700, 50, 50), can_attack=False)]},
 ])
-def test_stale_mana_requires_all_attack_evidence(monkeypatch, change):
-    values = dict(hand_empty_confirmed=True, has_attack_token=True,
-                  my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
-                  readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)})
+def test_attack_still_requires_priority_and_an_eligible_unit(monkeypatch, change):
+    values = dict(has_attack_token=True, my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))],
+                  readings={})
     values.update(change)
-    engine, device, router, _, _ = engine_for(monkeypatch, [ready(**values)], [])
+    engine, device, _, events, _ = engine_for(
+        monkeypatch, [ready(**values)], [Action(ActionType.ATTACK)],
+    )
     engine.run(max_ticks=1)
-    assert router.calls == 0
     assert not device.drags and not device.taps
+    assert events[-1]["missing_readings"] == ["attack_priority"]
 
 
 @pytest.mark.parametrize("action,spell_reading,cost,expected", [
@@ -193,7 +183,7 @@ def test_stale_mana_requires_all_attack_evidence(monkeypatch, change):
     (Action(ActionType.PLAY_CARD, card_index=0, raw={"spell_mana_only": True}), Reading(3, 1), 1, False),
     (Action(ActionType.PLAY_CARD, card_index=0, raw={"spell_mana_only": True}), Reading(3, 0), 4, False),
 ])
-def test_unreadable_mana_only_allows_verified_spell_mana_action(
+def test_paid_spell_requires_fresh_resources_but_does_not_block_end_turn(
     monkeypatch, action, spell_reading, cost, expected
 ):
     s = ready(hand_expanded=True, hand=[CardInHand(0, "砰砰", cost, Rect(200, 900, 8, 8))],
@@ -203,7 +193,7 @@ def test_unreadable_mana_only_allows_verified_spell_mana_action(
     engine, device, _, _, _ = engine_for(monkeypatch, [s], [action])
     engine.run(max_ticks=1)
     assert bool(device.drags) is expected
-    assert not device.taps
+    assert bool(device.taps) is (action.type is ActionType.END_TURN)
 
 
 def test_manual_empty_hand_allows_attack_with_unreadable_mana(monkeypatch):
@@ -223,13 +213,13 @@ def test_manual_empty_hand_allows_only_one_frame_to_attack(monkeypatch):
                   readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)})
     later = replace(state)
     engine, device, router, _, _ = engine_for(
-        monkeypatch, [state, later], [Action(ActionType.NO_OP)],
+        monkeypatch, [state, later], [Action(ActionType.NO_OP), Action(ActionType.END_TURN)],
     )
     engine._confirm_empty_hand_once = True
     engine.run(max_ticks=2)
-    assert router.calls == 1
+    assert router.calls == 2
     assert state.hand_empty_confirmed and not later.hand_empty_confirmed
-    assert not device.drags and not device.taps
+    assert not device.drags and device.taps == [(20, 20)]
 
 
 @pytest.mark.parametrize("action_type", [ActionType.PLAY_CARD, ActionType.END_TURN, ActionType.CONFIRM])
@@ -246,12 +236,14 @@ def test_manual_empty_hand_conflicting_card_consumes_confirmation(monkeypatch):
     state = ready(hand=[card])
     later = ready(readings={"mana": Reading(10, 1), "nexus_hp": Reading(20, 0)},
                   has_attack_token=True, my_units=[Unit("unit", 1, 1, Rect(200, 700, 50, 50))])
-    engine, device, router, _, _ = engine_for(monkeypatch, [state, later], [])
+    engine, device, router, _, _ = engine_for(
+        monkeypatch, [state, later], [Action(ActionType.END_TURN)],
+    )
     engine._confirm_empty_hand_once = True
     engine.run(max_ticks=2)
-    assert router.calls == 0
+    assert router.calls == 1
     assert not later.hand_empty_confirmed
-    assert not device.drags and not device.taps
+    assert not device.drags and device.taps == [(20, 20)]
 
 
 def test_expand_then_drag_waits_for_result_without_repeating_input(monkeypatch):
@@ -381,8 +373,9 @@ def test_staged_spell_is_not_reported_as_played_when_confirm_times_out(monkeypat
         monkeypatch, [before, staged, staged],
         [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
     )
-    clock = iter([0.0, 0.0, 0.0, 20.0])
-    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: next(clock))
+    monkeypatch.setattr(
+        "lorwright.core.loop.engine.time.monotonic", lambda: 20.0 if device.frames >= 3 else 0.0,
+    )
 
     class Observer:
         def __init__(self):
@@ -591,57 +584,133 @@ def test_battle_end_returns_to_outer_loop_without_repeating_pending_action(monke
     assert engine._pending is None
 
 
-def test_old_readings_block_decision_then_resume_when_fresh(monkeypatch):
-    current = ready()
+def test_paid_card_waits_for_its_resource_evidence_then_resumes(monkeypatch):
+    card = CardInHand(0, "unit", 3, Rect(200, 900, 8, 8))
+    current = ready(hand=[card], hand_expanded=True)
     stale = replace(current, readings={**current.readings, "mana": Reading(3, 1)})
+    play = Action(ActionType.PLAY_CARD, 0)
     engine, device, router, events, _ = engine_for(
-        monkeypatch, [stale, current], [Action(ActionType.END_TURN)],
+        monkeypatch, [stale, current], [play, play],
     )
     engine.run(max_ticks=2)
-    assert router.calls == 1
-    assert len(device.taps) == 1
+    assert router.calls == 2
+    assert len(device.drags) == 1
     assert events[0]["layer"] == "unreadable"
-    assert events[0]["readings"]["mana"] == {"value": 3, "age_frames": 1}
+    assert events[0]["missing_readings"] == ["mana"]
 
 
-def test_zero_mana_unreadable_still_allows_ending_turn(monkeypatch):
-    # 同一段优先权中先确认 0 费，再连续 5 帧读不出时允许结束回合。
-    state = ready(
-        mana=0,
-        readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0),
-                  "enemy_nexus_hp": Reading(20, 0)},
-    )
-    confirmed = replace(state, readings={**state.readings, "mana": Reading(0, 0)})
+def test_unreadable_mana_is_masked_for_decision_but_does_not_block_end_turn(monkeypatch):
+    state = ready(mana=10, spell_mana=3,
+                  readings={"mana": Reading(10, 1), "spell_mana": Reading(3, 1)})
     engine, device, router, _, _ = engine_for(
-        monkeypatch, [confirmed, *([state] * 5)],
-        [Action(ActionType.NO_OP), Action(ActionType.END_TURN)], timeout=0,
+        monkeypatch, [state], [Action(ActionType.END_TURN)],
     )
-    engine.run(max_ticks=6)
-    assert router.calls == 2
-    assert len(device.taps) == 1
+    decide = router.decide
+    observed = []
+
+    def inspect(s):
+        observed.append((s.mana, s.spell_mana))
+        return decide(s)
+
+    monkeypatch.setattr(router, "decide", inspect)
+    engine.run(max_ticks=1)
+    assert observed == [(-1, None)]
+    assert state.mana == 10 and state.spell_mana == 3
+    assert device.taps == [(20, 20)]
 
 
-def test_unreadable_mana_is_not_assumed_zero_without_confirmation(monkeypatch):
-    state = ready(readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0)})
-    engine, device, router, _, _ = engine_for(
-        monkeypatch, [state] * 5, [Action(ActionType.END_TURN)],
+@pytest.mark.parametrize("cost,can_play", [(0, True), (1, False), (-1, False)])
+def test_unknown_mana_does_not_become_free_mana(monkeypatch, cost, can_play):
+    state = ready(hand_expanded=True,
+                  hand=[CardInHand(0, "unit", cost, Rect(200, 900, 8, 8))], readings={})
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [state], [Action(ActionType.PLAY_CARD, 0)],
     )
-    engine.run(max_ticks=5)
-    assert router.calls == 0
-    assert device.taps == []
+    engine.run(max_ticks=1)
+    assert bool(device.drags) is can_play
 
 
-def test_zero_mana_confirmation_does_not_cross_priority_change(monkeypatch):
-    confirmed = ready(mana=0, readings={"mana": Reading(0, 0), "nexus_hp": Reading(20, 0)})
-    enemy = ready(ui_state=UIState.ENEMY_TURN)
-    unreadable = ready(readings={"mana": Reading(None, None), "nexus_hp": Reading(20, 0)})
-    engine, device, router, _, _ = engine_for(
-        monkeypatch, [confirmed, enemy, *([unreadable] * 5)],
-        [Action(ActionType.NO_OP), Action(ActionType.NO_OP), Action(ActionType.END_TURN)],
+@pytest.mark.parametrize("ui,reason,budget", [
+    (UIState.UNKNOWN, "unknown_ui", 8),
+    (UIState.MULLIGAN, "no_action", 8),
+    (UIState.ENEMY_TURN, "enemy_turn", 60),
+])
+def test_core_stops_unresolved_waits_without_an_external_observer(monkeypatch, ui, reason, budget):
+    state = ready(ui_state=ui)
+    actions = [] if ui is UIState.UNKNOWN else [Action(ActionType.NO_OP)] * 2
+    engine, device, _, _, snapshots = engine_for(monkeypatch, [state] * 2, actions)
+    monkeypatch.setattr(
+        "lorwright.core.loop.engine.time.monotonic", lambda: float((device.frames - 1) * budget),
     )
-    engine.run(max_ticks=7)
-    assert router.calls == 2
-    assert device.taps == []
+    result = engine.run(max_ticks=5)
+    assert (result.status, result.reason) == ("stopped", reason)
+    assert snapshots == [{"tag": reason}]
+    assert not device.taps and not device.drags
+    assert device.frames == 2
+
+
+def test_missing_payment_evidence_is_bounded_and_saves_the_reason(monkeypatch):
+    state = ready(hand_expanded=True, readings={},
+                  hand=[CardInHand(0, "unit", 2, Rect(300, 900, 20, 20))])
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [state] * 2, [Action(ActionType.PLAY_CARD, 0)] * 2,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: float((device.frames - 1) * 8))
+    result = engine.run(max_ticks=5)
+    assert result.reason == "action_preconditions_unverified"
+    assert engine._stop_details["missing_readings"] == ["mana"]
+    assert snapshots == [{"tag": "action_preconditions_unverified"}]
+    assert not device.drags
+
+
+@pytest.mark.parametrize("champion,name,kwargs,cost,spell_mana", [
+    ("jinx", "爆破幫菜鳥", {}, 0, None),
+    ("elise", "蜘蛛哨兵", {}, 0, None),
+    ("jinx", "應急裝置", {}, 1, 3),
+    ("jinx", "超威能死亡火箭！", {"jinx_summoned": True}, 1, 3),
+])
+def test_real_policies_use_free_cards_or_fresh_spell_mana_without_other_readings(
+    monkeypatch, champion, name, kwargs, cost, spell_mana,
+):
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.champions import load
+    from lorwright.core.decide.router import Router as RealRouter
+
+    state = ready(hand_expanded=True, mana=10, spell_mana=spell_mana,
+                  hand=[CardInHand(0, name, cost, Rect(300, 900, 20, 20))],
+                  readings={"mana": Reading(10, 1), "spell_mana": Reading(spell_mana, 0)})
+    engine, device, _, _, _ = engine_for(monkeypatch, [state], [])
+    engine.router = RealRouter(_battle_layers(load(champion), policy_kwargs=kwargs))
+    engine.run(max_ticks=1)
+    assert len(device.drags) == 1
+    assert not device.taps
+
+
+def test_unknown_cards_do_not_require_agent_commands_to_finish_battle(monkeypatch):
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.champions import load
+    from lorwright.core.decide.router import Router as RealRouter
+
+    card = CardInHand(0, "", 1, Rect(300, 900, 20, 20))
+    unit = Unit("", 1, 1, Rect(500, 850, 20, 20))
+    start = ready(hand=[card], hand_expanded=True, has_attack_token=True, my_units=[unit],
+                  readings={})
+    combat = replace(start, ui_state=UIState.COMBAT_RESOLVING,
+                     my_units=[replace(unit, rect=Rect(500, 450, 20, 20))])
+    enemy = replace(start, ui_state=UIState.ENEMY_TURN, has_attack_token=False)
+    next_turn = replace(enemy, ui_state=UIState.MY_TURN_IDLE)
+    end = replace(enemy, ui_state=UIState.BATTLE_END)
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [start, combat, enemy, next_turn, end], [],
+    )
+    engine.router = RealRouter(_battle_layers(load("jinx"), policy_kwargs={"jinx_summoned": True}))
+    engine.layout.attack_row = Rect(700, 470, 520, 70)
+    result = engine.run(max_ticks=10)
+    assert (result.status, result.reason) == ("completed", "battle_end")
+    assert len(device.drags) == 1
+    assert device.taps == [(20, 20), (20, 20)]
+    assert snapshots == []
 
 
 def test_unknown_state_never_reaches_a_strategy(monkeypatch):

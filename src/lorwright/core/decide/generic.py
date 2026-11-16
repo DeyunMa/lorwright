@@ -28,10 +28,12 @@ class HeroFirstPolicy(Policy):
         self.champion_names = champion_names
 
     def decide(self, state: GameState) -> Action | None:
-        if state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded:
+        if (state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded
+                or len(state.my_units) >= 6):
             return None
         for card in state.hand:
-            if card.name in self.champion_names and card.cost <= state.mana:
+            if (card.name in self.champion_names and card.drag_point_valid
+                    and 0 <= card.cost <= max(0, state.mana)):
                 return Action(type=ActionType.PLAY_CARD, card_index=card.index)
         return None
 
@@ -61,7 +63,7 @@ class ExpandHandPolicy(Policy):
 
 
 class PlayUnitPolicy(Policy):
-    """通用下单位：场面未满 6 时，按费用从低到高打已知单位。"""
+    """场面未满 6 时，按费用从低到高打已知或有可出单位视觉依据的牌。"""
 
     name = "play_unit"
     version = "1.0.0"
@@ -77,7 +79,7 @@ class PlayUnitPolicy(Policy):
             return None
         playable = []
         for card in state.hand:
-            if card.cost < 0 or card.cost > state.mana:
+            if not card.drag_point_valid or card.cost < 0 or card.cost > max(0, state.mana):
                 continue
             definition = self.lookup(card.name)
             if definition is None:
@@ -96,18 +98,17 @@ class PlayUnitPolicy(Policy):
 
 
 class UnknownCardPolicy(Policy):
-    """无法判断未知牌的类型和额外条件时等待，避免猜测出牌。"""
+    """未知牌不猜测出牌，也不阻塞其他策略；保留类供现有装配方使用。
+
+    有 visible_playable_unit 依据的牌由 PlayUnitPolicy 处理，其余局部未知牌
+    只跳过；None 是弃权，NO_OP 则会终止路由，不能用来表示跳过一张牌。
+    """
 
     name = "unknown_card"
     version = "1.0.0"
 
     def decide(self, state: GameState) -> Action | None:
-        if state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded:
-            return None
-        affordable = [card for card in state.hand if not card.name and 0 <= card.cost <= state.mana]
-        if not affordable:
-            return None
-        return Action(type=ActionType.NO_OP, raw={"inspect_board": True})
+        return None
 
 
 class TargetingPolicy(Policy):
@@ -326,7 +327,7 @@ ATTACK_ROW_MAX_Y = 800
 
 
 class AttackWhenTokenPolicy(Policy):
-    """有攻击令牌就全体进攻，声明后下一 tick 确认。
+    """有攻击令牌时让可攻击单位进攻，声明后下一 tick 确认。
 
     攻击令牌按回合轮换，没令牌时弃权交给 fallback 结束回合。
     """
@@ -342,6 +343,8 @@ class AttackWhenTokenPolicy(Policy):
             return Action(type=ActionType.CONFIRM)
         if not state.has_attack_token:
             return None
-        attackers = tuple(range(len(state.my_units)))
+        attackers = tuple(i for i, unit in enumerate(state.my_units) if unit.can_attack)
+        if not attackers:
+            return None
         return Action(type=ActionType.ATTACK, raw={"attackers": attackers})
 

@@ -34,6 +34,30 @@ def test_hero_first_plays_affordable_champion_only():
     assert policy.decide(replace(s, ui_state=UIState.ENEMY_TURN)) is None
 
 
+def test_hero_first_skips_unusable_candidates():
+    policy = HeroFirstPolicy(frozenset({"吉茵珂絲"}))
+    hero = card(0, "吉茵珂絲", 2)
+    s = state(hand=[replace(hero, cost=-1), replace(hero, index=1, drag_point_valid=False),
+                    replace(hero, index=2)])
+    assert policy.decide(s).card_index == 2
+    assert policy.decide(replace(s, hand=s.hand[:2])) is None
+    assert policy.decide(replace(s, mana=-1)) is None
+    assert policy.decide(replace(s, my_units=[unit_at(i, 900, 1, 1) for i in range(6)])) is None
+
+
+def test_play_unit_requires_visual_evidence_for_unknown_card_and_skips_bad_drag():
+    policy = PlayUnitPolicy(load("jinx").lookup)
+    s = state(hand=[card(0, "", 0),
+                    replace(card(1, "佐恩小乞丐", 1), drag_point_valid=False),
+                    replace(card(2, "", 1), visible_playable_unit=True, drag_point_valid=False),
+                    replace(card(3, "", 2), visible_playable_unit=True),
+                    card(4, "汙水坑疏濬機器人", 3)])
+    assert policy.decide(s).card_index == 3
+    assert policy.decide(replace(s, mana=1)) is None
+    assert policy.decide(replace(s, mana=-1)) is None
+    assert policy.decide(replace(s, hand=[replace(s.hand[3], cost=-1)])) is None
+
+
 def test_expand_hand_only_when_collapsed():
     policy = ExpandHandPolicy()
     s = state(hand=[card(0, "佐恩小乞丐", 1)], hand_expanded=False)
@@ -56,10 +80,10 @@ def test_play_unit_stops_at_six_units():
     assert policy.decide(s) is None
 
 
-def test_unknown_card_only_uses_known_affordable_costs_in_my_expanded_hand():
+def test_unknown_card_abstains_instead_of_blocking_other_actions():
     policy = UnknownCardPolicy()
     s = state(hand=[card(0, "", -1), card(1, "", 4), card(2, "", 0)])
-    assert policy.decide(s) == Action(type=ActionType.NO_OP, raw={"inspect_board": True})
+    assert policy.decide(s) is None
     assert policy.decide(replace(s, hand_expanded=False)) is None
     assert policy.decide(replace(s, ui_state=UIState.MULLIGAN)) is None
     assert policy.decide(replace(s, hand=s.hand[:2])) is None
@@ -171,6 +195,17 @@ def test_blocking_confirms_once_declared():
 
 def unit(y):
     return Unit("", 1, 1, Rect(0, y, 10, 10))
+
+
+def test_attack_only_declares_eligible_units_and_abstains_without_them():
+    policy = AttackWhenTokenPolicy()
+    unavailable = replace(unit(930), can_attack=False)
+    s = state(my_units=[unavailable, unit(940), unavailable], has_attack_token=True)
+    assert policy.decide(s) == Action(ActionType.ATTACK, raw={"attackers": (1,)})
+    assert policy.decide(replace(s, my_units=[unavailable, unavailable])) is None
+    # 已进入攻击行仍应确认，不能把确认动作当作新的攻击声明过滤掉。
+    declared = replace(s, my_units=[replace(unavailable, rect=Rect(0, 700, 10, 10))])
+    assert policy.decide(declared) == Action(ActionType.CONFIRM)
 
 
 def test_attack_declares_all_then_confirms():

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from lorwright.core.act.translate import ActionTranslator
 from lorwright.core.config import Settings
@@ -80,14 +80,10 @@ class Engine:
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self._scale = Scale(1.0, 1.0)
         self._skipped_stale = 0
-        #: 连续多少帧读不出法力。0 费时法力数字会整段消失，需要靠这个
-        #: 计数器区分「动画遮挡」和「真的没费」。
-        self._unreadable_mana_frames = 0
-        self._confirmed_zero_mana = False
         self._pending: ActionOutcome | None = None
         #: 待确认的出牌；出现确认按钮只表示还需输入，不算出牌已成功。
         self._staged_play: tuple[Action, GameState] | None = None
-        self._wait_deadlines: dict[str, float] = {}
+        self._wait_deadlines: dict[str, tuple[float, float]] = {}
         self._observation: dict = {}
         self._stop_details: dict = {}
 
@@ -117,8 +113,6 @@ class Engine:
         self._wait_deadlines.clear()
         self._stop_details.clear()
         self.result = LoopResult("stopped", "tick_limit")
-        self._confirmed_zero_mana = False
-        self._unreadable_mana_frames = 0
         try:
             while max_ticks is None or ticks < max_ticks:
                 ticks += 1
@@ -135,6 +129,7 @@ class Engine:
                 age = frame.age_s()
                 self._observation = dict(
                     tick=ticks, ui=state.ui_state.value, summary=state.summary(),
+                    unknown_cards=[card.index for card in state.hand if not card.name],
                     readings={name: asdict(reading) for name, reading in state.readings.items()},
                 )
                 changed = (age <= self.settings.loop.max_frame_age_s
@@ -149,7 +144,6 @@ class Engine:
                 if changed:
                     previous_ui = state.ui_state
                 if state.ui_state is not UIState.MY_TURN_IDLE:
-                    self._confirmed_zero_mana = False
                     if state.ui_state is not UIState.UNKNOWN:
                         inspecting_board = False
 
@@ -184,7 +178,10 @@ class Engine:
                         )
                         self._stop_snapshot(frame.image, "action_timeout")
                         break
-                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                    if not self._wait_or_stop(
+                        frame.image, "stale_frame", self.settings.loop.max_frame_age_s,
+                    ):
+                        break
                     continue
 
                 # 奖励详情超时可能覆盖战斗画面；单次确认后只接受明确转场。
@@ -251,21 +248,9 @@ class Engine:
                         readings={name: asdict(reading) for name, reading in state.readings.items()},
                     )
                     if outcome.status is OutcomeStatus.TIMED_OUT:
-                        if (
-                            self._pending.action.type in (ActionType.END_TURN, ActionType.PASS)
-                            and state.ui_state is not UIState.UNKNOWN
-                        ):
-                            logger.warning(
-                                "动作结果未确认但状态可读，继续观察：{}",
-                                self._pending.action.type.value,
-                            )
-                            self._pending = None
-                            self.watchdog.reset()
-                            self.recovery.reset()
-                        else:
-                            self._stop_snapshot(frame.image, "action_timeout")
-                            logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
-                            break
+                        self._stop_snapshot(frame.image, "action_timeout")
+                        logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
+                        break
                     if outcome.status is OutcomeStatus.WAITING:
                         self._report_wait(outcome.reason,
                                           max(0.0, self._pending.deadline - time.monotonic()),
@@ -307,9 +292,11 @@ class Engine:
 
                 # 安全约束由执行入口保障，不能依赖每一个英雄包都正确弃权。
                 if state.ui_state is UIState.UNKNOWN:
-                    self._report_wait("unknown_ui", self.settings.loop.action_timeout_s)
                     emit(tick=ticks, layer="unknown", action="no_op", clicks=0)
-                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                    if not self._wait_or_stop(
+                        frame.image, "unknown_ui", self.settings.loop.action_timeout_s,
+                    ):
+                        break
                     continue
 
                 # 人工确认仅用于第一张新鲜的己方行动画面，不跨帧沿用。
@@ -321,76 +308,25 @@ class Engine:
                         state.hand_empty_confirmed = True
                     record_event("manual_empty_hand_consumed", accepted=manual_empty)
                     if not manual_empty:
-                        self._report_wait("manual_empty_hand_conflict", self.settings.loop.action_timeout_s)
                         emit(tick=ticks, layer="manual_empty_hand_conflict", action="no_op", clicks=0)
-                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                        if not self._wait_or_stop(
+                            frame.image, "manual_empty_hand_conflict", self.settings.loop.action_timeout_s,
+                        ):
+                            break
                         continue
 
-                # 法力/我方血量必须新鲜；敌方血量被特效遮住时不能卡住整局，
-                # 它只影响斩杀判断，缺省时按保守策略处理。
-                # 例外：0 费时法力数字常常整段消失（读不出来），但上一帧
-                # 已经确认是 0；这时允许继续，否则会卡在 0 费永远结束不了回合。
-                mana_reading = state.readings.get("mana")
-                if mana_reading is not None and mana_reading.fresh:
-                    self._unreadable_mana_frames = 0
-                    self._confirmed_zero_mana = (
-                        state.ui_state is UIState.MY_TURN_IDLE and mana_reading.value == 0
-                    )
-                elif state.ui_state is UIState.MY_TURN_IDLE:
-                    self._unreadable_mana_frames += 1
-                else:
-                    self._unreadable_mana_frames = 0
-                unreadable = [
-                    name for name in ("mana", "nexus_hp")
-                    if not (state.readings.get(name) and state.readings[name].fresh)
-                ]
-                zero_mana_stall = (
-                    unreadable == ["mana"]
-                    and self._unreadable_mana_frames >= 5
-                    and state.ui_state is UIState.MY_TURN_IDLE
-                    and self._confirmed_zero_mana
+                # 缺失读数只限制依赖它的动作，不把旧法力交给策略当作可用资源。
+                decision_state = replace(
+                    state,
+                    mana=state.mana if state.has_fresh_readings("mana") else -1,
+                    spell_mana=(state.spell_mana
+                                if state.has_fresh_readings("spell_mana") else None),
                 )
-                if zero_mana_stall:
-                    # 同一优先权中已确认 0，之后连续 5 帧读不出：按 0 费处理，
-                    # 让路由走结束回合，而不是整局卡死。
-                    state.mana = 0
-                    state.max_mana = 0
-                # 空手且有攻击令牌时，攻击无需法力；仍要求我方血量新鲜，
-                # 并在路由后只放行经确认的攻击动作。
-                attack_without_mana = (
-                    unreadable == ["mana"]
-                    and state.ui_state is UIState.MY_TURN_IDLE
-                    and state.hand_empty_confirmed and not state.hand
-                    and state.has_attack_token and bool(state.my_units)
-                )
-                spell_mana_only = (
-                    unreadable == ["mana"]
-                    and state.ui_state is UIState.MY_TURN_IDLE
-                    and state.has_fresh_readings("spell_mana")
-                    and state.spell_mana is not None
-                    and state.hand_expanded and bool(state.enemy_units)
-                )
-                if spell_mana_only:
-                    # 未知普通法力按零处理；路由后仅允许明确使用法术法力的动作。
-                    state.mana = 0
-                if (
-                    state.ui_state in (UIState.MY_TURN_IDLE, UIState.BLOCKING)
-                    and unreadable and not zero_mana_stall and not attack_without_mana
-                    and not spell_mana_only
-                ):
-                    self._report_wait("unreadable", self.settings.loop.action_timeout_s,
-                                      missing_readings=unreadable)
-                    emit(
-                        tick=ticks, layer="unreadable", action="no_op", clicks=0,
-                        readings={name: asdict(reading) for name, reading in state.readings.items()},
-                    )
-                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
-                    continue
 
                 report("decide")
                 decision_at = time.time()
-                result = (self.router.decide(state, suppress_hand_expansion=True)
-                          if inspecting_board else self.router.decide(state))
+                result = (self.router.decide(decision_state, suppress_hand_expansion=True)
+                          if inspecting_board else self.router.decide(decision_state))
                 if (not inspecting_board and state.ui_state is UIState.MY_TURN_IDLE
                         and state.hand_expanded and state.has_attack_token
                         and self.layout.collapse_hand_point is not None
@@ -400,6 +336,7 @@ class Engine:
                                  and result.action.type is ActionType.END_TURN))):
                     result.action = Action(type=ActionType.COLLAPSE_HAND)
                     result.layer = "inspect_board"
+                    result.reason = "展开手牌可能遮挡友军，先收起并重新评估攻击"
                 if state.ui_state is UIState.TARGETING and result.action.type is ActionType.NO_OP:
                     if target_wait_deadline is None:
                         target_wait_deadline = time.monotonic() + self.settings.loop.action_timeout_s
@@ -407,37 +344,48 @@ class Engine:
                     self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
                 target_wait_deadline = None
-                if (manual_empty and (
-                    result.action.type is not ActionType.ATTACK
-                    or not state.has_attack_token or not state.my_units
-                    or not (state.readings.get("nexus_hp") and state.readings["nexus_hp"].fresh)
-                )) or (attack_without_mana and not zero_mana_stall and not spell_mana_only and (
-                    result.action.type is not ActionType.ATTACK
-                )) or (spell_mana_only and not zero_mana_stall and not (
-                    result.action.type is ActionType.PLAY_CARD
-                    and result.action.raw.get("spell_mana_only") is True
-                    and any(card.index == result.action.card_index and card.drag_point_valid
-                            and 0 <= card.cost <= state.spell_mana for card in state.hand)
-                )):
-                    self._report_wait("unreadable", self.settings.loop.action_timeout_s,
-                                      missing_readings=unreadable)
-                    emit(tick=ticks, layer="unreadable", action="no_op", clicks=0,
-                         readings={name: asdict(reading) for name, reading in state.readings.items()})
-                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
-                    continue
-                self._observation.update(action=result.action.type.value, strategy=result.layer)
-                report("decided", action=result.action.type.value, strategy=result.layer,
+                self._observation.update(
+                    action=result.action.type.value, strategy=result.layer,
+                    decision_reason=result.reason,
+                    unknown_cards=[card.index for card in state.hand if not card.name],
+                )
+                report("decided", **self._observation,
                        decision_ms=round((time.time() - decision_at) * 1000))
+                missing = self._missing_action_evidence(result.action, state)
+                if manual_empty and result.action.type is not ActionType.ATTACK:
+                    missing.append("manual_attack")
+                if missing:
+                    emit(tick=ticks, layer="unreadable", action="no_op", clicks=0,
+                         missing_readings=missing,
+                         readings={name: asdict(reading) for name, reading in state.readings.items()})
+                    if not self._wait_or_stop(
+                        frame.image, "action_preconditions_unverified",
+                        self.settings.loop.action_timeout_s, missing_readings=missing,
+                    ):
+                        break
+                    continue
                 # 网络决策也可能耗时；执行前必须再次确认这张图仍然新鲜。
                 if frame.age_s() > self.settings.loop.max_frame_age_s:
                     self._skipped_stale += 1
-                    self._report_wait("frame_expired_during_decision",
-                                      self.settings.loop.max_frame_age_s)
                     emit(tick=ticks, layer="stale", action="no_op", clicks=0,
                          reason="frame_expired_during_decision")
-                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                    if not self._wait_or_stop(
+                        frame.image, "frame_expired_during_decision",
+                        self.settings.loop.max_frame_age_s,
+                    ):
+                        break
                     continue
-                # NO_OP 不计入卡死：对手回合状态本来就不变
+                if result.action.type is ActionType.NO_OP:
+                    reason = "enemy_turn" if state.ui_state is UIState.ENEMY_TURN else "no_action"
+                    emit(tick=ticks, ui=state.ui_state.value, layer=result.layer,
+                         action="no_op", clicks=0, reason=reason)
+                    if not self._wait_or_stop(
+                        frame.image, reason,
+                        60.0 if reason == "enemy_turn" else self.settings.loop.action_timeout_s,
+                    ):
+                        break
+                    continue
+
                 stuck = self.watchdog.observe(state, result.action.type)
                 if self.watchdog.progressed:
                     self.recovery.reset()
@@ -456,6 +404,12 @@ class Engine:
                     report("execute", action=result.action.type.value)
                     execution_at = time.time()
                     plan = self.translator.translate(result.action, state)
+                    if plan is None or not plan.points:
+                        if not self._wait_or_stop(
+                            frame.image, "action_plan_unavailable", self.settings.loop.action_timeout_s,
+                        ):
+                            break
+                        continue
                     if result.action.type is ActionType.PLAY_CARD:
                         card = next((c for c in state.hand
                                      if c.index == result.action.card_index), None)
@@ -472,6 +426,8 @@ class Engine:
                             scale=asdict(self._scale),
                         )
                     clicks = self._execute(plan)
+                    report("input_sent", action=result.action.type.value, inputs=clicks,
+                           decision_reason=result.reason)
                     self._report_wait(
                         "action_result" if clicks else (
                             "enemy_turn" if state.ui_state is UIState.ENEMY_TURN else "no_action"
@@ -481,7 +437,6 @@ class Engine:
                         execution_ms=round((time.time() - execution_at) * 1000),
                     )
                     if clicks and result.action.type is not ActionType.NO_OP:
-                        self._confirmed_zero_mana = False
                         timeout = self.settings.loop.action_timeout_s
                         if (result.action.type is ActionType.CONFIRM
                                 and (self._staged_play is not None
@@ -523,20 +478,63 @@ class Engine:
                 self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
 
-    def _report_wait(self, reason: str, wait_s: float, **details) -> None:
-        """重复帧沿用首次等待期限，不能靠轮询延后停滞判定。"""
-        if current_session() is None:
-            return
-        now = time.time()
-        deadline = self._wait_deadlines.setdefault(reason, now + wait_s)
-        remaining = deadline - now
-        report("waiting", reason, wait_s=remaining if remaining > 0 else None,
-               wait_until=deadline, **(self._observation | details))
+    @staticmethod
+    def _missing_action_evidence(action: Action, state: GameState) -> list[str]:
+        """只校验当前动作的必要证据；血量和无关手牌不作全局门槛。"""
+        if action.type is ActionType.ATTACK:
+            if (state.ui_state is not UIState.MY_TURN_IDLE or not state.has_attack_token
+                    or not any(unit.can_attack for unit in state.my_units)):
+                return ["attack_priority"]
+        if action.type in (ActionType.END_TURN, ActionType.PASS):
+            if state.ui_state is not UIState.MY_TURN_IDLE:
+                return ["my_turn"]
+        if action.type is not ActionType.PLAY_CARD:
+            return []
+        if state.ui_state is not UIState.MY_TURN_IDLE:
+            return ["my_turn"]
+        if not state.hand_expanded:
+            return [] if state.hand else ["hand"]
+        card = next((card for card in state.hand if card.index == action.card_index), None)
+        if card is None or not card.drag_point_valid:
+            return ["card_position"]
+        if card.cost < 0:
+            return ["card_cost"]
+        if card.cost == 0:
+            return []
+        if action.raw.get("spell_mana_only"):
+            if (state.has_fresh_readings("spell_mana") and state.spell_mana is not None
+                    and card.cost <= state.spell_mana):
+                return []
+            return ["spell_mana"]
+        if not state.has_fresh_readings("mana"):
+            return ["mana"]
+        available = state.mana + (
+            state.spell_mana if state.has_fresh_readings("spell_mana")
+            and state.spell_mana is not None else 0
+        )
+        return [] if card.cost <= available else ["affordable_cost"]
+
+    def _report_wait(self, reason: str, wait_s: float, **details) -> float:
+        """核心以单调时钟计时，CLI 接收对应的墙钟截止时间。"""
+        now = time.monotonic()
+        deadline, wait_until = self._wait_deadlines.setdefault(reason, (now + wait_s, time.time() + wait_s))
+        remaining = max(0.0, deadline - now)
+        report("waiting", reason, wait_s=remaining,
+               wait_until=wait_until, **(self._observation | details))
+        return remaining
+
+    def _wait_or_stop(self, image, reason: str, wait_s: float, **details) -> bool:
+        if self._report_wait(reason, wait_s, **details) <= 0:
+            self._stop_details.update(details)
+            self._stop_snapshot(image, reason)
+            return False
+        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+        return True
 
     def _stop_snapshot(self, image, reason: str) -> None:
         path = save_snapshot(image, self.settings.perception.snapshot_dir, tag=reason)
         self.result = LoopResult("stopped", reason)
-        self._stop_details = dict(snapshot=str(path) if path is not None else None)
+        self._stop_details.update(snapshot=str(path) if path is not None else None)
         report("stopped", reason, **self._observation, **self._stop_details)
 
     @staticmethod

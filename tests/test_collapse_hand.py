@@ -23,11 +23,11 @@ def test_collapse_only_from_idle_expanded_and_requires_verified_result():
     assert ActionOutcome(action, before, 10).observe(after, 1).status is OutcomeStatus.SUCCEEDED
 
 
-def test_board_inspection_attacks_without_reexpanding_or_ending_empty_board():
+def test_board_inspection_attacks_or_ends_turn_without_reexpanding():
     router = Router([ExpandHandPolicy(), AttackWhenTokenPolicy()])
     state = GameState(ui_state=UIState.MY_TURN_IDLE, has_attack_token=True,
                       hand=[CardInHand(0, '', 1, Rect(0, 0, 10, 10))],
                       my_units=[Unit('', 1, 1, Rect(500, 850, 50, 50))])
     assert router.decide(state, suppress_hand_expansion=True).action.type is ActionType.ATTACK
     state.my_units.clear()
-    assert router.decide(state, suppress_hand_expansion=True).action.type is ActionType.NO_OP
+    assert router.decide(state, suppress_hand_expansion=True).action.type is ActionType.END_TURN

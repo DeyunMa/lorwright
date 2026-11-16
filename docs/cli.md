@@ -1,6 +1,6 @@
 # CLI 运行与排障
 
-CLI 是当前的人和 Agent 入口。先查询运行状态与事件；需要定位视觉问题时，再查看事件引用的截图。所有命令均在运行程序的同一台电脑、同一个项目目录中执行；这里没有远程控制服务。
+CLI 是当前的人和 Agent 入口，提供启动、参数、观测与停止；启动后由 `core/` 自主识别、决策、执行、验证和推进。Agent 在开发期根据证据补能力，不作为逐动作调度器。先查询运行状态与事件；需要定位视觉问题时，再查看事件引用的截图。所有命令均在运行程序的同一台电脑、同一个项目目录中执行；这里没有远程控制服务。GUI 待整体能力稳定后再做。
 
 ## 基础层与英雄层
 
@@ -56,9 +56,10 @@ ADB 在线后还要等待 Android 完成启动及游戏包可查询，再启动�
 `stopped / login_required`，由用户完成登录后重新启动；该选项不填写账号密码。
 按钮无法核实返回 `login_button_unverified`，跳转无法核实返回
 `login_transition_unverified`，都不会重复点击。其他画面交给冒险循环
-识别，未知画面不能盲点。独立部署需要读取其他目录的配置时，可在启动命令前设置
+识别，未知画面不能盲点。f1 正式工作区为 `C:\Code\lorwright`，本轮未连接核对；
+旧部署和备份已清理，历史路径不保证存在。需要读取指定配置文件时，可在启动命令前设置
 `LORWRIGHT_ENV_FILE`，例如 PowerShell 中执行
-`$env:LORWRIGHT_ENV_FILE = 'C:\Users\Administrator\lorwright\.env'`。
+`$env:LORWRIGHT_ENV_FILE = 'C:\Code\lorwright\.env'`（先确认该文件实际存在）。
 未设置时仍读取当前目录的 `.env`；已设置的环境变量优先，指定文件不存在时会报错。
 `--bootstrap-f1` 不适用于
 回放或 desktop。计划任务触发成功不等于模拟器或游戏已准备就绪。
@@ -69,7 +70,7 @@ ADB 在线后还要等待 Android 完成启动及游戏包可查询，再启动�
 后续画面仍由冒险循环识别。当前 ADB 文本输入支持可打印 ASCII（`%` 除外）；
 其他字符会以 `login_credentials_unsupported` 停止。凭据通过标准输入传给 ADB，
 不会放在宿主机的 ADB 进程参数中；会话事件和日志不记录凭据。Android 内的输入
-命令仍会短暂携带文本。此流程尚未实机验证。
+命令仍会短暂携带文本。真实账号自动登录尚未实机验证；已有实机记录只证明接管运行中的模拟器/游戏并进入 Riot 表单，模拟器关闭后的完整冷启动也未验收。
 
 Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果宿主作业禁止
 进程脱离，启动会失败并保留诊断，应改用支持脱离的交互环境或前台运行。
@@ -85,7 +86,9 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 | `run_id` / `pid` | 本次运行身份与进程；不要仅凭 PID 判断是否有进展 |
 | `status` | `starting`、`running`，或 `completed / stopped / cancelled / failed` 终态 |
 | `phase` / `reason` | 当前步骤、等待原因或最终停止原因；英文值用于稳定机器判断 |
+| `message` | 当前阶段或停止原因的中文说明；机器判断仍使用 `phase` / `reason` |
 | `details` | 读到的 UI、观察轮数、动作、策略或异常等上下文，以实际阶段为准 |
+| `last_decision` | 最近一次 `decided` 的 `action`、`strategy`、`decision_reason`、`unknown_cards`，供后续等待/执行阶段追溯 |
 | `heartbeat_age_s` | 距离运行观测线程最后一次心跳的时间 |
 | `last_progress_age_s` | 距离上次报告可见进展的时间；心跳和重复截图不会刷新它 |
 | `wait_reason` / `wait_phase` / `wait_deadline` | 保留当前等待的原因、阶段和截止时间；截图采集中也能查询 |
@@ -103,6 +106,30 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 4. `cancelled`：确认请求确已到安全点生效。
 
 `completed / battle_end` 只说明单场战斗出现结束画面，不证明战斗获胜或整个冒险通关。`tick_limit / node_limit / iteration_limit` 表示调用预算耗尽。`adventure --max-nodes` 是外层观察轮数的上限，不能当作已完成的节点数。
+
+## 决策、局部未知与阻塞
+
+`None` 表示策略弃权，后续策略继续；`NO_OP` 表示当前确需等待。未知牌可以跳过，英雄或组合优先不能无限阻塞已知动作；不要求所有新卡提前建档。程序只限制依赖未知信息的动作，不能凭费用猜未知交互。读数要求应与动作匹配，例如支付能力和攻击所需依据不同。
+
+本轮代码已在 `decided` 阶段报告 `action`、`strategy`、`decision_reason` 和 `unknown_cards`（未识别牌名的手牌索引，不代表这些牌都阻塞）；输入完成通过 `input_sent` 阶段记录。动作前提不足时，等待/停止原因是 `action_preconditions_unverified`，并给出 `missing_readings`；它也可能包含位置或优先权等非数字前提。停止时通过 `snapshot` 提供截图引用，状态侧同时保留 `last_snapshot`。阶段上下文在 `phase` 事件的 `payload` 与状态 `details` 中；状态另用顶层 `last_decision` 保存最近决策，并用 `message` 提供中文说明。
+
+人读 `sessions status RUN_ID` 汇总生命周期/健康、当前说明、最近决策、等待剩余时间、截图与事件游标。人读 `sessions events` 隐藏低层轮询及重复阶段说明，但每次实际输入和结果验证仍保留；加 `--verbose` 显示完整原始事件。`--json` / `--jsonl` 保持结构化输出，JSONL 不过滤或去重，`schema_version=1` 的事件信封不变，说明字段为增量扩展。
+
+核心等待与停止原因如下；停止不依赖外部查询：
+
+| 原因 | 含义与期限 |
+|---|---|
+| `unknown_ui` / `no_action` | 当前界面未知或策略明确等待；期限为 `loop.action_timeout_s` |
+| `unknown_target` | 已进入目标选择但要求未知；有界重识别，期限内不猜目标 |
+| `action_preconditions_unverified` | 所选动作缺少必要证据；在 `missing_readings` 列出缺失项，期限为 `loop.action_timeout_s` |
+| `action_plan_unavailable` | 无法生成有效输入计划；期限为 `loop.action_timeout_s` |
+| `stale_frame` / `frame_expired_during_decision` | 重新截图，持续过期达到 `loop.max_frame_age_s` 后停止 |
+| `enemy_turn` | 等待对手，最长 60 秒；超过观察预算不等于已证明网络故障 |
+| `action_timeout` | 输入已发出，但在动作观察期限内未验证结果；保存证据并停止，结束回合也不自动重发 |
+
+核心用单调时钟限制等待；重复轮询不延长期限。已验证的动作结果或新的已识别场景可开启新观察窗口。法术/战斗确认后的观察期限至少为 20 秒；其他输入使用配置的动作期限。`health=stalled` 是观测状态，与 `status=stopped` 终态分别读取，不能把健康提示当作已经停止。以上已通过本轮离线测试，实机范围见 [`status.md`](status.md)。
+
+弃牌目前是单次选择后保存采样截图并停止，尚未闭环确认和转场。遇到相关停止原因应查看证据、补程序能力；重新启动前重新核实当前交互，不能将采样停止解释为弃牌完成。更多实现限制见 [`status.md`](status.md)。
 
 ## 前台与离线回放
 

@@ -123,12 +123,13 @@ def test_rank_playable_filters_by_mana():
     assert [item[1].name for item in ranked] == ["蜘蛛哨兵"]
 
 
-def test_rank_playable_keeps_unknown_cards():
-    """感知层识别出错字时不能崩，也不能把牌丢掉。"""
-    state = GameState(mana=5, hand=[hand(0, "某张没见过的牌", 2)])
+@pytest.mark.parametrize("unit_evidence", [True, False])
+def test_unknown_card_requires_unit_evidence_but_does_not_block_known_cards(unit_evidence):
+    unknown = CardInHand(0, "某张没见过的牌", 2, RECT, visible_playable_unit=unit_evidence)
+    state = GameState(mana=5, hand=[unknown, hand(1, "蜘蛛哨兵", 3)])
     ranked = rank_playable(state)
-    assert len(ranked) == 1
-    assert ranked[0][1].name == "某张没见过的牌"
+    assert any(item[0].index == 0 for item in ranked) is unit_evidence
+    assert any(item[0].index == 1 for item in ranked)
 
 
 # ---------- 单位转换 ----------

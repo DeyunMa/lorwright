@@ -85,4 +85,4 @@ def test_jinx_empty_hand_routes_attack_before_end_turn():
     result = router.decide(replace(state, has_attack_token=False))
     assert (result.layer, result.action.type) == ("fallback", ActionType.END_TURN)
     result = router.decide(replace(state, hand_empty_confirmed=False))
-    assert (result.layer, result.action.type) == ("jinx_opening", ActionType.NO_OP)
+    assert (result.layer, result.action.type) == ("attack_when_token", ActionType.ATTACK)

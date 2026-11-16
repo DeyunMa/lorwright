@@ -50,9 +50,9 @@ def _best(region: np.ndarray, choices: tuple[tuple[str, str], ...]) -> str | Non
     return scores[0][1]
 
 
-def _power_quality(image: np.ndarray, x: int) -> str | None:
+def _power_quality(image: np.ndarray, x: int, *, y: int = 584, width: int = 290) -> str | None:
     """品质文字模板与颜色须一致，不从能力插画推断品质。"""
-    region = image[584:610, x:x + 290]
+    region = image[y:y + 26, x:x + width]
     quality = _best(cv2.cvtColor(region, cv2.COLOR_BGR2GRAY), (
         ("rarity_legendary", "legendary"), ("rarity_epic", "epic"),
         ("rarity_rare", "rare"), ("rarity_common", "common"),

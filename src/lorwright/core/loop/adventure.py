@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.act.translate import ActionTranslator
-from lorwright.core.decide.adventure import pick_lowest_weekly, pick_map_node
+from lorwright.core.decide.adventure import pick_affordable_power, pick_lowest_weekly, pick_map_node
 from lorwright.core.decide.rewards import pick_card_reward, pick_hero_item_reward, pick_reward
 from lorwright.core.decide.support import pick_support_group
 from lorwright.core.device.base import Device
@@ -42,6 +42,18 @@ from lorwright.core.perceive.adventure_scene import (
     reward_timeout_continue,
     shop_leave_button,
     weekly_detail_stars,
+)
+from lorwright.core.perceive.astrologer import (
+    SLOTS as ASTROLOGER_SLOTS,
+)
+from lorwright.core.perceive.astrologer import (
+    astrologer_buy_button,
+    astrologer_gold,
+    astrologer_leave_button,
+    astrologer_offers,
+    astrologer_selection,
+    is_astrologer,
+    same_astrologer_offers,
 )
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
@@ -230,6 +242,11 @@ class AdventureLoop:
                     image = self._frame()
                 if pending_image is not None:
                     continue
+            if is_astrologer(image):
+                self._scene("astrologer")
+                if not self._handle_astrologer(image):
+                    return
+                continue
             if shop_leave_button(image) is not None:
                 self._scene("shop")
                 if not self._handle_shop(image):
@@ -498,7 +515,7 @@ class AdventureLoop:
 
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""
-        if (shop_leave_button(image) is not None or self._is_healer(image)
+        if (is_astrologer(image) or shop_leave_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)
                 or self._is_hero_item_reward(image)
                 or is_power_screen(image) or is_battle_detail(image) or is_map(image)):
@@ -671,6 +688,61 @@ class AdventureLoop:
     def _is_healer(self, image) -> bool:
         normalized = self._reward_design(image)
         return normalized is not None and is_healer_screen(normalized[0])
+
+    def _leave_astrologer(self, image) -> bool:
+        button = astrologer_leave_button(image)
+        if button is None:
+            self._snapshot(image, tag="astrologer_leave_missing")
+            return False
+        self._tap(*button.center)
+        for _ in range(6):
+            self._wait(2, reason="astrologer_leave", wait_s=12)
+            after = self._frame()
+            if is_map(after) and not panel_open(after):
+                report("verified", "astrologer_map_transition", progress=True)
+                return True
+        self._snapshot(after, tag="astrologer_leave_unverified")
+        return False
+
+    def _handle_astrologer(self, image) -> bool:
+        offers = astrologer_offers(image)
+        gold = astrologer_gold(image)
+        selection = astrologer_selection(image)
+        if offers is None or gold is None or selection is None:
+            self._snapshot(image, tag="astrologer_unknown")
+            return False
+        index = pick_affordable_power(offers, gold)
+        if index is None:
+            return self._leave_astrologer(image)
+        if selection == -1:
+            self._tap(ASTROLOGER_SLOTS[index] + 135, 350)
+            self._wait(2, reason="astrologer_select", wait_s=12)
+            selected = self._frame()
+        else:
+            selected = image
+        if (astrologer_selection(selected) != index or astrologer_gold(selected) != gold
+                or not same_astrologer_offers(image, selected)):
+            self._snapshot(selected, tag="astrologer_selection_unverified")
+            return False
+        button = astrologer_buy_button(selected)
+        if button is None:
+            self._snapshot(selected, tag="astrologer_buy_missing")
+            return False
+        report("verified", "astrologer_selected", progress=True, selection=index,
+               recommendation_quality=offers[index].quality, price=offers[index].cost, gold=gold)
+        self._tap(*button.center)
+        # 购买只发送一次；以本帧金币的精确扣减核验，不根据按钮点击猜到账。
+        expected_gold = gold - offers[index].cost
+        for _ in range(6):
+            self._wait(2, reason="astrologer_purchase", wait_s=12)
+            after = self._frame()
+            if astrologer_gold(after) == expected_gold:
+                report("verified", "astrologer_currency_paid", progress=True,
+                       selection=index, price=offers[index].cost, gold=expected_gold,
+                       reward_credited_verified=False)
+                return self._leave_astrologer(after)
+        self._snapshot(after, tag="astrologer_purchase_unverified")
+        return False
 
     def _handle_shop(self, image) -> bool:
         """按当前通用规则离开商店，核实返回地图后继续。"""
@@ -866,6 +938,8 @@ class AdventureLoop:
         """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
         if image is None:
             image = self._frame()
+        if is_astrologer(image):
+            return self._handle_astrologer(image)
         if shop_leave_button(image) is not None:
             return self._handle_shop(image)
         if self._is_healer(image):
@@ -913,6 +987,8 @@ class AdventureLoop:
             # 看到可识别的场景再交给对应处理，超时仍未知则停止。
             for attempt in range(11):
                 image = self._frame()
+                if is_astrologer(image):
+                    return self._handle_astrologer(image)
                 if shop_leave_button(image) is not None:
                     return self._handle_shop(image)
                 if self._is_healer(image):

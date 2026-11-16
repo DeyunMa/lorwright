@@ -4,7 +4,18 @@ import math
 import random
 from collections.abc import Sequence
 
+from lorwright.core.decide.rewards import QUALITY_RANK, RewardCandidate
 from lorwright.core.models import MapNodeKind
+
+
+def pick_affordable_power(candidates: Sequence[RewardCandidate], gold: int) -> int | None:
+    """占星家只比较可负担能力的品质；同品质优先便宜，不重抽。"""
+    if gold < 0 or any(c.cost is None or c.cost < 0 or c.quality not in QUALITY_RANK
+                       for c in candidates):
+        return None
+    affordable = [i for i, candidate in enumerate(candidates) if candidate.cost <= gold]
+    return min(affordable, key=lambda i: (-QUALITY_RANK[candidates[i].quality],
+                                        candidates[i].cost, i)) if affordable else None
 
 
 def pick_map_node(kinds: Sequence[MapNodeKind | None], *, rng: random.Random) -> int | None:

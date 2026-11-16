@@ -210,6 +210,42 @@ def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, 
         assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
 
 
+def test_astrologer_is_a_recognized_adventure_successor(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-astrologer-20261116.png"))
+    assert image is not None
+    loop, _, _, _, _ = adventure([image], [])
+    assert loop._recognized_after_home(image)
+
+
+@pytest.mark.parametrize("transition", [True, False])
+def test_astrologer_buys_once_and_requires_exact_payment_before_leaving(adventure, transition):
+    from test_astrologer import image, paid_frame, selected_frame
+
+    before, selected = image(), selected_frame()
+    after = paid_frame() if transition else selected
+    map_image = _img("f1-weekly-after-second-reward-20261116.png")
+    frames = [selected, after, map_image] if transition else [selected] * 7
+    loop, device, _, saved, _ = adventure(frames, [])
+    assert loop._handle_astrologer(before) is transition
+    assert device.taps[:2] == [(1764, 350), (1440, 1005)]
+    if transition:
+        assert device.taps[2:] == [(752, 953)]
+        assert saved == []
+    else:
+        assert len(device.taps) == 2
+        assert saved == ["astrologer_purchase_unverified"]
+
+
+def test_astrologer_unknown_selection_never_purchases(adventure):
+    from test_astrologer import image
+
+    before = image()
+    loop, device, _, saved, _ = adventure([before], [])
+    assert not loop._handle_astrologer(before)
+    assert device.taps == [(1764, 350)]
+    assert saved == ["astrologer_selection_unverified"]
+
+
 def test_no_next_node_saves_snapshot_and_stops(adventure):
     # 空白画面不能识别为地图 → 快照 + 停止，不点击任何东西
     loop, device, engine, saved, coords = adventure([_blank()], [UIState.UNKNOWN])

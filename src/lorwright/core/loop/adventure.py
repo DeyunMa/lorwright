@@ -67,7 +67,11 @@ from lorwright.core.perceive.mapnav import (
 )
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.panels import action_button
-from lorwright.core.perceive.result_screen import is_adventure_victory, result_screen
+from lorwright.core.perceive.result_screen import (
+    is_adventure_victory,
+    is_task_reward,
+    result_screen,
+)
 from lorwright.core.perceive.revive_screen import find_revive_button
 from lorwright.core.perceive.reward_screen import (
     card_reward_confirm_button,
@@ -169,6 +173,12 @@ class AdventureLoop:
             if normalized is not None and is_adventure_victory(normalized[0]):
                 self._complete_adventure(image)
                 return
+            if normalized is not None and is_task_reward(normalized[0]):
+                self._scene("task_reward")
+                pending_image = self._handle_task_reward(image)
+                if pending_image is None:
+                    return
+                continue
             if self.sample_hero_item_jinx:
                 if normalized is not None:
                     design, scale = normalized
@@ -236,6 +246,9 @@ class AdventureLoop:
                     if design is not None and is_adventure_victory(design[0]):
                         self._complete_adventure(image)
                         return
+                    if design is not None and is_task_reward(design[0]):
+                        pending_image = image
+                        break
                     post_battle_ui = self.engine.parser.ui.detect(
                         design[0] if design is not None else image
                     )
@@ -530,6 +543,31 @@ class AdventureLoop:
             if not self._handle_node_panel():
                 return
 
+    def _handle_task_reward(self, image):
+        button = find_continue_button(image)
+        if button is None:
+            self._snapshot(image, tag="task_reward_continue_missing")
+            return None
+        self._tap(*button.center)
+        for _ in range(6):
+            self._wait(2, reason="task_reward_transition", wait_s=12)
+            after = self._frame()
+            normalized = self._reward_design(after)
+            if normalized is None:
+                continue
+            if is_task_reward(normalized[0]):
+                # 新任务也可用同位置按钮；内容未变化时只观察，不重复点击。
+                if np.mean(cv2.absdiff(_continue_view(after), _continue_view(image))) < 15:
+                    continue
+            elif not (self._recognized_after_home(after)
+                      or find_home_adventure_entry(normalized[0]) is not None
+                      or self.engine.parser.ui.detect(normalized[0]) is UIState.BATTLE_END):
+                continue
+            report("verified", "task_reward_transition", progress=True, **self._details)
+            return after
+        self._snapshot(after, tag="task_reward_transition_unverified")
+        return None
+
     def _complete_adventure(self, image) -> None:
         self._scene("adventure_victory")
         path = snapshot.save_snapshot(
@@ -541,7 +579,8 @@ class AdventureLoop:
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""
         normalized = self._reward_design(image)
-        if normalized is not None and is_adventure_victory(normalized[0]):
+        if normalized is not None and (is_adventure_victory(normalized[0])
+                                       or is_task_reward(normalized[0])):
             return True
         if (is_power_vendor(image) or shop_leave_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)

@@ -7,7 +7,11 @@ import pytest
 
 from lorwright.core.models import UIState
 from lorwright.core.perceive.buttons import find_continue_button
-from lorwright.core.perceive.result_screen import is_adventure_victory, result_screen
+from lorwright.core.perceive.result_screen import (
+    is_adventure_victory,
+    is_task_reward,
+    result_screen,
+)
 from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path("tests/fixtures/continue")
@@ -63,6 +67,22 @@ def test_adventure_victory_requires_all_three_visible_labels(name):
         obscured = image.copy()
         obscured[y1:y2, x1:x2] = 0
         assert not is_adventure_victory(obscured)
+
+
+def test_task_reward_requires_fixed_title_and_icon_not_task_or_prize():
+    image = _load("f1-task-completed-20261116.png")
+    assert is_task_reward(image)
+    assert not is_task_reward((image * 0.6).astype("uint8"))
+    assert not is_task_reward(image[:540, :960])
+    for bounds in ((183, 84, 737, 159), (69, 89, 180, 210)):
+        obscured = image.copy()
+        x1, y1, x2, y2 = bounds
+        obscured[y1:y2, x1:x2] = 0
+        assert not is_task_reward(obscured)
+    image[160:, 185:] = 0  # 抹去任务名、奖励种类/数量及按钮，不影响页面身份。
+    assert is_task_reward(image)
+    assert not is_task_reward(_load("f1-missions-20261115.png"))
+    assert not is_task_reward(_load("f1-adventure-victory-20261116.png"))
 
 
 def test_adventure_victory_does_not_depend_on_hero_grade_name_or_values():

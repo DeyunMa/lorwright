@@ -174,6 +174,42 @@ def test_reward_timeout_unknown_transition_stops_without_repeating(adventure):
 
 
 @pytest.mark.parametrize("awaiting_reward", [False, True])
+def test_optional_task_reward_clicks_once_then_resumes(adventure, awaiting_reward):
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    assert task is not None and victory is not None
+    loop, device, engine, saved, _ = adventure([task, task, victory], [UIState.UNKNOWN] * 3)
+    loop._awaiting_battle_reward = awaiting_reward
+    result = loop.run(max_nodes=2)
+    assert result == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 960) < 15
+    assert abs(device.taps[0][1] - 954) < 15
+    assert engine.run_calls == []
+    assert saved == ["adventure_victory"]
+
+
+@pytest.mark.parametrize("unchanged", [False, True])
+def test_task_reward_unknown_or_unchanged_successor_does_not_repeat(adventure, unchanged):
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    assert task is not None
+    loop, device, _, saved, _ = adventure([task] + [task if unchanged else _blank()] * 6, [])
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert saved == ["task_reward_transition_unverified"]
+
+
+def test_task_reward_without_button_does_not_tap(adventure):
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    assert task is not None
+    task[900:] = 0
+    loop, device, _, saved, _ = adventure([task], [])
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["task_reward_continue_missing"]
+
+
+@pytest.mark.parametrize("awaiting_reward", [False, True])
 def test_adventure_victory_completes_instead_of_waiting_for_reward(adventure, awaiting_reward):
     image = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
     assert image is not None

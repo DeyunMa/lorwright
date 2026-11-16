@@ -26,6 +26,14 @@ def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
                 and float(patch[bright].mean()) >= float(template[bright].mean()) * 0.8)
 
 
+def is_task_reward(image: np.ndarray) -> bool:
+    """随机任务完成插页；任务名称、奖励种类和数量均可变化。"""
+    if image.shape != (1080, 1920, 3):
+        return False
+    return (_visible(image, "task_completed_title", (183, 84, 737, 159))
+            and _visible(image, "task_completed_icon", (69, 89, 180, 210)))
+
+
 def is_adventure_victory(image: np.ndarray) -> bool:
     """最终胜利页须同时具有胜利和两项完成时间标签，不依赖英雄、评级或数值。"""
     if image.shape != (1080, 1920, 3):

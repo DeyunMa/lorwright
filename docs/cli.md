@@ -115,6 +115,8 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 
 人读 `sessions status RUN_ID` 汇总生命周期/健康、当前说明、最近决策、等待剩余时间、截图与事件游标。人读 `sessions events` 隐藏低层轮询及重复阶段说明，但每次实际输入和结果验证仍保留；加 `--verbose` 显示完整原始事件。`--json` / `--jsonl` 保持结构化输出，JSONL 不过滤或去重，`schema_version=1` 的事件信封不变，说明字段为增量扩展。
 
+任务完成奖励是随机出现的可选插页。程序以固定标题和图标识别，任务名称和奖励内容可变化；出现才处理，识别“繼續”后单次点击并有界等待后继，不要求固定顺序。原页不变或后继未知会以 `task_reward_transition_unverified` 保存截图停止；缺少按钮为 `task_reward_continue_missing`。
+
 卡牌奖励选择新增 `reward_decision` 事件，记录所有候选的 `slot`（从 0 开始）、名称、`preview_cost`、品质，以及选中项和理由。奖励页停止时新增一次 `perception_diagnostic`，记录预期场景、截图、实际匹配分数、阈值和失败检查项；同一证据也放在状态 `details.recognition_diagnostic`，人读状态直接显示摘要。当前诊断覆盖页面标题、副标题和选择按钮；若页面检查均通过而候选或后验失败，仍须结合原停止原因及截图判断。
 
 可用 `sessions events RUN_ID --after SEQ` 增量读取；`--jsonl` 保留完整结构，`sessions status RUN_ID --json` 提供当前状态。诊断只读，不改变动作前提，也不会重复点击。

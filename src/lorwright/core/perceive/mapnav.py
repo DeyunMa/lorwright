@@ -414,6 +414,13 @@ def _navigation_origin(
     diamonds = [candidate for candidate in nearby if candidate.shape == "diamond"]
     if diamonds:
         return diamonds[0] if len(diamonds) == 1 else None
+    completed_rounds = [candidate for candidate in nearby if candidate.shape == "round"
+                        and _checkmark_visible(image, (
+                            candidate.node.x - 35, candidate.node.y - 30,
+                            candidate.node.x + 36, candidate.node.y + 31,
+                        ))]
+    if completed_rounds:
+        return completed_rounds[0] if len(completed_rounds) == 1 else None
     completed = _current_completed_node_visible(image, hero)
     if not (completed or _current_node_halo_visible(image, hero)):
         return None
@@ -449,11 +456,13 @@ def _diamond_target_visible(image: np.ndarray, node: MapNode) -> bool:
 
 
 def _unlocked_unfinished_center(image: np.ndarray, node: MapNode) -> bool:
+    """原视角与实拍放大 1.3 倍的锁都须拒绝，完成勾沿用独立检查。"""
     x, y = node.center
     lock = _map_lock_template()
     center = cv2.cvtColor(image[y - 30:y + 31, x - 30:x + 31], cv2.COLOR_BGR2GRAY)
     return (lock is not None and center.shape == (61, 61)
-            and cv2.matchTemplate(center, lock, cv2.TM_CCOEFF_NORMED).max() < 0.8
+            and all(cv2.matchTemplate(center, reference, cv2.TM_CCOEFF_NORMED).max() < 0.8
+                    for reference in (lock, cv2.resize(lock, None, fx=1.3, fy=1.3)))
             and not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31)))
 
 
@@ -696,11 +705,7 @@ def _current_battle_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bo
     orange = (red > 140) & (red - green > 30) & (green - blue > 10) & (green > 45)
     bright_halo = (blue > 220) & (green > 200) & (blue - red > 35)
     center = cv2.cvtColor(image[y - 5:y + 5, x - 5:x + 5], cv2.COLOR_BGR2GRAY)
-    lock = _map_lock_template()
-    if lock is None:
-        return False
-    center_region = cv2.cvtColor(image[y - 30:y + 30, x - 30:x + 30], cv2.COLOR_BGR2GRAY)
-    if cv2.matchTemplate(center_region, lock, cv2.TM_CCOEFF_NORMED).max() >= 0.8:
+    if not _unlocked_unfinished_center(image, MapNode(x, y, 48)):
         return False
     return (float(orange[lower_ring].mean()) >= 0.04
             and int(bright_halo.sum()) >= 200 and float(center.std()) >= 5)
@@ -779,9 +784,7 @@ def _lit_unfinished_ring(
     component = labels[y - extent:y + extent + 1, x - extent:x + extent + 1] == label
     if int(np.count_nonzero(component & annulus & cyan)) < min_connected_cyan:
         return False
-    lock = _map_lock_template()
-    center_region = cv2.cvtColor(image[y - 30:y + 30, x - 30:x + 30], cv2.COLOR_BGR2GRAY)
-    if lock is None or cv2.matchTemplate(center_region, lock, cv2.TM_CCOEFF_NORMED).max() >= 0.8:
+    if not _unlocked_unfinished_center(image, MapNode(x, y, radius)):
         return False
     center_gray = cv2.cvtColor(image[y - 10:y + 10, x - 10:x + 10], cv2.COLOR_BGR2GRAY)
     if float(center_gray.std()) < 12 or float(center_gray[5:15, 5:15].std()) < 5:
@@ -798,7 +801,7 @@ def _lit_unfinished_ring(
     count, _, stats, _ = cv2.connectedComponentsWithStats((variance < 0.01).astype(np.uint8))
     if count > 1 and int(stats[1:, cv2.CC_STAT_AREA].max()) >= 400:
         return False
-    return not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31))
+    return True
 
 
 def next_node_by_path(

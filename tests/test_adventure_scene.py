@@ -64,6 +64,30 @@ def test_partially_obscured_zoom_control_is_not_authorized(bounds):
     assert not is_map(image)
 
 
+@pytest.mark.parametrize("jpeg", [False, True])
+def test_zoomed_live_map_controls_are_recognized(jpeg):
+    image = _image("mapnav/f1-after-gold-zoomed-map-20261117.png")
+    if jpeg:
+        ok, encoded = cv2.imencode(".jpg", image)
+        assert ok
+        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    assert is_map(image)
+
+
+@pytest.mark.parametrize("damage", ["plus", "minus", "back", "dimmed"])
+def test_zoomed_live_map_requires_visible_controls(damage):
+    image = _image("mapnav/f1-after-gold-zoomed-map-20261117.png")
+    if damage == "plus":
+        image[275:310, 1805:1840] = 0
+    elif damage == "minus":
+        image[370:390, 1805:1840] = 0
+    elif damage == "back":
+        image[60:110, 75:125] = 0
+    else:
+        image = cv2.convertScaleAbs(image, alpha=0.5)
+    assert not is_map(image)
+
+
 def test_resume_adventure_recognizes_button_and_selected_jinx():
     image = _image("screens/f1-adventure-resume-20261114.png")
     button = find_resume_adventure_button(image)

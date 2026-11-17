@@ -32,6 +32,38 @@ def _load(name: str) -> np.ndarray:
 
 
 @pytest.mark.parametrize("jpeg", [False, True])
+def test_zoomed_route_uses_visible_completed_node(jpeg):
+    image = _load("f1-after-gold-zoomed-map-20261117.png")
+    if jpeg:
+        ok, encoded = cv2.imencode(".jpg", image)
+        assert ok
+        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert math.hypot(nodes[0].x - 1062, nodes[0].y - 331) < 20
+
+
+@pytest.mark.parametrize("damage", ["hero", "origin", "target", "cut", "lock"])
+def test_zoomed_route_requires_origin_line_and_unlocked_target(damage):
+    image = _load("f1-after-gold-zoomed-map-20261117.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "hero":
+        hero = None
+    elif damage == "origin":
+        image[490:585, 910:1010] = 0
+    elif damage == "target":
+        image[260:405, 990:1135] = 0
+    elif damage == "cut":
+        image[395:425, 1008:1042] = 0
+    else:
+        image[301:362, 1032:1093] = image[263:324, 1532:1593]
+    assert reachable_nodes(image, hero=hero) == []
+
+
+@pytest.mark.parametrize("jpeg", [False, True])
 def test_short_avatar_occlusion_authorizes_zoom_but_not_node(jpeg):
     image = _load("f1-after-gold-map-20261117.png")
     if jpeg:

@@ -1853,17 +1853,21 @@ def test_run_resumes_open_travel_panel_before_map_navigation(adventure, name, po
     assert saved == []
 
 
-def test_occluded_route_zooms_once_then_reparses_before_node_input(adventure):
-    # 实拍遮挡图与既有地图作合成缩放后继，不宣称真实连续缩放录像。
+@pytest.mark.parametrize("name, point", [
+    ("1080p_jinx_map.png", (982, 334)),
+    ("f1-after-gold-zoomed-map-20261117.png", (1062, 331)),
+])
+def test_occluded_route_zooms_once_then_reparses_before_node_input(adventure, name, point):
+    # 第一种后继为合成；第二种来自实际缩放，节点点击后继仍用重复地图模拟。
     before = _img("f1-after-gold-map-20261117.png")
-    fresh = _img("1080p_jinx_map.png")
+    fresh = _img(name)
     loop, device, _, saved, _ = adventure([before, fresh, fresh], [])
     loop.pack = load("jinx")
     loop.run(max_nodes=1)
     assert len(device.taps) == 2
     assert device.taps[0] == (1822, 297)
-    assert abs(device.taps[1][0] - 982) <= 20
-    assert abs(device.taps[1][1] - 334) <= 20
+    assert abs(device.taps[1][0] - point[0]) <= 20
+    assert abs(device.taps[1][1] - point[1]) <= 20
     assert saved == ["map_panel_not_open"]
 
 

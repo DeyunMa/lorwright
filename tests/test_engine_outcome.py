@@ -307,7 +307,10 @@ def test_jinx_summon_with_eight_collapsed_cards_advances_without_replaying(monke
     assert snapshots == []
 
 
-def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch):
+@pytest.mark.parametrize("filename", ["board-summoned-after-20261117.png",
+                                      "board-summoned-glow-20261117.png",
+                                      "board-summoned-badge-glow-20261117.png"])
+def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch, filename):
     from lorwright.core.champions.jinx import PACK
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
     from lorwright.core.config import load_settings
@@ -322,7 +325,7 @@ def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch):
     monkeypatch.setattr(parser.ui, "detect", lambda image: UIState.MY_TURN_IDLE)
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[830:1040, 760:1150] = cv2.imread(
-        "tests/fixtures/jinx/board-summoned-after-20261117.png",
+        "tests/fixtures/jinx/" + filename,
     )
     parsed = parser.parse(image)
     assert any(unit.name == "吉茵珂絲" for unit in parsed.my_units)

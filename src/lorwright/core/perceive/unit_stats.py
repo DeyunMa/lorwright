@@ -49,10 +49,13 @@ class UnitStatsReader:
         blue, green, red = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
         white = patch.min(axis=2) >= 170
         buffed = (green >= 180) & (red <= 120) & (blue <= 120)
-        digits = white | buffed
+        masks = [white, buffed]
         if health:
-            digits |= (red >= 180) & (green <= 80) & (blue <= 80)
-        return self._read_mask(digits.astype(np.uint8) * 255)
+            masks.append((red >= 180) & (green <= 80) & (blue <= 80))
+        # 字色分别分类，避免白色高亮和绿色数字拼成同一串；颜色读数冲突时弃权。
+        values = {value for mask in masks
+                  if (value := self._read_mask(mask.astype(np.uint8) * 255)) is not None}
+        return values.pop() if len(values) == 1 else None
 
     def _read_attack(self, image: np.ndarray, badge: Rect) -> int | None:
         return self.read_badge(image, badge)

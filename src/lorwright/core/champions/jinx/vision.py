@@ -69,7 +69,24 @@ def recognize_my_units(image: np.ndarray, units: list[Unit]) -> list[Unit]:
         x0, y0 = max(0, x - 65), max(0, y - 25)
         crop = image[y0:min(image.shape[0], y + 65), x0:min(image.shape[1], x + 55)]
         if crop.shape[0] >= template.shape[0] and crop.shape[1] >= template.shape[1]:
-            _, score, _, _ = cv2.minMaxLoc(cv2.matchTemplate(crop, template, cv2.TM_CCOEFF_NORMED))
+            _, score, _, _ = cv2.minMaxLoc(
+                cv2.matchTemplate(crop, template, cv2.TM_CCOEFF_NORMED),
+            )
+            if score < 0.95:
+                # 动态光效可能覆盖一个象限；其余四分之三须在同一位置匹配，
+                # 不把各处零散卡面拼成身份，也不降低原相关门槛。
+                h, w = template.shape[:2]
+                for row in range(2):
+                    for col in range(2):
+                        mask = np.ones((h, w), np.uint8)
+                        mask[row * h // 2:(row + 1) * h // 2,
+                             col * w // 2:(col + 1) * w // 2] = 0
+                        local = cv2.matchTemplate(
+                            crop, template, cv2.TM_CCOEFF_NORMED, mask=mask,
+                        )
+                        finite = local[np.isfinite(local)]
+                        if finite.size:
+                            score = max(score, float(finite.max()))
             if score >= 0.95:
                 unit = replace(unit, name="吉茵珂絲")
         result.append(unit)

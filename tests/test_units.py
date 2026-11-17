@@ -223,6 +223,39 @@ def test_covered_health_stays_unknown(shade):
     assert [unit.health for unit in units] == [-1, 6]
 
 
+@pytest.mark.parametrize("offset", [(0, 0), (130, 65)])
+def test_badge_glow_does_not_mix_with_green_health_digit(offset):
+    crop = cv2.imread(str(SCREENS.parent / "jinx" / "board-summoned-badge-glow-20261117.png"))
+    dx, dy = offset
+    image = np.zeros((400, 600, 3), np.uint8)
+    image[dy:dy + 210, dx:dx + 390] = crop
+    units = to_units(find_unit_badges(image, Rect(0, 0, 600, 400)), image=image)
+    assert [unit.attack for unit in units] == [1, 6]
+    from lorwright.core.perceive.unit_stats import UnitStatsReader
+
+    # 定位入口仍须核验成对数字；to_units 的独立生命框定位可能继续弃权。
+    assert UnitStatsReader().read_badge(
+        image, Rect(dx + 295, dy + 23, 56, 48), health=True,
+    ) == 7
+
+
+@pytest.mark.parametrize("colors,expected", [("white", 1), ("green", 7), ("both", None)])
+def test_stat_colors_must_agree_when_independently_readable(colors, expected):
+    from lorwright.core.perceive.unit_stats import UnitStatsReader
+
+    source = cv2.imread(str(SCREENS.parent / "jinx" / "board-summoned-badge-glow-20261117.png"))
+    white = source[28:66, 61:107].min(axis=2) >= 170
+    green_patch = source[28:66, 300:346]
+    blue, green, red = (green_patch[:, :, i] for i in range(3))
+    buffed = (green >= 180) & (red <= 120) & (blue <= 120)
+    image = np.zeros((48, 110, 3), np.uint8)
+    if colors in {"white", "both"}:
+        image[5:43, 5:51][white] = (255, 255, 255)
+    if colors in {"green", "both"}:
+        image[5:43, 57:103][buffed] = (0, 255, 0)
+    assert UnitStatsReader().read_badge(image, Rect(0, 0, 110, 48)) == expected
+
+
 def test_attack_token_detected() -> None:
     """有令牌：按钮左侧橙色箭头，实测最大连通域 8446px。"""
     from lorwright.core.perceive.attack_token import has_attack_token

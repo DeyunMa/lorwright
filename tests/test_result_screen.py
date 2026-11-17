@@ -42,11 +42,14 @@ def test_results_require_two_visible_features(name, expected):
     assert result_screen(image) is None
 
 
-def test_current_battle_result_crop_is_recognized_without_input():
+@pytest.mark.parametrize("filename", [
+    "f1-missions-after-battle-20261117.png", "f1-missions-next-battle-20261117.png",
+])
+def test_current_battle_result_crop_is_recognized_without_input(filename):
     import numpy as np
 
     image = np.zeros((1080, 1920, 3), np.uint8)
-    image[30:400, 30:1880] = cv2.imread(str(FIXTURES / "f1-missions-after-battle-20261117.png"))
+    image[30:400, 30:1880] = cv2.imread(str(FIXTURES / filename))
     assert result_screen(image) == "missions"
     assert UIStateDetector().detect(image) is UIState.BATTLE_END
     assert find_continue_button(image) is None

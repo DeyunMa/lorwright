@@ -28,6 +28,7 @@ from lorwright.core.decide.support import pick_support_group
 from lorwright.core.device.base import Device
 from lorwright.core.loop.engine import Engine
 from lorwright.core.loop.outcome import LoopResult
+from lorwright.core.loop.reconnect import ReconnectTimeout
 from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.adventure_scene import (
     button_is,
@@ -126,10 +127,11 @@ class AdventureLoop:
     }
 
     def __init__(self, settings, engine, device: Device, *, pack,
-                 sample_hero_item_jinx: bool = False) -> None:
+                 sample_hero_item_jinx: bool = False, capture_frame=None) -> None:
         self.settings = settings
         self.engine = engine
         self.device = device
+        self.capture_frame = capture_frame or (lambda: self.device.screencap())
         self.pack = pack
         self.sample_hero_item_jinx = sample_hero_item_jinx
         self.coords = settings.adventure.to_coords()
@@ -147,6 +149,8 @@ class AdventureLoop:
         self._details = dict(iteration=0, iteration_limit=max_nodes)
         try:
             battle_result = self._run(max_nodes)
+        except ReconnectTimeout:
+            raise
         except StopRequested:
             report("stopping", "stop_requested", **self._details)
             raise
@@ -1177,6 +1181,6 @@ class AdventureLoop:
         checkpoint()
         report("capture", **self._details)
         started = time.time()
-        frame = self.device.screencap()
+        frame = self.capture_frame()
         report("recognize", capture_ms=round((time.time() - started) * 1000), **self._details)
         return frame.image

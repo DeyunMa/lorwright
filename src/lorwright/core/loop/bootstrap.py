@@ -126,6 +126,11 @@ def prepare_f1(
             checkpoint()
             if settings.adb.package in device.current_focus():
                 break
+    return prepare_login(settings, device, open_riot_login=open_riot_login, auto_login=auto_login)
+
+
+def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) -> BootstrapResult:
+    """识别当前登录页，复用已授权的单次登录；不启动模拟器或游戏。"""
     checkpoint()
     frame = device.screencap()
     normalizer = Normalizer((settings.screen.width, settings.screen.height))

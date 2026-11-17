@@ -11,6 +11,7 @@ from lorwright.core.decide.discard import choose_discard
 from lorwright.core.decide.router import Router
 from lorwright.core.device.base import Device
 from lorwright.core.loop.outcome import ActionOutcome, LoopResult, Outcome, OutcomeStatus
+from lorwright.core.loop.reconnect import ReconnectTimeout
 from lorwright.core.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.core.loop.watchdog import Watchdog
 from lorwright.core.models import Action, ActionType, ClickPlan, GameState, Layout, UIState
@@ -48,11 +49,13 @@ class Engine:
         mulligan_recognizer=None,
         targeted_spell_recognizer=None,
         confirm_empty_hand_once: bool = False,
+        capture_frame=None,
     ) -> None:
         self._confirm_empty_hand_once = confirm_empty_hand_once
         self.settings = settings
         self.router = router
         self.device = device
+        self.capture_frame = capture_frame or (lambda: self.device.screencap())
         self.layout = layout or settings.layout.to_layout()
         self.ui_detector = ui_detector or UIStateDetector(
             threshold=settings.perception.match_threshold,
@@ -121,7 +124,7 @@ class Engine:
                 checkpoint()
                 report("capture", tick=ticks)
                 captured_at = time.time()
-                frame = self.device.screencap()
+                frame = self.capture_frame()
                 report("recognize", capture_ms=round((time.time() - captured_at) * 1000))
                 recognition_started = time.time()
                 image, self._scale = self.normalizer.fit(frame.image)
@@ -193,7 +196,7 @@ class Engine:
                     for _ in range(6):
                         self._report_wait("reward_timeout_transition", 12)
                         self._wait(2)
-                        after = self.device.screencap()
+                        after = self.capture_frame()
                         after_image, _ = self.normalizer.fit(after.image)
                         if (after.age_s() > self.settings.loop.max_frame_age_s
                                 or reward_timeout_continue(after_image) is not None):
@@ -233,7 +236,7 @@ class Engine:
                     checkpoint()
                     self.device.tap(*self._scale.to_device(*point))
                     self._wait(1.0)
-                    sampled = self.device.screencap()
+                    sampled = self.capture_frame()
                     self._stop_snapshot(sampled.image, "discard_sample")
                     break
 
@@ -460,6 +463,8 @@ class Engine:
                 self._wait(max(0.0, (self.settings.loop.tick_ms - elapsed_ms) / 1000))
             report(self.result.status, self.result.reason, **self._observation, **self._stop_details)
             return self.result
+        except ReconnectTimeout:
+            raise
         except StopRequested:
             report("stopping", "stop_requested")
             raise

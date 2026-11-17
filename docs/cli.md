@@ -136,6 +136,12 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 | `stale_frame` / `frame_expired_during_decision` | 重新截图，持续过期达到 `loop.max_frame_age_s` 后停止 |
 | `enemy_turn` | 等待对手，最长 60 秒；超过观察预算不等于已证明网络故障 |
 | `action_timeout` | 输入已发出，但在动作观察期限内未验证结果；保存证据并停止，结束回合也不自动重发 |
+| `game_reconnecting` | ADB 实机会话明确识别重连标题与退出按钮后暂停输入，连续观察 300 秒；普通 UNKNOWN 不进入此路径 |
+| `reconnect_restart_transition` | 本会话单次重启 LoR 后，最长 120 秒等待新鲜、可识别的主页、地图或战斗；登录复用已启用的 `--auto-login` |
+| `reconnect_restart_failed` / `reconnect_restart_unverified` | 重启命令失败，或未核验重启后的游戏场景，停止并保留证据 |
+| `reconnect_recovery_exhausted` | 单次重启后再次连续重连五分钟，停止，不再自动重启 |
+
+ADB 的 battle/run 与 adventure 共用重连监测，包括奖励等交互中的后继截图。重连证据消失或帧过期即结束本段连续计时；未重启时原动作截止保持不变，不因网络等待宣告动作成功。达到五分钟后先退出旧交互栈，再通过既有 `Device.restart_app` 关闭并启动 LoR；不重启模拟器。重启后重新创建循环和策略，不重放旧动作或沿用旧的中局恢复参数。登录页需要本次启动原有的 `--auto-login` 授权，否则以 `login_required` 停止。每个会话最多重启一次；此专项恢复不依赖普通卡住恢复的 `recovery.allow_client_restart`，也不改变它。回放与 desktop 不启用重连重启。本轮没有指数退避或网络监测。
 
 核心用单调时钟限制等待；重复轮询不延长期限。已验证的动作结果或新的已识别场景可开启独立观察窗口。结束回合、换牌确认和独立战斗确认的动作观察期限至少为 20 秒；其他输入使用配置的动作期限，英雄专属后验也可要求更长窗口。出牌的附加确认受父动作原截止限制，不能因确认或提示切换重新获得完整预算。`health=stalled` 是观测状态，与 `status=stopped` 终态分别读取，不能把健康提示当作已经停止。离线与实机范围见 [`status.md`](status.md)。
 

@@ -482,22 +482,34 @@ def _execute_session(
                             jinx_summoned=jinx_summoned,
                             rockets_already_played=rockets_already_played,
                         )
-                        engine = Engine(
-                            settings, Router(_battle_layers(pack, policy_kwargs=kwargs)), dev,
-                            card_recognizer=getattr(pack, "recognize_hand", None),
-                            mulligan_recognizer=getattr(pack, "recognize_mulligan", None),
-                            targeted_spell_recognizer=getattr(pack, "recognize_targeted_spell", None),
-                            confirm_empty_hand_once=confirm_empty_hand_once,
-                        )
-                        if mode == "adventure":
-                            result = AdventureLoop(
-                                settings, engine, dev, pack=pack,
-                                sample_hero_item_jinx=sample_hero_item_jinx,
-                            ).run(
-                                max_nodes=max_nodes
+                        def run_loop(capture_frame, restarted):
+                            # 重启后重新识别场景，不携带旧动作、选择或中局恢复参数。
+                            engine = Engine(
+                                settings, Router(_battle_layers(
+                                    pack, policy_kwargs=None if restarted else kwargs,
+                                )), dev,
+                                card_recognizer=getattr(pack, "recognize_hand", None),
+                                mulligan_recognizer=getattr(pack, "recognize_mulligan", None),
+                                targeted_spell_recognizer=getattr(pack, "recognize_targeted_spell", None),
+                                confirm_empty_hand_once=confirm_empty_hand_once and not restarted,
+                                capture_frame=capture_frame,
+                            )
+                            if mode == "adventure":
+                                return AdventureLoop(
+                                    settings, engine, dev, pack=pack,
+                                    sample_hero_item_jinx=sample_hero_item_jinx,
+                                    capture_frame=capture_frame,
+                                ).run(max_nodes=max_nodes)
+                            return engine.run(max_ticks=max_ticks or None, close_device=False)
+
+                        if device == "adb" and not replay:
+                            from lorwright.core.loop.reconnect import run_with_reconnect_recovery
+
+                            result = run_with_reconnect_recovery(
+                                settings, dev, run_loop, auto_login=auto_login,
                             )
                         else:
-                            result = engine.run(max_ticks=max_ticks or None)
+                            result = run_loop(None, False)
                 finally:
                     dev.close()
                 session.finish(result.status, result.reason)

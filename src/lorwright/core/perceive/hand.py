@@ -152,8 +152,10 @@ def _tilt(glyph: np.ndarray) -> float:
     return (ang + 45.0) % 90.0 - 45.0
 
 
-def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD):
-    """从徽章圆心抠出费用字形，返回归一化并扶正的 0..1 图（认不出返回 None）。
+def read_cost_glyphs(
+    image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD,
+) -> list[np.ndarray] | None:
+    """从徽章抠出完整费用序列，逐字归一化并扶正；异常组件不能丢成个位。
 
     判白字用 `min(R,G,B)` 而不是灰度或 max：徽章底是蓝色、外环是青色，
     两者都「某个通道很亮」，只有数字是三个通道都亮。用灰度/最大值会在
@@ -175,30 +177,43 @@ def read_glyph(image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD
     c = rad - 0.5
     white[np.hypot(xx - c, yy - c) > rad - 2] = 0   # 只留圆盘内部，排除外环
 
-    count, _, stats, _ = cv2.connectedComponentsWithStats(white, 8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(white, 8)
+    # 核心残笔虽不足以提取完整字形，也不能丢掉后报成个位；边缘描边另排除。
+    core = labels[np.hypot(xx - c, yy - c) <= rad * 0.7]
+    if any(12 <= stats[i, cv2.CC_STAT_AREA] < 20 and np.count_nonzero(core == i) >= 8
+           for i in range(1, count)):
+        return None
     boxes = [
         (int(stats[i, 4]), int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]))
         for i in range(1, count)
         if stats[i, 4] >= 20
     ]
-    if not boxes:
+    if not 1 <= len(boxes) <= 2:
         return None
-    _, x, y, w, h = max(boxes)          # 数字是盘内最大的一块白
-    if h < 10 or w > h * 1.4:           # 太扁 = 高光碎片，不是数字
+    boxes.sort(key=lambda box: box[1])
+    if any(h < 10 or w > h for _, x, y, w, h in boxes):
         return None
-
-    glyph = normalize_glyph(white[y : y + h, x : x + w])
-    return rotate_glyph(glyph, _tilt(glyph))
+    if len(boxes) == 2:
+        _, x1, y1, w1, h1 = boxes[0]
+        _, x2, y2, _, h2 = boxes[1]
+        if (min(h1, h2) < max(h1, h2) * 0.7 or not 0 < x2 - x1 - w1 <= max(h1, h2)
+                or abs(y1 + h1 / 2 - y2 - h2 / 2) > max(h1, h2) * 0.5):
+            return None
+    result = []
+    for _, x, y, w, h in boxes:
+        glyph = normalize_glyph(white[y:y + h, x:x + w])
+        result.append(rotate_glyph(glyph, _tilt(glyph)))
+    return result
 
 
 def read_cost(
     image: np.ndarray, badge: Badge, digits: DigitReader, rad: int = _GLYPH_RAD
 ) -> int | None:
     """读徽章里的费用。读不出返回 None（不猜）。"""
-    glyph = read_glyph(image, badge.center, rad)
-    if glyph is None:
+    glyphs = read_cost_glyphs(image, badge.center, rad)
+    if glyphs is None:
         return None
-    hit = digits.classify(glyph, rotations=_ROTATIONS)
+    hit = digits.classify_sequence(glyphs, rotations=_ROTATIONS)
     return None if hit is None else hit[0]
 
 

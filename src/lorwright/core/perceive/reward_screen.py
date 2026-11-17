@@ -498,10 +498,20 @@ def _card_entry(gray: np.ndarray, entries: list[dict], rect: tuple[int, int, int
 
 
 def _card_cost(image: np.ndarray, x: int) -> int | None:
-    glyphs = segment_glyphs(image, Rect(x + 74, 276, 36, 33), threshold=180)
-    if len(glyphs) != 1 or not 20 <= glyphs[0].rect.h <= 30:
+    rect = Rect(x + 74, 276, 36, 33)
+    glyphs = segment_glyphs(image, rect, threshold=180)
+    patch = cv2.cvtColor(image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w], cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(patch, 180, 255, cv2.THRESH_BINARY)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(binary, 8)
+    # 排除只在徽章边缘的描边碎片；内部明显残笔不能被滤掉后报成个位。
+    core = labels[3:-3, 3:-3]
+    components = sum(stats[i, cv2.CC_STAT_AREA] >= 12 and int((core == i).sum()) >= 8
+                     for i in range(1, count))
+    if (components != len(glyphs)
+            or not 1 <= len(glyphs) <= 2
+            or any(not 20 <= glyph.rect.h <= 30 for glyph in glyphs)):
         return None
-    hit = _reward_digits().classify(glyphs[0].image)
+    hit = _reward_digits().classify_sequence([glyph.image for glyph in glyphs])
     return hit[0] if hit else None
 
 

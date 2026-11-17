@@ -167,18 +167,22 @@ class DigitReader:
             return None
         return best
 
+    def classify_sequence(
+        self, glyphs: list[np.ndarray], rotations: tuple[int, ...] = (0,),
+    ) -> tuple[int, float] | None:
+        """逐字解码，返回整数及最低单字分数；任何一位不明则整串未知。"""
+        if not glyphs:
+            return None
+        hits = [self.classify(glyph, rotations=rotations) for glyph in glyphs]
+        if any(hit is None or not 0 <= hit[0] <= 9 for hit in hits):
+            return None
+        return int("".join(str(hit[0]) for hit in hits)), min(hit[1] for hit in hits)
+
     def read(self, img: np.ndarray, rect: Rect, threshold: int | None = None) -> int | None:
         """读矩形区域里的整数。切不出字形、或有字形认不出，都返回 None。"""
         glyphs = segment_glyphs(img, rect, threshold)
-        if not glyphs:
-            return None
-        out = ""
-        for glyph in glyphs:
-            hit = self.classify(glyph.image)
-            if hit is None:
-                return None
-            out += str(hit[0])
-        return int(out)
+        hit = self.classify_sequence([glyph.image for glyph in glyphs])
+        return None if hit is None else hit[0]
 
 
 def _similarity(a: np.ndarray, b: np.ndarray) -> float:

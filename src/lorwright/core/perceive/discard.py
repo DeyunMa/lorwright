@@ -5,7 +5,7 @@ import numpy as np
 
 from lorwright.core.models import DiscardCandidates, Rect
 from lorwright.core.perceive.digits import DigitReader
-from lorwright.core.perceive.hand import read_glyph
+from lorwright.core.perceive.hand import read_cost_glyphs
 
 
 def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandidates | None:
@@ -36,8 +36,10 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
             return None
         cards.append(Rect(x + 80, y + 65, 50, 50))
         artwork.append(cv2.resize(art, (80, 80)))
-        glyph = read_glyph(frame, (x, y), rad=26)
-        hit = digits.classify(glyph, rotations=(-15, -10, -5, 0, 5, 10, 15)) if glyph is not None else None
+        glyphs = read_cost_glyphs(frame, (x, y), rad=26)
+        hit = digits.classify_sequence(
+            glyphs, rotations=(-15, -10, -5, 0, 5, 10, 15),
+        ) if glyphs is not None else None
         costs.append(hit[0] if hit is not None and hit[1] >= 0.85 else None)
     matches = [[_artwork_match(a, b) for b in artwork] for a in artwork]
     scores = tuple(tuple(min(matches[i][j], matches[j][i]) for j in range(len(artwork)))

@@ -5,7 +5,7 @@
         --badge 1467,970=1 --badge 1564,930=0 --badge 1659,909=6 --tag hand1080
 
 每个 `--badge` 是 `徽章圆心x,圆心y=费用`。工具走的是线上同一套抠图
-（`perceive.hand.read_glyph`），所以采出来的原型和推理时的字形形态一致。
+（`perceive.hand.read_cost_glyphs`），所以采出来的原型和推理时的字形形态一致。
 
 为什么要单独采一套：手牌徽章里的数字只有 ~20px 且随卡片倾斜，
 和血量/法力那些直立大字形的渲染差异太大，混用会把 2 读成 1。
@@ -19,14 +19,16 @@ from pathlib import Path
 import cv2
 
 from lorwright.core.perceive.digits import GLYPH_SIZE
-from lorwright.core.perceive.hand import read_glyph
+from lorwright.core.perceive.hand import read_cost_glyphs
 
 
-def parse_badge(spec: str) -> tuple[tuple[int, int], int]:
+def parse_badge(spec: str) -> tuple[tuple[int, int], str]:
     try:
-        where, digit = spec.split("=", 1)
+        where, text = spec.split("=", 1)
         x, y = (int(v) for v in where.split(","))
-        return (x, y), int(digit)
+        if not text.isascii() or not text.isdigit():
+            raise ValueError("费用必须是十进制数字文本")
+        return (x, y), text
     except ValueError as e:
         raise SystemExit(f"徽章格式应为 x,y=费用，收到：{spec}") from e
 
@@ -46,24 +48,25 @@ def main() -> None:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    saved: dict[int, int] = {}
+    saved: dict[str, int] = {}
     failed = 0
     for spec in args.badge:
-        center, digit = parse_badge(spec)
-        glyph = read_glyph(img, center)
-        if glyph is None:
-            print(f"[fail] {center} 抠不出字形（期望 {digit}）")
+        center, text = parse_badge(spec)
+        glyphs = read_cost_glyphs(img, center)
+        if glyphs is None or len(glyphs) != len(text):
+            print(f"[fail] {center} 字形数量不符（期望 {text!r}）")
             failed += 1
             continue
-        ink = int((glyph > 0.5).sum())
-        if digit in saved and saved[digit] >= ink:
-            continue
-        cv2.imwrite(
-            str(out_dir / f"{digit}-{args.tag}.png"),
-            (glyph * 255).astype("uint8"),
-        )
-        saved[digit] = ink
-        print(f"[ok] {digit}  {center}  {ink} px")
+        for glyph, digit in zip(glyphs, text, strict=True):
+            ink = int((glyph > 0.5).sum())
+            if digit in saved and saved[digit] >= ink:
+                continue
+            cv2.imwrite(
+                str(out_dir / f"{digit}-{args.tag}.png"),
+                (glyph * 255).astype("uint8"),
+            )
+            saved[digit] = ink
+            print(f"[ok] {digit}  {center}  {ink} px")
 
     print(f"字形：{''.join(str(d) for d in sorted(saved))}  →  {out_dir}")
     if failed:

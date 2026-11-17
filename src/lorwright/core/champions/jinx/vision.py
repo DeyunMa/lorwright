@@ -25,6 +25,12 @@ _MIN_MARGIN = 20
 _NFEATURES = 2000
 _HERO_NFEATURES = 8000
 _HERO_TEMPLATE = _ASSETS / "hero_portrait.png"
+# 完整卡图的费用徽章中心为 (32, 34)；纯卡面/裁图锚点由已有实拍投影标定。
+_HAND_BADGE_ANCHORS = {
+    "99PZ104": (385, 17),
+    "99PZ130": (-7, 33),
+    "01PZ040T1": (18, 47),
+}
 
 @lru_cache(maxsize=1)
 def _targeted_spell_template():
@@ -58,15 +64,29 @@ def _templates():
         image = cv2.imread(str(path))
         if image is None:
             continue
-        _, descriptors = orb.detectAndCompute(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), None)
+        points, descriptors = orb.detectAndCompute(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), None)
         if descriptors is not None:
-            templates.append((card, descriptors))
+            templates.append((card, points, descriptors))
     return orb, matcher, templates
 
 
-def _good_matches(matcher, query, train) -> int:
+def _good_matches(matcher, query, train, query_points, train_points, badge, anchor) -> int:
     pairs = matcher.knnMatch(query, train, k=2)
-    return sum(1 for first, second in pairs if first.distance < _RATIO * second.distance)
+    good = [pair[0] for pair in pairs
+            if len(pair) == 2 and pair[0].distance < _RATIO * pair[1].distance]
+    if len(good) < 30:
+        return 0
+    source = np.float32([train_points[match.trainIdx].pt for match in good])
+    target = np.float32([query_points[match.queryIdx].pt for match in good])
+    transform, inliers = cv2.findHomography(source, target, cv2.RANSAC, 3.0)
+    count = int(inliers.sum()) if inliers is not None else 0
+    if transform is None or count < 30:
+        return 0
+    projected = cv2.perspectiveTransform(np.float32([[anchor]]), transform)[0, 0]
+    # 卡面必须投影到本牌徽章附近，不能借用裁剪区域内的邻牌身份。
+    if not np.isfinite(projected).all() or np.linalg.norm(projected - badge) > 36:
+        return 0
+    return len(good)
 
 
 @lru_cache(maxsize=1)
@@ -111,7 +131,7 @@ def recognize_hand(image: np.ndarray, cards: list[CardInHand]) -> list[CardInHan
         if crop.size == 0:
             result.append(card)
             continue
-        _, descriptors = orb.detectAndCompute(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None)
+        points, descriptors = orb.detectAndCompute(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None)
         if descriptors is None:
             result.append(card)
             continue
@@ -121,14 +141,18 @@ def recognize_hand(image: np.ndarray, cards: list[CardInHand]) -> list[CardInHan
         # 必须参与比较，否则可能被误认成其他 3 费牌。
         # 此前只给英雄牌开口子，导致 1 费砰砰被误认成 Jinx。
         candidates = [
-            (definition, train)
-            for definition, train in templates
+            (definition, train_points, train)
+            for definition, train_points, train in templates
             if card.cost < 0
             or definition.cost >= card.cost
             or (definition.code == "01PZ028" and card.cost <= 3)
         ]
+        badge = np.float32((cx - DRAG_OFFSET_EXPANDED[0] - x0,
+                            cy - DRAG_OFFSET_EXPANDED[1] - y0))
         scores = sorted(
-            ((_good_matches(matcher, descriptors, train), definition) for definition, train in candidates),
+            ((_good_matches(matcher, descriptors, train, points, train_points, badge,
+                            _HAND_BADGE_ANCHORS.get(definition.code, (32, 34))), definition)
+             for definition, train_points, train in candidates),
             key=lambda item: item[0],
             reverse=True,
         )

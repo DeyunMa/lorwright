@@ -55,9 +55,28 @@ def test_named_cards_respect_known_costs(filename):
         assert card.cost == definition.cost or definition.cost >= card.cost
 
 
-def test_live_eight_card_hand_names_most_cards():
-    named = [card for card in _named("live-8cards.png") if card.name]
-    assert len(named) >= 6
+def test_live_eight_card_hand_does_not_borrow_neighbor_names():
+    named = {card.index: card for card in _named("live-8cards.png")}
+    assert named[2].name == "火箭滑板"
+    assert named[1].name != "火箭滑板"
+    assert named[6].name == ""
+    assert named[7].name == "懸浮飛板初學者"
+
+
+def test_obscured_card_does_not_borrow_adjacent_jinx_identity():
+    # 真实手牌加合成遮挡：当前牌主要卡面不可读，右侧 Jinx 保持可见。
+    image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    image[700:1080, 200:1800] = cv2.imread("tests/fixtures/jinx/battle-hand.png")
+    badges = image[750:860, 900:1150].copy()
+    image[830:1080, 940:1110] = 0
+    image[750:860, 900:1150] = badges
+    digits = DigitReader()
+    digits.load()
+    cards = recognize_expanded(image, Rect(200, 700, 1600, 380), digits)
+    assert len(cards) == 7 and (cards[3].cost, cards[4].cost) == (3, 4)
+    named = {card.index: card for card in recognize_hand(image, cards)}
+    assert named[3].name == ""
+    assert named[4].name == "吉茵珂絲"
 
 
 def test_reduced_cost_pow_pow_is_not_mistaken_for_jinx():

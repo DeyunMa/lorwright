@@ -352,6 +352,48 @@ def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch, 
     assert snapshots == []
 
 
+@pytest.mark.parametrize("result_time,known", [(12.0, True), (21.0, True), (21.0, False)])
+def test_visible_unit_play_has_fixed_settlement_window(monkeypatch, result_time, known):
+    # 实机事件的时间形状；UNKNOWN 状态为合成，不声称重放了未保存的中间帧。
+    card = CardInHand(0, "", 3, Rect(850, 810, 8, 8), visible_playable_unit=True)
+    other = CardInHand(1, "", 6, Rect(1100, 810, 8, 8))
+    before = ready(hand=[card, other], hand_expanded=True,
+                   mana=3, readings={"mana": Reading(3, 0)})
+    animation = replace(before, ui_state=UIState.UNKNOWN)
+    after = ready(hand=[other], mana=0, readings={"mana": Reading(0, 0)},
+                  my_units=[Unit("", 2, 3, Rect(1055, 928, 8, 8))])
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, animation, after if known else animation],
+        [Action(ActionType.PLAY_CARD, card_index=0), Action(ActionType.NO_OP)], timeout=8,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: {1: 0.0, 2: 9.0, 3: result_time}.get(device.frames, 0.0))
+    engine.run(max_ticks=3)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[0]["status"] == "waiting"
+    succeeded = known and result_time < 20
+    assert outcomes[-1]["status"] == ("succeeded" if succeeded else "timed_out")
+    assert len(device.drags) == 1
+    assert router.calls == (2 if succeeded else 1)
+    assert snapshots == ([] if succeeded else [{"tag": "action_timeout"}])
+
+
+@pytest.mark.parametrize("expanded,visible_unit", [(False, True), (True, False)])
+def test_unit_settlement_budget_does_not_extend_other_play_phases(monkeypatch, expanded, visible_unit):
+    card = CardInHand(0, "", 3, Rect(850, 810, 8, 8), visible_playable_unit=visible_unit)
+    before = ready(hand=[card], hand_expanded=expanded)
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, replace(before, ui_state=UIState.UNKNOWN)],
+        [Action(ActionType.PLAY_CARD, card_index=0)], timeout=8,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 9.0 if device.frames >= 2 else 0.0)
+    engine.run(max_ticks=2)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == "timed_out"
+    assert snapshots == [{"tag": "action_timeout"}]
+
+
 def test_jinx_rebuild_uses_special_window_and_advances_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 

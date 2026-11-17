@@ -60,10 +60,12 @@ def test_engine_uses_device(monkeypatch, tmp_path) -> None:
     layout = Layout(end_turn=Rect(10, 10, 20, 20), play_area=Rect(0, 0, 10, 10))
 
     engine = Engine(settings, _Router(), dev, layout=layout)
-    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(ui_state=UIState.MULLIGAN))
-    engine.run(max_ticks=2)
+    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(
+        ui_state=UIState.MULLIGAN, mulligan_selected=(False, False, False, False),
+    ))
+    engine.run(max_ticks=3)
 
-    # 输入只发一次，第二帧仍未看到结果，不能重复点击。
+    # 两帧稳定后只发一次；第三帧仍未看到结果，不能重复点击。
     assert dev.taps == [(20, 20)]
 
 
@@ -79,8 +81,10 @@ def test_engine_scales_coordinates_to_device_resolution(monkeypatch) -> None:
     dev = FakeDevice(size=(960, 540))
     layout = Layout(end_turn=Rect(10, 10, 20, 20))
     engine = Engine(settings, _Router(), dev, layout=layout)
-    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(ui_state=UIState.MULLIGAN))
-    engine.run(max_ticks=1)
+    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(
+        ui_state=UIState.MULLIGAN, mulligan_selected=(False, False, False, False),
+    ))
+    engine.run(max_ticks=2)
 
     # 设计坐标 (20,20) → 设备像素 (10,10)
     assert dev.taps == [(10, 10)]

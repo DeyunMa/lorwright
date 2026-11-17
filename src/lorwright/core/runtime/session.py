@@ -29,6 +29,9 @@ def describe_status(phase: str, reason: str | None, details: dict) -> str:
         "unknown_target": "目标要求无法确认，等待重新识别；到期停止",
         "action_preconditions_unverified": "当前动作缺少必要证据："
             + ", ".join(details.get("missing_readings", [])),
+        "action_readiness_unverified": "当前动作的相关证据尚未连续两帧稳定，继续采图；到期保存截图并停止",
+        "battle_result_transition": "已识别结算转场背景，只读等待明确结果，最多六十秒",
+        "battle_result_transition_unverified": "结算转场观察到期，仍未确认结束，已保存截图并停止",
         "action_plan_unavailable": "当前动作无法生成有效输入计划，等待重新识别",
         "no_action": "策略正在等待，当前没有可执行动作",
         "enemy_turn": "等待对手行动或游戏转场，正常运行无需外部命令",

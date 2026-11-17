@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 from lorwright.core.champions import load
+from lorwright.core.champions.elise import SpiderAggroPolicy
 from lorwright.core.decide.generic import (
     AttackWhenTokenPolicy,
     BlockingPolicy,
@@ -11,6 +12,7 @@ from lorwright.core.decide.generic import (
     UnknownCardPolicy,
     plan_blocks,
 )
+from lorwright.core.decide.router import Router
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 
@@ -176,6 +178,39 @@ def test_overwhelm_greedy_fallback_accounts_for_damage_to_nexus(monkeypatch):
     assert plan_blocks(blockers, [replace(attacker, keywords=frozenset())]) == [(0, 0)]
 
 
+def test_blocking_candidate_does_not_advance_before_success():
+    policy = BlockingPolicy()
+    attackers = [unit_at(0, 350, 3, 1)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=[unit_at(0, 900, 2, 2)],
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    first = policy.decide(s)
+    assert first.type is ActionType.BLOCK
+    assert policy.decide(s) == first
+    assert policy.decide(replace(s)) == first
+
+
+def test_unrelated_success_does_not_declare_blocking():
+    policy = BlockingPolicy()
+    attackers = [unit_at(0, 350, 3, 1)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=[unit_at(0, 900, 2, 2)],
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    candidate = policy.decide(s)
+    policy.on_action_outcome(Action(ActionType.CONFIRM), s, s)
+    assert policy.decide(s) == candidate
+    policy.on_action_outcome(candidate, state(), s)
+    assert policy.decide(s) == candidate
+    policy.on_action_outcome(candidate, s, state())
+    assert policy.decide(s) == candidate
+
+
 def test_blocking_confirms_once_declared():
     policy = BlockingPolicy()
     blockers = [unit_at(0, 900, 2, 2)]
@@ -188,9 +223,33 @@ def test_blocking_confirms_once_declared():
     )
     first = policy.decide(s)
     assert first.type is ActionType.BLOCK
+    policy.on_action_outcome(first, s, s)
     assert policy.decide(s) == Action(type=ActionType.CONFIRM)
     policy.decide(state())
     assert policy.decide(s).type is ActionType.BLOCK
+
+
+def test_blocking_starts_new_declaration_after_confirmed_round_through_router():
+    policy = BlockingPolicy()
+    router = Router([SpiderAggroPolicy(), policy])
+    attackers = [unit_at(0, 350, 3, 1)]
+    blocking = state(
+        ui_state=UIState.BLOCKING,
+        my_units=[unit_at(0, 900, 2, 2)],
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    first = router.decide(blocking).action
+    assert first.type is ActionType.BLOCK
+    policy.on_action_outcome(first, blocking, blocking)
+    confirm = router.decide(blocking).action
+    assert confirm.type is ActionType.CONFIRM
+    # 后继状态均被英雄层接管，Blocking.decide 没有机会观察离开格挡。
+    enemy_turn = state(ui_state=UIState.ENEMY_TURN)
+    policy.on_action_outcome(confirm, blocking, enemy_turn)
+    assert router.decide(enemy_turn).layer == "elise_spider_aggro"
+    assert router.decide(state()).layer == "elise_spider_aggro"
+    assert router.decide(blocking).action == first
 
 
 def unit(y):

@@ -9,6 +9,7 @@ from lorwright.core.models import UIState
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.result_screen import (
     is_adventure_victory,
+    is_result_transition,
     is_task_reward,
     result_screen,
 )
@@ -54,6 +55,27 @@ def test_current_battle_result_crop_is_recognized_without_input():
         obscured[y1:y2, x1:x2] = 0
         assert result_screen(obscured) is None
     assert result_screen((image * 0.6).astype(np.uint8)) is None
+
+
+def test_result_transition_requires_both_regions_and_never_proves_completion():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[100:900, 300:1600] = cv2.imread(str(FIXTURES / "f1-result-transition-20261117.png"))
+    assert is_result_transition(image)
+    assert result_screen(image) is None
+    assert UIStateDetector().detect(image) is UIState.UNKNOWN
+    for bounds in ((640, 110, 860, 230), (1310, 610, 1530, 750)):
+        obscured = image.copy()
+        x1, y1, x2, y2 = bounds
+        obscured[y1:y2, x1:x2] = 0
+        assert not is_result_transition(obscured)
+    assert not is_result_transition((image * 0.6).astype(np.uint8))
+    assert not is_result_transition(image[:540, :960])
+    assert not is_result_transition(image.astype(np.float32))
+    assert not is_result_transition(np.zeros_like(image))
+    battle = cv2.imread("tests/fixtures/screens/1080p_units_idle.png")
+    assert battle is not None and not is_result_transition(battle)
 
 
 def test_mission_structure_survives_changed_tasks_values_and_rewards():

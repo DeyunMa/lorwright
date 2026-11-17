@@ -168,10 +168,16 @@ class BlockingPolicy(Policy):
             return Action(type=ActionType.CONFIRM)
         attackers = state.enemy_attackers or state.enemy_units
         pairs = plan_blocks(state.my_units, attackers)
-        self._declared = True
         if not pairs:
             return Action(type=ActionType.CONFIRM)
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
+
+    def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
+        """成功声明后才确认；成功结果已离开格挡时清除本轮声明。"""
+        if after.ui_state is not UIState.BLOCKING:
+            self._declared = False
+        elif action.type is ActionType.BLOCK and before.ui_state is UIState.BLOCKING:
+            self._declared = True
 
 
 # 1 点水晶伤害折算的单位价值权重（水晶血不可再生，单位可以）

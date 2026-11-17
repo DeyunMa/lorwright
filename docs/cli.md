@@ -132,6 +132,9 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 | `unknown_ui` / `no_action` | 当前界面未知或策略明确等待；期限为 `loop.action_timeout_s` |
 | `unknown_target` | 已进入目标选择但要求未知；有界重识别，期限内不猜目标 |
 | `action_preconditions_unverified` | 所选动作缺少必要证据；在 `missing_readings` 列出缺失项，期限为 `loop.action_timeout_s` |
+| `action_readiness_unverified` | 当前动作相关证据未连续两张新鲜帧稳定；从首次等待起使用固定 `loop.action_timeout_s`，UI 或候选变化不续期 |
+| `battle_result_transition` | 原动作截止前取得双区域结算背景证据，进入一次最多 60 秒只读观察；不重放输入或通知原动作成功 |
+| `battle_result_transition_unverified` | 上述阶段到期仍未确认结束，保存截图停止；返回战斗时仍适用原动作截止 |
 | `action_plan_unavailable` | 无法生成有效输入计划；期限为 `loop.action_timeout_s` |
 | `stale_frame` / `frame_expired_during_decision` | 重新截图，持续过期达到 `loop.max_frame_age_s` 后停止 |
 | `enemy_turn` | 等待对手，最长 60 秒；超过观察预算不等于已证明网络故障 |

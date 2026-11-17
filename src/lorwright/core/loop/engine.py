@@ -11,6 +11,7 @@ from lorwright.core.decide.discard import choose_discard
 from lorwright.core.decide.router import Router
 from lorwright.core.device.base import Device
 from lorwright.core.loop.outcome import ActionOutcome, LoopResult, Outcome, OutcomeStatus
+from lorwright.core.loop.readiness import ActionReadiness
 from lorwright.core.loop.reconnect import ReconnectTimeout
 from lorwright.core.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.core.loop.watchdog import Watchdog
@@ -22,6 +23,7 @@ from lorwright.core.perceive.adventure_scene import (
 from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.discard import discard_candidates
 from lorwright.core.perceive.normalize import Normalizer, Scale
+from lorwright.core.perceive.result_screen import is_result_transition
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
 from lorwright.core.runtime.session import (
@@ -88,6 +90,8 @@ class Engine:
         self._pending: ActionOutcome | None = None
         #: 待确认的出牌保留原后验及截止，附加确认不新建父动作预算。
         self._staged_play: ActionOutcome | None = None
+        self._readiness = ActionReadiness()
+        self._readiness_deadline: float | None = None
         self._wait_deadlines: dict[str, tuple[float, float]] = {}
         self._observation: dict = {}
         self._stop_details: dict = {}
@@ -114,7 +118,11 @@ class Engine:
         ticks = 0
         previous_ui = None
         target_wait_deadline = None
+        result_transition_deadline = None
+        result_transition_used = False
         inspecting_board = False
+        self._readiness.reset()
+        self._readiness_deadline = None
         self._wait_deadlines.clear()
         self._stop_details.clear()
         self.result = LoopResult("stopped", "tick_limit")
@@ -164,6 +172,7 @@ class Engine:
                 # 帧时效：截图 + 识别 + 决策如果已经花了太久，画面可能早变了。
                 # 拿旧帧去点就是「状态不明还点」，宁可这一轮什么都不做。
                 if age > self.settings.loop.max_frame_age_s:
+                    self._readiness.observe(None)
                     self._skipped_stale += 1
                     self._report_wait("stale_frame", self.settings.loop.max_frame_age_s)
                     logger.warning(
@@ -175,6 +184,14 @@ class Engine:
                         action="no_op", clicks=0, stuck=False,
                         ms=round((time.time() - t0) * 1000),
                     )
+                    if result_transition_deadline is not None:
+                        if time.monotonic() >= result_transition_deadline:
+                            self._stop_snapshot(frame.image, "battle_result_transition_unverified")
+                            break
+                        self._report_wait("battle_result_transition",
+                                          result_transition_deadline - time.monotonic())
+                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                        continue
                     pending = self._staged_play or self._pending
                     if pending is not None and time.monotonic() >= pending.deadline:
                         emit(
@@ -189,6 +206,15 @@ class Engine:
                     ):
                         break
                     continue
+
+                if state.ui_state is UIState.DISCARD:
+                    state.discard_candidates = discard_candidates(image, self.parser.digits)
+                self._readiness.observe(state)
+                # 相关证据抖动、UI 来回变化都不能给同一次输入准备重新计时。
+                if (self._readiness_deadline is not None
+                        and time.monotonic() >= self._readiness_deadline):
+                    self._stop_snapshot(frame.image, "action_readiness_unverified")
+                    break
 
                 # 奖励详情超时可能覆盖战斗画面；单次确认后只接受明确转场。
                 timeout_button = reward_timeout_continue(image)
@@ -214,6 +240,11 @@ class Engine:
                         self._stop_snapshot(after.image, "reward_timeout_transition_unverified")
                     break
 
+                if (result_transition_deadline is not None
+                        and time.monotonic() >= result_transition_deadline):
+                    self._stop_snapshot(frame.image, "battle_result_transition_unverified")
+                    break
+
                 # 对局结束后由外层流程处理结果界面。
                 if state.ui_state is UIState.BATTLE_END:
                     self._pending = None
@@ -222,9 +253,30 @@ class Engine:
                     report("completed", "battle_end", progress=True)
                     break
 
+                # 明确结算背景只交接观察权，不宣告原动作成功或重发输入。
+                pending = self._staged_play or self._pending
+                if (not result_transition_used and state.ui_state is UIState.UNKNOWN
+                        and (pending is None or time.monotonic() < pending.deadline)
+                        and is_result_transition(image)):
+                    result_transition_used = True
+                    result_transition_deadline = time.monotonic() + 60.0
+                    self._readiness_deadline = None
+                    target_wait_deadline = None
+                    record_event("battle_result_transition", timeout_s=60,
+                                 interrupted_action=pending.action.type.value if pending else None,
+                                 action_deadline=pending.deadline if pending else None)
+                if result_transition_deadline is not None:
+                    if state.ui_state is UIState.UNKNOWN:
+                        self._report_wait("battle_result_transition",
+                                          result_transition_deadline - time.monotonic())
+                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                        continue
+                    # 返回战斗时仍核验原动作及原截止；不能借转场刷新动作预算。
+                    result_transition_deadline = None
+
                 # 单次采样：选中后的行为尚未验证，采集新画面后立即停止。
                 if state.ui_state is UIState.DISCARD:
-                    candidates = discard_candidates(image, self.parser.digits)
+                    candidates = state.discard_candidates
                     if candidates is None:
                         self._stop_snapshot(frame.image, "discard_candidates_unverified")
                         break
@@ -232,6 +284,9 @@ class Engine:
                     if action is None:
                         self._stop_snapshot(frame.image, "discard_cost_unverified")
                         break
+                    if not self._action_ready(action):
+                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+                        continue
                     point = candidates.cards[action.card_index].center
                     record_event("discard_sample", card_index=action.card_index,
                                  point=list(point), **action.raw)
@@ -361,6 +416,7 @@ class Engine:
                     continue
                 # 网络决策也可能耗时；执行前必须再次确认这张图仍然新鲜。
                 if frame.age_s() > self.settings.loop.max_frame_age_s:
+                    self._readiness.observe(None)
                     self._skipped_stale += 1
                     emit(tick=ticks, layer="stale", action="no_op", clicks=0,
                          reason="frame_expired_during_decision")
@@ -379,6 +435,10 @@ class Engine:
                         60.0 if reason == "enemy_turn" else self.settings.loop.action_timeout_s,
                     ):
                         break
+                    continue
+
+                if not self._action_ready(result.action):
+                    self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
                     continue
 
                 stuck = self.watchdog.observe(state, result.action.type)
@@ -421,6 +481,11 @@ class Engine:
                             scale=asdict(self._scale),
                         )
                     clicks = self._execute(plan)
+                    if clicks:
+                        for layer in self.router.layers:
+                            callback = getattr(layer, "on_action_sent", None)
+                            if callback is not None:
+                                callback(result.action, state)
                     report("input_sent", action=result.action.type.value, inputs=clicks,
                            decision_reason=result.reason)
                     self._report_wait(
@@ -477,6 +542,16 @@ class Engine:
             if close_device:
                 self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
+
+    def _action_ready(self, action: Action) -> bool:
+        if self._readiness.ready(action):
+            return True
+        if self._readiness_deadline is None:
+            self._readiness_deadline = time.monotonic() + self.settings.loop.action_timeout_s
+        report("waiting", "action_readiness_unverified",
+               wait_s=max(0.0, self._readiness_deadline - time.monotonic()),
+               **self._observation)
+        return False
 
     @staticmethod
     def _observe_outcome(pending: ActionOutcome, state: GameState, tick: int) -> Outcome:
@@ -596,6 +671,8 @@ class Engine:
         if plan is None:
             return 0
         sc = self._scale
+        self._readiness.reset()
+        self._readiness_deadline = None
 
         if plan.drags:
             for (x1, y1), (x2, y2) in plan.drags:

@@ -9,7 +9,7 @@ from lorwright.core.perceive.adventure_scene import _template
 
 
 def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
-             *, text_min: int = 160) -> bool:
+             *, text_min: int = 160, score_min: float = 0.83) -> bool:
     template = _template(name)
     if template is None:
         return False
@@ -22,8 +22,20 @@ def _visible(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
     h, w = template.shape
     patch = region[y:y + h, x:x + w]
     bright = template >= text_min
-    return bool(score >= 0.83 and bright.any()
+    return bool(score >= score_min and bright.any()
                 and float(patch[bright].mean()) >= float(template[bright].mean()) * 0.8)
+
+
+def is_result_transition(image: np.ndarray) -> bool:
+    """双区域核验已采样的结算背景；只授权等待，不证明战斗结束。"""
+    if image.shape != (1080, 1920, 3) or image.dtype != np.uint8:
+        return False
+    return (
+        _visible(image, "result_transition_cliff", (640, 110, 860, 230),
+                 text_min=60, score_min=0.95)
+        and _visible(image, "result_transition_rocks", (1310, 610, 1530, 750),
+                     text_min=100, score_min=0.95)
+    )
 
 
 def is_task_reward(image: np.ndarray) -> bool:

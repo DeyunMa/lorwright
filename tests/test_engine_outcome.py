@@ -203,6 +203,46 @@ def test_real_parsed_opponent_board_reroutes_engine(
     ]
 
 
+@pytest.mark.parametrize("successor,elapsed,expected", [
+    (UIState.BATTLE_END, 30, "battle_end"),
+    (UIState.UNKNOWN, 63, "battle_result_transition_unverified"),
+    (UIState.BATTLE_END, 63, "battle_result_transition_unverified"),
+    (UIState.MY_TURN_IDLE, 12, "action_timeout"),
+])
+def test_known_result_transition_observes_without_replaying_or_renewing_action(
+    monkeypatch, successor, elapsed, expected,
+):
+    before = ready(ui_state=UIState.TARGETING,
+                   enemy_units=[Unit("", 1, 1, Rect(800, 400, 8, 8))])
+    unknown = ready(ui_state=UIState.UNKNOWN)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, unknown, unknown, ready(ui_state=successor)],
+        [Action(ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0})],
+    )
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[100:900, 300:1600] = cv2.imread(
+        "tests/fixtures/continue/f1-result-transition-20261117.png",
+    )
+    times = [0, 2, 12, elapsed]
+
+    def capture():
+        device.frames += 1
+        return Frame(image=image if device.frames in (2, 3) else np.zeros_like(image))
+
+    monkeypatch.setattr(device, "screencap", capture)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: times[min(device.frames - 1, 3)])
+    result = engine.run(max_ticks=4)
+    assert result.reason == expected
+    assert device.taps == [(804, 404)]
+    assert router.calls == 1
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert not any(event["status"] == "succeeded" for event in outcomes)
+    assert bool(snapshots) is (expected != "battle_end")
+    if expected != "battle_end":
+        assert engine._pending.deadline == 8
+
+
 def test_jinx_summon_with_eight_collapsed_cards_advances_without_replaying(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 
@@ -384,7 +424,7 @@ def ready(**kwargs):
     return GameState(**values)
 
 
-def engine_for(monkeypatch, states, actions, timeout=8):
+def engine_for(monkeypatch, states, actions, timeout=8, *, check_readiness=False):
     settings = Settings()
     settings.loop.tick_ms = 0
     settings.loop.action_timeout_s = timeout
@@ -394,6 +434,9 @@ def engine_for(monkeypatch, states, actions, timeout=8):
     layout = Layout(end_turn=Rect(10, 10, 20, 20), hand_region=Rect(100, 800, 300, 200),
                     play_area=Rect(500, 500, 100, 100))
     engine = Engine(settings, router, device, layout=layout)
+    # 原有单帧测试专注动作前提/后验；稳定门槛由下方真实多帧闭环另行覆盖。
+    if not check_readiness:
+        monkeypatch.setattr(engine._readiness, "ready", lambda action: True)
     sequence = iter(states)
     monkeypatch.setattr(engine.parser, "load", lambda: None)
     monkeypatch.setattr(engine, "_build_state", lambda image: next(sequence))
@@ -401,6 +444,184 @@ def engine_for(monkeypatch, states, actions, timeout=8):
     monkeypatch.setattr("lorwright.core.loop.engine.emit", lambda **event: events.append(event))
     monkeypatch.setattr("lorwright.core.loop.engine.save_snapshot", lambda *args, **kw: snapshots.append(kw))
     return engine, device, router, events, snapshots
+
+
+def test_readiness_uses_fresh_selected_slot_and_resets_after_each_input(monkeypatch):
+    before = ready(hand_expanded=True, hand=[CardInHand(0, "known", 1, Rect(200, 900, 80, 100))])
+    moved = replace(before, hand=[replace(before.hand[0], rect=Rect(400, 900, 80, 100))])
+    chosen = ready(ui_state=UIState.OPTIONAL_CHOICE)
+    states = [before, moved, moved, chosen, chosen, chosen]
+    actions = [Action(ActionType.PLAY_CARD, card_index=0)] * 3 + [Action(ActionType.SKIP_CHOICE)] * 2
+    engine, device, router, _, snapshots = engine_for(
+        monkeypatch, states, actions, check_readiness=True,
+    )
+    sent = []
+
+    class Layer:
+        def on_action_sent(self, action, state):
+            sent.append((action.type, device.frames))
+
+    router.layers = [Layer()]
+    result = engine.run(max_ticks=6)
+    assert result.reason == "tick_limit"
+    assert len(device.drags) == 1
+    assert device.drags[0][:2] == (440, 950)
+    assert sent == [(ActionType.PLAY_CARD, 3), (ActionType.SKIP_CHOICE, 5)]
+    assert device.taps == [(20, 20)]
+    assert snapshots == []
+
+
+def test_readiness_reroutes_current_state_instead_of_replaying_old_candidate(monkeypatch):
+    from lorwright.core.decide.generic import AttackWhenTokenPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    old = ready()
+    attack = replace(old, has_attack_token=True,
+                     my_units=[Unit("ally", 2, 2, Rect(300, 900, 60, 60))])
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [old, attack, attack], [], check_readiness=True,
+    )
+    engine.router = RealRouter([AttackWhenTokenPolicy()])
+    engine.layout.attack_row = Rect(500, 400, 100, 50)
+    engine.run(max_ticks=3)
+    assert device.taps == []
+    assert len(device.drags) == 1
+
+
+def test_result_phase_can_interrupt_readiness_without_sending_candidate(monkeypatch):
+    before = ready()
+    unknown = ready(ui_state=UIState.UNKNOWN)
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [before, unknown, unknown, ready(ui_state=UIState.BATTLE_END)],
+        [Action(ActionType.END_TURN)], check_readiness=True,
+    )
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[100:900, 300:1600] = cv2.imread(
+        "tests/fixtures/continue/f1-result-transition-20261117.png",
+    )
+
+    def capture():
+        device.frames += 1
+        return Frame(image=image if device.frames in (2, 3) else np.zeros_like(image))
+
+    monkeypatch.setattr(device, "screencap", capture)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: (0, 2, 12, 30)[device.frames - 1])
+    assert engine.run(max_ticks=4).reason == "battle_end"
+    assert device.taps == [] and device.drags == []
+
+
+def test_readiness_keeps_block_declaration_before_confirmation(monkeypatch):
+    from lorwright.core.champions.elise import SpiderAggroPolicy
+    from lorwright.core.decide.generic import BlockingPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    before = ready(ui_state=UIState.BLOCKING,
+                   my_units=[Unit("ally", 3, 4, Rect(300, 900, 60, 60))],
+                   enemy_attackers=[Unit("enemy", 2, 3, Rect(500, 300, 60, 60))])
+    moved = replace(before, my_units=[replace(before.my_units[0], rect=Rect(500, 700, 60, 60))])
+    enemy = replace(moved, ui_state=UIState.ENEMY_TURN)
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [before, before, before, moved, moved, enemy], [], check_readiness=True,
+    )
+    blocking = BlockingPolicy()
+    engine.router = RealRouter([SpiderAggroPolicy(), blocking])
+    engine.run(max_ticks=6)
+    assert len(device.drags) == 1
+    assert device.drags[0][:4] == (330, 930, 530, 330)
+    assert device.taps == [(20, 20)]
+    assert not blocking._declared
+
+
+def test_readiness_does_not_mark_elise_candidate_as_failed_play(monkeypatch):
+    from lorwright.core.champions.elise import SpiderAggroPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    before = ready(hand_expanded=True, hand=[CardInHand(0, "小蜘蛛", 1, Rect(200, 900, 80, 100))])
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [before] * 3, [], check_readiness=True,
+    )
+    policy = SpiderAggroPolicy()
+    engine.router = RealRouter([policy])
+    engine.run(max_ticks=3)
+    assert len(device.drags) == 1
+    assert device.taps == []
+    assert policy._pending_play == 0
+    assert policy._unplayable == set()
+
+
+def test_readiness_deadline_survives_ui_and_candidate_changes(monkeypatch):
+    unknown = ready(ui_state=UIState.UNKNOWN)
+    before = ready()
+    choice = ready(ui_state=UIState.OPTIONAL_CHOICE)
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [before, unknown, choice, before],
+        [Action(ActionType.END_TURN), Action(ActionType.SKIP_CHOICE)], check_readiness=True,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: (0, 2, 5, 9)[device.frames - 1])
+    result = engine.run(max_ticks=4)
+    assert result.reason == "action_readiness_unverified"
+    assert snapshots[-1]["tag"] == result.reason
+    assert device.taps == [] and device.drags == []
+
+
+def test_stale_frame_interrupts_readiness_without_extending_deadline(monkeypatch):
+    state = ready()
+    engine, device, _, _, _ = engine_for(
+        monkeypatch, [state] * 4, [Action(ActionType.END_TURN)] * 3, check_readiness=True,
+    )
+    sent = []
+
+    class Layer:
+        def on_action_sent(self, *_):
+            sent.append(device.frames)
+
+    engine.router.layers = [Layer()]
+    monkeypatch.setattr(Frame, "age_s", lambda _: 99 if device.frames == 2 else 0)
+    engine.run(max_ticks=4)
+    assert sent == [4]
+    assert device.taps == [(20, 20)]
+
+
+@pytest.mark.parametrize("transition_time,stale,expected", [
+    (2, False, "battle_end"),
+    (2, True, "battle_end"),
+    (9, False, "action_timeout"),
+])
+def test_real_readiness_and_result_phase_preserve_original_action_deadline(
+    monkeypatch, transition_time, stale, expected,
+):
+    from lorwright.core.models import TargetedSpell
+
+    before = ready(ui_state=UIState.TARGETING,
+                   targeted_spell=TargetedSpell("known", Rect(900, 500, 50, 50)),
+                   enemy_units=[Unit("enemy", 1, 1, Rect(800, 400, 8, 8))])
+    unknown = ready(ui_state=UIState.UNKNOWN)
+    engine, device, _, events, _ = engine_for(
+        monkeypatch, [before, before, unknown, unknown, ready(ui_state=UIState.BATTLE_END)],
+        [Action(ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0})] * 2,
+        check_readiness=True,
+    )
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[100:900, 300:1600] = cv2.imread(
+        "tests/fixtures/continue/f1-result-transition-20261117.png",
+    )
+
+    def capture():
+        device.frames += 1
+        return Frame(image=image if device.frames in (3, 4) else np.zeros_like(image))
+
+    monkeypatch.setattr(device, "screencap", capture)
+    monkeypatch.setattr(Frame, "age_s", lambda _: 99 if stale and device.frames == 4 else 0)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: (0, 0, transition_time, 12, 30)[device.frames - 1])
+    result = engine.run(max_ticks=5)
+    assert result.reason == expected
+    assert device.taps == [(804, 404)]
+    assert not any(e.get("status") == "succeeded" for e in events)
+    if expected == "action_timeout":
+        assert engine._pending.deadline == 8
 
 
 @pytest.mark.parametrize("action_type", [ActionType.ATTACK, ActionType.END_TURN])

@@ -6,7 +6,7 @@ import pytest
 
 from lorwright.core.champions.elise import SpiderAggroPolicy
 from lorwright.core.champions.elise.policy import rank_playable
-from lorwright.core.models import ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
 # 用 (0,0) 会被误判成已经声明过攻击
@@ -226,6 +226,62 @@ def test_lethal_attack_is_taken():
     assert action.raw["attackers"] == [0, 1]
 
 
+def test_unsent_play_candidate_remains_available() -> None:
+    policy = SpiderAggroPolicy()
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[hand(0, "小蜘蛛", 1), hand(1, "蜘蛛哨兵", 3)],
+    )
+    first = policy.decide(state)
+    assert first.type is ActionType.PLAY_CARD
+    assert first.card_index == 0
+    assert policy.decide(state) == first
+    assert policy.decide(state) == first
+
+
+def test_sent_play_tracks_actual_action_instead_of_candidate() -> None:
+    policy = SpiderAggroPolicy()
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[hand(4, "小蜘蛛", 1), hand(7, "蜘蛛哨兵", 3)],
+    )
+    candidate = policy.decide(state)
+    assert candidate.card_index == 4
+    # 所有 layers 接收实际输入，可能由另一层选择不同的牌。
+    policy.on_action_sent(Action(ActionType.PLAY_CARD, card_index=7), state)
+    assert policy.decide(state) == candidate
+    assert policy.decide(state) == candidate
+
+
+@pytest.mark.parametrize("action", [
+    Action(ActionType.CONFIRM),
+    Action(ActionType.NO_OP),
+    Action(ActionType.PLAY_CARD, card_index=99),
+])
+def test_unrelated_sent_action_does_not_blacklist_candidate(action) -> None:
+    policy = SpiderAggroPolicy()
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[hand(0, "小蜘蛛", 1)],
+    )
+    candidate = policy.decide(state)
+    policy.on_action_sent(action, state)
+    assert policy.decide(state) == candidate
+
+
+def test_unsent_candidate_does_not_attribute_targeting_to_card() -> None:
+    from dataclasses import replace
+
+    policy = SpiderAggroPolicy()
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+        hand=[hand(0, "小蜘蛛", 1)],
+    )
+    candidate = policy.decide(state)
+    assert policy.decide(replace(state, ui_state=UIState.TARGETING)).type is ActionType.NO_OP
+    assert policy.decide(state) == candidate
+
+
 def test_unplayable_card_is_skipped_on_retry() -> None:
     """拖不动的牌不能每 tick 重试：手牌没减少就换下一张。
 
@@ -241,7 +297,8 @@ def test_unplayable_card_is_skipped_on_retry() -> None:
 
     first = policy.decide(state)
     assert first is not None and first.type is ActionType.PLAY_CARD
-    # 手牌没变 = 上一张没出成 → 必须换一张，而不是重试
+    policy.on_action_sent(first, state)
+    # 实际拖牌后手牌没变 = 上一张没出成 → 必须换一张，而不是重试
     second = policy.decide(state)
     assert second is not None and second.type is ActionType.PLAY_CARD
     assert second.card_index != first.card_index
@@ -253,7 +310,9 @@ def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
     hand = [CardInHand(index=0, name="", cost=1, rect=RECT, visible_playable_unit=True)]
     state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, max_mana=3, hand=hand, hand_expanded=True)
 
-    assert policy.decide(state).type is ActionType.PLAY_CARD
+    action = policy.decide(state)
+    assert action.type is ActionType.PLAY_CARD
+    policy.on_action_sent(action, state)
     assert policy.decide(state).type is ActionType.END_TURN
 
 
@@ -281,9 +340,12 @@ def test_card_that_opens_targeting_is_marked_unplayable() -> None:
         CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True),
         CardInHand(index=1, name="", cost=3, rect=RECT, visible_playable_unit=True),
     ]
-    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand, hand_expanded=True,
+    )
     first = policy.decide(state)
     assert first is not None and first.type is ActionType.PLAY_CARD
+    policy.on_action_sent(first, state)
 
     # 取消回来，手牌一张没少
     policy.decide(GameState(ui_state=UIState.TARGETING, mana=6, max_mana=6, hand=hand))
@@ -303,8 +365,12 @@ def test_needs_target_survives_hand_size_change() -> None:
         CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True),
         CardInHand(index=1, name="", cost=3, rect=RECT, visible_playable_unit=True),
     ]
-    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand)
-    assert policy.decide(state).type is ActionType.PLAY_CARD
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, mana=6, max_mana=6, hand=hand, hand_expanded=True,
+    )
+    action = policy.decide(state)
+    assert action.type is ActionType.PLAY_CARD
+    policy.on_action_sent(action, state)
     policy.decide(GameState(ui_state=UIState.TARGETING, mana=6, max_mana=6, hand=hand))
 
     # 取消后手牌收起，少了一张（展开态平铺 7 张、收起态只露 6 张）
@@ -357,8 +423,11 @@ def test_expanding_hand_does_not_blacklist_the_selected_card() -> None:
     policy = SpiderAggroPolicy()
     cards = [CardInHand(0, "小蜘蛛", 1, RECT)]
     collapsed = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand=cards)
-    assert policy.decide(collapsed).card_index == 0
-    action = policy.decide(replace(collapsed, hand_expanded=True))
+    expansion = policy.decide(collapsed)
+    assert expansion.card_index == 0
+    policy.on_action_sent(expansion, collapsed)
+    expanded = replace(collapsed, hand_expanded=True)
+    action = policy.decide(expanded)
     assert action.type is ActionType.PLAY_CARD
     assert action.card_index == 0
-    assert policy._unplayable == set()
+    assert policy.decide(expanded) == action

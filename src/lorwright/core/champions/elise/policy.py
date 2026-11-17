@@ -119,7 +119,7 @@ class SpiderAggroPolicy(Policy):
     version = "0.3.0"
 
     def __init__(self) -> None:
-        #: 上一 tick 打出的手牌序号。用来发现「拖了但没出成」。
+        #: 最近已发送拖牌的手牌序号。用来发现「拖了但没出成」。
         #: 有些牌带着条件，不满足时**根本拖不动**：伊莉絲变成英雄法术后
         #: 要求「本回合有友軍單位陣亡」。不记下来就会每 tick 重试同一张，
         #: 永远出不了牌（实机 2026-11-04 卡了 10 个 tick）。
@@ -133,6 +133,18 @@ class SpiderAggroPolicy(Policy):
         #: 需要选目标的费用（冥血戰这类「擊殺1個友軍單位」的牌）。
         #: 这是牌本身的性质，不是暂时状态，所以整场战斗都不再碰它。
         self._needs_target: set[int] = set()
+
+    def on_action_sent(self, action: Action, before: GameState) -> None:
+        """仅记录已发送的拖牌；收起态 PLAY_CARD 只展开手牌。"""
+        if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
+                or before.ui_state is not UIState.MY_TURN_IDLE):
+            return
+        card = next((card for card in before.hand if card.index == action.card_index), None)
+        if card is None:
+            return
+        self._pending_play = card.index
+        self._pending_cost = card.cost
+        self._pending_hand = len(before.hand)
 
     def _settle_previous_play(self, state: GameState) -> None:
         """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
@@ -193,9 +205,6 @@ class SpiderAggroPolicy(Policy):
         ]
         if ranked:
             card, _definition, _score = ranked[0]
-            # 收起态的 PLAY_CARD 只展开手牌，尚未拖牌，不能记作一次出牌失败。
-            self._pending_play = card.index if state.hand_expanded else None
-            self._pending_cost = card.cost
             return Action(type=ActionType.PLAY_CARD, card_index=card.index)
 
         # P2 攻击声明：求解器说值得打才打

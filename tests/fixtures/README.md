@@ -41,6 +41,8 @@
 
 `continue/f1-missions-after-battle-20261117.png` 为会话 `20261117T034241-db9275c41523` 停止后的独立 ADB 截图 `logs/battle-20261117T034241-db9275c41523-observed.jpg` 的 `[30:400,30:1880]`（1850×370）安全裁剪，含两项页面标签及 600 XP / 每日获胜奖励 400 XP，不含账号。JPEG 解码后原尺寸保存；其余画面补黑为测试合成。停止原帧仍是没有文字的转场背景，不能与该后继结算图混同。现有双标签识别无需改动即可确认 `missions`，遮挡任一标签和调暗均拒绝；战斗终态由后续实机会话另行核验。
 
+`continue/f1-result-transition-20261117.png` 为会话 `20261117T034241-db9275c41523` 的 `action_timeout` 原帧 `[100:900,300:1600]`（1300×800）安全裁剪，只有无文字的岩壁转场背景，没有账号。运行素材 `assets/adventure/result_transition_cliff.png` 与 `result_transition_rocks.png` 分别取同一原帧 `[120:220,650:850]`（200×100）、`[620:740,1320:1520]`（200×120）。三张裁剪已逐张查看，只算一个独立实拍背景；黑底还原、遮挡和调暗为合成变化。双区域匹配只授权有界等待，不证明战斗结束；Engine 用合成时钟/状态验证阶段预算、过期帧和不重发输入，不是实机逐帧回放。
+
 ## Jinx 场上身份安全裁剪
 
 `jinx/board-summoned-20261117.png` 与 `jinx/board-summoned-after-20261117.png` 均为原生 1920×1080 的 `[830:1040,760:1150]`（390×210）裁剪，只含己方单位和卡框，无账号。前者来自会话 `20261117T032446-5dba959fb517` 的 `action_timeout_20261117_112559_568300.png`，后者来自该会话停止后的独立 ADB 截图 `logs/battle-20261117T032446-5dba959fb517-observed.jpg`（JPEG 解码为 PNG，未恢复有损细节）。运行模板 `src/lorwright/core/champions/jinx/assets/board_leveled.png` 为前图原帧的 `[913:988,1000:1090]`（90×75）卡面裁剪。

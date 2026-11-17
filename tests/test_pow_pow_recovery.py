@@ -9,6 +9,7 @@ from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 from lorwright.core.champions.jinx.vision import recognize_targeted_spell
 from lorwright.core.loop.engine import Engine
 from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
+from lorwright.core.loop.readiness import ActionReadiness
 from lorwright.core.models import (
     Action,
     ActionType,
@@ -31,7 +32,8 @@ def test_synthetic_target_recovery():
     assert plan.drag and plan.drag_hold_ms > 0
     assert plan.points == [(960, 538), (1670, 967)]
     device = Mock()
-    engine = SimpleNamespace(device=device, _scale=Scale(0.5, 0.5))
+    engine = SimpleNamespace(device=device, _scale=Scale(0.5, 0.5),
+                             _readiness=ActionReadiness(), _readiness_deadline=None)
     assert Engine._execute(engine, plan) == 2
     device.drag.assert_called_once_with(480, 269, 835, 484, plan.drag_hold_ms, plan.drag_ms)
     pending = ActionOutcome(action, state, 8)

@@ -39,6 +39,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_battle_detail,
     is_completed_panel,
     is_map,
+    item_chest_leave_button,
     recognize_weekly_adventures,
     reward_timeout_continue,
     shop_leave_button,
@@ -273,6 +274,11 @@ class AdventureLoop:
             if is_power_vendor(image):
                 self._scene("astrologer")
                 if not self._handle_astrologer(image):
+                    return
+                continue
+            if item_chest_leave_button(image) is not None:
+                self._scene("item_chest")
+                if not self._leave_item_chest(image):
                     return
                 continue
             if shop_leave_button(image) is not None:
@@ -586,7 +592,8 @@ class AdventureLoop:
         if normalized is not None and (is_adventure_victory(normalized[0])
                                        or is_task_reward(normalized[0])):
             return True
-        if (is_power_vendor(image) or shop_leave_button(image) is not None or self._is_healer(image)
+        if (is_power_vendor(image) or shop_leave_button(image) is not None
+                or item_chest_leave_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)
                 or self._is_hero_item_reward(image)
                 or is_power_screen(image) or is_battle_detail(image) or is_map(image)):
@@ -853,6 +860,24 @@ class AdventureLoop:
         self._snapshot(after, tag="astrologer_purchase_unverified")
         return False
 
+    def _leave_item_chest(self, image) -> bool:
+        """放弃宝箱强化，单次离开后核验回图。"""
+        button = item_chest_leave_button(image)
+        if button is None:
+            self._snapshot(image, tag="item_chest_leave_missing")
+            return False
+        self._scene("item_chest")
+        self._tap(*button.center)
+        for _ in range(6):
+            self._wait(2, reason="item_chest_leave_transition", wait_s=12)
+            after = self._frame()
+            if is_map(after) and not panel_open(after):
+                report("verified", "item_chest_map_transition", progress=True,
+                       reward_skipped=True)
+                return True
+        self._snapshot(after, tag="item_chest_leave_unverified")
+        return False
+
     def _handle_shop(self, image) -> bool:
         """按当前通用规则离开商店，核实返回地图后继续。"""
         button = shop_leave_button(image)
@@ -1056,6 +1081,8 @@ class AdventureLoop:
             image = self._frame()
         if is_power_vendor(image):
             return self._handle_astrologer(image)
+        if item_chest_leave_button(image) is not None:
+            return self._leave_item_chest(image)
         if shop_leave_button(image) is not None:
             return self._handle_shop(image)
         if self._is_healer(image):
@@ -1105,6 +1132,8 @@ class AdventureLoop:
                 image = self._frame()
                 if is_power_vendor(image):
                     return self._handle_astrologer(image)
+                if item_chest_leave_button(image) is not None:
+                    return self._leave_item_chest(image)
                 if shop_leave_button(image) is not None:
                     return self._handle_shop(image)
                 if self._is_healer(image):

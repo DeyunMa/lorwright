@@ -962,6 +962,72 @@ def test_adventure_stop_reports_snapshot_to_session(adventure, tmp_path):
         assert status["details"]["iteration"] == 1
 
 
+def _item_chest_panel():
+    image = _blank()
+    image[340:1025, 530:975] = _img("f1-item-chest-panel-20261117.png")
+    return image
+
+
+@pytest.mark.parametrize("entry", ["run", "panel", "travel"])
+def test_item_chest_leaves_once_and_verifies_map(adventure, entry):
+    chest = _item_chest_panel()
+    stable = _img("1080p_jinx_map.png")
+    frames = [chest, stable] if entry == "run" else [stable]
+    if entry == "travel":
+        frames = [chest, stable]
+    loop, device, _, saved, _ = adventure(frames, [])
+    if entry == "run":
+        loop.run(max_nodes=1)
+    else:
+        first = _img("1080p_node_panel.png") if entry == "travel" else chest
+        assert loop._handle_node_panel(first)
+    assert len(device.taps) == (2 if entry == "travel" else 1)
+    assert 645 <= device.taps[-1][0] <= 740
+    assert 930 <= device.taps[-1][1] <= 980
+    assert saved == []
+
+
+@pytest.mark.parametrize("damage", ["title", "leave", "partial_title", "partial_leave", "dimmed"])
+def test_item_chest_requires_visible_title_and_leave(adventure, damage):
+    from lorwright.core.perceive.adventure_scene import item_chest_leave_button
+
+    image = _item_chest_panel()
+    assert item_chest_leave_button(image) is not None
+    if damage == "title":
+        image[345:430, 545:805] = 0
+    elif damage == "leave":
+        image[920:990, 630:760] = 0
+    elif damage == "partial_title":
+        image[361:414, 563:605] = 0
+    elif damage == "partial_leave":
+        image[929:970, 648:690] = 0
+    else:
+        image //= 2
+    assert item_chest_leave_button(image) is None
+    loop, device, _, _, _ = adventure([image], [UIState.UNKNOWN])
+    assert not loop._leave_item_chest(image)
+    assert device.taps == []
+
+
+@pytest.mark.parametrize("successor", ["chest", "unknown", "panel"])
+def test_item_chest_leave_stops_without_repeating_input(adventure, successor):
+    image = {"chest": _item_chest_panel(), "unknown": _blank(),
+             "panel": _img("1080p_node_panel.png")}[successor]
+    loop, device, _, saved, _ = adventure([image] * 6, [])
+    assert not loop._leave_item_chest(_item_chest_panel())
+    assert len(device.taps) == 1
+    assert device._frames == []
+    assert saved == ["item_chest_leave_unverified"]
+
+
+def test_item_chest_identity_does_not_match_other_nodes():
+    from lorwright.core.perceive.adventure_scene import item_chest_leave_button
+
+    assert item_chest_leave_button(_img("f1-shop-20261114.png")) is None
+    assert item_chest_leave_button(_img("1080p_jinx_map.png")) is None
+    assert item_chest_leave_button(_item_chest_panel()[:540, :960]) is None
+
+
 def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):
     shop = _img("f1-shop-20261114.png")
     loop, device, _, saved, _ = adventure([shop, shop], [])

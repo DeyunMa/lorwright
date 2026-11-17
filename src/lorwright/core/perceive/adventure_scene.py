@@ -162,6 +162,13 @@ def shop_leave_button(image: np.ndarray) -> Rect | None:
     return Rect(648, 984, 87, 41)
 
 
+def item_chest_leave_button(image: np.ndarray) -> Rect | None:
+    """宝箱标题与离开文字须同时明亮完整，不依赖候选卡牌身份。"""
+    if _visible_patch(image, "item_chest_title", (545, 345, 805, 430)) is None:
+        return None
+    return _visible_patch(image, "shop_leave", (630, 920, 760, 990))
+
+
 @dataclass(frozen=True)
 class WeeklyAdventure:
     target: Rect

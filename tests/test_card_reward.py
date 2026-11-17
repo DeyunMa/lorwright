@@ -72,6 +72,41 @@ def test_landmark_reward_rejects_missing_independent_evidence(region):
     assert card_reward_target(image, 2, "") is None
 
 
+def narrow_one_reward():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-narrow-one-reward-20261117.png")
+    return image
+
+
+def test_narrow_one_reward_recognizes_all_costs_and_selects_middle():
+    image = narrow_one_reward()
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    assert [_card_cost(image, x) for x in (354, 769, 1184)] == [7, 1, 7]
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [7, 1, 7]
+    assert all(c.preview_cost_verified for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+    assert card_reward_target(image, 1, candidates[1].card.name) is not None
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "partial"])
+def test_narrow_one_reward_rejects_missing_or_damaged_cost(damage):
+    image = narrow_one_reward()
+    if damage == "missing":
+        image[276:309, 843:879] = 0
+    elif damage == "dimmed":
+        image[276:309, 843:879] //= 3
+    else:
+        image[281:293, 851:862] = 0
+    assert _card_cost(image, 769) is None
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 1, "") is None
+
+
 def test_two_star_first_battle_reward_selects_lowest_preview_cost():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)

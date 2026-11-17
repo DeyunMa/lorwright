@@ -456,7 +456,9 @@ def _connected_navigation_nodes(
                 distances[label] = cv2.distanceTransform(
                     (labels != label).astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE,
                 )
-            if not _component_between_nodes(distances[label], origin, endpoint):
+            route_end = (_component_port_contact(labels, int(label), origin, endpoint)
+                         if candidate.connection is not None else endpoint)
+            if route_end is None or not _component_between_nodes(distances[label], origin, route_end):
                 continue
             if candidate.shape == "round" and not _lit_unfinished_ring(
                 image, labels, int(label), node.x, node.y, node.radius,
@@ -546,6 +548,24 @@ def _node_edge_visible(
     dark = ((value < 20) & (corridor > 0)).astype(np.uint8)
     count, _, stats, _ = cv2.connectedComponentsWithStats(dark)
     return count <= 1 or int(stats[1:, cv2.CC_STAT_AREA].max()) < 100
+
+
+def _component_port_contact(
+    labels: np.ndarray, label: int, origin: MapNode, port: MapNode,
+) -> MapNode | None:
+    """展示框的入边可偏离中心；以同一亮线在端口内的末端核验连续性。"""
+    extent = port.radius + 6
+    x0, x1 = max(0, port.x - extent), min(labels.shape[1], port.x + extent + 1)
+    y0, y1 = max(0, port.y - extent), min(labels.shape[0], port.y + extent + 1)
+    yy, xx = np.ogrid[y0:y1, x0:x1]
+    contact = ((labels[y0:y1, x0:x1] == label)
+               & ((xx - port.x) ** 2 + (yy - port.y) ** 2 <= extent ** 2))
+    ys, xs = np.where(contact)
+    if not len(xs):
+        return None
+    xs, ys = xs + x0, ys + y0
+    end = int(np.argmax((xs - origin.x) ** 2 + (ys - origin.y) ** 2))
+    return MapNode(int(xs[end]), int(ys[end]), 0)
 
 
 def _component_between_nodes(

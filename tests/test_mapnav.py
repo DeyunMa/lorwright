@@ -121,6 +121,41 @@ def test_shared_navigation_follows_visible_edges_in_each_direction(shape, direct
         assert not nodes[0].needs_reveal
 
 
+@pytest.mark.parametrize("offset", [(0, 0), (100, 100)])
+def test_short_display_edge_uses_visible_rim_contact(offset):
+    image = _load("f1-short-display-edge-20261117.png")
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert math.dist(nodes[0].center, (1026 + dx, 426 + dy)) < 12
+    assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["cut", "origin", "rim", "center", "lock", "completed"])
+def test_short_display_edge_requires_route_and_unfinished_target(damage):
+    image = _load("f1-short-display-edge-20261117.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "cut":
+        image[266:282, 964:1007] = 0
+    elif damage == "origin":
+        image[165:225, 930:990] = 0
+    elif damage == "rim":
+        image[370:480, 970:1082] //= 3
+    elif damage == "center":
+        image[412:440, 1012:1040] = 128
+    elif damage == "lock":
+        source = _load("f1-weekly-two-home-20261116.png")
+        image[408:444, 1008:1044] = source[515:551, 717:753]
+    else:
+        source = _load("f1-weekly-after-hero-reward-20261116.png")
+        image[408:444, 1008:1044] = source[520:556, 942:978]
+    assert reachable_nodes(image, hero=hero) == []
+
+
 def test_weekly_home_follows_lit_route_to_first_power_diamond():
     image = _load("f1-weekly-two-home-20261116.png")
     hero = recognize_hero(image)

@@ -963,6 +963,70 @@ def test_adventure_stop_reports_snapshot_to_session(adventure, tmp_path):
         assert status["details"]["iteration"] == 1
 
 
+@pytest.mark.parametrize("entry", ["run", "panel", "travel"])
+def test_gold_chest_collects_once_and_verifies_map(adventure, entry, monkeypatch):
+    reports = []
+    monkeypatch.setattr("lorwright.core.loop.adventure.report",
+                        lambda phase, reason=None, **details: reports.append((reason, details)))
+    chest = _img("f1-gold-chest-20261117.png")
+    stable = _img("1080p_jinx_map.png")
+    frames = [chest, stable] if entry in {"run", "travel"} else [stable]
+    loop, device, _, saved, _ = adventure(frames, [])
+    if entry == "run":
+        loop.run(max_nodes=1)
+    else:
+        first = _img("1080p_node_panel.png") if entry == "travel" else chest
+        assert loop._handle_node_panel(first)
+    assert len(device.taps) == (2 if entry == "travel" else 1)
+    assert 1360 <= device.taps[-1][0] <= 1525
+    assert 980 <= device.taps[-1][1] <= 1030
+    assert saved == []
+    verified = [details for reason, details in reports if reason == "gold_chest_map_transition"]
+    assert len(verified) == 1
+    assert verified[0]["reward_credited_verified"] is False
+
+
+@pytest.mark.parametrize("damage", ["title", "collect", "partial_title", "partial_collect", "dimmed"])
+def test_gold_chest_requires_visible_title_and_collect(adventure, damage):
+    from lorwright.core.perceive.adventure_scene import gold_chest_collect_button
+
+    image = _img("f1-gold-chest-20261117.png")
+    assert gold_chest_collect_button(image) is not None
+    if damage == "title":
+        image[345:430, 545:805] = 0
+    elif damage == "collect":
+        image[960:1050, 1320:1565] = 0
+    elif damage == "partial_title":
+        image[362:415, 562:605] = 0
+    elif damage == "partial_collect":
+        image[984:1026, 1356:1398] = 0
+    else:
+        image //= 2
+    assert gold_chest_collect_button(image) is None
+    loop, device, _, _, _ = adventure([image], [])
+    assert not loop._collect_gold_chest(image)
+    assert device.taps == []
+
+
+@pytest.mark.parametrize("successor", ["chest", "unknown", "panel"])
+def test_gold_chest_does_not_repeat_collection_without_verified_map(adventure, successor):
+    image = {"chest": _img("f1-gold-chest-20261117.png"), "unknown": _blank(),
+             "panel": _img("1080p_node_panel.png")}[successor]
+    loop, device, _, saved, _ = adventure([image] * 6, [])
+    assert not loop._collect_gold_chest(_img("f1-gold-chest-20261117.png"))
+    assert len(device.taps) == 1
+    assert device._frames == []
+    assert saved == ["gold_chest_transition_unverified"]
+
+
+def test_gold_chest_identity_rejects_other_nodes_and_sizes():
+    from lorwright.core.perceive.adventure_scene import gold_chest_collect_button
+
+    for name in ("1080p_jinx_map.png", "f1-shop-20261114.png", "f1-gold-travel-panel-20261117.png"):
+        assert gold_chest_collect_button(_img(name)) is None
+    assert gold_chest_collect_button(_img("f1-gold-chest-20261117.png")[:540, :960]) is None
+
+
 def _item_chest_panel():
     image = _blank()
     image[340:1025, 530:975] = _img("f1-item-chest-panel-20261117.png")

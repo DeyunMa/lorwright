@@ -36,6 +36,7 @@ from lorwright.core.perceive.adventure_scene import (
     find_resume_adventure_button,
     find_weekly_entry,
     find_weekly_start,
+    gold_chest_collect_button,
     is_battle_detail,
     is_completed_panel,
     is_map,
@@ -275,6 +276,10 @@ class AdventureLoop:
             if is_power_vendor(image):
                 self._scene("astrologer")
                 if not self._handle_astrologer(image):
+                    return
+                continue
+            if gold_chest_collect_button(image) is not None:
+                if not self._collect_gold_chest(image):
                     return
                 continue
             if item_chest_leave_button(image) is not None:
@@ -600,7 +605,8 @@ class AdventureLoop:
                                        or is_task_reward(normalized[0])):
             return True
         if (is_power_vendor(image) or shop_leave_button(image) is not None
-                or item_chest_leave_button(image) is not None or self._is_healer(image)
+                or item_chest_leave_button(image) is not None
+                or gold_chest_collect_button(image) is not None or self._is_healer(image)
                 or self._is_support(image) or self._is_card_reward(image)
                 or self._is_hero_item_reward(image)
                 or is_power_screen(image) or is_battle_detail(image) or is_map(image)):
@@ -867,6 +873,23 @@ class AdventureLoop:
         self._snapshot(after, tag="astrologer_purchase_unverified")
         return False
 
+    def _collect_gold_chest(self, image) -> bool:
+        button = gold_chest_collect_button(image)
+        if button is None:
+            self._snapshot(image, tag="gold_chest_collect_missing")
+            return False
+        self._scene("gold_chest")
+        self._tap(*button.center)
+        for _ in range(6):
+            self._wait(2, reason="gold_chest_transition", wait_s=12)
+            after = self._frame()
+            if is_map(after) and not panel_open(after):
+                report("verified", "gold_chest_map_transition", progress=True,
+                       reward_credited_verified=False)
+                return True
+        self._snapshot(after, tag="gold_chest_transition_unverified")
+        return False
+
     def _leave_item_chest(self, image) -> bool:
         """放弃宝箱强化，单次离开后核验回图。"""
         button = item_chest_leave_button(image)
@@ -1088,6 +1111,8 @@ class AdventureLoop:
             image = self._frame()
         if is_power_vendor(image):
             return self._handle_astrologer(image)
+        if gold_chest_collect_button(image) is not None:
+            return self._collect_gold_chest(image)
         if item_chest_leave_button(image) is not None:
             return self._leave_item_chest(image)
         if shop_leave_button(image) is not None:
@@ -1139,6 +1164,8 @@ class AdventureLoop:
                 image = self._frame()
                 if is_power_vendor(image):
                     return self._handle_astrologer(image)
+                if gold_chest_collect_button(image) is not None:
+                    return self._collect_gold_chest(image)
                 if item_chest_leave_button(image) is not None:
                     return self._leave_item_chest(image)
                 if shop_leave_button(image) is not None:

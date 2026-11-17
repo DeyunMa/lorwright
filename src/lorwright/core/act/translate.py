@@ -34,6 +34,15 @@ class ActionTranslator:
         if action.type is ActionType.NO_OP:
             return None
 
+        if action.type is ActionType.DISCARD_CARD:
+            candidates = state.discard_candidates
+            index = action.card_index
+            if (state.ui_state is not UIState.DISCARD or candidates is None
+                    or not isinstance(index, int) or isinstance(index, bool)
+                    or not 0 <= index < len(candidates.cards)):
+                return None
+            return ClickPlan(points=[candidates.cards[index].center], wait_ms=self.tap_wait_ms)
+
         if action.type is ActionType.SKIP_CHOICE:
             if state.ui_state is not UIState.OPTIONAL_CHOICE or not self.layout.end_turn:
                 return None

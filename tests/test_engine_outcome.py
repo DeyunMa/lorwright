@@ -66,6 +66,39 @@ class Router:
         return {}
 
 
+@pytest.mark.parametrize("closed", [False, True])
+def test_discard_sends_once_then_verifies_exit_or_times_out(monkeypatch, closed):
+    from lorwright.core.models import DiscardCandidates
+
+    candidates = DiscardCandidates((Rect(200, 600, 50, 50),), ((1.0,),), (1,))
+    discard = ready(ui_state=UIState.DISCARD)
+    after = ready() if closed else discard
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [discard, discard, ready(ui_state=UIState.UNKNOWN), after],
+        [Action(ActionType.NO_OP)], check_readiness=True,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.discard_candidates", lambda *_: candidates)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 20.0 if device.frames >= 4 and not closed else 0.0)
+    callbacks = []
+
+    class Layer:
+        def on_action_outcome(self, action, *_):
+            callbacks.append(action.type)
+
+    router.layers = [Layer()]
+    engine.run(max_ticks=4)
+    assert device.taps == [(225, 625)]
+    assert router.calls == (1 if closed else 0)
+    assert callbacks == ([ActionType.DISCARD_CARD] if closed else [])
+    assert snapshots == ([] if closed else [{"tag": "action_timeout"}])
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[0]["status"] == "waiting"
+    assert outcomes[-1]["status"] == ("succeeded" if closed else "timed_out")
+    if closed:
+        assert outcomes[-1]["reason"] == "discard_selection_closed"
+
+
 def test_play_choice_reroutes_without_play_success_then_verifies_skip(monkeypatch):
     before = ready(hand_expanded=True,
                    hand=[CardInHand(0, "", 1, Rect(200, 900, 80, 100))])

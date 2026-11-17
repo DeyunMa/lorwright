@@ -27,6 +27,23 @@ def state(**kwargs):
     return GameState(**defaults)
 
 
+def test_play_yields_to_discard_without_notifying_play_success():
+    before = state()
+    after = state(ui_state=UIState.DISCARD, hand=[])
+    result = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8).observe(after, 1)
+    assert result.status is OutcomeStatus.NEEDS_INPUT
+    assert result.reason == "discard_selection_required"
+
+
+@pytest.mark.parametrize("ui", [UIState.UNKNOWN, UIState.DISCARD, UIState.MULLIGAN,
+                                UIState.OPTIONAL_CHOICE])
+def test_discard_does_not_accept_unknown_or_unrelated_interactions(ui):
+    outcome = ActionOutcome(Action(ActionType.DISCARD_CARD, card_index=0),
+                            state(ui_state=UIState.DISCARD), 8)
+    assert outcome.observe(state(ui_state=ui), 1).status is OutcomeStatus.WAITING
+    assert outcome.observe(state(), 8).status is OutcomeStatus.TIMED_OUT
+
+
 def units(*ys):
     return [Unit("", -1, -1, Rect(i * 150, y, 8, 8)) for i, y in enumerate(ys)]
 

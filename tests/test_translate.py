@@ -17,6 +17,20 @@ LAYOUT = Layout(
 )
 
 
+def test_discard_click_requires_current_candidates_and_valid_index() -> None:
+    from lorwright.core.models import DiscardCandidates, UIState
+
+    candidates = DiscardCandidates((Rect(200, 600, 50, 50),), ((1.0,),), (1,))
+    state = GameState(ui_state=UIState.DISCARD, discard_candidates=candidates)
+    translator = ActionTranslator(LAYOUT)
+    action = Action(ActionType.DISCARD_CARD, card_index=0)
+    assert translator.translate(action, state).points == [(225, 625)]
+    for index in (None, -1, 1, True):
+        assert translator.translate(Action(ActionType.DISCARD_CARD, card_index=index), state) is None
+    assert translator.translate(action, GameState()) is None
+    assert translator.translate(action, GameState(ui_state=UIState.DISCARD)) is None
+
+
 def test_end_turn_click() -> None:
     t = ActionTranslator(LAYOUT)
     plan = t.translate(Action(type=ActionType.END_TURN), GameState())

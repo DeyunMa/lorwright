@@ -8,7 +8,7 @@ from dataclasses import asdict, replace
 from lorwright.core.act.translate import ActionTranslator
 from lorwright.core.config import Settings
 from lorwright.core.decide.discard import choose_discard
-from lorwright.core.decide.router import Router
+from lorwright.core.decide.router import Router, RouteResult
 from lorwright.core.device.base import Device
 from lorwright.core.loop.outcome import ActionOutcome, LoopResult, Outcome, OutcomeStatus
 from lorwright.core.loop.readiness import ActionReadiness
@@ -274,29 +274,6 @@ class Engine:
                     # 返回战斗时仍核验原动作及原截止；不能借转场刷新动作预算。
                     result_transition_deadline = None
 
-                # 单次采样：选中后的行为尚未验证，采集新画面后立即停止。
-                if state.ui_state is UIState.DISCARD:
-                    candidates = state.discard_candidates
-                    if candidates is None:
-                        self._stop_snapshot(frame.image, "discard_candidates_unverified")
-                        break
-                    action = choose_discard(candidates)
-                    if action is None:
-                        self._stop_snapshot(frame.image, "discard_cost_unverified")
-                        break
-                    if not self._action_ready(action):
-                        self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
-                        continue
-                    point = candidates.cards[action.card_index].center
-                    record_event("discard_sample", card_index=action.card_index,
-                                 point=list(point), **action.raw)
-                    checkpoint()
-                    self.device.tap(*self._scale.to_device(*point))
-                    self._wait(1.0)
-                    sampled = self.capture_frame()
-                    self._stop_snapshot(sampled.image, "discard_sample")
-                    break
-
                 if (self._staged_play is not None
                         and time.monotonic() >= self._staged_play.deadline):
                     self._observe_outcome(self._staged_play, state, ticks)
@@ -374,8 +351,19 @@ class Engine:
 
                 report("decide")
                 decision_at = time.time()
-                result = (self.router.decide(decision_state, suppress_hand_expansion=True)
-                          if inspecting_board else self.router.decide(decision_state))
+                if state.ui_state is UIState.DISCARD:
+                    candidates = state.discard_candidates
+                    if candidates is None:
+                        self._stop_snapshot(frame.image, "discard_candidates_unverified")
+                        break
+                    action = choose_discard(candidates)
+                    if action is None:
+                        self._stop_snapshot(frame.image, "discard_cost_unverified")
+                        break
+                    result = RouteResult(action, "discard", "按已核实重复牌及费用选择弃牌")
+                else:
+                    result = (self.router.decide(decision_state, suppress_hand_expansion=True)
+                              if inspecting_board else self.router.decide(decision_state))
                 if (not inspecting_board and state.ui_state is UIState.MY_TURN_IDLE
                         and state.hand_expanded and state.has_attack_token
                         and self.layout.collapse_hand_point is not None

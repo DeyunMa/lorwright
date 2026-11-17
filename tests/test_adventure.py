@@ -917,11 +917,12 @@ def test_unknown_after_panel_close_is_not_clicked_again(adventure):
     assert saved == ["panel_no_empty_point"]
 
 
-def test_battle_takeover_runs_engine(adventure):
+@pytest.mark.parametrize("ui", [UIState.MULLIGAN, UIState.DISCARD])
+def test_battle_takeover_runs_engine(adventure, ui):
     # 主循环帧直接是战斗画面（进入战斗节点后）→ 引擎接管，不点任何东西
     loop, device, engine, _, coords = adventure(
         [_img("1080p_zoommax.png")],
-        [UIState.MULLIGAN, UIState.UNKNOWN],
+        [ui, UIState.UNKNOWN],
     )
     loop.run(max_nodes=1)
     assert engine.run_calls == [400]  # settings.adventure.battle_max_ticks

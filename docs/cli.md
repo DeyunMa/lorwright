@@ -40,6 +40,22 @@ lorwright sessions start --mode battle --champion jinx --jinx-summoned --rockets
 
 `events --follow --jsonl` 可供终端持续跟随，直到终态或失联；Agent 更适合有界的 `status --wait` 配合增量事件查询。查询命令成功只说明取得状态，不代表游戏目标完成。
 
+## 独立核验手牌视图
+
+```bash
+lorwright hand --view expanded --champion jinx --jsonl
+lorwright hand --view collapsed --device adb --jsonl
+
+# 使用按时间排序的专用截图目录；输入仅记录，不控制游戏。
+lorwright hand --view expanded --replay PATH_TO_ORDERED_FRAMES --champion elise --jsonl
+```
+
+`--view` 必填，只接受 `expanded` 或 `collapsed`。此命令只核验并切换手牌视图，最多发送一次展开或收起输入；已经处于目标视图时仍须取得连续两张新鲜帧确认。它不出牌、不结束回合、不领奖，也不装配普通战斗策略。`--champion` 选择对应识别回调，省略时读取配置。
+
+命令创建 `mode=hand` 的独立 RunSession，沿用设备锁、事件、截图、停止请求及退出码；通过首条 JSONL 事件取得 `run_id`，随后可用 `sessions status/events/stop` 查询或停止。`completed / hand_view_verified` 只证明本次目标视图已核验。观察有界，无法核验时以具体原因停止并保留截图，输入已发送不等于成功。
+
+可用参数为 `--view`、`--device`、`--replay`、`--champion` 和 `--jsonl`。手牌命令不提供 bootstrap、自动登录或中局恢复参数，也不启用战斗/冒险的重连重启流程；需要完整续战时使用 `run` 或 `adventure`。离线回放验证与实机验收分别记录。
+
 ## f1：从设备开机接入冒险
 
 f1 必须已有 Windows 交互会话、`F1StartPie64` 计划任务和本项目的 Pie64

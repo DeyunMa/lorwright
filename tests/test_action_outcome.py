@@ -92,9 +92,25 @@ def test_opponent_unit_reroute_requires_current_visible_evidence(change):
 
 def test_expanding_is_a_separate_step_from_playing():
     before = state(hand_expanded=False)
-    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
+    pending = ActionOutcome(Action(ActionType.EXPAND_HAND), before, 8)
     assert pending.observe(before, 1).status is OutcomeStatus.WAITING
-    assert pending.observe(state(), 2).reason == "hand_expanded"
+    expanded = state()
+    outcome = pending.observe(expanded, 2)
+    assert outcome.status is OutcomeStatus.SUCCEEDED
+    assert outcome.reason == "hand_expanded"
+    play = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), expanded, 8)
+    assert play.observe(expanded, 3).status is OutcomeStatus.WAITING
+
+
+@pytest.mark.parametrize("ui", [UIState.MY_TURN_IDLE, UIState.TARGETING, UIState.COMBAT_RESOLVING])
+def test_collapsed_play_cannot_be_verified_as_expansion_or_play(ui):
+    before = state(hand_expanded=False)
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
+    after = state(ui_state=ui, hand=before.hand[:1], mana=2, readings={"mana": Reading(2, 0)})
+    outcome = pending.observe(after, 1)
+    assert outcome.status is OutcomeStatus.WAITING
+    assert outcome.reason == "play_requires_expanded_hand"
+    assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
 
 
 def test_mulligan_replace_waits_for_the_requested_selection_change():
@@ -157,9 +173,10 @@ def test_free_unit_uses_board_change_but_not_hand_representation_change():
 def test_targeting_requires_input_instead_of_repeating_drag():
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), state(), 8)
     assert pending.observe(state(ui_state=UIState.TARGETING), 1).status is OutcomeStatus.NEEDS_INPUT
-    collapsed = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0),
-                              state(hand_expanded=False), 8)
-    assert collapsed.observe(state(ui_state=UIState.TARGETING, hand_expanded=False), 1).status is OutcomeStatus.NEEDS_INPUT
+    collapsed_after_drag = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), state(), 8)
+    assert collapsed_after_drag.observe(
+        state(ui_state=UIState.TARGETING, hand_expanded=False), 1,
+    ).status is OutcomeStatus.NEEDS_INPUT
 
 
 @pytest.mark.parametrize("field", ["enemy_nexus_hp", "nexus_hp"])
@@ -179,15 +196,17 @@ def test_commit_yields_to_next_commit_only_with_fresh_damage(field):
     assert pending.deadline == 20
 
 
-def test_play_yields_to_confirmation_when_the_game_requests_it():
+@pytest.mark.parametrize("prompt", ["action_confirm", "action_commit"])
+def test_play_yields_to_confirmation_when_the_game_requests_it(prompt):
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)
-    after = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    after = replace(before, ui_state=UIState.COMBAT_RESOLVING, action_prompt=prompt)
     assert pending.observe(after, 1).status is OutcomeStatus.NEEDS_INPUT
-    # 展开手牌之后出现结算按钮，不代表已经成功拖出卡牌。
+    # 展开被结算按钮打断，不代表已经成功拖出卡牌或完成展开。
     collapsed = replace(before, hand_expanded=False)
-    expanded = ActionOutcome(Action(ActionType.PLAY_CARD, 0), collapsed, 8).observe(after, 1)
-    assert expanded.reason == "hand_expanded"
+    expanded = ActionOutcome(Action(ActionType.EXPAND_HAND), collapsed, 8).observe(after, 1)
+    assert expanded.status is OutcomeStatus.NEEDS_INPUT
+    assert expanded.reason == "hand_expansion_interrupted"
 
 
 @pytest.mark.parametrize("kind,raw", [

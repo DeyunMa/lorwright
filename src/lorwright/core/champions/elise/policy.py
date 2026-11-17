@@ -135,7 +135,7 @@ class SpiderAggroPolicy(Policy):
         self._needs_target: set[int] = set()
 
     def on_action_sent(self, action: Action, before: GameState) -> None:
-        """仅记录已发送的拖牌；收起态 PLAY_CARD 只展开手牌。"""
+        """仅记录已发送的拖牌；视图动作不进入出牌状态。"""
         if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
                 or before.ui_state is not UIState.MY_TURN_IDLE):
             return
@@ -195,6 +195,9 @@ class SpiderAggroPolicy(Policy):
         # 但攻击行的单位 y 坐标（≈710）和平躺的（≈930）差得很开。
         if state.my_units and _units_in_attack_row(state):
             return Action(type=ActionType.CONFIRM)
+
+        if not state.hand_expanded and state.hand:
+            return Action(type=ActionType.EXPAND_HAND)
 
         # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
         ranked = [

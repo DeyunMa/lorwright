@@ -92,8 +92,10 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         cards = [c for c in state.hand if c.index == action.card_index]
         if len(cards) != 1:
             return None
-        # 收起态 translator 只点 hand_region，不使用牌的身份或卡位。
-        detail = _card(cards[0], drag=True) if state.hand_expanded else (True,)
+        detail = _card(cards[0], drag=True) if state.hand_expanded else None
+    elif kind is ActionType.EXPAND_HAND:
+        detail = ((True,) if state.ui_state is UIState.MY_TURN_IDLE
+                  and not state.hand_expanded and state.hand else None)
     elif kind is ActionType.DISCARD_CARD:
         candidates = state.discard_candidates
         index = action.card_index

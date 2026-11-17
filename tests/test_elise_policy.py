@@ -58,6 +58,7 @@ def test_plays_cheapest_when_only_one_playable():
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         mana=3,
+        hand_expanded=True,
         hand=[hand(0, "群蛛之主", 5), hand(1, "小蜘蛛", 1)],
     )
     action = POLICY.decide(state)
@@ -100,6 +101,7 @@ def test_elise_is_chosen_over_cheaper_cards():
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         mana=10,
+        hand_expanded=True,
         hand=[hand(0, "小蜘蛛", 1), hand(1, "伊莉絲", 2)],
         my_units=[],
         enemy_units=[unit("大块头", 10, 10)],
@@ -115,6 +117,7 @@ def test_plays_plain_unit_before_summon_buff():
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         mana=10,
+        hand_expanded=True,
         hand=[hand(0, "蜘蛛哨兵", 3), hand(1, "群蛛之主", 5)],
         my_units=[unit("小蜘蛛", 1, 1), unit("小蜘蛛", 1, 1)],
         enemy_units=[unit("大块头", 10, 10)],
@@ -203,6 +206,7 @@ def test_ends_turn_when_nothing_playable_and_no_token():
     state = GameState(
         ui_state=UIState.MY_TURN_IDLE,
         mana=1,
+        hand_expanded=True,
         hand=[hand(0, "群蛛之主", 5)],
         my_units=[unit("小蜘蛛", 1, 1)],
         has_attack_token=False,
@@ -380,6 +384,10 @@ def test_needs_target_survives_hand_size_change() -> None:
         max_mana=6,
         hand=[CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True)],
     )
+    expansion = policy.decide(shorter)
+    assert expansion == Action(ActionType.EXPAND_HAND)
+    policy.on_action_sent(expansion, shorter)
+    shorter.hand_expanded = True
     assert policy.decide(shorter).type is ActionType.END_TURN
 
 
@@ -424,7 +432,7 @@ def test_expanding_hand_does_not_blacklist_the_selected_card() -> None:
     cards = [CardInHand(0, "小蜘蛛", 1, RECT)]
     collapsed = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand=cards)
     expansion = policy.decide(collapsed)
-    assert expansion.card_index == 0
+    assert expansion == Action(ActionType.EXPAND_HAND)
     policy.on_action_sent(expansion, collapsed)
     expanded = replace(collapsed, hand_expanded=True)
     action = policy.decide(expanded)

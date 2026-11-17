@@ -45,6 +45,7 @@ class MapNodeKind(StrEnum):
 
 class ActionType(StrEnum):
     PLAY_CARD = "play_card"
+    EXPAND_HAND = "expand_hand"
     COLLAPSE_HAND = "collapse_hand"
     ATTACK = "attack"
     BLOCK = "block"          # 声明格挡：把单位拖到敌方攻击单位上

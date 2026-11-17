@@ -69,8 +69,8 @@ class Router:
                 logger.exception("层 {} 决策异常，跳过: {}", name, e)
                 continue
 
-            if (suppress_hand_expansion and not state.hand_expanded and action is not None
-                    and action.type is ActionType.PLAY_CARD):
+            if (suppress_hand_expansion and action is not None
+                    and action.type is ActionType.EXPAND_HAND):
                 continue
             if action is not None:
                 self.stats[name] = self.stats.get(name, 0) + 1

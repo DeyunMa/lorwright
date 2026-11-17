@@ -132,10 +132,9 @@ class JinxOpeningPolicy:
             self.step = 1
         if not state.hand_expanded:
             self._board_before = len(state.my_units)
-            # PLAY_CARD 在收起态只展开手牌，不会打出该索引的牌；
-            # 起手第一件事就是展开，不需要等 3 帧稳定。
+            # 先展开重新识别，出牌由后续新帧决策。
             if state.hand:
-                return Action(type=ActionType.PLAY_CARD, card_index=state.hand[0].index)
+                return Action(type=ActionType.EXPAND_HAND)
             return None
         if self.step == 0:
             available = max(0, state.mana) + (state.spell_mana or 0)

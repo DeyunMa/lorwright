@@ -404,7 +404,8 @@ def test_unit_settlement_budget_does_not_extend_other_play_phases(monkeypatch, e
     before = ready(hand=[card], hand_expanded=expanded)
     engine, device, _, events, snapshots = engine_for(
         monkeypatch, [before, replace(before, ui_state=UIState.UNKNOWN)],
-        [Action(ActionType.PLAY_CARD, card_index=0)], timeout=8,
+        [Action(ActionType.PLAY_CARD, card_index=0) if expanded
+         else Action(ActionType.EXPAND_HAND)], timeout=8,
     )
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
                         lambda: 9.0 if device.frames >= 2 else 0.0)
@@ -877,17 +878,17 @@ def test_expand_then_drag_waits_for_result_without_repeating_input(monkeypatch):
     paid = replace(expanded, hand=[], mana=2, readings={**expanded.readings, "mana": Reading(2, 0)})
     engine, device, router, events, _ = engine_for(
         monkeypatch, [collapsed, expanded, expanded, paid],
-        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.PLAY_CARD, 0), Action(ActionType.NO_OP)],
+        [Action(ActionType.EXPAND_HAND), Action(ActionType.PLAY_CARD, 0), Action(ActionType.NO_OP)],
     )
     engine.run(max_ticks=4)
     assert len(device.taps) == 1
     assert len(device.drags) == 1
     attempts = [e for e in events if e.get("event") == "play_card_attempt"]
-    assert len(attempts) == 2
-    assert attempts[1]["card_index"] == 0
-    assert attempts[1]["card"]["cost"] == 1
-    assert attempts[1]["hand_expanded"] is True
-    assert attempts[1]["plan"]["points"][0] == (325, 825)
+    assert len(attempts) == 1
+    assert attempts[0]["card_index"] == 0
+    assert attempts[0]["card"]["cost"] == 1
+    assert attempts[0]["hand_expanded"] is True
+    assert attempts[0]["plan"]["points"][0] == (325, 825)
     assert router.calls == 3
     assert [e["status"] for e in events if e.get("event") == "action_outcome"] == [
         "succeeded", "waiting", "succeeded",
@@ -941,9 +942,9 @@ def test_expand_interrupted_by_combat_confirmation_yields_without_play_success(
     assert notifications == [(ActionType.CONFIRM, UIState.ENEMY_TURN)]
     outcomes = [e for e in events if e.get("event") == "action_outcome"]
     assert [(e["action"], e["status"], e["reason"]) for e in outcomes] == [
-        ("play_card", "waiting", "awaiting_visible_result"),
-        ("play_card", "waiting", "awaiting_visible_result"),
-        ("play_card", "needs_input", "hand_expansion_interrupted"),
+        ("expand_hand", "waiting", "awaiting_hand_expansion"),
+        ("expand_hand", "waiting", "awaiting_hand_expansion"),
+        ("expand_hand", "needs_input", "hand_expansion_interrupted"),
         ("confirm", "waiting", "awaiting_visible_result"),
         ("confirm", "waiting", "awaiting_visible_result"),
         ("confirm", "succeeded", "ui_transition"),

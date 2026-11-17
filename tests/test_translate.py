@@ -5,6 +5,7 @@ from lorwright.core.models import (
     CardInHand,
     GameState,
     Rect,
+    UIState,
     Unit,
 )
 
@@ -64,14 +65,15 @@ def test_expanded_hand_uses_body_point_or_abstains() -> None:
     )) is None
 
 
-def test_play_card_expands_collapsed_hand_first() -> None:
-    """收起态拖不动（实测 hold 120/300/800ms 全部无效），必须先 tap 展开。
-
-    展开后卡片位置全变，所以出牌拆成两帧：这一帧只展开，下一帧再拖。
-    """
-    state = GameState(hand=[CardInHand(0, "蜘蛛", 1, Rect(100, 1000, 80, 120))])
+def test_collapsed_hand_requires_explicit_expansion_before_play() -> None:
+    """收起态拒绝出牌；独立展开动作只点击手牌区，之后重新识别拖拽位置。"""
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, hand_expanded=False,
+        hand=[CardInHand(0, "蜘蛛", 1, Rect(100, 1000, 80, 120))],
+    )
     t = ActionTranslator(LAYOUT)
-    plan = t.translate(Action(type=ActionType.PLAY_CARD, card_index=0), state)
+    assert t.translate(Action(type=ActionType.PLAY_CARD, card_index=0), state) is None
+    plan = t.translate(Action(type=ActionType.EXPAND_HAND), state)
     assert plan is not None
     assert not plan.drag
     assert plan.points == [(1670, 967)]

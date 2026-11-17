@@ -96,6 +96,78 @@ class Engine:
         self._observation: dict = {}
         self._stop_details: dict = {}
 
+    def observe_hand(self, *, expanded: bool, close_device: bool = True) -> LoopResult:
+        """单次视图调整：整体固定截止、最多一次输入、两张新鲜目标帧。"""
+        action = Action(ActionType.EXPAND_HAND if expanded else ActionType.COLLAPSE_HAND)
+        self._readiness.reset()
+        self._observation = {}
+        self._stop_details.clear()
+        deadline = time.monotonic() + self.settings.loop.action_timeout_s
+        pending = None
+        target_frames = 0
+        self.result = LoopResult("stopped", "hand_view_unverified")
+        try:
+            self.parser.load()
+            while True:
+                checkpoint()
+                report("capture", action=action.type.value)
+                frame = self.capture_frame()
+                image, self._scale = self.normalizer.fit(frame.image)
+                state = self._build_state(image)
+                self._observation = dict(ui=state.ui_state.value, summary=state.summary(),
+                                         action=action.type.value, hand_expanded=state.hand_expanded)
+                report("recognized", **self._observation)
+                if time.monotonic() >= deadline:
+                    if pending is not None:
+                        self._observe_outcome(pending, state, 0)
+                    self._stop_snapshot(frame.image, "hand_view_unverified")
+                    break
+                if frame.age_s() > self.settings.loop.max_frame_age_s:
+                    target_frames = 0
+                    self._readiness.reset()
+                elif state.ui_state is UIState.UNKNOWN:
+                    target_frames = 0
+                    self._readiness.reset()
+                elif state.ui_state is not UIState.MY_TURN_IDLE:
+                    self._stop_snapshot(frame.image, "hand_view_unavailable")
+                    break
+                else:
+                    self._readiness.observe(state)
+                    at_target = state.hand_expanded is expanded and (not expanded or bool(state.hand))
+                    target_frames = target_frames + 1 if at_target else 0
+                    if target_frames >= 2:
+                        if pending is not None:
+                            self._observe_outcome(pending, state, 0)
+                        path = save_snapshot(frame.image, self.settings.perception.snapshot_dir,
+                                             tag="hand_view_verified")
+                        report("verified", "hand_view_verified", progress=True,
+                               snapshot=str(path) if path is not None else None,
+                               inputs=0 if pending is None else 1, **self._observation)
+                        self.result = LoopResult("completed", "hand_view_verified")
+                        break
+                    if not at_target and pending is None:
+                        if expanded and not state.hand:
+                            self._stop_snapshot(frame.image, "hand_view_unavailable")
+                            break
+                        if self._readiness.ready(action):
+                            plan = self.translator.translate(action, state)
+                            if plan is None or frame.age_s() > self.settings.loop.max_frame_age_s:
+                                self._stop_snapshot(frame.image, "hand_view_unavailable")
+                                break
+                            if time.monotonic() >= deadline:
+                                self._stop_snapshot(frame.image, "hand_view_unverified")
+                                break
+                            inputs = self._execute(plan)
+                            self._readiness.reset()
+                            record_event("input_sent", action=action.type.value, inputs=inputs)
+                            pending = ActionOutcome(action, state, deadline)
+                report("waiting", "hand_view_result", wait_s=max(0.0, deadline - time.monotonic()))
+                self._wait(max(0.0, self.settings.loop.tick_ms / 1000))
+        finally:
+            if close_device:
+                self.device.close()
+        return self.result
+
     def run(self, max_ticks: int | None = None, *, close_device: bool = True) -> LoopResult:
         self.parser.load()
 
@@ -599,7 +671,7 @@ class Engine:
         if state.ui_state is not UIState.MY_TURN_IDLE:
             return ["my_turn"]
         if not state.hand_expanded:
-            return [] if state.hand else ["hand"]
+            return ["expanded_hand"]
         card = next((card for card in state.hand if card.index == action.card_index), None)
         if card is None or not card.drag_point_valid:
             return ["card_position"]

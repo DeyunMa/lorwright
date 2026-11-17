@@ -102,7 +102,7 @@ def test_unknown_wrong_cost_and_expansion_do_not_advance():
     policy = load("jinx").make_policy()
     collapsed = state([card(0, "", 1)], expanded=False)
     action = policy.decide(collapsed)
-    assert action.type is ActionType.PLAY_CARD
+    assert action == Action(type=ActionType.EXPAND_HAND)
     policy.on_action_outcome(action, collapsed, replace(collapsed, hand_expanded=True))
     assert policy.step == 0
     assert policy.decide(state([card(0, "", 1), card(1, "吉茵珂絲", 2)])) is None

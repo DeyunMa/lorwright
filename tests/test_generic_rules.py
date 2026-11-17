@@ -63,7 +63,7 @@ def test_play_unit_requires_visual_evidence_for_unknown_card_and_skips_bad_drag(
 def test_expand_hand_only_when_collapsed():
     policy = ExpandHandPolicy()
     s = state(hand=[card(0, "佐恩小乞丐", 1)], hand_expanded=False)
-    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=0)
+    assert policy.decide(s) == Action(type=ActionType.EXPAND_HAND)
     assert policy.decide(replace(s, hand_expanded=True)) is None
 
 

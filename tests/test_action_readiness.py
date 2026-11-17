@@ -154,13 +154,15 @@ def test_card_position_tolerance(distance, expected):
     assert observed(before, after).ready(PLAY) is expected
 
 
-def test_collapsed_play_only_proves_expand():
+def test_collapsed_hand_only_readies_expansion_without_card_identity():
     before = state()
     before.hand_expanded = False
     after = deepcopy(before)
     after.hand[0] = replace(after.hand[0], name="", cost=-1, drag_point_valid=False,
                             rect=Rect(900, 800, 0, 0))
-    assert observed(before, after).ready(PLAY)
+    gate = observed(before, after)
+    assert gate.ready(Action(ActionType.EXPAND_HAND))
+    assert not gate.ready(PLAY)
     assert not observed(before).ready(Action(ActionType.PLAY_CARD, card_index=9))
 
 

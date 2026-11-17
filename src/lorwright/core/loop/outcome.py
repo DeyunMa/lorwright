@@ -71,6 +71,16 @@ class ActionOutcome:
                     and all(previous[i] == current[i] for i in range(4) if i != index)):
                 return Outcome(OutcomeStatus.SUCCEEDED, "mulligan_selection_changed")
             return Outcome(OutcomeStatus.WAITING, "awaiting_mulligan_selection")
+        if kind is ActionType.EXPAND_HAND:
+            if before.ui_state is UIState.MY_TURN_IDLE and not before.hand_expanded and before.hand:
+                if (after.ui_state is UIState.COMBAT_RESOLVING
+                        and after.action_prompt in {"action_confirm", "action_commit"}):
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "hand_expansion_interrupted")
+                if after.ui_state is UIState.MY_TURN_IDLE and after.hand_expanded and after.hand:
+                    return Outcome(OutcomeStatus.SUCCEEDED, "hand_expanded")
+            return Outcome(OutcomeStatus.WAITING, "awaiting_hand_expansion")
+        if kind is ActionType.PLAY_CARD and not before.hand_expanded:
+            return Outcome(OutcomeStatus.WAITING, "play_requires_expanded_hand")
         known = after.ui_state is not UIState.UNKNOWN
         reason = ""
         # UNKNOWN 动画期间仅凭单位数量增加不够：收起的手牌可能露出原有单位。
@@ -82,15 +92,7 @@ class ActionOutcome:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "optional_choice_required")
                 if after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
-                if not before.hand_expanded:
-                    if (after.ui_state is UIState.COMBAT_RESOLVING
-                            and after.action_prompt in {"action_confirm", "action_commit"}):
-                        # 只点过展开，可能被对手技能打断；交给确认策略，
-                        # 不把原动作记为成功或暂存为已拖出的待确认牌。
-                        return Outcome(OutcomeStatus.NEEDS_INPUT, "hand_expansion_interrupted")
-                    if known and after.hand_expanded:
-                        reason = "hand_expanded"
-                elif (not self._confirmation_completed
+                if (not self._confirmation_completed
                       and before.ui_state is UIState.MY_TURN_IDLE
                       and after.ui_state is UIState.COMBAT_RESOLVING):
                     # 慢速法术先进入堆栈，要点「確認」后才会真正结算。

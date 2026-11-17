@@ -7,7 +7,9 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -26,7 +28,7 @@ console = Console()
 def _init(ctx: typer.Context) -> None:
     # 查询运行状态不依赖游戏配置、视觉库或设备；运行入口在会话内加载配置，
     # 保证启动失败也有机器可读结果。
-    if ctx.invoked_subcommand not in {"sessions", "run", "adventure"}:
+    if ctx.invoked_subcommand not in {"sessions", "run", "adventure", "hand"}:
         settings = load_settings()
         setup_logger(settings.logging.dir, settings.logging.level, settings.logging.by_date)
 
@@ -421,9 +423,9 @@ def _execute_session(
     stall_timeout: float, spell_already_played: bool, jinx_summoned: bool,
     bootstrap_f1: bool = False, open_riot_login: bool = False, auto_login: bool = False,
     rockets_already_played: int | None = None, confirm_empty_hand_once: bool = False,
-    sample_hero_item_jinx: bool = False,
+    sample_hero_item_jinx: bool = False, hand_view: bool | None = None,
 ) -> None:
-    """两种运行入口共用生命周期；英雄策略仍由英雄包装配。"""
+    """运行入口共用生命周期；手牌视图任务不装配战斗策略。"""
     from lorwright.core.runtime.session import RunSession, StopRequested, checkpoint, report
 
     root = Path(os.environ.get("LORWRIGHT_RUNS_DIR", "logs/runs"))
@@ -443,6 +445,8 @@ def _execute_session(
                 from lorwright.core.loop.engine import Engine
                 from lorwright.core.loop.outcome import LoopResult
 
+                if mode == "hand" and hand_view is None:
+                    raise ValueError("hand 模式需要明确目标视图")
                 if bootstrap_f1 and (mode != "adventure" or replay or device != "adb"):
                     raise ValueError("--bootstrap-f1 仅适用于使用 ADB 的实机冒险")
                 if open_riot_login and not bootstrap_f1:
@@ -477,7 +481,7 @@ def _execute_session(
                     if bootstrap_stop:
                         result = LoopResult("stopped", bootstrap_stop)
                     else:
-                        kwargs = _jinx_policy_kwargs(
+                        kwargs = None if mode == "hand" else _jinx_policy_kwargs(
                             pack, spell_already_played=spell_already_played,
                             jinx_summoned=jinx_summoned,
                             rockets_already_played=rockets_already_played,
@@ -485,7 +489,7 @@ def _execute_session(
                         def run_loop(capture_frame, restarted):
                             # 重启后重新识别场景，不携带旧动作、选择或中局恢复参数。
                             engine = Engine(
-                                settings, Router(_battle_layers(
+                                settings, Router([] if mode == "hand" else _battle_layers(
                                     pack, policy_kwargs=None if restarted else kwargs,
                                 )), dev,
                                 card_recognizer=getattr(pack, "recognize_hand", None),
@@ -495,6 +499,8 @@ def _execute_session(
                                 capture_frame=capture_frame,
                                 my_unit_recognizer=getattr(pack, "recognize_my_units", None),
                             )
+                            if mode == "hand":
+                                return engine.observe_hand(expanded=hand_view, close_device=False)
                             if mode == "adventure":
                                 return AdventureLoop(
                                     settings, engine, dev, pack=pack,
@@ -503,7 +509,7 @@ def _execute_session(
                                 ).run(max_nodes=max_nodes)
                             return engine.run(max_ticks=max_ticks or None, close_device=False)
 
-                        if device == "adb" and not replay:
+                        if mode != "hand" and device == "adb" and not replay:
                             from lorwright.core.loop.reconnect import run_with_reconnect_recovery
 
                             result = run_with_reconnect_recovery(
@@ -545,6 +551,28 @@ def _execute_session(
         exit_code = 1
     if exit_code:
         raise typer.Exit(exit_code)
+
+
+class HandView(StrEnum):
+    EXPANDED = "expanded"
+    COLLAPSED = "collapsed"
+
+
+@app.command()
+def hand(
+    view: Annotated[HandView, typer.Option(help="目标手牌视图：expanded | collapsed")],
+    device: str = typer.Option("adb", help="adb | desktop"),
+    replay: str = typer.Option("", help="离线回放目录，不连接设备"),
+    champion: str = typer.Option("", help="覆盖 config 的 champion"),
+    jsonl: bool = typer.Option(False, "--jsonl", help="stdout 输出会话 JSONL 事件"),
+) -> None:
+    """核验手牌展开或收起；最多一次视图输入，不推进战斗。"""
+    _execute_session(
+        mode="hand", hand_view=view is HandView.EXPANDED,
+        device=device, replay=replay, champion=champion, jsonl=jsonl,
+        max_ticks=0, max_nodes=0, run_id=None, stall_timeout=30.0,
+        spell_already_played=False, jinx_summoned=False,
+    )
 
 
 @app.command()

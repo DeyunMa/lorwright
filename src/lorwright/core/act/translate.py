@@ -48,6 +48,12 @@ class ActionTranslator:
                 return None
             return ClickPlan(points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms)
 
+        if action.type is ActionType.EXPAND_HAND:
+            if (state.ui_state is not UIState.MY_TURN_IDLE or state.hand_expanded
+                    or not state.hand or self.layout.hand_region is None):
+                return None
+            return ClickPlan(points=[self.layout.hand_region.center], wait_ms=self.expand_wait_ms)
+
         if action.type is ActionType.COLLAPSE_HAND:
             if (state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded
                     or self.layout.collapse_hand_point is None):
@@ -111,15 +117,9 @@ class ActionTranslator:
             )
 
         if action.type is ActionType.PLAY_CARD and action.card_index is not None:
-            # 收起态手牌斜叠、每张只露左边缘，**拖不动**（实测 hold 120/300/800ms
-            # 全部无效，但 tap 能展开）。必须先 tap 展开，下一帧在展开态再拖。
-            # 拆成两帧是有意的：展开后卡片位置全变，同一帧里算不出拖拽起点。
+            # 出牌只能使用展开后的新位置；收起态由独立 EXPAND_HAND 处理。
             if not state.hand_expanded:
-                if self.layout.hand_region is None:
-                    return None
-                return ClickPlan(
-                    points=[self.layout.hand_region.center], wait_ms=self.expand_wait_ms
-                )
+                return None
 
             card = next((c for c in state.hand if c.index == action.card_index), None)
             if card is None or not card.drag_point_valid or self.layout.play_area is None:

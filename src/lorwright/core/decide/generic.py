@@ -70,7 +70,7 @@ class ExpandHandPolicy(Policy):
 
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is UIState.MY_TURN_IDLE and not state.hand_expanded and state.hand:
-            return Action(type=ActionType.PLAY_CARD, card_index=state.hand[0].index)
+            return Action(type=ActionType.EXPAND_HAND)
         return None
 
 

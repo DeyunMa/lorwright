@@ -106,7 +106,8 @@ class PlayUnitPolicy(Policy):
         if not playable:
             return None
         playable.sort(key=lambda item: (item[0], item[1]))
-        return Action(type=ActionType.PLAY_CARD, card_index=playable[0][2].index)
+        return Action(type=ActionType.PLAY_CARD, card_index=playable[0][2].index,
+                      raw={"unit_card": True})
 
 
 class UnknownCardPolicy(Policy):

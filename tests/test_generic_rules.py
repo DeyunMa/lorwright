@@ -73,7 +73,8 @@ def test_play_unit_skips_spells_and_picks_cheapest_known_unit():
         hand=[card(0, "應急裝置", 1), card(1, "佐恩小乞丐", 1), card(2, "吉茵珂絲", 4)],
         mana=3,
     )
-    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=1)
+    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=1,
+                                     raw={"unit_card": True})
 
 
 def test_play_unit_stops_at_six_units():

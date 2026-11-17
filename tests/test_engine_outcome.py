@@ -512,6 +512,32 @@ def test_reward_timeout_clicks_once_and_requires_known_transition(monkeypatch, t
     assert bool(snapshots) is not transition
 
 
+def test_known_unit_without_playable_glow_keeps_settlement_budget(monkeypatch):
+    from lorwright.core.champions import load
+    from lorwright.core.decide.generic import PlayUnitPolicy
+
+    card = CardInHand(0, "爆破幫菜鳥", 2, Rect(1345, 839, 8, 8),
+                      visible_playable_unit=False, drag_point=(1349, 938))
+    before = ready(hand=[card], hand_expanded=True)
+    action = PlayUnitPolicy(load("jinx").lookup).decide(before)
+    assert action is not None
+    commit = replace(before, ui_state=UIState.COMBAT_RESOLVING,
+                     mana=1, hand=[], action_prompt="action_commit")
+    after = ready(mana=1, hand=[], readings={"mana": Reading(1, 0)})
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, replace(before, ui_state=UIState.UNKNOWN), commit, after],
+        [action, Action(ActionType.CONFIRM), Action(ActionType.NO_OP)], timeout=8,
+    )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: {1: 0.0, 2: 5.0, 3: 9.0, 4: 12.0}.get(device.frames, 0.0))
+    engine.run(max_ticks=4)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == "succeeded"
+    assert len(device.drags) == 1
+    assert len(device.taps) == 1
+    assert snapshots == []
+
+
 def ready(**kwargs):
     values = dict(
         ui_state=UIState.MY_TURN_IDLE, mana=3,

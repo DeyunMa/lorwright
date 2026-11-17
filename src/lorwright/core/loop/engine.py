@@ -565,7 +565,8 @@ class Engine:
         expectation = None
         if action.type is ActionType.PLAY_CARD and before.hand_expanded:
             card = next((card for card in before.hand if card.index == action.card_index), None)
-            if card is not None and card.visible_playable_unit:
+            if card is not None and (card.visible_playable_unit
+                                     or action.raw.get("unit_card") is True):
                 # 已展开且确认单位卡的实际出牌包含召唤/触发动画；从发送时固定预算。
                 timeout = max(timeout, 20.0)
             for layer in self.router.layers:

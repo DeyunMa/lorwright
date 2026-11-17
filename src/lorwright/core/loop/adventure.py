@@ -510,6 +510,12 @@ class AdventureLoop:
                         self._snapshot(after, tag="home_entry_after")
                         return
                     continue
+            if (is_battle_detail(image) or (is_map(image) and panel_open(image)
+                                          and not is_completed_panel(image))):
+                self._scene("node_panel")
+                if not self._handle_node_panel(image):
+                    return
+                continue
             if not is_map(image):
                 logger.warning("adventure: 未识别地图画面，停止（保存快照）")
                 self._snapshot(image, tag="unknown_scene")

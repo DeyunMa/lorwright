@@ -1773,6 +1773,32 @@ def test_gold_panel_with_map_shadow_travels_once(adventure):
     assert saved == []
 
 
+@pytest.mark.parametrize("name,point", [
+    ("f1-gold-travel-panel-20261117.png", (1173, 355)),
+    ("1080p_node_panel.png", (817, 485)),
+    ("1080p_battle_detail.png", (1581, 1010)),
+])
+def test_run_resumes_open_travel_panel_before_map_navigation(adventure, name, point):
+    # 两种实拍面板＋合成战斗后继，覆盖公开 run 入口，不能再次点地图节点。
+    loop, device, _, saved, _ = adventure(
+        [_img(name), _blank()], [UIState.UNKNOWN, UIState.UNKNOWN, UIState.MULLIGAN],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [point]
+    assert saved == []
+
+
+def test_open_node_panel_without_verified_action_does_not_click(adventure):
+    image = _img("1080p_node_panel.png")
+    image[450:520, 650:980] = 0
+    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN, UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["panel_unknown"]
+
+
 def test_node_click_that_stays_on_map_does_not_tap_travel(adventure):
     # 节点点击没打开面板（坐标/动画/网络问题）：仍能看到地图节点，禁止盲点旅行。
     loop, device, engine, saved, coords = adventure(
@@ -1897,7 +1923,7 @@ def test_jinx_unrecognized_panel_does_not_navigate(adventure):
     loop.pack = load("jinx")
     loop.run(max_nodes=1)
     assert device.taps == []
-    assert saved == ["map_no_next"]
+    assert saved == ["panel_unknown"]
 
 
 def test_jinx_unrecognized_map_avatar_does_not_navigate(adventure):

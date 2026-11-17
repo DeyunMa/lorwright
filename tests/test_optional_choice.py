@@ -14,6 +14,7 @@ from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.engine import Engine
 from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.core.models import Action, ActionType, GameState, UIState
+from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
 
 
@@ -28,6 +29,40 @@ def _detector():
     detector = UIStateDetector(action_button=layout.end_turn)
     detector.load()
     return detector
+
+
+def _parse(image):
+    layout = load_settings().layout.to_layout()
+    parser = StateParser(layout, UIStateDetector(action_button=layout.end_turn))
+    parser.load()
+    return parser.parse(image)
+
+
+@pytest.mark.parametrize("missing_column", [490, 810, 1130])
+def test_two_choice_cost_frames_block_idle_when_other_controls_are_missing(missing_column):
+    image = _image()
+    image[245:345, 195:290] = 0
+    image[325:405, missing_column:missing_column + 70] = 0
+    # 合成文字消失，保留原蓝色按钮；整块涂黑会掩盖蓝色兜底误判。
+    prompt = image[505:585, 1685:1810]
+    prompt[prompt.min(axis=2) > 150] = image[590, 1730]
+    assert _parse(image).ui_state is UIState.UNKNOWN
+
+
+@pytest.mark.parametrize("column", [490, 810, 1130])
+@pytest.mark.parametrize("name,expected", [
+    ("1080p_battle_turn2.png", UIState.MY_TURN_IDLE),
+    ("1080p_block_phase.png", UIState.BLOCKING),
+    ("1080p_targeting.png", UIState.TARGETING),
+    ("1080p_mulligan.png", UIState.MULLIGAN),
+])
+def test_one_cost_frame_does_not_override_normal_battle_state(column, name, expected):
+    image = cv2.imread(f"tests/fixtures/screens/{name}")
+    assert image is not None
+    assert _parse(image).ui_state is expected
+    source = _image()
+    image[325:405, column:column + 70] = source[325:405, column:column + 70]
+    assert _parse(image).ui_state is expected
 
 
 @pytest.mark.parametrize("area", [

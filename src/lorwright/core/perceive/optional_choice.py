@@ -37,10 +37,11 @@ def optional_choice_state(image: np.ndarray) -> UIState | None:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     skip = _visible(gray, "skip", (1685, 505, 125, 80))
     collapse = _visible(gray, "collapse", (195, 245, 95, 100))
-    costs = all(_visible(gray, "cost_edge", (x, 325, 70, 80), 0.85)
-                for x in (490, 810, 1130))
-    if skip and collapse and costs:
+    costs = [_visible(gray, "cost_edge", (x, 325, 70, 80), 0.85)
+             for x in (490, 810, 1130)]
+    if skip and collapse and all(costs):
         return UIState.OPTIONAL_CHOICE
-    if skip or collapse or costs:
+    # 两列已构成部分选择布局；单个费用框也可能出现在普通战斗中。
+    if skip or collapse or sum(costs) >= 2:
         return UIState.UNKNOWN
     return None

@@ -22,6 +22,8 @@ import cv2
 import numpy as np
 
 from lorwright.core.models import MapNodeKind, Rect
+from lorwright.core.perceive.adventure_scene import button_is
+from lorwright.core.perceive.panels import action_button
 
 __all__ = [
     "MapNode",
@@ -195,9 +197,18 @@ def panel_open(image: np.ndarray) -> bool:
     mask[:, 1700:] = 0
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((21, 21), np.uint8))
     _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
-    # 地图中的山洞阴影也可能形成大型连通域；面板背景更接近实心矩形。
-    return any(w >= 350 and h >= 160 and area >= 50000 and area / (w * h) >= 0.55
-               for _, _, w, h, area in stats[1:])
+    # 面板阴影可能与地图相连；框内明确的旅行按钮可补充矩形证据。
+    regions = [(x, y, w, h, area) for x, y, w, h, area in stats[1:]
+               if w >= 350 and h >= 160 and area >= 50000]
+    if any(area / (w * h) >= 0.55 for _, _, w, h, area in regions):
+        return True
+    if not regions:
+        return False
+    button = action_button(image)
+    return (button is not None and button_is(image, button, "travel")
+            and any(x <= button.x and y <= button.y
+                    and button.x + button.w <= x + w and button.y + button.h <= y + h
+                    for x, y, w, h, _ in regions))
 
 
 def empty_point(image: np.ndarray) -> tuple[int, int] | None:

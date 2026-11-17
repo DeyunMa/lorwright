@@ -30,6 +30,23 @@ def _load(name: str) -> np.ndarray:
     return image
 
 
+@pytest.mark.parametrize("jpeg", [False, True])
+def test_gold_travel_panel_with_attached_shadow_blocks_navigation(jpeg):
+    image = _load("f1-gold-travel-panel-20261117.png")
+    if jpeg:
+        ok, encoded = cv2.imencode(".jpg", image)
+        assert ok
+        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    assert panel_open(image)
+    assert reachable_nodes(image, hero=recognize_hero(image)) == []
+
+
+def test_attached_map_shadow_without_travel_label_is_not_panel():
+    image = _load("f1-gold-travel-panel-20261117.png")
+    image[335:377, 1133:1213] = (125, 200, 245)
+    assert not panel_open(image)
+
+
 @pytest.mark.parametrize("name", ["f1-two-star-after-first-battle-20261116.png",
                                   "f1-two-star-after-first-battle-stable-20261116.png"])
 @pytest.mark.parametrize("offset", [(0, 0), (100, 100)])

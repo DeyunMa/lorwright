@@ -186,15 +186,14 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         else:
             detail = None
     elif kind in (ActionType.END_TURN, ActionType.PASS):
-        cards = tuple(_card(c) for c in state.hand)
-        units = tuple(_unit(u) for u in (*state.my_units, *state.enemy_units,
-                                       *state.enemy_attackers))
-        if any(item is None for item in (*cards, *units)):
+        # 交回优先权不使用卡名、费用或单位数值；路由器逐帧重新判断可执行动作。
+        # 仍等待手牌与场面的位置/数量稳定，不在布局变化时点击固定按钮。
+        positions = tuple(tuple(_rect(item.rect) for item in collection) for collection in (
+            state.hand, state.my_units, state.enemy_units, state.enemy_attackers,
+        ))
+        if any(rect is None for collection in positions for rect in collection):
             return None
-        detail = (cards, tuple(_unit(u) for u in state.my_units),
-                  tuple(_unit(u) for u in state.enemy_units),
-                  tuple(_unit(u) for u in state.enemy_attackers),
-                  state.hand_empty_confirmed, state.has_attack_token)
+        detail = (*positions, state.hand_empty_confirmed, state.has_attack_token)
     elif kind is ActionType.CONTINUE:
         detail = _rect(state.continue_button)
     elif kind is ActionType.CANCEL:

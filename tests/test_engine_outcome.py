@@ -99,6 +99,26 @@ def test_discard_sends_once_then_verifies_exit_or_times_out(monkeypatch, closed)
         assert outcomes[-1]["reason"] == "discard_selection_closed"
 
 
+def test_end_turn_readiness_ignores_unrelated_recognition_changes(monkeypatch):
+    card = CardInHand(0, "", 6, Rect(850, 810, 8, 8), visible_playable_unit=True)
+    enemy = Unit("", 9, 1, Rect(660, 199, 8, 8))
+    before = ready(hand=[card], hand_expanded=True, enemy_units=[enemy])
+    jittered = replace(before, hand=[replace(card, visible_playable_unit=False)],
+                       enemy_units=[replace(enemy, health=-1)])
+    after = replace(jittered, ui_state=UIState.ENEMY_TURN)
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, jittered, after],
+        [Action(ActionType.END_TURN), Action(ActionType.END_TURN), Action(ActionType.NO_OP)],
+        check_readiness=True,
+    )
+    engine.run(max_ticks=3)
+    assert len(device.taps) == 1
+    assert not device.drags
+    assert snapshots == []
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == "succeeded"
+
+
 def test_play_choice_reroutes_without_play_success_then_verifies_skip(monkeypatch):
     before = ready(hand_expanded=True,
                    hand=[CardInHand(0, "", 1, Rect(200, 900, 80, 100))])

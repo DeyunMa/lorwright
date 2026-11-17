@@ -335,6 +335,51 @@ def test_handoff_waits_for_hand_and_board(kind, collection):
 
 
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
+def test_real_handoff_frames_ignore_nonpositional_recognition_jitter(kind):
+    import cv2
+    import numpy as np
+
+    from lorwright.core.champions.jinx import PACK
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.router import Router
+    from lorwright.core.loop.engine import Engine
+
+    engine = Engine(load_settings(), Router([]), None,
+                    card_recognizer=PACK.recognize_hand,
+                    my_unit_recognizer=PACK.recognize_my_units)
+    engine.parser.load()
+    gate = ActionReadiness()
+    states = []
+    for name in ("stop", "observed"):
+        image = np.zeros((1080, 1920, 3), np.uint8)
+        image[:, 320:] = cv2.imread(
+            f"tests/fixtures/screens/f1-handoff-readiness-{name}-20261117.png",
+        )
+        parsed = engine.parser.parse(image)
+        assert parsed.ui_state is UIState.MY_TURN_IDLE
+        gate.observe(parsed)
+        states.append(parsed)
+    assert len(states[0].hand) == len(states[1].hand) == 6
+    assert [unit.health for unit in states[0].enemy_units] != [
+        unit.health for unit in states[1].enemy_units
+    ]
+    assert gate.ready(Action(kind))
+
+
+@pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
+@pytest.mark.parametrize("change", ["card", "unit"])
+def test_handoff_ignores_values_not_used_by_its_input(kind, change):
+    before = state()
+    after = deepcopy(before)
+    if change == "card":
+        after.hand[0] = replace(after.hand[0], name="", cost=-1, visible_playable_unit=True)
+    else:
+        after.enemy_units[0] = replace(after.enemy_units[0], attack=-1, health=-1,
+                                       name="", keywords=frozenset({"Overwhelm"}))
+    assert observed(before, after).ready(Action(kind))
+
+
+@pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
 def test_stable_unknown_card_does_not_prevent_handoff(kind):
     assert observed(state()).ready(Action(kind))
 

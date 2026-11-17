@@ -517,6 +517,39 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
                for offset in (6, 375))
 
 
+def _champion_title_visible(gray: np.ndarray, x: int) -> bool:
+    """固定 1080p 奖励布局内，核验居中同排的繁体中文方字，不识别英雄身份。"""
+    title = gray[385:490, x + 75:x + 315]
+    # 规则排版改变标题高度；按一行方字的尺寸找文字，不能累计插画亮点。
+    for y in range(title.shape[0] - 26 + 1):
+        mask = title[y:y + 26] > 170
+        columns = np.flatnonzero(mask.any(axis=0))
+        groups = np.split(columns, np.flatnonzero(np.diff(columns) > 2) + 1)
+        glyphs = []
+        for group in groups:
+            if not group.size:
+                continue
+            left, right = int(group[0]), int(group[-1]) + 1
+            glyph = mask[:, left:right]
+            rows = np.flatnonzero(glyph.any(axis=1))
+            top, bottom = int(rows[0]), int(rows[-1]) + 1
+            if (18 <= right - left <= 26 and 18 <= bottom - top <= 26
+                    and int(glyph.sum()) >= 40 and float(glyph[top:bottom].mean()) <= 0.85):
+                glyphs.append((left, right, top, bottom))
+        for start, first in enumerate(glyphs):
+            previous = first
+            for current in glyphs[start + 1:]:
+                if (not 2 <= current[0] - previous[1] <= 8
+                        or abs(current[2] - first[2]) > 3
+                        or abs(current[3] - first[3]) > 3):
+                    break
+                # 卡面中心 x+191 对应此文字区域的第 116 列；缺一字后不能偏到一侧。
+                if abs((first[0] + current[1]) / 2 - 116) <= 8:
+                    return True
+                previous = current
+    return False
+
+
 def _card_visible(gray: np.ndarray, x: int) -> bool:
     """独立识别卡牌类型框及相应标题位置，不从插画猜身份。"""
     spell = any(_visible_match(gray, name, (x + 50, 590, x + 85, 640)) >= 0.93
@@ -526,15 +559,16 @@ def _card_visible(gray: np.ndarray, x: int) -> bool:
     landmark = _visible_match(gray, "card_reward_landmark_frame", (x + 145, 505, x + 235, 550)) >= 0.93
     if spell or landmark:
         title = gray[487:514, x + 120:x + 300]
+        title_visible = int((title > 170).sum()) >= 120
     elif unit:
         title = gray[533:554, x + 75:x + 315]
+        title_visible = int((title > 170).sum()) >= 120
     elif champion:
-        title = gray[397:430, x + 75:x + 315]
+        title_visible = _champion_title_visible(gray, x)
     else:
         return False
     art = gray[337:450, x + 130:x + 270]
-    return (int((title > 170).sum()) >= 120
-            and float((art < 8).mean()) < 0.05 and float(art.std()) > 10)
+    return (title_visible and float((art < 8).mean()) < 0.05 and float(art.std()) > 10)
 
 
 def _card_badge_quality(image: np.ndarray, x: int) -> str:

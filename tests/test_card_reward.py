@@ -176,6 +176,86 @@ def test_new_reward_frame_ranks_cards_by_verified_card_quality_and_cost():
     assert pick_card_reward(candidates).candidate.card.name == "普羅大砲"
 
 
+def lowered_champion_reward(stopped=False):
+    import numpy as np
+
+    # run 20261117T130056-d37f2d134f35 独立 observed JPEG 与原停止 PNG
+    # card_reward_unknown_20261117_210115_874640.png 的 [18:1050, 330:1580]
+    # 原尺寸安全裁剪，均已查看无账号；JPEG 解码保存不恢复丢失细节，补黑仅用于回放。
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    suffix = "-stop" if stopped else ""
+    image[18:1050, 330:1580] = _image(f"f1-lowered-champion-title{suffix}-20261117.png")
+    return image
+
+
+@pytest.mark.parametrize("stopped", [False, True])
+def test_lowered_champion_title_keeps_all_reward_candidates(stopped):
+    image = lowered_champion_reward(stopped)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [candidate.card.cost for candidate in candidates] == [4, 3, 3]
+    assert candidates[0].card.name == ""
+
+
+@pytest.mark.parametrize("stopped", [False, True])
+def test_lowered_champion_title_keeps_unknown_card_target(stopped):
+    image = lowered_champion_reward(stopped)
+    target = card_reward_target(image, 0, "")
+    assert target is not None
+    assert target.center == (555, 393)
+
+
+@pytest.fixture(params=["old", "observed", "stop"])
+def champion_title_case(request):
+    if request.param == "old":
+        return _image("f1-weekly-second-reward-20261116.png"), 1, 769, (935, 398, 985, 423)
+    return lowered_champion_reward(request.param == "stop"), 0, 354, (507, 452, 581, 478)
+
+
+def test_champion_title_layouts_keep_public_candidates_and_targets(champion_title_case):
+    image, index, _, _ = champion_title_case
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None and candidates[index].card.name == ""
+    assert card_reward_target(image, index, "") is not None
+
+
+@pytest.mark.parametrize("damage", [
+    "missing", "white_removed", "top_half", "left_character", "right_character",
+    "bright_block", "bright_squares", "art_only",
+])
+def test_champion_title_requires_centered_complete_text_not_art(champion_title_case, damage):
+    image, index, x, (x1, y1, x2, y2) = champion_title_case
+    if damage == "missing":
+        image[y1:y2, x1:x2] = 40
+    elif damage == "white_removed":
+        patch = image[y1:y2, x1:x2]
+        gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+        patch[gray > 170] = (40, 40, 40)
+    elif damage == "top_half":
+        image[y1:(y1 + y2) // 2, x1:x2] = 40
+    elif damage == "left_character":
+        image[y1:y2, x1:x1 + 26] = 40
+    elif damage == "right_character":
+        image[y1:y2, x2 - 26:x2] = 40
+    elif damage == "bright_block":
+        image[y1:y2, x1:x2] = 255
+    elif damage == "bright_squares":
+        image[y1:y2, x1:x2] = 40
+        center = x + 191
+        for left in (center - 23, center + 2):
+            image[y1 + 2:y1 + 23, left:left + 21] = 255
+    else:
+        # 标题搜索区只留下同一张卡的真实亮插画；亮像素数量不能代替文字。
+        image[385:490, x + 75:x + 315] = image[280:385, x + 75:x + 315].copy()
+    # 独立插画检查仍有足够证据，不能因为黑色遮挡插画而让文字反例虚假通过。
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    art = gray[337:450, x + 130:x + 270]
+    assert float((art < 8).mean()) < 0.05 and float(art.std()) > 10
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, index, "") is None
+
+
 def test_weekly_reward_with_champion_and_zero_cost_spell():
     image = _image("f1-weekly-second-reward-20261116.png")
     assert is_card_reward_screen(image)

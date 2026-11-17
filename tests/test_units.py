@@ -231,12 +231,23 @@ def test_badge_glow_does_not_mix_with_green_health_digit(offset):
     image[dy:dy + 210, dx:dx + 390] = crop
     units = to_units(find_unit_badges(image, Rect(0, 0, 600, 400)), image=image)
     assert [unit.attack for unit in units] == [1, 6]
-    from lorwright.core.perceive.unit_stats import UnitStatsReader
+    # 成对定位已经核实生命框，公开转换入口应保留同帧的可读生命值。
+    assert units[1].health == 7
 
-    # 定位入口仍须核验成对数字；to_units 的独立生命框定位可能继续弃权。
-    assert UnitStatsReader().read_badge(
-        image, Rect(dx + 295, dy + 23, 56, 48), health=True,
-    ) == 7
+
+@pytest.mark.parametrize("shade", [0, 80, 160])
+@pytest.mark.parametrize("offset", [(0, 0), (130, 65)])
+def test_badge_glow_with_covered_health_does_not_borrow_card_art(shade, offset):
+    crop = cv2.imread(str(SCREENS.parent / "jinx" / "board-summoned-badge-glow-20261117.png"))
+    dx, dy = offset
+    image = np.zeros((400, 600, 3), np.uint8)
+    image[dy:dy + 210, dx:dx + 390] = crop
+    # 只遮住第二单位的生命徽章，保留攻击徽章和 Jinx 卡面。
+    image[dy + 15:dy + 80, dx + 290:dx + 360] = shade
+    units = to_units(find_unit_badges(image, Rect(0, 0, 600, 400)), image=image)
+    assert len(units) == 1
+    assert units[0].attack == 1
+    assert units[0].rect.center[0] < dx + 200
 
 
 @pytest.mark.parametrize("colors,expected", [("white", 1), ("green", 7), ("both", None)])

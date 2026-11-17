@@ -137,6 +137,7 @@ class UnitBadge:
     center: tuple[int, int]
     score: float
     rect: Rect | None = None
+    health_rect: Rect | None = None  # 仅由同帧成对定位核验，不从攻击框统一推算
 
 
 def _orange_mask(hsv: np.ndarray) -> np.ndarray:
@@ -146,7 +147,7 @@ def _orange_mask(hsv: np.ndarray) -> np.ndarray:
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
 
-def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[Rect]:
+def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[tuple[Rect, Rect]]:
     """色块仅提供搜索起点；字形定位数值框，再核验左右底色与读数。"""
     x0, y0 = max(0, plate.x - 10), max(0, plate.y - 5)
     x1 = min(image.shape[1], plate.x + min(plate.w, 90) + 10)
@@ -175,7 +176,7 @@ def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[Rect]:
             continue
         if (_DEFAULT_STATS.read_badge(image, attack) is not None
                 and _DEFAULT_STATS.read_badge(image, health, health=True) is not None):
-            found.append(attack)
+            found.append((attack, health))
     return found
 
 
@@ -204,8 +205,12 @@ def find_unit_badges(
         regular = area >= min_area and w_min <= w <= w_max and h_min <= h <= h_max
         if not regular:
             if not enemy and area >= 500 and w >= 30 and h >= 30:
-                for rect in _paired_stat_badges(image, Rect(region.x + x, region.y + y, w, h)):
-                    candidates.append(UnitBadge(rect.center, min(1.0, area / 2000.0), rect))
+                for rect, health_rect in _paired_stat_badges(
+                    image, Rect(region.x + x, region.y + y, w, h),
+                ):
+                    candidates.append(UnitBadge(
+                        rect.center, min(1.0, area / 2000.0), rect, health_rect,
+                    ))
             continue
         candidates.append(
             UnitBadge(
@@ -253,7 +258,11 @@ def to_units(
     for badge in badges:
         attack = health = -1
         if image is not None and reader is not None and badge.rect is not None:
-            read_attack, read_health = reader.read(image, badge.rect)
+            if badge.health_rect is not None:
+                read_attack = reader.read_badge(image, badge.rect)
+                read_health = reader.read_badge(image, badge.health_rect, health=True)
+            else:
+                read_attack, read_health = reader.read(image, badge.rect)
             attack = -1 if read_attack is None else read_attack
             health = -1 if read_health is None else read_health
         x, y = badge.center

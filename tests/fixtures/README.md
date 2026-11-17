@@ -39,6 +39,8 @@
 
 `screens/f1-paired-unit-frames-20261116.png` 与 `screens/f1-paired-unit-frames-timeout-20261116.png` 为原生 1080p 的 `[820:1080,780:1150]` 安全裁剪（370×260），仅含 Jinx 7/8 与机器人 7/5，无账号。前者来自独立稳定截图 `logs/second-battle-badges-latest.png`，后者来自会话 `20261116T140437-766c5309f848` 的 `action_timeout_20261116_220518_412963.png`。停止原帧的攻击色块与卡框连成 144×174、106×145，旧检测返回 0；稳定帧第二块分离，旧检测只返回机器人。两图核验字形中心与成对数值框定位；整体平移、遮挡数值框、移除绿色数字均为合成反例，不是新的实机操作。
 
+`continue/f1-missions-after-battle-20261117.png` 为会话 `20261117T034241-db9275c41523` 停止后的独立 ADB 截图 `logs/battle-20261117T034241-db9275c41523-observed.jpg` 的 `[30:400,30:1880]`（1850×370）安全裁剪，含两项页面标签及 600 XP / 每日获胜奖励 400 XP，不含账号。JPEG 解码后原尺寸保存；其余画面补黑为测试合成。停止原帧仍是没有文字的转场背景，不能与该后继结算图混同。现有双标签识别无需改动即可确认 `missions`，遮挡任一标签和调暗均拒绝；战斗终态由后续实机会话另行核验。
+
 ## Jinx 场上身份安全裁剪
 
 `jinx/board-summoned-20261117.png` 与 `jinx/board-summoned-after-20261117.png` 均为原生 1920×1080 的 `[830:1040,760:1150]`（390×210）裁剪，只含己方单位和卡框，无账号。前者来自会话 `20261117T032446-5dba959fb517` 的 `action_timeout_20261117_112559_568300.png`，后者来自该会话停止后的独立 ADB 截图 `logs/battle-20261117T032446-5dba959fb517-observed.jpg`（JPEG 解码为 PNG，未恢复有损细节）。运行模板 `src/lorwright/core/champions/jinx/assets/board_leveled.png` 为前图原帧的 `[913:988,1000:1090]`（90×75）卡面裁剪。

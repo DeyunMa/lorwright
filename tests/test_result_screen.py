@@ -41,6 +41,21 @@ def test_results_require_two_visible_features(name, expected):
     assert result_screen(image) is None
 
 
+def test_current_battle_result_crop_is_recognized_without_input():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[30:400, 30:1880] = cv2.imread(str(FIXTURES / "f1-missions-after-battle-20261117.png"))
+    assert result_screen(image) == "missions"
+    assert UIStateDetector().detect(image) is UIState.BATTLE_END
+    assert find_continue_button(image) is None
+    for x1, y1, x2, y2 in ((528, 187, 779, 274), (1496, 46, 1683, 126)):
+        obscured = image.copy()
+        obscured[y1:y2, x1:x2] = 0
+        assert result_screen(obscured) is None
+    assert result_screen((image * 0.6).astype(np.uint8)) is None
+
+
 def test_mission_structure_survives_changed_tasks_values_and_rewards():
     image = _load("f1-missions-20261115.png")
     image[275:1050, :1250] = 0  # 任务内容、进度和奖励可变化

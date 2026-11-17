@@ -983,17 +983,20 @@ def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):
     assert any(event.get("reason") == "frame_expired_during_decision" for event in events)
 
 
+@pytest.mark.parametrize("ui_state", [UIState.COMBAT_RESOLVING, UIState.MULLIGAN])
 @pytest.mark.parametrize("settled", [True, False])
-def test_combat_confirm_waits_for_settlement_without_repeating(monkeypatch, settled):
-    combat = ready(ui_state=UIState.COMBAT_RESOLVING)
+def test_phase_confirm_waits_for_settlement_without_repeating(monkeypatch, settled, ui_state):
+    # 换牌确认案例依据 f1 会话 20261117T014309-ca7207857b14 的事件时序构造。
+    combat = ready(ui_state=ui_state)
     animation = replace(combat, ui_state=UIState.UNKNOWN)
-    final = replace(combat, ui_state=UIState.ENEMY_TURN) if settled else animation
+    final = replace(combat, ui_state=UIState.MY_TURN_IDLE) if settled else animation
     engine, device, router, events, snapshots = engine_for(
         monkeypatch, [combat, animation, final],
         [Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
     )
-    decide = router.decide
-    monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="combat_confirm"))
+    if ui_state is UIState.COMBAT_RESOLVING:
+        decide = router.decide
+        monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="combat_confirm"))
     clock = [0.0]
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
     build = engine._build_state
@@ -1072,6 +1075,8 @@ def test_timeout_saves_evidence_and_stops_without_retry_or_restart(monkeypatch):
     engine, device, router, events, snapshots = engine_for(
         monkeypatch, [state, state], [Action(ActionType.CONFIRM)], timeout=0,
     )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 20.0 if device.frames >= 2 else 0.0)
     engine.run(max_ticks=10)
     assert router.calls == 1
     assert device.taps == [(20, 20)]
@@ -1270,6 +1275,8 @@ def test_pending_action_times_out_even_if_every_followup_frame_is_stale(monkeypa
     engine, device, router, events, snapshots = engine_for(
         monkeypatch, [state, state], [Action(ActionType.CONFIRM)], timeout=0,
     )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 20.0 if device.frames >= 2 else 0.0)
     capture = device.screencap
 
     def frames():

@@ -431,9 +431,10 @@ class Engine:
                         if (result.action.type is ActionType.END_TURN
                                 or (result.action.type is ActionType.CONFIRM
                                     and (self._staged_play is not None
+                                         or state.ui_state is UIState.MULLIGAN
                                          or (state.ui_state is UIState.COMBAT_RESOLVING
                                              and result.layer == "combat_confirm")))):
-                            # 回合结束、法术和战斗确认后的结算可能超过普通观察窗口。
+                            # 换牌入场、回合结束、法术和战斗确认可能超过普通观察窗口。
                             timeout = max(timeout, 20.0)
                         self._pending = self._make_outcome(result.action, state, timeout)
                         if self._staged_play is not None:

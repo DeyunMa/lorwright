@@ -134,7 +134,9 @@ def test_recovery_stop_reasons_are_distinct(monkeypatch, recovery, reason):
 
 def test_action_timeout_returns_specific_reason(monkeypatch):
     state = ready(ui_state=UIState.MULLIGAN)
-    engine, _, _, _, _ = engine_for(
+    engine, device, _, _, _ = engine_for(
         monkeypatch, [state, state], [Action(ActionType.CONFIRM)], timeout=0,
     )
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 20.0 if device.frames >= 2 else 0.0)
     assert engine.run(max_ticks=10) == LoopResult("stopped", "action_timeout")

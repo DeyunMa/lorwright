@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from lorwright.core.models import GameState, Layout, Reading, UIState
+from lorwright.core.models import GameState, Layout, Reading, Rect, UIState
 from lorwright.core.perceive import attack_token
 from lorwright.core.perceive import hand as hand_perceive
 from lorwright.core.perceive import units as units_perceive
@@ -83,7 +83,13 @@ class StateParser:
         # 真正的宝石计数要等 pips 模板（见 docs/handoff.md §2）
         state.max_mana = self._mana
         # 法术法力只使用本帧读数，不能沿用被遮挡前的旧值。
-        spell_mana = self._read(image, lay.spell_mana) if readable_ui else None
+        spell_mana = None
+        if readable_ui and lay.spell_mana is not None:
+            rect = lay.spell_mana
+            patch = image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w]
+            # 法术法力是白字；取最暗色通道抑制橙色令牌光效，保留抗锯齿笔画。
+            white = patch.min(axis=2) if patch.ndim == 3 else patch
+            spell_mana = self.digits.read(white, Rect(0, 0, rect.w, rect.h))
         state.spell_mana = spell_mana if spell_mana in (0, 1, 2, 3) else None
         state.readings["spell_mana"] = Reading(
             state.spell_mana, 0 if state.spell_mana is not None else None

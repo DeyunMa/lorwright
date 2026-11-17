@@ -25,6 +25,28 @@ def test_spell_mana_from_real_screens(name, expected):
     assert parser.parse(image).spell_mana == expected
 
 
+@pytest.mark.parametrize('name', [
+    'f1-spell-mana-glow-fragment-20261117.png',
+    'f1-spell-mana-glow-bright-20261117.png',
+])
+def test_spell_mana_ignores_colored_glow_without_reusing_old_value(name, monkeypatch):
+    from lorwright.core.models import Layout, Rect, UIState
+
+    image = cv2.imread(str(Path('tests/fixtures/screens') / name))
+    assert image is not None
+    layout = Layout(spell_mana=Rect(111, 59, 34, 38))
+    detector = UIStateDetector()
+    monkeypatch.setattr(detector, 'detect', lambda _: UIState.MY_TURN_IDLE)
+    parser = StateParser(layout, detector)
+    parser.load()
+    state = parser.parse(image)
+    assert state.spell_mana == 1
+    assert state.has_fresh_readings('spell_mana')
+    rect = layout.spell_mana
+    image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w] = 0
+    assert parser.parse(image).spell_mana is None
+
+
 def test_obscured_spell_mana_is_not_reused():
     image = cv2.imread('tests/fixtures/screens/1080p_confirm_phase.png')
     assert image is not None

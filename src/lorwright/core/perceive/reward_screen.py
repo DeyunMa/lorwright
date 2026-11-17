@@ -493,6 +493,7 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if max(_visible_match(gray, name, (x - 3, 228, x + 30, 255)) for name in (
         "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
+        "card_reward_frame_corner_cloud",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01
@@ -500,12 +501,13 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
 
 
 def _card_visible(gray: np.ndarray, x: int) -> bool:
-    """独立识别法术或单位框及相应标题位置，不从插画猜身份。"""
+    """独立识别卡牌类型框及相应标题位置，不从插画猜身份。"""
     spell = any(_visible_match(gray, name, (x + 50, 590, x + 85, 640)) >= 0.93
                 for name in ("card_reward_spell_frame", "card_reward_spell_frame_teal"))
     unit = _visible_match(gray, "card_reward_unit_frame", (x + 50, 250, x + 100, 290)) >= 0.93
     champion = _visible_match(gray, "card_reward_champion_frame", (x + 265, 245, x + 320, 295)) >= 0.93
-    if spell:
+    landmark = _visible_match(gray, "card_reward_landmark_frame", (x + 145, 505, x + 235, 550)) >= 0.93
+    if spell or landmark:
         title = gray[487:514, x + 120:x + 300]
     elif unit:
         title = gray[533:554, x + 75:x + 315]

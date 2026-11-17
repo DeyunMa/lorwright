@@ -33,6 +33,45 @@ def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
     )
 
 
+def landmark_reward():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-landmark-reward-20261117.png")
+    return image
+
+
+def test_landmark_reward_uses_preview_cost_without_cataloguing_new_cards():
+    image = landmark_reward()
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [3, 2, 3]
+    assert [c.card.name for c in candidates] == ["", "", ""]
+    assert candidates[1].card.quality == candidates[2].card.quality == "unknown"
+    assert all(c.preview_cost_verified for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate == candidates[1]
+    assert card_reward_target(image, 1, "") is not None
+    assert card_reward_target(image, 2, "") is not None
+
+
+@pytest.mark.parametrize("region", [
+    (351, 228, 384, 255),      # 左侧候选外框
+    (360, 300, 365, 780),      # 左侧外框纵边
+    (1258, 276, 1294, 309),    # 地标费用
+    (1329, 505, 1419, 550),    # 地标类型标签
+    (1304, 487, 1484, 514),    # 地标标题
+    (1314, 337, 1454, 450),    # 地标插画
+])
+def test_landmark_reward_rejects_missing_independent_evidence(region):
+    image = landmark_reward()
+    x1, y1, x2, y2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 2, "") is None
+
+
 def test_two_star_first_battle_reward_selects_lowest_preview_cost():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)

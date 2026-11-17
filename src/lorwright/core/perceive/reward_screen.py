@@ -338,6 +338,23 @@ def hero_item_hero_selection(image: np.ndarray) -> int | None:
     return None
 
 
+def _hero_item_title_visible(title: np.ndarray) -> bool:
+    """至少两字具有完整尺寸；不把短名称的总亮像素少判成缺失。"""
+    mask = title > 170
+    columns = np.flatnonzero(mask.any(axis=0))
+    if not columns.size:
+        return False
+    groups = np.split(columns, np.flatnonzero(np.diff(columns) > 2) + 1)
+    visible = 0
+    for group in groups:
+        glyph = mask[:, group[0]:group[-1] + 1]
+        rows = np.flatnonzero(glyph.any(axis=1))
+        if (8 <= glyph.shape[1] <= 20 and 10 <= rows[-1] - rows[0] + 1 <= 20
+                and int(glyph.sum()) >= 20):
+            visible += 1
+    return visible >= 2
+
+
 def recognize_hero_items(image: np.ndarray) -> list[RewardCandidate] | None:
     """保留可见未知道具；结构或文字遮挡时弃权。"""
     if not is_hero_item_reward_screen(image) or hero_item_item_selection(image) is None:
@@ -351,7 +368,7 @@ def recognize_hero_items(image: np.ndarray) -> list[RewardCandidate] | None:
     for x in (563, 906, 1249):
         title = gray[700:726, x:x + 130]
         rarity = gray[725:744, x:x + 80]
-        if int((title > 170).sum()) < 100 or int((rarity > 120).sum()) < 12:
+        if not _hero_item_title_visible(title) or int((rarity > 120).sum()) < 12:
             return None
         name = _best(title, names)
         quality = _best(rarity, qualities)

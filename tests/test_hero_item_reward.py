@@ -18,6 +18,44 @@ from lorwright.core.perceive.reward_screen import (
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def short_title_reward():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 450:1470] = cv2.imread(str(
+        FIXTURES / "hero_item_reward" / "f1-short-title-20261117.png"
+    ))
+    return image
+
+
+def test_two_character_item_name_does_not_block_known_hero_and_quality():
+    image = short_title_reward()
+    assert recognize_hero_item_cards(image) == ("", "jinx")
+    assert hero_item_hero_selection(image) == -1
+    assert hero_item_item_selection(image) == -1
+    items = recognize_hero_items(image)
+    assert items is not None
+    assert [(item.name, item.quality) for item in items] == [
+        ("", "rare"), ("", "common"), ("吸血鬼權杖", "rare"),
+    ]
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "one_character", "short_strokes"])
+def test_short_item_name_requires_two_visible_characters(damage):
+    image = short_title_reward()
+    if damage == "missing":
+        image[700:726, 906:1036] = 0
+    elif damage == "dimmed":
+        image[700:726, 906:1036] //= 3
+    elif damage == "one_character":
+        image[700:726, 925:1036] = 0
+    else:
+        image[700:726, 906:1036] = 0
+        image[710:713, 909:923] = 255
+        image[710:713, 926:940] = 255
+    assert recognize_hero_items(image) is None
+
+
 def test_main_hero_and_item_quality_survive_other_unknown_identities():
     from random import Random
 

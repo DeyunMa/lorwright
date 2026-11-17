@@ -11,13 +11,13 @@ from lorwright.core.perceive.hand import read_glyph
 def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandidates | None:
     if frame.shape != (1080, 1920, 3):
         return None
-    region = frame[500:750, 200:1750]
+    region = frame[500:750, 70:1800]
     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
     circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 150,
                                param1=100, param2=36, minRadius=27, maxRadius=42)
     if circles is None:
         return None
-    anchors = sorted((int(round(x + 200)), int(round(y + 500)))
+    anchors = sorted((int(round(x + 70)), int(round(y + 500)))
                      for x, y, _ in circles[0])
     if not 1 <= len(anchors) <= 5:
         return None
@@ -26,7 +26,7 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
     cards, artwork, costs = [], [], []
     for x, y in anchors:
         # 费用圆标左侧需有可选卡牌的蓝色边框；图像和点击点均在牌内。
-        if x < 250 or x + 215 >= 1800 or y + 190 >= 1050:
+        if x < 65 or x + 215 >= frame.shape[1] or y + 190 >= 1050:
             return None
         border = blue[y - 35:y + 105, x - 65:x - 30]
         if cv2.countNonZero(border) < 100:
@@ -39,6 +39,17 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
         glyph = read_glyph(frame, (x, y), rad=26)
         hit = digits.classify(glyph, rotations=(-15, -10, -5, 0, 5, 10, 15)) if glyph is not None else None
         costs.append(hit[0] if hit is not None and hit[1] >= 0.85 else None)
-    scores = tuple(tuple(float(cv2.matchTemplate(a, b, cv2.TM_CCOEFF_NORMED)[0, 0])
-                         for b in artwork) for a in artwork)
+    matches = [[_artwork_match(a, b) for b in artwork] for a in artwork]
+    scores = tuple(tuple(min(matches[i][j], matches[j][i]) for j in range(len(artwork)))
+                   for i in range(len(artwork)))
     return DiscardCandidates(tuple(cards), scores, tuple(costs))
+
+
+def _artwork_match(source: np.ndarray, target: np.ndarray) -> float:
+    """扇形卡面允许小角度与位移，中央插画须双向吻合才能视为重复牌。"""
+    best = -1.0
+    for angle in range(-15, 16, 3):
+        rotated = cv2.warpAffine(source, cv2.getRotationMatrix2D((40, 40), angle, 1), (80, 80))
+        score = cv2.matchTemplate(target, rotated[8:72, 8:72], cv2.TM_CCOEFF_NORMED)
+        best = max(best, float(score.max()))
+    return best

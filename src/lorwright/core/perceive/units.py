@@ -151,7 +151,8 @@ def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[tuple[Rect, Rect
     """色块仅提供搜索起点；字形定位数值框，再核验左右底色与读数。"""
     x0, y0 = max(0, plate.x - 10), max(0, plate.y - 5)
     x1 = min(image.shape[1], plate.x + min(plate.w, 90) + 10)
-    patch = image[y0:plate.y + 50, x0:x1]
+    # 高亮可能把徽章连到整张卡框；敌我数值可分别在底部或顶部。
+    patch = image[y0:min(image.shape[0], plate.y + plate.h + 5), x0:x1]
     blue, green, red = (patch[:, :, i] for i in range(3))
     digits = ((patch.min(axis=2) >= 170)
               | ((green >= 180) & (red <= 120) & (blue <= 120)))
@@ -204,7 +205,7 @@ def find_unit_badges(
         x, y, w, h, area = (int(v) for v in stats[i])
         regular = area >= min_area and w_min <= w <= w_max and h_min <= h <= h_max
         if not regular:
-            if not enemy and area >= 500 and w >= 30 and h >= 30:
+            if area >= 500 and w >= 30 and h >= 30:
                 for rect, health_rect in _paired_stat_badges(
                     image, Rect(region.x + x, region.y + y, w, h),
                 ):

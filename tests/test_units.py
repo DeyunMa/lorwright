@@ -46,6 +46,66 @@ def test_finds_enemy_units(image: np.ndarray) -> None:
     assert len(find_unit_badges(image, ENEMY_BOARD, enemy=True)) == 5
 
 
+def _handoff_image(name):
+    crop = cv2.imread(str(SCREENS / f"f1-handoff-readiness-{name}-20261117.png"))
+    assert crop is not None and crop.shape == (1080, 1600, 3)
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = crop
+    return image
+
+
+@pytest.mark.parametrize("name", ["stop", "observed"])
+@pytest.mark.parametrize("offset", [(0, 0), (110, 45), (-120, -30)])
+def test_highlighted_enemy_badge_pairs_keep_all_four_units(name, offset):
+    image = _handoff_image(name)
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    region = Rect(200 + dx, 100 + dy, 1500, 200)
+    units = to_units(find_unit_badges(image, region, enemy=True), enemy=True, image=image)
+    assert [unit.attack for unit in units] == [9, 7, 2, 2]
+    assert [unit.health for unit in units[1:]] == [2, 2, 2]
+
+
+@pytest.mark.parametrize("name", ["stop", "observed"])
+@pytest.mark.parametrize("unit_x", [980, 1155])
+@pytest.mark.parametrize("badge_offset", [0, 68])
+@pytest.mark.parametrize("shade", [0, 80, 160])
+def test_highlighted_enemy_card_requires_both_visible_badges(name, unit_x, badge_offset, shade):
+    image = _handoff_image(name)
+    left = unit_x + badge_offset
+    image[175:238, left:left + 68] = shade
+    units = to_units(find_unit_badges(image, ENEMY_BOARD, enemy=True), enemy=True, image=image)
+    assert len(units) == 3
+    assert all(not unit_x <= unit.rect.center[0] <= unit_x + 68 for unit in units)
+
+
+@pytest.mark.parametrize("name", ["stop", "observed"])
+@pytest.mark.parametrize("unit_x", [980, 1155])
+@pytest.mark.parametrize("badge_offset", [0, 68])
+def test_highlighted_enemy_card_requires_both_readable_numbers(name, unit_x, badge_offset):
+    image = _handoff_image(name)
+    left = unit_x + badge_offset
+    patch = image[175:230, left:left + 68]
+    patch[patch.min(axis=2) >= 170] = (20, 20, 20)
+    units = to_units(find_unit_badges(image, ENEMY_BOARD, enemy=True), enemy=True, image=image)
+    assert len(units) == 3
+    assert all(not unit_x <= unit.rect.center[0] <= unit_x + 68 for unit in units)
+
+
+@pytest.mark.parametrize("name", ["stop", "observed"])
+@pytest.mark.parametrize("unit_x", [980, 1155])
+def test_highlighted_enemy_fake_orange_frame_without_red_badge_is_rejected(name, unit_x):
+    image = _handoff_image(name)
+    patch = image[175:230, unit_x + 68:unit_x + 136]
+    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    red = ((hsv[:, :, 0] <= 10) | (hsv[:, :, 0] >= 170)) & (hsv[:, :, 1] >= 120)
+    # 保留两个白色数字与整张高亮卡面，只把生命底色换成橙色假卡框。
+    patch[red] = (0, 150, 255)
+    units = to_units(find_unit_badges(image, ENEMY_BOARD, enemy=True), enemy=True, image=image)
+    assert len(units) == 3
+    assert all(not unit_x <= unit.rect.center[0] <= unit_x + 68 for unit in units)
+
+
 def test_idle_state_units_are_found() -> None:
     """待命状态（蓝色发光描边）也要认得出 —— 这是整局不攻击的根因。"""
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))

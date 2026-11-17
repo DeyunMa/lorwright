@@ -27,7 +27,8 @@ runner = CliRunner()
 
 
 def saved_events(run):
-    return [json.loads(line) for line in (run.path / "events.jsonl").read_text().splitlines()]
+    return [json.loads(line) for line in
+            (run.path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
 
 
 def test_decision_input_and_verification_have_distinct_cli_messages(tmp_path):

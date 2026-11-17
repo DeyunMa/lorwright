@@ -1853,6 +1853,17 @@ def test_run_resumes_open_travel_panel_before_map_navigation(adventure, name, po
     assert saved == []
 
 
+def test_run_resumes_zoomed_halo_map_without_another_zoom(adventure):
+    image = _img("f1-zoomed-branch-map-20261117.png")
+    loop, device, _, saved, _ = adventure([image, image], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert any((device.taps[0][0] - x) ** 2 + (device.taps[0][1] - y) ** 2 < 25 ** 2
+               for x, y in ((1132, 420), (1208, 605)))
+    assert saved == ["map_panel_not_open"]
+
+
 @pytest.mark.parametrize("name, point", [
     ("1080p_jinx_map.png", (982, 334)),
     ("f1-after-gold-zoomed-map-20261117.png", (1062, 331)),

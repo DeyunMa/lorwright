@@ -32,6 +32,44 @@ def _load(name: str) -> np.ndarray:
 
 
 @pytest.mark.parametrize("jpeg", [False, True])
+def test_zoomed_halo_origin_exposes_both_branch_routes(jpeg):
+    image = _load("f1-zoomed-branch-map-20261117.png")
+    if jpeg:
+        ok, encoded = cv2.imencode(".jpg", image)
+        assert ok
+        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 2
+    for x, y in ((1132, 420), (1208, 605)):
+        assert any(math.hypot(n.x - x, n.y - y) < 25 for n in nodes)
+
+
+@pytest.mark.parametrize("damage", ["origin", "upper_cut", "lower_cut", "upper_lock", "lower_lock"])
+def test_zoomed_halo_route_keeps_each_branch_independent(damage):
+    image = _load("f1-zoomed-branch-map-20261117.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "origin":
+        image[475:615, 890:1030] = 0
+    elif damage == "upper_cut":
+        image[468:493, 1028:1065] = 0
+    elif damage == "lower_cut":
+        image[550:587, 1060:1100] = 0
+    else:
+        x, y = (1132, 420) if damage == "upper_lock" else (1208, 605)
+        image[y - 30:y + 31, x - 30:x + 31] = image[312:373, 1622:1683]
+    nodes = reachable_nodes(image, hero=hero)
+    if damage == "origin":
+        assert nodes == []
+    else:
+        x, y = (1208, 605) if damage.startswith("upper") else (1132, 420)
+        assert len(nodes) == 1
+        assert math.hypot(nodes[0].x - x, nodes[0].y - y) < 25
+
+
+@pytest.mark.parametrize("jpeg", [False, True])
 def test_zoomed_route_uses_visible_completed_node(jpeg):
     image = _load("f1-after-gold-zoomed-map-20261117.png")
     if jpeg:

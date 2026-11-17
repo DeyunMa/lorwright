@@ -421,16 +421,13 @@ def _navigation_origin(
                         ))]
     if completed_rounds:
         return completed_rounds[0] if len(completed_rounds) == 1 else None
-    completed = _current_completed_node_visible(image, hero)
-    if not (completed or _current_node_halo_visible(image, hero)):
-        return None
-    rounds = [candidate for candidate in nearby if candidate.shape == "round"
-              and math.hypot(candidate.node.x - hero[0], candidate.node.y - hero[1] - 90) < 18]
+    rounds = [(_node_halo_score(image, candidate.node.center), candidate)
+              for candidate in nearby if candidate.shape == "round"]
+    rounds = [(score, candidate) for score, candidate in rounds if score >= 0.12]
     if rounds:
-        return min(rounds, key=lambda candidate: math.hypot(
-            candidate.node.x - hero[0], candidate.node.y - hero[1] - 90,
-        ))
+        return max(rounds, key=lambda item: item[0])[1]
     # 完成勾已确认头像脚下节点；动画可使圆环漏检，但不应丢掉已确认的锚点。
+    completed = _current_completed_node_visible(image, hero)
     return _NavigationNode(MapNode(hero[0], hero[1] + 90, 48), "round") if completed else None
 
 
@@ -459,8 +456,13 @@ def _unlocked_unfinished_center(image: np.ndarray, node: MapNode) -> bool:
     """原视角与实拍放大 1.3 倍的锁都须拒绝，完成勾沿用独立检查。"""
     x, y = node.center
     lock = _map_lock_template()
-    center = cv2.cvtColor(image[y - 30:y + 31, x - 30:x + 31], cv2.COLOR_BGR2GRAY)
-    return (lock is not None and center.shape == (61, 61)
+    extent = max(30, node.radius + 18)
+    if x < 30 or y < 30 or x + 30 >= image.shape[1] or y + 30 >= image.shape[0]:
+        return False
+    center = cv2.cvtColor(image[max(0, y - extent):min(image.shape[0], y + extent + 1),
+                                max(0, x - extent):min(image.shape[1], x + extent + 1)],
+                          cv2.COLOR_BGR2GRAY)
+    return (lock is not None
             and all(cv2.matchTemplate(center, reference, cv2.TM_CCOEFF_NORMED).max() < 0.8
                     for reference in (lock, cv2.resize(lock, None, fx=1.3, fy=1.3)))
             and not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31)))
@@ -667,12 +669,16 @@ def _navigation_marker_visible(image: np.ndarray, name: str, x: int, y: int) -> 
 
 
 def _current_node_halo_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
-    """核实英雄脚下圆节点的蓝环及可见中心，不能只凭零散亮色定位。"""
-    x, y = hero[0], hero[1] + 95
+    return _node_halo_score(image, (hero[0], hero[1] + 95)) >= 0.12
+
+
+def _node_halo_score(image: np.ndarray, center: tuple[int, int]) -> float:
+    """中心须可见；用蓝环覆盖率区分同一节点附近重叠的 Hough 候选。"""
+    x, y = center
     extent = 75
     if (image.shape != (1080, 1920, 3) or x < extent or y < extent
             or x + extent >= image.shape[1] or y + extent >= image.shape[0]):
-        return False
+        return 0.0
     region = image[y - extent:y + extent + 1, x - extent:x + extent + 1]
     yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
     distance = xx * xx + yy * yy
@@ -682,7 +688,7 @@ def _current_node_halo_visible(image: np.ndarray, hero: tuple[int, int]) -> bool
     center = image[y - 18:y + 18, x - 18:x + 18]
     # 商店等节点的图标和头像会遮住一部分光环；仍要求中心可见、
     # 且后续由连续亮线与未完成目标共同验证，避免仅凭微弱蓝光移动。
-    return float(cyan[annulus].mean()) >= 0.12 and float(center.std()) >= 12
+    return float(cyan[annulus].mean()) if float(center.std()) >= 12 else 0.0
 
 
 @cache

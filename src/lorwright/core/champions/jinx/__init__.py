@@ -7,6 +7,7 @@ from lorwright.core.champions.jinx.vision import (
     recognize_hand,
     recognize_hero,
     recognize_mulligan,
+    recognize_my_units,
     recognize_selected_hero,
     recognize_targeted_spell,
 )
@@ -41,6 +42,7 @@ class JinxPack:
     recognize_map_hero = staticmethod(recognize_hero)
     recognize_selected_hero = staticmethod(recognize_selected_hero)
     recognize_mulligan = staticmethod(recognize_mulligan)
+    recognize_my_units = staticmethod(recognize_my_units)
     recognize_targeted_spell = staticmethod(recognize_targeted_spell)
     pick_card_reward = staticmethod(pick_card_reward)
 

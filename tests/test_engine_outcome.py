@@ -234,6 +234,48 @@ def test_jinx_summon_with_eight_collapsed_cards_advances_without_replaying(monke
     assert snapshots == []
 
 
+def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch):
+    from lorwright.core.champions.jinx import PACK
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+    from lorwright.core.config import load_settings
+    from lorwright.core.perceive.state import StateParser
+    from lorwright.core.perceive.ui_state import UIStateDetector
+
+    # 真实单位裁剪 + 事件里的前后资源；不是完整实机逐帧录像。
+    settings = load_settings()
+    parser = StateParser(settings.layout.to_layout(), UIStateDetector(),
+                         my_unit_recognizer=PACK.recognize_my_units)
+    parser.load()
+    monkeypatch.setattr(parser.ui, "detect", lambda image: UIState.MY_TURN_IDLE)
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[830:1040, 760:1150] = cv2.imread(
+        "tests/fixtures/jinx/board-summoned-after-20261117.png",
+    )
+    parsed = parser.parse(image)
+    assert any(unit.name == "吉茵珂絲" for unit in parsed.my_units)
+    cards = [CardInHand(i, "吉茵珂絲" if i == 2 else "", 2 if i == 2 else 1,
+                        Rect(400 + i * 80, 800, 50, 50)) for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True)
+    after = replace(parsed, mana=1, enemy_nexus_hp=23,
+                    readings={**parsed.readings, "mana": Reading(1, 0),
+                              "enemy_nexus_hp": Reading(23, 0)})
+    animation = replace(after, ui_state=UIState.UNKNOWN)
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, animation, after],
+        [Action(ActionType.PLAY_CARD, card_index=2), Action(ActionType.NO_OP)],
+    )
+    policy = JinxOpeningPolicy()
+    router.layers = [policy]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: device.frames * 6.0)
+    engine.run(max_ticks=3)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert [event["status"] for event in outcomes] == ["waiting", "succeeded"]
+    assert policy.step == 2
+    assert len(device.drags) == 1
+    assert not device.taps
+    assert snapshots == []
+
+
 def test_jinx_rebuild_uses_special_window_and_advances_once(monkeypatch):
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
 

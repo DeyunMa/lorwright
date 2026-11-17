@@ -31,6 +31,7 @@ class StateParser:
         card_recognizer=None,
         mulligan_recognizer=None,
         targeted_spell_recognizer=None,
+        my_unit_recognizer=None,
     ) -> None:
         self.layout = layout
         self.ui = ui
@@ -39,6 +40,7 @@ class StateParser:
         self.card_recognizer = card_recognizer
         self.mulligan_recognizer = mulligan_recognizer
         self.targeted_spell_recognizer = targeted_spell_recognizer
+        self.my_unit_recognizer = my_unit_recognizer
         #: 上次读成功的血量。数字被特效遮住时沿用旧值，比跳回默认值安全。
         self._my_hp = DEFAULT_NEXUS_HP
         self._enemy_hp = DEFAULT_NEXUS_HP
@@ -123,6 +125,8 @@ class StateParser:
                 badges += units_perceive.find_unit_badges(image, lay.my_combat)
             badges.sort(key=lambda badge: badge.center[0])
             state.my_units = units_perceive.to_units(badges, image=image)
+            if readable_ui and self.my_unit_recognizer is not None:
+                state.my_units = self.my_unit_recognizer(image, state.my_units)
         if lay.enemy_board is not None:
             state.enemy_units = units_perceive.to_units(
                 units_perceive.find_unit_badges(image, lay.enemy_board, enemy=True),

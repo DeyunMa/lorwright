@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.champions.jinx.deck import BY_CODE
-from lorwright.core.models import CardInHand, MulliganCard, Rect, TargetedSpell
+from lorwright.core.models import CardInHand, MulliganCard, Rect, TargetedSpell, Unit
 from lorwright.core.perceive.hand import DRAG_OFFSET_EXPANDED
 from lorwright.core.perceive.mulligan import MULLIGAN_REPLACE_POINTS
 
@@ -50,6 +50,30 @@ def recognize_targeted_spell(image: np.ndarray) -> TargetedSpell | None:
     if score < 0.95:
         return None
     return TargetedSpell("砰砰", Rect(900 + x, 480 + y, template.shape[1], template.shape[0]))
+
+
+@lru_cache(maxsize=1)
+def _board_template():
+    return cv2.imread(str(_ASSETS / "board_leveled.png"))
+
+
+def recognize_my_units(image: np.ndarray, units: list[Unit]) -> list[Unit]:
+    """仅在已检出单位的卡身内确认升级 Jinx，不从全屏借用邻牌。"""
+    template = _board_template()
+    if template is None:
+        return units
+    result = []
+    for unit in units:
+        x, y = unit.rect.center
+        # 单位 rect 为攻击徽章中心加 (40, 55) 的拖点；卡面位于其下方。
+        x0, y0 = max(0, x - 65), max(0, y - 25)
+        crop = image[y0:min(image.shape[0], y + 65), x0:min(image.shape[1], x + 55)]
+        if crop.shape[0] >= template.shape[0] and crop.shape[1] >= template.shape[1]:
+            _, score, _, _ = cv2.minMaxLoc(cv2.matchTemplate(crop, template, cv2.TM_CCOEFF_NORMED))
+            if score >= 0.95:
+                unit = replace(unit, name="吉茵珂絲")
+        result.append(unit)
+    return result
 
 
 @lru_cache(maxsize=1)

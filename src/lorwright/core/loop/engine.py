@@ -50,6 +50,7 @@ class Engine:
         targeted_spell_recognizer=None,
         confirm_empty_hand_once: bool = False,
         capture_frame=None,
+        my_unit_recognizer=None,
     ) -> None:
         self._confirm_empty_hand_once = confirm_empty_hand_once
         self.settings = settings
@@ -79,6 +80,7 @@ class Engine:
             card_recognizer=card_recognizer,
             mulligan_recognizer=mulligan_recognizer,
             targeted_spell_recognizer=targeted_spell_recognizer,
+            my_unit_recognizer=my_unit_recognizer,
         )
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self._scale = Scale(1.0, 1.0)

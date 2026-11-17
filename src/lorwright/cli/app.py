@@ -493,6 +493,7 @@ def _execute_session(
                                 targeted_spell_recognizer=getattr(pack, "recognize_targeted_spell", None),
                                 confirm_empty_hand_once=confirm_empty_hand_once and not restarted,
                                 capture_frame=capture_frame,
+                                my_unit_recognizer=getattr(pack, "recognize_my_units", None),
                             )
                             if mode == "adventure":
                                 return AdventureLoop(

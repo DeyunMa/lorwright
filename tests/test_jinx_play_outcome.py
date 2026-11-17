@@ -94,6 +94,30 @@ def test_collapsed_jinx_summon_uses_payment_damage_and_board(hand_count):
     })).verify(after)
 
 
+def test_collapsed_jinx_with_healed_enemy_requires_visible_jinx_and_payment():
+    # 实机会话 20261117T032446：2 费 Jinx 后手牌收起，敌方血量 20→23。
+    action, before, after = summon_states()
+    before = replace(before, enemy_nexus_hp=20,
+                     readings={**before.readings, "enemy_nexus_hp": Reading(20, 0)})
+    after = replace(after, hand_expanded=False, enemy_nexus_hp=23,
+                    my_units=[replace(after.my_units[0], name="吉茵珂絲")],
+                    readings={**after.readings, "enemy_nexus_hp": Reading(23, 0)})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    outcome = ActionOutcome(action, before, 20, play_expectation=expectation)
+    assert outcome.observe(after, 12).status is OutcomeStatus.SUCCEEDED
+    assert not expectation.verify(replace(after, my_units=[replace(after.my_units[0], name="")]))
+    assert not expectation.verify(replace(after, mana=3, readings={"mana": Reading(3, 0)}))
+    assert not expectation.verify(replace(after, readings={"mana": Reading(1, 1)}))
+    assert not expectation.verify(replace(after, ui_state=UIState.UNKNOWN))
+    assert not expectation.verify(replace(after, ui_state=UIState.ENEMY_TURN))
+    assert outcome.observe(after, 20).status is OutcomeStatus.TIMED_OUT
+    assert not expectation.verify(replace(after, my_units=[]))
+    stale_before = replace(before, readings={"mana": Reading(3, 1)})
+    assert not JinxOpeningPolicy().play_expectation(action, stale_before).verify(after)
+    _, zero_before, _ = summon_states(cost=0)
+    assert not JinxOpeningPolicy().play_expectation(action, zero_before).verify(after)
+
+
 def test_zero_cost_collapsed_jinx_cannot_use_damage_without_payment():
     action, before, after = summon_states(cost=0)
     before = replace(before, enemy_nexus_hp=33,

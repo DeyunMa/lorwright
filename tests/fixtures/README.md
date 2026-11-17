@@ -39,6 +39,12 @@
 
 `screens/f1-paired-unit-frames-20261116.png` 与 `screens/f1-paired-unit-frames-timeout-20261116.png` 为原生 1080p 的 `[820:1080,780:1150]` 安全裁剪（370×260），仅含 Jinx 7/8 与机器人 7/5，无账号。前者来自独立稳定截图 `logs/second-battle-badges-latest.png`，后者来自会话 `20261116T140437-766c5309f848` 的 `action_timeout_20261116_220518_412963.png`。停止原帧的攻击色块与卡框连成 144×174、106×145，旧检测返回 0；稳定帧第二块分离，旧检测只返回机器人。两图核验字形中心与成对数值框定位；整体平移、遮挡数值框、移除绿色数字均为合成反例，不是新的实机操作。
 
+## Jinx 场上身份安全裁剪
+
+`jinx/board-summoned-20261117.png` 与 `jinx/board-summoned-after-20261117.png` 均为原生 1920×1080 的 `[830:1040,760:1150]`（390×210）裁剪，只含己方单位和卡框，无账号。前者来自会话 `20261117T032446-5dba959fb517` 的 `action_timeout_20261117_112559_568300.png`，后者来自该会话停止后的独立 ADB 截图 `logs/battle-20261117T032446-5dba959fb517-observed.jpg`（JPEG 解码为 PNG，未恢复有损细节）。运行模板 `src/lorwright/core/champions/jinx/assets/board_leveled.png` 为前图原帧的 `[913:988,1000:1090]`（90×75）卡面裁剪。
+
+只在已检出单位的卡身范围内确认升级 Jinx；单位徽章漏检时保留未知，不从全屏补单位。后继实拍提供识别正例，原停止帧覆盖漏检时不借用全屏卡面的边界。整体平移、遮挡、邻单位搜索和合成 UNKNOWN 状态为离线反例。Engine 回归将真实单位裁剪与事件中的前后资源组合，验证敌方 20→23 时支付及卡面可独立核验召唤；不等于完整实机逐帧回放或战斗已完成。
+
 ## 重连页安全裁剪
 
 `assets/ui/reconnect_title.png` 与 `assets/ui/reconnect_exit_button.png` 来自 f1 游戏截图的库外诊断副本 `/tmp/lorwright-shared-loop-final-scene.jpg`（1920×1080 JPEG）。另外两张 `/tmp/lorwright-hand-identity-before-resume.jpg`、`/tmp/lorwright-expanded-hand-sample-v2.jpg` 已逐张查看，三者字节完全相同，SHA-256 均为 `a7aa48f07843c1cfca0e551f81d6ecd13cbf28310f0b57fb0179e245b3d3631c`，只算一个独立实拍样本。原帧含账户信息，保留在库外，不复制到素材或 fixtures。

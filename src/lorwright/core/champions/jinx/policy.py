@@ -177,7 +177,7 @@ class JinxOpeningPolicy:
         return None
 
     def play_expectation(self, action: Action, before: GameState) -> PlayExpectation | None:
-        """展开态核验重建；收起态以新鲜支付、伤害和场面交叉核验。"""
+        """展开态核验重建；收起态以新鲜支付及卡面或伤害交叉核验。"""
         card = next((c for c in before.hand if c.index == action.card_index), None)
         if (action.type is not ActionType.PLAY_CARD or not before.hand_expanded
                 or card is None or card.cost < 0):
@@ -220,12 +220,13 @@ class JinxOpeningPolicy:
                     and after.has_fresh_readings("mana")
                     and before.mana - after.mana >= card.cost)
             if not after.hand_expanded:
-                # 收起后可见牌数不与展开态比较；支付或露出旧单位均不足，
-                # 还须结算回到己方行动且有新鲜伤害，零费不能走此分支。
+                # 跨视图牌数不比较。支付须再有明确 Jinx 卡面或新鲜伤害，
+                # 对手回血可能抵消伤害；零费不能走此分支。
                 damaged = (before.has_fresh_readings("enemy_nexus_hp")
                            and after.has_fresh_readings("enemy_nexus_hp")
                            and after.enemy_nexus_hp < before.enemy_nexus_hp)
-                return after.ui_state is UIState.MY_TURN_IDLE and paid and damaged
+                visible_jinx = any(unit.name == "吉茵珂絲" for unit in after.my_units)
+                return after.ui_state is UIState.MY_TURN_IDLE and paid and (damaged or visible_jinx)
             generated = (sum(c.name in ROCKET_NAMES for c in after.hand) == 2
                          and all(c.name in ROCKET_NAMES | POW_POW_NAMES for c in after.hand))
             # 同为展开态仍要求重建数量，并有支付或生成牌身份作为独立依据。

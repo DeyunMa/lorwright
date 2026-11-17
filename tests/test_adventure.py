@@ -242,7 +242,7 @@ def test_final_victory_is_readable_through_cli(adventure, tmp_path):
     assert status["status"] == "completed"
     assert status["reason"] == "adventure_victory"
     assert status["details"]["outcome"] == "victory"
-    assert status["last_snapshot"] == "/tmp/fake.png"
+    assert status["last_snapshot"] == str(Path("/tmp/fake.png"))
     assert "最终胜利结算页" in status["message"]
     assert "是否全程无人介入" in status["message"]
     assert device.taps == []
@@ -958,7 +958,7 @@ def test_adventure_stop_reports_snapshot_to_session(adventure, tmp_path):
         assert loop.run(max_nodes=2) == LoopResult("stopped", "unknown_scene")
         status = read_status(tmp_path, session.run_id)
         assert status["reason"] == "unknown_scene"
-        assert status["details"]["snapshot"] == "/tmp/fake.png"
+        assert status["details"]["snapshot"] == str(Path("/tmp/fake.png"))
         assert status["details"]["iteration"] == 1
 
 
@@ -1517,7 +1517,7 @@ def test_reward_stop_diagnostics_are_readable_through_cli(adventure, tmp_path):
     assert evidence["scores"]["subtitle"] >= evidence["threshold"]
     assert evidence["scores"]["choose_button"] >= evidence["threshold"]
     assert evidence["expected_scene"] == "card_reward"
-    assert evidence["snapshot"] == "/tmp/fake.png"
+    assert evidence["snapshot"] == str(Path("/tmp/fake.png"))
     assert saved == ["battle_reward_missing"] and device.taps == []
 
 

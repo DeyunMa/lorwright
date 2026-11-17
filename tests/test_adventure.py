@@ -1853,6 +1853,32 @@ def test_run_resumes_open_travel_panel_before_map_navigation(adventure, name, po
     assert saved == []
 
 
+def test_occluded_route_zooms_once_then_reparses_before_node_input(adventure):
+    # 实拍遮挡图与既有地图作合成缩放后继，不宣称真实连续缩放录像。
+    before = _img("f1-after-gold-map-20261117.png")
+    fresh = _img("1080p_jinx_map.png")
+    loop, device, _, saved, _ = adventure([before, fresh, fresh], [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 2
+    assert device.taps[0] == (1822, 297)
+    assert abs(device.taps[1][0] - 982) <= 20
+    assert abs(device.taps[1][1] - 334) <= 20
+    assert saved == ["map_panel_not_open"]
+
+
+@pytest.mark.parametrize("successor", ["unchanged", "unknown", "panel"])
+def test_occluded_route_zoom_never_repeats_or_clicks_unverified_node(adventure, successor):
+    before = _img("f1-after-gold-map-20261117.png")
+    after = {"unchanged": before, "unknown": _blank(),
+             "panel": _img("1080p_node_panel.png")}[successor]
+    loop, device, _, saved, _ = adventure([before] + [after] * 3, [])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == [(1822, 297)]
+    assert saved == ["map_zoom_unverified"]
+
+
 def test_open_node_panel_without_verified_action_does_not_click(adventure):
     image = _img("1080p_node_panel.png")
     image[450:520, 650:980] = 0

@@ -154,6 +154,8 @@ ADB 的 battle/run 与 adventure 共用重连监测，包括奖励等交互中�
 
 金幣寶箱详情以完整标题和「取走寶藏」文字联合核验，单次领取后等待面板关闭并返回地图；未知或未关闭页面不算成功，到期以 `gold_chest_transition_unverified` 保存截图，不重复点击。`gold_chest_map_transition` 仅证明交互结束，`reward_credited_verified=false`，不根据预览金额推断到账。
 
+若头像遮挡短路径，导致两端安全留白之间没有可验证取样区，程序可在核实地图缩放控件、当前节点和未完成亮环后，每次冒险运行仅放大一次取证。只有新帧按原规则重新核实出可达节点，才报告 `map_zoom_transition` 并允许选点；没有新证据时以 `map_zoom_unverified` 停止，不重复放大或猜点。
+
 ## 前台与离线回放
 
 原有入口仍可直接运行，现会创建独立会话：

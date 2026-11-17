@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.models import MapNodeKind, Rect
-from lorwright.core.perceive.adventure_scene import button_is
+from lorwright.core.perceive.adventure_scene import button_is, is_map
 from lorwright.core.perceive.panels import action_button
 
 __all__ = [
@@ -36,6 +36,7 @@ __all__ = [
     "next_node",
     "next_node_by_path",
     "node_kind",
+    "occluded_route_zoom_button",
     "panel_open",
     "reachable_nodes",
 ]
@@ -306,6 +307,43 @@ def reachable_nodes(
     cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
     mask = glow_mask(image) | cyan.astype(np.uint8)
     return _connected_navigation_nodes(image, current.node, hero, candidates, mask)
+
+
+def occluded_route_zoom_button(image: np.ndarray, hero: tuple[int, int] | None) -> Rect | None:
+    """头像遮挡使短边没有安全取样区时，只授权放大取证，不授权节点输入。"""
+    if hero is None or not is_map(image) or panel_open(image):
+        return None
+    candidates = _navigation_candidates(image)
+    current = _navigation_origin(image, hero, candidates)
+    if current is None:
+        return None
+    blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
+    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(
+        glow_mask(image) | cyan.astype(np.uint8), connectivity=8,
+    )
+    for candidate in candidates:
+        target = candidate.node
+        if candidate.shape != "round":
+            continue
+        length = math.hypot(target.x - current.node.x, target.y - current.node.y)
+        origin = _route_origin(current.node, hero, target)
+        if (origin.radius <= current.node.radius
+                or not 0 < length - origin.radius - target.radius <= 32
+                or not _node_edge_visible(image, origin, target)):
+            continue
+        extent = target.radius + 18
+        if (target.x < extent or target.y < extent or target.x + extent >= image.shape[1]
+                or target.y + extent >= image.shape[0]):
+            continue
+        for label in np.unique(labels[target.y - extent:target.y + extent + 1,
+                                      target.x - extent:target.x + extent + 1]):
+            if label and stats[label, cv2.CC_STAT_AREA] >= 300 and _lit_unfinished_ring(
+                image, labels, int(label), target.x, target.y, target.radius,
+                min_cyan=0.15, min_connected_cyan=120,
+            ):
+                return Rect(1795, 270, 55, 55)
+    return None
 
 
 @dataclass(frozen=True)

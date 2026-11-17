@@ -65,6 +65,7 @@ from lorwright.core.perceive.mapnav import (
     _current_completed_node_visible,
     empty_point,
     node_kind,
+    occluded_route_zoom_button,
     panel_open,
     reachable_nodes,
 )
@@ -171,6 +172,7 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
+        route_zoom_used = False
         for iteration in range(1, max_nodes + 1):
             self._details.update(iteration=iteration)
             report("adventure", **self._details)
@@ -527,6 +529,16 @@ class AdventureLoop:
                 return
             self._scene("map")
             nxt = self._find_next(image)
+            if nxt is None and not route_zoom_used:
+                recognize_hero = getattr(self.pack, "recognize_map_hero", None)
+                hero = recognize_hero(image) if recognize_hero is not None else None
+                zoom = occluded_route_zoom_button(image, hero)
+                if zoom is not None:
+                    route_zoom_used = True
+                    revealed = self._reveal_occluded_map_route(zoom)
+                    if revealed is None:
+                        return
+                    image, nxt = revealed
             if nxt is None:
                 if is_completed_panel(image):
                     if self._close_panel(image):
@@ -622,6 +634,19 @@ class AdventureLoop:
         # 主页转场中的动画可能触发战斗按钮探针；单独的战斗 UI 状态
         # 不能证明已进入冒险，应等待可识别的冒险页面。
         return False
+
+    def _reveal_occluded_map_route(self, button):
+        self._tap(*button.center)
+        for _ in range(3):
+            self._wait(2, reason="map_zoom_transition", wait_s=6)
+            after = self._frame()
+            if is_map(after) and not panel_open(after):
+                fresh = self._find_next(after)
+                if fresh is not None:
+                    report("verified", "map_zoom_transition", progress=True)
+                    return after, fresh
+        self._snapshot(after, tag="map_zoom_unverified")
+        return None
 
     def _reveal_bottom_map_node(self, image, node):
         """底边目标先平移一次；新帧重新核实位置和路线后才允许点击。"""

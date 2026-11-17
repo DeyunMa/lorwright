@@ -17,6 +17,7 @@ from lorwright.core.perceive.mapnav import (
     hero_node,
     next_node,
     next_node_by_path,
+    occluded_route_zoom_button,
     panel_open,
     reachable_nodes,
 )
@@ -28,6 +29,44 @@ def _load(name: str) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / name))
     assert image is not None, name
     return image
+
+
+@pytest.mark.parametrize("jpeg", [False, True])
+def test_short_avatar_occlusion_authorizes_zoom_but_not_node(jpeg):
+    image = _load("f1-after-gold-map-20261117.png")
+    if jpeg:
+        ok, encoded = cv2.imencode(".jpg", image)
+        assert ok
+        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    hero = recognize_hero(image)
+    assert hero is not None
+    assert reachable_nodes(image, hero=hero) == []
+    button = occluded_route_zoom_button(image, hero)
+    assert button is not None
+    assert button.center == (1822, 297)
+
+
+@pytest.mark.parametrize("damage", ["hero", "origin", "target", "lock", "controls"])
+def test_occluded_route_zoom_requires_visible_map_origin_and_target(damage):
+    image = _load("f1-after-gold-map-20261117.png")
+    hero = recognize_hero(image)
+    if damage == "hero":
+        hero = None
+    elif damage == "origin":
+        image[490:585, 910:1010] = 0
+    elif damage == "target":
+        image[325:450, 980:1100] = 0
+    elif damage == "lock":
+        image[354:415, 1006:1067] = image[214:275, 1328:1389]
+    else:
+        image[270:320, 1795:1850] = 0
+    assert occluded_route_zoom_button(image, hero) is None
+
+
+@pytest.mark.parametrize("name", ["1080p_jinx_map.png", "f1-gold-travel-panel-20261117.png"])
+def test_route_zoom_does_not_replace_navigation_or_panel_handling(name):
+    image = _load(name)
+    assert occluded_route_zoom_button(image, recognize_hero(image)) is None
 
 
 @pytest.mark.parametrize("jpeg", [False, True])

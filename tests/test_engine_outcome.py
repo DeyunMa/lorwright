@@ -538,6 +538,26 @@ def test_known_unit_without_playable_glow_keeps_settlement_budget(monkeypatch):
     assert snapshots == []
 
 
+def test_commit_progress_keeps_staged_play_deadline(monkeypatch):
+    from lorwright.core.loop.outcome import ActionOutcome
+
+    before = ready(ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_commit",
+                   enemy_nexus_hp=16, readings={"enemy_nexus_hp": Reading(16, 0)})
+    after = replace(before, enemy_nexus_hp=5, readings={"enemy_nexus_hp": Reading(5, 0)})
+    engine, device, _, _, snapshots = engine_for(
+        monkeypatch, [after, after], [Action(ActionType.CONFIRM)], timeout=8,
+    )
+    engine._staged_play = ActionOutcome(Action(ActionType.PLAY_CARD, 0), ready(), 10)
+    engine._pending = ActionOutcome(Action(ActionType.CONFIRM), before, 10)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 9.0 if device.frames <= 1 else 10.0)
+    engine.run(max_ticks=2)
+    assert len(device.taps) == 1
+    assert device.drags == []
+    assert engine._staged_play.deadline == 10
+    assert snapshots == [{"tag": "action_timeout"}]
+
+
 def ready(**kwargs):
     values = dict(
         ui_state=UIState.MY_TURN_IDLE, mana=3,

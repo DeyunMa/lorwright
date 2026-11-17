@@ -159,6 +159,15 @@ class ActionOutcome:
                     # 攻击声明与堆栈结算共用状态；新提示需要重新路由，
                     # 不能把尚待结算的原出牌提前通知为成功。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_prompt_changed")
+                if (kind is ActionType.CONFIRM
+                        and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
+                        and before.action_prompt == after.action_prompt == "action_commit"
+                        and any(before.has_fresh_readings(name)
+                                and after.has_fresh_readings(name)
+                                and getattr(after, name) < getattr(before, name)
+                                for name in ("enemy_nexus_hp", "nexus_hp"))):
+                    # 伤害已结算但仍有后续堆栈；重新核验按钮，不宣告父出牌完成。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "stack_progressed_confirmation_required")
                 previous = before.readings.get("enemy_units_visible")
                 current = after.readings.get("enemy_units_visible")
                 if (kind in (ActionType.END_TURN, ActionType.PASS)

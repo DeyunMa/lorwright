@@ -162,6 +162,23 @@ def test_targeting_requires_input_instead_of_repeating_drag():
     assert collapsed.observe(state(ui_state=UIState.TARGETING, hand_expanded=False), 1).status is OutcomeStatus.NEEDS_INPUT
 
 
+@pytest.mark.parametrize("field", ["enemy_nexus_hp", "nexus_hp"])
+def test_commit_yields_to_next_commit_only_with_fresh_damage(field):
+    from lorwright.core.models import Reading
+
+    before = state(ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_commit",
+                   readings={field: Reading(16, 0)}, **{field: 16})
+    after = replace(before, readings={field: Reading(5, 0)}, **{field: 5})
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20)
+    outcome = pending.observe(after, 3)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "stack_progressed_confirmation_required"
+    assert pending.observe(before, 3).status is OutcomeStatus.WAITING
+    assert pending.observe(replace(after, readings={field: Reading(5, 1)}), 3).status is OutcomeStatus.WAITING
+    assert pending.observe(after, 20).status is OutcomeStatus.TIMED_OUT
+    assert pending.deadline == 20
+
+
 def test_play_yields_to_confirmation_when_the_game_requests_it():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8)

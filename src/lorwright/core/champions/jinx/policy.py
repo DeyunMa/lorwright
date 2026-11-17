@@ -54,8 +54,15 @@ class JinxOpeningPolicy:
         self._stable_views = 0
         #: 本次 Jinx 下场后已经打出的火箭数；用户要求最多打 2 次。
         self._rockets_played = rockets_already_played
+        self._cancelled_pow_pow_mana: int | None = None
 
     def decide(self, state: GameState) -> Action | None:
+        if state.ui_state in (UIState.MULLIGAN, UIState.ENEMY_TURN, UIState.BLOCKING):
+            self._cancelled_pow_pow_mana = None
+        elif (self._cancelled_pow_pow_mana is not None
+              and self._cancelled_pow_pow_mana >= 0 and state.has_fresh_readings("mana")
+              and state.mana > self._cancelled_pow_pow_mana):
+            self._cancelled_pow_pow_mana = None
         if state.ui_state is UIState.MULLIGAN:
             if not self._mulligan:
                 self.step = 0
@@ -161,7 +168,7 @@ class JinxOpeningPolicy:
                         raw["spell_mana_only"] = True
                     return Action(type=ActionType.PLAY_CARD, card_index=card.index, raw=raw)
         # 跳过未知牌、付不起或拖点无效的牌，不让局部失败阻挡后续候选。
-        if state.enemy_units:
+        if state.enemy_units and self._cancelled_pow_pow_mana is None:
             for card in cards:
                 if (card.name not in POW_POW_NAMES or card.cost < 0
                         or not card.drag_point_valid):
@@ -236,6 +243,13 @@ class JinxOpeningPolicy:
 
     def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
         """只在执行器确认动作成功后推进；展开手牌不算出牌。"""
+        if (action.type is ActionType.CANCEL and action.raw.get("return_to_hand")
+                and before.targeted_spell is not None
+                and before.targeted_spell.name in POW_POW_NAMES
+                and after.ui_state is UIState.MY_TURN_IDLE):
+            # 本轮无可核验目标时先让出优先级，避免取消后又打出同一法术。
+            self._cancelled_pow_pow_mana = before.mana if before.has_fresh_readings("mana") else -1
+            return
         if action.type is not ActionType.PLAY_CARD or not before.hand_expanded:
             return
         card = next((c for c in before.hand if c.index == action.card_index), None)
@@ -245,6 +259,7 @@ class JinxOpeningPolicy:
             # 已通过专属后验；旧场面基线可能受手牌遮挡，不能再次否定结果。
             self.step = 2
             self._rockets_played = 0
+            self._cancelled_pow_pow_mana = None
         elif self.step == 2:
             if action.raw.get("jinx_rocket") is True and card.name in ROCKET_NAMES:
                 self._rockets_played += 1

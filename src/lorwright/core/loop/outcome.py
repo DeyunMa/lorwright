@@ -47,6 +47,11 @@ class ActionOutcome:
         self.deadline = deadline
         self.combat_row_min_move_px = combat_row_min_move_px
         self.play_expectation = play_expectation
+        self._confirmation_completed = False
+
+    def resume_after_confirmation(self) -> None:
+        """确认交互已结束，沿用原观察窗口等待出牌结果。"""
+        self._confirmation_completed = True
 
     def observe(self, after: GameState, now: float) -> Outcome:
         if now >= self.deadline:
@@ -83,7 +88,8 @@ class ActionOutcome:
                         return Outcome(OutcomeStatus.NEEDS_INPUT, "hand_expansion_interrupted")
                     if known and after.hand_expanded:
                         reason = "hand_expanded"
-                elif (before.ui_state is UIState.MY_TURN_IDLE
+                elif (not self._confirmation_completed
+                      and before.ui_state is UIState.MY_TURN_IDLE
                       and after.ui_state is UIState.COMBAT_RESOLVING):
                     # 慢速法术先进入堆栈，要点「確認」后才会真正结算。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_required")
@@ -145,12 +151,17 @@ class ActionOutcome:
                     # 攻击声明与堆栈结算共用状态；新提示需要重新路由，
                     # 不能把尚待结算的原出牌提前通知为成功。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_prompt_changed")
+                previous = before.readings.get("enemy_units_visible")
+                current = after.readings.get("enemy_units_visible")
                 if (kind in (ActionType.END_TURN, ActionType.PASS)
                         and before.ui_state is after.ui_state is UIState.MY_TURN_IDLE
                         and before.hand_expanded == after.hand_expanded
-                        and not before.enemy_units and after.enemy_units):
-                    # 对手出单位后可能已交回优先权；新局面需要重新决策，
-                    # 不把漏掉的优先权变化记为结束回合已成功。
+                        and previous is not None and current is not None and current.fresh
+                        and current.value == len(after.enemy_units)
+                        and len(after.enemy_units) > len(before.enemy_units)
+                        and ((previous.fresh and previous.value == len(before.enemy_units))
+                             or (previous.value is None and not before.enemy_units))):
+                    # 新检出的单位提供重新决策的依据，不证明上次是空场或交回优先权。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "opponent_unit_appeared")
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"

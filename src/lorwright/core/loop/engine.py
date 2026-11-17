@@ -10,7 +10,7 @@ from lorwright.core.config import Settings
 from lorwright.core.decide.discard import choose_discard
 from lorwright.core.decide.router import Router
 from lorwright.core.device.base import Device
-from lorwright.core.loop.outcome import ActionOutcome, LoopResult, OutcomeStatus
+from lorwright.core.loop.outcome import ActionOutcome, LoopResult, Outcome, OutcomeStatus
 from lorwright.core.loop.recovery import RecoveryAction, RecoveryPolicy
 from lorwright.core.loop.watchdog import Watchdog
 from lorwright.core.models import Action, ActionType, ClickPlan, GameState, Layout, UIState
@@ -81,8 +81,8 @@ class Engine:
         self._scale = Scale(1.0, 1.0)
         self._skipped_stale = 0
         self._pending: ActionOutcome | None = None
-        #: 待确认的出牌；出现确认按钮只表示还需输入，不算出牌已成功。
-        self._staged_play: tuple[Action, GameState] | None = None
+        #: 待确认的出牌保留原后验及截止，附加确认不新建父动作预算。
+        self._staged_play: ActionOutcome | None = None
         self._wait_deadlines: dict[str, tuple[float, float]] = {}
         self._observation: dict = {}
         self._stop_details: dict = {}
@@ -170,10 +170,11 @@ class Engine:
                         action="no_op", clicks=0, stuck=False,
                         ms=round((time.time() - t0) * 1000),
                     )
-                    if self._pending is not None and time.monotonic() >= self._pending.deadline:
+                    pending = self._staged_play or self._pending
+                    if pending is not None and time.monotonic() >= pending.deadline:
                         emit(
                             tick=ticks, event="action_outcome",
-                            action=self._pending.action.type.value, status="timed_out",
+                            action=pending.action.type.value, status="timed_out",
                             reason="no_fresh_frame_before_deadline", clicks=0,
                         )
                         self._stop_snapshot(frame.image, "action_timeout")
@@ -236,19 +237,24 @@ class Engine:
                     self._stop_snapshot(sampled.image, "discard_sample")
                     break
 
+                if (self._staged_play is not None
+                        and time.monotonic() >= self._staged_play.deadline):
+                    self._observe_outcome(self._staged_play, state, ticks)
+                    self._stop_snapshot(frame.image, "action_timeout")
+                    break
+
                 # 已发送的输入先等新帧证明结果，不能每 tick 重放同一个手势。
                 if self._pending is not None:
-                    outcome = self._pending.observe(state, time.monotonic())
-                    emit(
-                        tick=ticks, event="action_outcome",
-                        action=self._pending.action.type.value,
-                        card_index=self._pending.action.card_index,
-                        status=outcome.status.value, reason=outcome.reason, clicks=0,
-                        before=self._pending.before.summary(), after=state.summary(),
-                        before_action_prompt=self._pending.before.action_prompt,
-                        after_action_prompt=state.action_prompt,
-                        readings={name: asdict(reading) for name, reading in state.readings.items()},
-                    )
+                    outcome = self._observe_outcome(self._pending, state, ticks)
+                    if (outcome.status is OutcomeStatus.SUCCEEDED
+                            and self._pending.action.type is ActionType.CONFIRM
+                            and self._staged_play is not None):
+                        self._notify_outcome(self._pending, state)
+                        report("verified", outcome.reason, progress=True, action="confirm")
+                        self._pending = self._staged_play
+                        self._staged_play = None
+                        self._pending.resume_after_confirmation()
+                        outcome = self._observe_outcome(self._pending, state, ticks)
                     if outcome.status is OutcomeStatus.TIMED_OUT:
                         self._stop_snapshot(frame.image, "action_timeout")
                         logger.error("动作结果未确认，停止主循环：{}", self._pending.action.type.value)
@@ -261,33 +267,14 @@ class Engine:
                         continue
                     if (outcome.status is OutcomeStatus.NEEDS_INPUT
                             and outcome.reason == "confirmation_required"):
-                        self._staged_play = (self._pending.action, self._pending.before)
+                        self._staged_play = self._pending
                     if outcome.status is OutcomeStatus.SUCCEEDED:
-                        confirmed_play = False
-                        if (self._staged_play is not None
-                                and self._pending.action.type is ActionType.CONFIRM):
-                            confirmed_play = self._make_outcome(
-                                *self._staged_play, float("inf")
-                            ).observe(state, time.monotonic()).status is OutcomeStatus.SUCCEEDED
-                            if not confirmed_play:
-                                # 确认按钮消失并不证明原来的牌已经打出，
-                                # 避免策略把同一张火箭当成下一张再次尝试。
-                                self._stop_snapshot(frame.image, "staged_play_unverified")
-                                logger.warning("确认后无法核实原出牌结果，停止")
-                                break
                         if self._pending.action.type is ActionType.COLLAPSE_HAND:
                             inspecting_board = True
                         self._wait_deadlines.clear()
                         report("verified", outcome.reason, progress=True,
                                action=self._pending.action.type.value)
-                        for layer in self.router.layers:
-                            callback = getattr(layer, "on_action_outcome", None)
-                            if callback is not None:
-                                callback(self._pending.action, self._pending.before, state)
-                                if confirmed_play and self._staged_play is not None:
-                                    callback(*self._staged_play, state)
-                        if self._pending.action.type is ActionType.CONFIRM:
-                            self._staged_play = None
+                        self._notify_outcome(self._pending, state)
                     self._pending = None
                     self.watchdog.reset()
                     self.recovery.reset()
@@ -449,6 +436,10 @@ class Engine:
                             # 回合结束、法术和战斗确认后的结算可能超过普通观察窗口。
                             timeout = max(timeout, 20.0)
                         self._pending = self._make_outcome(result.action, state, timeout)
+                        if self._staged_play is not None:
+                            self._pending.deadline = min(
+                                self._pending.deadline, self._staged_play.deadline,
+                            )
 
                 elapsed_ms = round((time.time() - t0) * 1000)
                 emit(
@@ -478,6 +469,26 @@ class Engine:
             if close_device:
                 self.device.close()
             logger.info("engine stop: coverage={}", self.router.coverage())
+
+    @staticmethod
+    def _observe_outcome(pending: ActionOutcome, state: GameState, tick: int) -> Outcome:
+        outcome = pending.observe(state, time.monotonic())
+        emit(
+            tick=tick, event="action_outcome", action=pending.action.type.value,
+            card_index=pending.action.card_index, status=outcome.status.value,
+            reason=outcome.reason, clicks=0,
+            before=pending.before.summary(), after=state.summary(),
+            before_action_prompt=pending.before.action_prompt,
+            after_action_prompt=state.action_prompt,
+            readings={name: asdict(reading) for name, reading in state.readings.items()},
+        )
+        return outcome
+
+    def _notify_outcome(self, pending: ActionOutcome, state: GameState) -> None:
+        for layer in self.router.layers:
+            callback = getattr(layer, "on_action_outcome", None)
+            if callback is not None:
+                callback(pending.action, pending.before, state)
 
     def _make_outcome(self, action: Action, before: GameState, timeout: float) -> ActionOutcome:
         expectation = None

@@ -139,6 +139,12 @@ class StateParser:
                 image=image,
             )
 
+        # 只记录本帧实际检出的数量下界；零检出不证明空场，也不沿用旧值。
+        for name, visible in (("my_units_visible", state.my_units),
+                              ("enemy_units_visible", state.enemy_units)):
+            state.readings[name] = (Reading(len(visible), 0) if visible and readable_ui
+                                    else Reading())
+
         # 只有轮到自己行动时令牌才有意义；对手攻击时的箭头长一样，但那时是 BLOCKING
         if state.ui_state is UIState.MY_TURN_IDLE and lay.attack_token is not None:
             state.has_attack_token = attack_token.has_attack_token(image, lay.attack_token)

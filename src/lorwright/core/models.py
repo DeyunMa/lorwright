@@ -159,6 +159,7 @@ class GameState:
     # 伊莉丝升级后我方全体蜘蛛获得挑战者，攻击声明由攻方指定格挡者
     my_units_have_challenger: bool = False
     #: 数字字段的观测证据；旧值仅供展示，不代表本帧仍然有效。
+    #: my_units_visible / enemy_units_visible 是检出数量下界，缺失或零检出均不证明空场。
     readings: dict[str, Reading] = field(default_factory=dict)
     #: 已识别的「继续」按钮区域；按钮不明确时为 None，是否点击由流程判断。
     continue_button: Rect | None = None

@@ -62,7 +62,7 @@ def test_real_pass_successor_exposes_new_opponent_unit_for_routing():
     from dataclasses import replace
 
     from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
-    from lorwright.core.models import Action, ActionType
+    from lorwright.core.models import Action, ActionType, Reading
 
     after = _parser().parse(_load("f1-pass-new-opponent-20261116.png"))
     assert after.ui_state is UIState.MY_TURN_IDLE
@@ -70,7 +70,9 @@ def test_real_pass_successor_exposes_new_opponent_unit_for_routing():
     assert after.enemy_nexus_hp == 2
     assert len(after.enemy_units) == 1
     # 前态按运行日志合成；未保留该次输入前的原始截图。
-    before = replace(after, enemy_units=[])
+    before = replace(after, enemy_units=[], readings={
+        **after.readings, "enemy_units_visible": Reading(),
+    })
     outcome = ActionOutcome(Action(ActionType.END_TURN), before, 8).observe(after, 1)
     assert outcome.status is OutcomeStatus.NEEDS_INPUT
     assert outcome.reason == "opponent_unit_appeared"
@@ -108,6 +110,25 @@ def test_state_parser_reads_unit_attack_values() -> None:
     state = _parser().parse(_load("1080p_units_idle.png"))
     assert [unit.attack for unit in state.my_units] == [4, 6]
     assert [unit.attack for unit in state.enemy_units] == [8, 2]
+    assert state.readings["my_units_visible"].value == 2
+    assert state.readings["enemy_units_visible"].value == 2
+    assert state.has_fresh_readings("my_units_visible", "enemy_units_visible")
+
+
+def test_unit_observations_do_not_turn_zero_detections_into_confirmed_empty():
+    parser = _parser()
+    image = _load("1080p_units_idle.png")
+    assert parser.parse(image).has_fresh_readings("my_units_visible", "enemy_units_visible")
+    # 保留完整 UI，只覆盖单位区域；空白画布也不能证明游戏中的真实空场。
+    for region in (parser.layout.my_board, parser.layout.my_combat,
+                   parser.layout.enemy_board, parser.layout.enemy_combat):
+        if region is not None:
+            image[region.y:region.y + region.h, region.x:region.x + region.w] = 0
+    state = parser.parse(image)
+    assert state.my_units == state.enemy_units == []
+    for name in ("my_units_visible", "enemy_units_visible"):
+        assert state.readings[name].value is None
+        assert not state.readings[name].fresh
 
 
 def test_white_mana_ignores_orange_attack_token_effect() -> None:

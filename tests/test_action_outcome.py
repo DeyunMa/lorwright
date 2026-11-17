@@ -32,18 +32,25 @@ def units(*ys):
 
 
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
-def test_pass_reroutes_when_an_opponent_unit_appears_without_ui_change(kind):
-    before = state(enemy_units=[])
-    after = state(enemy_units=units(100))
+@pytest.mark.parametrize("previous_count", [0, 1, 3])
+def test_pass_reroutes_when_more_opponent_units_are_observed(kind, previous_count):
+    before = state(enemy_units=units(*([100] * previous_count)), readings={
+        "enemy_units_visible": Reading(previous_count or None, 0 if previous_count else None),
+    })
+    after = state(enemy_units=units(*([100] * (previous_count + 1))), readings={
+        "enemy_units_visible": Reading(previous_count + 1, 0),
+    })
     outcome = ActionOutcome(Action(kind), before, 8).observe(after, 1)
     assert outcome.status is OutcomeStatus.NEEDS_INPUT
     assert outcome.reason == "opponent_unit_appeared"
 
 
-@pytest.mark.parametrize("change", ["unknown", "view", "unchanged", "existing", "confirm"])
-def test_opponent_unit_reroute_requires_same_known_view_and_new_presence(change):
-    before = state(enemy_units=[])
-    after = state(enemy_units=units(100))
+@pytest.mark.parametrize("change", [
+    "unknown", "view", "unchanged", "confirm", "missing", "stale", "mismatch", "prior_stale",
+])
+def test_opponent_unit_reroute_requires_current_visible_evidence(change):
+    before = state(enemy_units=units(100), readings={"enemy_units_visible": Reading(1, 0)})
+    after = state(enemy_units=units(100, 100), readings={"enemy_units_visible": Reading(2, 0)})
     kind = ActionType.END_TURN
     if change == "unknown":
         after = replace(after, ui_state=UIState.UNKNOWN)
@@ -51,8 +58,14 @@ def test_opponent_unit_reroute_requires_same_known_view_and_new_presence(change)
         after = replace(after, hand_expanded=False)
     elif change == "unchanged":
         after = before
-    elif change == "existing":
-        before = replace(before, enemy_units=units(100))
+    elif change == "missing":
+        after = replace(after, readings={})
+    elif change == "stale":
+        after = replace(after, readings={"enemy_units_visible": Reading(2, 1)})
+    elif change == "mismatch":
+        after = replace(after, readings={"enemy_units_visible": Reading(1, 0)})
+    elif change == "prior_stale":
+        before = replace(before, readings={"enemy_units_visible": Reading(1, 1)})
     else:
         kind = ActionType.CONFIRM
     pending = ActionOutcome(Action(kind), before, 8)

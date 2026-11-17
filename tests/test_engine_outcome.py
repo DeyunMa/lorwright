@@ -116,9 +116,15 @@ def test_optional_skip_is_sent_once_and_waits_for_visible_exit(monkeypatch, clos
         assert outcomes[-1]["reason"] == "optional_choice_closed"
 
 
-def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch):
-    before = ready(hand_expanded=True)
-    after = replace(before, enemy_units=[Unit("", 2, 2, Rect(900, 100, 100, 150))])
+@pytest.mark.parametrize("previous_count", [0, 1])
+def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch, previous_count):
+    unit = Unit("", 2, 2, Rect(900, 100, 100, 150))
+    before = ready(hand_expanded=True, enemy_units=[unit] * previous_count,
+                   readings={"enemy_units_visible": Reading(
+                       previous_count or None, 0 if previous_count else None,
+                   )})
+    after = replace(before, enemy_units=[unit] * (previous_count + 1),
+                    readings={"enemy_units_visible": Reading(previous_count + 1, 0)})
     engine, device, router, events, snapshots = engine_for(
         monkeypatch, [before, after],
         [Action(ActionType.END_TURN), Action(ActionType.NO_OP)],
@@ -137,6 +143,62 @@ def test_pass_yields_to_new_opponent_board_without_success_callback(monkeypatch)
     assert snapshots == []
     outcomes = [e for e in events if e.get("event") == "action_outcome"]
     assert [(e["status"], e["reason"]) for e in outcomes] == [
+        ("needs_input", "opponent_unit_appeared"),
+    ]
+
+
+@pytest.mark.parametrize("filename,previous_count,expected_count", [
+    ("f1-pass-new-opponent-20261116.png", 0, 1),
+    ("1080p_units_idle.png", 1, 2),
+])
+def test_real_parsed_opponent_board_reroutes_engine(
+    monkeypatch, filename, previous_count, expected_count,
+):
+    from lorwright.core.config import load_settings
+    from lorwright.core.models import ClickPlan
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.state import StateParser
+    from lorwright.core.perceive.ui_state import UIStateDetector
+
+    image = cv2.imread(str(Path("tests/fixtures/screens") / filename))
+    assert image is not None
+    settings = load_settings()
+    layout = settings.layout.to_layout()
+    parser = StateParser(layout, UIStateDetector(action_button=layout.end_turn), DigitReader())
+    parser.load()
+    after = parser.parse(image)
+    assert after.ui_state is UIState.MY_TURN_IDLE
+    assert len(after.enemy_units) == expected_count
+    # 后帧为真实实拍；前态删减单位以隔离增员，不作为连续录像证据。
+    before = replace(after, enemy_units=after.enemy_units[:previous_count], readings={
+        **after.readings, "enemy_units_visible": Reading(
+            previous_count or None, 0 if previous_count else None,
+        ),
+    })
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [], [Action(ActionType.END_TURN), Action(ActionType.NO_OP)],
+    )
+    monkeypatch.setattr(device, "screencap", lambda: Frame(image=image.copy()))
+    frames = iter([before, None])
+
+    def build(image):
+        initial = next(frames)
+        return initial if initial is not None else parser.parse(image)
+
+    monkeypatch.setattr(engine, "_build_state", build)
+    monkeypatch.setattr(engine.translator, "translate", lambda *_: ClickPlan([(20, 20)], wait_ms=0))
+    callbacks = []
+
+    class Observer:
+        def on_action_outcome(self, *args):
+            callbacks.append(args)
+
+    router.layers = [Observer()]
+    engine.run(max_ticks=2)
+    assert device.taps == [(20, 20)] and not device.drags
+    assert router.calls == 2 and callbacks == [] and snapshots == []
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert [(event["status"], event["reason"]) for event in outcomes] == [
         ("needs_input", "opponent_unit_appeared"),
     ]
 
@@ -662,8 +724,10 @@ def test_unknown_animation_waits_for_spell_confirmation(monkeypatch):
     assert len(device.drags) == 1
     assert device.taps == [(20, 20)]
     assert router.calls == 3
-    assert [event["status"] for event in events if event.get("event") == "action_outcome"] == [
-        "waiting", "needs_input", "succeeded",
+    assert [(event["action"], event["status"]) for event in events
+            if event.get("event") == "action_outcome"] == [
+        ("play_card", "waiting"), ("play_card", "needs_input"),
+        ("confirm", "succeeded"), ("play_card", "succeeded"),
     ]
 
 
@@ -830,20 +894,75 @@ def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch
     assert snapshots == []
 
 
-def test_staged_spell_stops_when_confirmation_does_not_prove_play(monkeypatch):
+@pytest.mark.parametrize("settled", [True, False])
+def test_staged_spell_observes_delayed_result_with_original_budget(monkeypatch, settled):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)
     staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
-    after = replace(staged, ui_state=UIState.MY_TURN_IDLE)
-    engine, device, router, _, snapshots = engine_for(
-        monkeypatch, [before, staged, after],
-        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM)],
+    unverified = replace(before, hand=[])
+    paid = replace(unverified, mana=2, readings={"mana": Reading(2, 0)})
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, [before, staged, unverified, paid if settled else unverified],
+        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
+        timeout=20,
     )
-    result = engine.run(max_ticks=3)
-    assert result.status == "stopped" and result.reason == "staged_play_unverified"
+    callbacks = []
+
+    class Layer:
+        def on_action_outcome(self, action, *_):
+            callbacks.append(action.type)
+
+    router.layers = [Layer()]
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 18.0, 19.0, 19.5 if settled else 20.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=4)
     assert len(device.drags) == 1 and device.taps == [(20, 20)]
-    assert router.calls == 2
-    assert snapshots == [{"tag": "staged_play_unverified"}]
+    assert router.calls == (3 if settled else 2)
+    assert callbacks == ([ActionType.CONFIRM, ActionType.PLAY_CARD] if settled
+                         else [ActionType.CONFIRM])
+    assert snapshots == ([] if settled else [{"tag": "action_timeout"}])
+    if not settled:
+        assert result.reason == "action_timeout"
+    outcomes = [e for e in events if e.get("event") == "action_outcome"]
+    assert any(e["action"] == "play_card" and e["status"] == "waiting" for e in outcomes)
+    assert outcomes[-1]["status"] == ("succeeded" if settled else "timed_out")
+
+
+def test_staged_spell_confirmation_changes_do_not_renew_parent_budget(monkeypatch):
+    card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
+    before = ready(hand=[card], hand_expanded=True)
+    confirm = replace(before, ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_confirm")
+    commit = replace(confirm, action_prompt="action_commit")
+    after = replace(before, hand=[], mana=2, readings={"mana": Reading(2, 0)})
+    engine, device, router, _, snapshots = engine_for(
+        monkeypatch, [before, confirm, commit, after],
+        [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM), Action(ActionType.CONFIRM),
+         Action(ActionType.NO_OP)],
+        timeout=20,
+    )
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
+    build = engine._build_state
+    times = iter([0.0, 18.0, 19.0, 20.0])
+
+    def next_state(image):
+        clock[0] = next(times)
+        return build(image)
+
+    monkeypatch.setattr(engine, "_build_state", next_state)
+    result = engine.run(max_ticks=4)
+    assert result.reason == "action_timeout"
+    assert len(device.drags) == 1 and device.taps == [(20, 20), (20, 20)]
+    assert router.calls == 3
+    assert snapshots == [{"tag": "action_timeout"}]
 
 
 def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):

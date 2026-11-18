@@ -656,6 +656,52 @@ def test_result_phase_can_interrupt_readiness_without_sending_candidate(monkeypa
     assert device.taps == [] and device.drags == []
 
 
+def test_real_blocking_frame_confirms_once_after_two_fresh_parses(monkeypatch):
+    """实拍裁剪重复采图，经真实 parser/router/readiness/translator；不代表实机后验。"""
+    from lorwright.core.champions.jinx import PACK
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.generic import BlockingPolicy
+    from lorwright.core.decide.router import Router as RealRouter
+
+    images = []
+    for name in ("f1-blocking-readiness-stop-20261118.png",
+                 "f1-blocking-readiness-20261118.png"):
+        image = np.zeros((1080, 1920, 3), np.uint8)
+        image[:, 320:] = cv2.imread(f"tests/fixtures/screens/{name}")
+        images.append(image)
+    settings = load_settings()
+    settings.loop.tick_ms = settings.act.tap_wait_ms = 0
+    device = Device()
+    engine = Engine(settings, RealRouter([BlockingPolicy()]), device,
+                    card_recognizer=PACK.recognize_hand,
+                    my_unit_recognizer=PACK.recognize_my_units)
+    observed, sent = [], []
+    parse = engine.parser.parse
+
+    def capture():
+        device.frames += 1
+        return Frame(image=images[min(device.frames - 1, 1)].copy())
+
+    def record_parse(frame):
+        state = parse(frame)
+        observed.append(state)
+        return state
+
+    monkeypatch.setattr(device, "screencap", capture)
+    monkeypatch.setattr(engine.parser, "parse", record_parse)
+    monkeypatch.setattr(device, "tap", lambda *point: sent.append((device.frames, point)))
+    engine.run(max_ticks=4)
+    assert len(observed) == 4
+    assert all(state.ui_state is UIState.BLOCKING and state.hand_expanded
+               and len(state.hand) == 8 for state in observed)
+    assert sent == [(2, engine.layout.end_turn.center)]
+    assert device.drags == []
+    assert all([(u.attack, u.health) for u in state.enemy_attackers] == [(1, 2)]
+               for state in observed)
+    # 零检出继续保持未知，恢复攻击者位置不把己方空列表当作已确认零单位。
+    assert all(state.readings["my_units_visible"].value is None for state in observed)
+
+
 def test_readiness_keeps_block_declaration_before_confirmation(monkeypatch):
     from lorwright.core.champions.elise import SpiderAggroPolicy
     from lorwright.core.decide.generic import BlockingPolicy

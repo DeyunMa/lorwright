@@ -106,6 +106,35 @@ def test_highlighted_enemy_fake_orange_frame_without_red_badge_is_rejected(name,
     assert all(not unit_x <= unit.rect.center[0] <= unit_x + 68 for unit in units)
 
 
+@pytest.mark.parametrize("offset", [(0, 0), (110, 45), (-120, -30)])
+def test_blocking_attacker_inside_wide_highlighted_frame(offset):
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = cv2.imread(str(SCREENS / "f1-blocking-readiness-20261118.png"))
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    units = to_units(find_unit_badges(
+        image, Rect(280 + dx, 240 + dy, 1340, 240), enemy=True,
+    ), enemy=True, image=image)
+    assert [(unit.attack, unit.health) for unit in units] == [(1, 2)]
+    assert abs(units[0].rect.center[0] - (931 + dx)) <= 2
+    assert abs(units[0].rect.center[1] - (415 + dy)) <= 2
+
+
+@pytest.mark.parametrize("side", [0, 64])
+@pytest.mark.parametrize("damage", ["badge", "number", "background"])
+def test_wide_highlighted_frame_requires_paired_badge_evidence(side, damage):
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = cv2.imread(str(SCREENS / "f1-blocking-readiness-20261118.png"))
+    patch = image[396:434, 908 + side:954 + side]
+    if damage == "badge":
+        patch[:] = 0
+    elif damage == "number":
+        patch[patch.min(axis=2) >= 170] = 0
+    else:
+        patch[patch.min(axis=2) < 170] = 0
+    assert find_unit_badges(image, Rect(280, 240, 1340, 240), enemy=True) == []
+
+
 def test_idle_state_units_are_found() -> None:
     """待命状态（蓝色发光描边）也要认得出 —— 这是整局不攻击的根因。"""
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))

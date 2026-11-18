@@ -307,6 +307,17 @@ def test_unsent_candidate_does_not_attribute_targeting_to_card() -> None:
     assert policy.decide(state) == candidate
 
 
+def test_verified_play_with_replacement_card_does_not_blacklist_same_card():
+    policy = SpiderAggroPolicy()
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+                      hand=[hand(0, "小蜘蛛", 1), hand(1, "小蜘蛛", 1)])
+    action = policy.decide(state)
+    policy.on_action_sent(action, state)
+    policy.on_action_outcome(action, state, state)
+    assert policy.decide(state).type is ActionType.PLAY_CARD
+    assert not policy._unplayable
+
+
 def test_unplayable_card_is_skipped_on_retry() -> None:
     """拖不动的牌不能每 tick 重试：手牌没减少就换下一张。
 

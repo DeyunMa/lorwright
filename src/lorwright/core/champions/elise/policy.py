@@ -168,6 +168,13 @@ class SpiderAggroPolicy(Policy):
         self._pending_name = card.name
         self._pending_hand = len(before.hand)
 
+    def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
+        """引擎已核实出牌成功时，不能再凭手牌数量把它当成失败。"""
+        if action.type is ActionType.PLAY_CARD and action.card_index == self._pending_play:
+            self._pending_play = None
+            self._pending_cost = None
+            self._pending_name = ""
+
     def _settle_previous_play(self, state: GameState) -> None:
         """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
         if self._pending_play is None:

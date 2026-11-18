@@ -33,6 +33,53 @@ def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
     )
 
 
+def remaining_first_reward():
+    import numpy as np
+
+    # 独立 JPEG 的奖励区 [18:1050, 330:1580]，已亲自查看，无账号信息。
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-remaining-first-reward-20261118.png")
+    return image
+
+
+def test_remaining_first_reward_recognizes_preview_costs_and_target():
+    image = remaining_first_reward()
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [3, 6, 4]
+    assert all(c.preview_cost_verified for c in candidates)
+    assert all(c.card.name == "" for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
+    assert card_reward_target(image, 0, "") is not None
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "partial"])
+def test_remaining_first_reward_rejects_damaged_six_cost(damage):
+    image = remaining_first_reward()
+    if damage == "missing":
+        image[276:309, 843:879] = 0
+    elif damage == "dimmed":
+        image[276:309, 843:879] //= 3
+    else:
+        image[278:291, 848:865] = 0
+    assert _card_cost(image, 769) is None
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 1, "") is None
+
+
+def test_remaining_first_reward_six_cost_moves_with_glyph():
+    image = remaining_first_reward()
+    left, middle = image[276:309, 428:464].copy(), image[276:309, 843:879].copy()
+    image[276:309, 428:464], image[276:309, 843:879] = middle, left
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [6, 3, 4]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+    assert card_reward_target(image, 1, "") is not None
+
+
 def landmark_reward():
     import numpy as np
 

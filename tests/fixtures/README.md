@@ -19,6 +19,8 @@
 
 `mapnav/f1-reentry-cave-20261115.png` 为 f1 会话 `20261115T090328-f86a0a8fcae5` 的 `map_no_next` 原帧；右侧山洞阴影用于面板误判回归，锁图标裁剪用于节点安全识别。
 
+`card_rewards/f1-remaining-first-reward-20261118.png` 来自 `20261118T024821-a3639a07edd4` 首战后的独立 ADB JPEG，保存 `[18:1050,330:1580]`（1250×1032）奖励区，已查看无账号。三槽预览费用为 3/6/4；中槽数字完整分割但奖励字库缺 6。`reward_digits/6-remaining-first-20261118.png` 保存同图单字字形。测试补黑、损坏费用与交换字形均为合成；卡名保持未知，不登记新卡效果。
+
 `screens/weekly-one-remaining.png` 是 `20261118T024044-7b052ce9bb9f` 处理任务奖励并进入每周入口后的独立稳定 ADB JPEG 转 PNG，已查看无账号。两个不同肖像的绿色完成勾与上方 2 星时钟证明当前为 2/3 完成；原整块灰度模板漏掉左勾（0.8392，低于 0.88）。`weekly_completed_check.png` 来自左勾 `[650:700,675:735]` 的绿色二值字形；不包含肖像。三关完成测试由复制完成标记合成，不能当作实机三关通关证据。
 
 `continue/f1-silver-relic-chest.png` 和 `f1-silver-relic-converted.png` 为 `20261118T022949-d467c3a40b23` 结算继续后及单次诊断开箱后的稳定 ADB JPEG 转 PNG，均已逐张查看无账号，分别包含白银箱与重复圣物转为星尘的界面。运行素材 `silver_relic_title/icon/chest` 和 `relic_reward_frame_top/bottom` 从对应完整图裁剪；卡框仅核验结构，不识别圣物效果或推断到账。动画隐藏按钮、遮挡和调暗为合成回归。

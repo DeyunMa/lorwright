@@ -208,6 +208,7 @@ def evaluate_map_for_pack(canvas: np.ndarray, pack) -> dict:
     return {
         "hero_found": hero is not None,
         "reachable": len(nodes),
+        "nodes": [{"center": list(node.center), "kind": kind} for node, kind in zip(nodes, kinds, strict=True)],
         "zoom_needed": zoom,
         "actionable": (picked is not None) or zoom,
     }
@@ -310,6 +311,7 @@ def audit_corpus(directories: list[Path]) -> dict:
             cands = recognize_card_rewards(canvas) if sel == -1 else None
             details["selection"] = sel
             if cands is not None:
+                details["costs"] = [candidate.card.cost for candidate in cands]
                 metrics["card_reward_full_recognized"] += 1
                 metrics["card_reward_costs_read"] += sum(1 for c in cands if c.card.cost is not None)
                 j_hook = getattr(jinx_pack, "pick_card_reward", None)
@@ -357,6 +359,7 @@ def audit_corpus(directories: list[Path]) -> dict:
             s_sel = support_selection(canvas)
             choices = recognize_support_choices(canvas) if s_sel == -1 else None
             if choices is not None:
+                details["costs"] = [[choice.group.hero_cost, *choice.group.card_costs] for choice in choices]
                 metrics["support_choices_recognized"] += 1
                 metrics["support_costs_read"] += sum(
                     (1 if ch.group.hero_cost is not None else 0)
@@ -371,6 +374,8 @@ def audit_corpus(directories: list[Path]) -> dict:
             gold = astrologer_gold(canvas)
             offers = astrologer_offers(canvas)
             a_sel = astrologer_selection(canvas)
+            details["gold"] = gold
+            details["costs"] = [offer.cost for offer in offers] if offers is not None else None
             if gold is not None:
                 metrics["astrologer_gold_read"] += 1
             if offers is not None:
@@ -409,13 +414,15 @@ def audit_corpus(directories: list[Path]) -> dict:
             scene = "weekly_list"
             advs = recognize_weekly_adventures(canvas)
             if advs is not None:
+                details["stars"] = [adventure.stars for adventure in advs]
                 stars_known = sum(1 for a in advs if a.stars is not None)
                 metrics["weekly_stars_read"] += stars_known
                 actionable = stars_known == len(advs)
             else:
                 actionable = True
-        elif weekly_detail_stars(canvas) is not None:
+        elif (stars := weekly_detail_stars(canvas)) is not None:
             scene = "weekly_detail"
+            details["stars"] = stars
             metrics["weekly_detail_stars_read"] += 1
             actionable = find_weekly_start(canvas) is not None
         elif find_weekly_entry(canvas) is not None:
@@ -435,11 +442,16 @@ def audit_corpus(directories: list[Path]) -> dict:
             actionable = True
         elif is_map(canvas):
             scene = "map"
-            if astrologer_map_gold(canvas) is not None:
+            details["gold"] = astrologer_map_gold(canvas)
+            if details["gold"] is not None:
                 metrics["map_gold_read"] += 1
             j_map = evaluate_map_for_pack(canvas, jinx_pack)
-            e_map = evaluate_map_for_pack(canvas, elise_pack)
-            g_map = evaluate_map_for_pack(canvas, generic_pack)
+            if hasattr(mapnav_perceive, "locate_map_hero"):
+                # The current navigation path does not depend on the champion pack.
+                e_map = g_map = j_map
+            else:
+                e_map = evaluate_map_for_pack(canvas, elise_pack)
+                g_map = evaluate_map_for_pack(canvas, generic_pack)
             if j_map["hero_found"]:
                 metrics["map_hero_jinx_found"] += 1
             if e_map["hero_found"]:
@@ -491,6 +503,7 @@ def audit_corpus(directories: list[Path]) -> dict:
                     if dc is not None:
                         metrics["discard_screens_recognized"] += 1
                         metrics["discard_costs_read"] += sum(1 for c in dc.costs if c is not None)
+                        details["discard_costs"] = list(dc.costs)
                         st_j.discard_candidates = dc
                         st_e.discard_candidates = dc
 
@@ -507,6 +520,9 @@ def audit_corpus(directories: list[Path]) -> dict:
                 details["jinx_action"] = act_j.action.type.value
                 details["elise_action"] = act_e.action.type.value
                 details["mana"] = st_j.readings["mana"].value if st_j.readings.get("mana") else None
+                for field in ("nexus_hp", "enemy_nexus_hp", "spell_mana"):
+                    reading = st_j.readings.get(field)
+                    details[field] = reading.value if reading is not None and reading.fresh else None
                 details["hand_costs"] = [c.cost for c in st_j.hand]
 
         scene_counts[scene] += 1

@@ -101,3 +101,27 @@ def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
     assert diff["scene_transitions"][0]["actionable_after"] is True
     assert mod.compare_reports(report, missing)["only_before"] == [report["records"][-1]["key"]]
     assert mod.GenericPack().name == "generic"
+
+
+def test_labeled_adventure_frames_preserve_scene_and_numeric_evidence():
+    mod = _load_audit_corpus()
+    fixture_root = Path(__file__).parent / "fixtures"
+    expectations = {
+        "screens/weekly-list-20261115.png": ("weekly_list", {"stars": [1.5, 2, 2]}),
+        "screens/weekly-two-detail-20261116.png": ("weekly_detail", {"stars": 2}),
+        "screens/weekly-one-remaining.png": ("weekly_list", {"stars": [2]}),
+        "screens/f1-astrologer-purchased-map-20261116.png": ("map", {"gold": 550}),
+        "screens/f1-discard-candidates-20261117.png": ("battle_discard", {"discard_costs": [1, 1, 1, 6]}),
+        "continue/f1-silver-vault-20261118.png": ("adventure_silver_vault", {}),
+        "continue/f1-silver-vault-reward-20261118.png": ("adventure_silver_vault_reward", {}),
+    }
+    report = mod.audit_corpus([fixture_root / source for source in expectations])
+    assert len(report["records"]) == len(expectations)
+    for record in report["records"]:
+        expected_scene, expected_details = expectations[record["source"]]
+        assert record["scene"] == expected_scene, record["source"]
+        for field, expected in expected_details.items():
+            value = record["details"][field]
+            if field == "stars" and isinstance(value, list):
+                value = sorted(value)
+            assert value == expected, (record["source"], field)

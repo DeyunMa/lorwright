@@ -18,21 +18,25 @@ import hashlib
 import json
 import random
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 
 import cv2
 import numpy as np
 
 from lorwright.cli.app import _battle_layers
+from lorwright.core.act.translate import ActionTranslator
 from lorwright.core.champions import load as load_champion
 from lorwright.core.champions.base import Preference
 from lorwright.core.config import load_settings
-from lorwright.core.decide.adventure import pick_affordable_power, pick_map_node
+from lorwright.core.decide.adventure import pick_affordable_power, pick_lowest_weekly, pick_map_node
 from lorwright.core.decide.base import Policy
 from lorwright.core.decide.card import CardDef
+from lorwright.core.decide.discard import choose_discard
 from lorwright.core.decide.rewards import pick_card_reward, pick_hero_item_reward, pick_reward
 from lorwright.core.decide.router import Router
 from lorwright.core.decide.support import pick_support_group
+from lorwright.core.loop.engine import Engine
 from lorwright.core.models import ActionType, UIState
 from lorwright.core.perceive import adventure_scene as scene_perceive
 from lorwright.core.perceive import mapnav as mapnav_perceive
@@ -222,10 +226,22 @@ def evaluate_resume_for_pack(canvas: np.ndarray, pack) -> bool:
     return bool(selected is not None and selected(canvas))
 
 
+def _battle_candidate(pack, state):
+    if state.ui_state is UIState.DISCARD:
+        return choose_discard(state.discard_candidates) if state.discard_candidates is not None else None
+    decision_state = replace(
+        state,
+        mana=state.mana if state.has_fresh_readings("mana") else -1,
+        spell_mana=state.spell_mana if state.has_fresh_readings("spell_mana") else None,
+    )
+    return Router(_battle_layers(pack)).decide(decision_state).action
+
+
 def audit_corpus(directories: list[Path]) -> dict:
     """扫描给定目录列表，去重后返回 schema_version=1 的评估字典。"""
     logger.disable("lorwright")
     settings = load_settings()
+    translator = ActionTranslator(settings.layout.to_layout())
     normalizer = Normalizer((1920, 1080))
     login_det = LoginDetector()
     login_det.load()
@@ -417,9 +433,9 @@ def audit_corpus(directories: list[Path]) -> dict:
                 details["stars"] = [adventure.stars for adventure in advs]
                 stars_known = sum(1 for a in advs if a.stars is not None)
                 metrics["weekly_stars_read"] += stars_known
-                actionable = stars_known == len(advs)
-            else:
-                actionable = True
+                chosen = pick_lowest_weekly(details["stars"], rng=random.Random(0))
+                details["weekly_target"] = list(advs[chosen].target.center) if chosen is not None else None
+                actionable = chosen is not None
         elif (stars := weekly_detail_stars(canvas)) is not None:
             scene = "weekly_detail"
             details["stars"] = stars
@@ -507,18 +523,21 @@ def audit_corpus(directories: list[Path]) -> dict:
                         st_j.discard_candidates = dc
                         st_e.discard_candidates = dc
 
-                act_j = Router(_battle_layers(jinx_pack)).decide(st_j)
-                act_e = Router(_battle_layers(elise_pack)).decide(st_e)
+                for pack, state in ((jinx_pack, st_j), (elise_pack, st_e)):
+                    action = _battle_candidate(pack, state)
+                    details[f"{pack.name}_action"] = action.type.value if action is not None else None
+                    if action is not None and action.type is not ActionType.NO_OP:
+                        missing = Engine._missing_action_evidence(action, state)
+                        plan = translator.translate(action, state)
+                        details[f"{pack.name}_single_frame"] = {
+                            "card_index": action.card_index,
+                            "missing": missing,
+                            "has_input_plan": bool(plan and plan.points),
+                        }
+                        metrics[f"battle_{pack.name}_actionable"] += 1
+                        actionable = True
                 if st_j.ui_state in (UIState.ENEMY_TURN, UIState.BATTLE_END):
                     actionable = True
-                else:
-                    if act_j.action.type is not ActionType.NO_OP:
-                        metrics["battle_jinx_actionable"] += 1
-                        actionable = True
-                    if act_e.action.type is not ActionType.NO_OP:
-                        metrics["battle_elise_actionable"] += 1
-                details["jinx_action"] = act_j.action.type.value
-                details["elise_action"] = act_e.action.type.value
                 details["mana"] = st_j.readings["mana"].value if st_j.readings.get("mana") else None
                 for field in ("nexus_hp", "enemy_nexus_hp", "spell_mana"):
                     reading = st_j.readings.get(field)

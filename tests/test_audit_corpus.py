@@ -112,6 +112,9 @@ def test_labeled_adventure_frames_preserve_scene_and_numeric_evidence():
         "screens/weekly-one-remaining.png": ("weekly_list", {"stars": [2]}),
         "screens/f1-astrologer-purchased-map-20261116.png": ("map", {"gold": 550}),
         "screens/f1-discard-candidates-20261117.png": ("battle_discard", {"discard_costs": [1, 1, 1, 6]}),
+        "screens/f1-scholar-nine-mana-10cards-20261118.png": (
+            "battle_my_turn_idle", {"mana": 9, "spell_mana": 3, "jinx_action": "play_card"},
+        ),
         "continue/f1-silver-vault-20261118.png": ("adventure_silver_vault", {}),
         "continue/f1-silver-vault-reward-20261118.png": ("adventure_silver_vault_reward", {}),
     }

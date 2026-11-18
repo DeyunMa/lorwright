@@ -54,6 +54,52 @@ def test_real_support_screens_recognize_hero_cost_and_apply_rule(name, groups, c
     assert support_confirm_button(image) is None
 
 
+def remaining_support():
+    # 独立 JPEG 的 [15:1045, 280:1660] 选择区，已亲自查看，无账号信息。
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[15:1045, 280:1660] = cv2.imread(str(
+        FIXTURES / "support/f1-remaining-support-20261118.png"
+    ))
+    return image
+
+
+def test_remaining_support_recognizes_hero_costs_and_selects_middle():
+    image = remaining_support()
+    assert is_support_screen(image)
+    assert support_selection(image) == -1
+    choices = recognize_support_choices(image)
+    assert choices is not None
+    assert pick_support_group([choice.group for choice in choices]) == 1
+    assert [choice.group.hero_cost for choice in choices] == [7, 1, 4]
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "partial"])
+def test_remaining_support_rejects_damaged_hero_cost(damage):
+    image = remaining_support()
+    if damage == "missing":
+        image[582:616, 1260:1297] = 0
+    elif damage == "dimmed":
+        image[582:616, 1260:1297] //= 3
+    else:
+        image[584:596, 1266:1283] = 0
+    choices = recognize_support_choices(image)
+    assert choices is not None
+    assert choices[2].group.hero_cost is None
+    assert pick_support_group([choice.group for choice in choices]) is None
+
+
+def test_remaining_support_costs_follow_glyphs_across_groups():
+    image = remaining_support()
+    slots = [(328, 584), (798, 441), (1264, 584)]
+    patches = [image[y:y + 30, x:x + 29].copy() for x, y in slots]
+    for (x, y), patch in zip(slots, (patches[2], patches[0], patches[1]), strict=True):
+        image[y:y + 30, x:x + 29] = patch
+    choices = recognize_support_choices(image)
+    assert choices is not None
+    assert [choice.group.hero_cost for choice in choices] == [4, 7, 1]
+    assert pick_support_group([choice.group for choice in choices]) == 2
+
+
 def test_hero_cost_precedes_other_cards_and_ties_compare_averages():
     assert pick_support_group([
         SupportGroup(2, (6, 6)), SupportGroup(3, (1, 1)), SupportGroup(5, (0, 0)),

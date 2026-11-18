@@ -1,6 +1,5 @@
 """空手需有独立画面证据，徽章漏检或局部遮挡不能作为空手。"""
 from dataclasses import replace
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -13,8 +12,9 @@ from lorwright.core.decide.router import Router
 from lorwright.core.models import ActionType, GameState, Rect, UIState, Unit
 from lorwright.core.perceive.hand import EMPTY_HAND_REGION, is_confirmed_empty
 from lorwright.core.perceive.state import StateParser
+from tools.test_data import fixtures_root
 
-SCREENS = Path("tests/fixtures/screens")
+SCREENS = fixtures_root() / "screens"
 
 
 def image(name):

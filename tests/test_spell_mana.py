@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import cv2
 import pytest
@@ -6,6 +5,7 @@ import pytest
 from lorwright.core.config import load_settings
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
 
 @pytest.mark.parametrize(('name', 'expected'), [
@@ -15,7 +15,7 @@ from lorwright.core.perceive.ui_state import UIStateDetector
     ('1080p_confirm_phase.png', 3),
 ])
 def test_spell_mana_from_real_screens(name, expected):
-    image = cv2.imread(str(Path('tests/fixtures/screens') / name))
+    image = cv2.imread(str(fixtures_root() / "screens" / name))
     assert image is not None
     settings = load_settings()
     layout = settings.layout.to_layout()
@@ -32,7 +32,7 @@ def test_spell_mana_from_real_screens(name, expected):
 def test_spell_mana_ignores_colored_glow_without_reusing_old_value(name, monkeypatch):
     from lorwright.core.models import Layout, Rect, UIState
 
-    image = cv2.imread(str(Path('tests/fixtures/screens') / name))
+    image = cv2.imread(str(fixtures_root() / "screens" / name))
     assert image is not None
     layout = Layout(spell_mana=Rect(111, 59, 34, 38))
     detector = UIStateDetector()
@@ -48,7 +48,7 @@ def test_spell_mana_ignores_colored_glow_without_reusing_old_value(name, monkeyp
 
 
 def test_obscured_spell_mana_is_not_reused():
-    image = cv2.imread('tests/fixtures/screens/1080p_confirm_phase.png')
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_confirm_phase.png"))
     assert image is not None
     layout = load_settings().layout.to_layout()
     parser = StateParser(layout, UIStateDetector(action_button=layout.end_turn))

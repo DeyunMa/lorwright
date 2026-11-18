@@ -17,10 +17,11 @@ from lorwright.core.perceive.hand import recognize_expanded
 from lorwright.core.perceive.mulligan import recognize_mulligan_selection
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
 
 def _named(filename: str):
-    region = cv2.imread(str(Path("tests/fixtures/jinx") / filename))
+    region = cv2.imread(str(fixtures_root() / "jinx" / filename))
     image = np.zeros((1080, 1920, 3), dtype=np.uint8)
     image[700:1080, 200:1800] = region
     digits = DigitReader()
@@ -66,7 +67,7 @@ def test_live_eight_card_hand_does_not_borrow_neighbor_names():
 def test_obscured_card_does_not_borrow_adjacent_jinx_identity():
     # 真实手牌加合成遮挡：当前牌主要卡面不可读，右侧 Jinx 保持可见。
     image = np.zeros((1080, 1920, 3), dtype=np.uint8)
-    image[700:1080, 200:1800] = cv2.imread("tests/fixtures/jinx/battle-hand.png")
+    image[700:1080, 200:1800] = cv2.imread(str(fixtures_root() / "jinx/battle-hand.png"))
     badges = image[750:860, 900:1150].copy()
     image[830:1080, 940:1110] = 0
     image[750:860, 900:1150] = badges
@@ -91,7 +92,7 @@ def test_reduced_cost_pow_pow_is_not_mistaken_for_jinx():
 
 def test_emergency_device_can_be_recognized_at_three_mana():
     # PoC 可能提高显示费用，不能用基础 1 费把目标牌排除。
-    region = cv2.imread(str(Path("tests/fixtures/jinx/battle-hand.png")))
+    region = cv2.imread(str(fixtures_root() / "jinx/battle-hand.png"))
     assert region is not None
     image = np.zeros((1080, 1920, 3), dtype=np.uint8)
     image[700:1080, 200:1800] = region
@@ -104,7 +105,7 @@ def test_emergency_device_can_be_recognized_at_three_mana():
 
 
 def test_increased_red_costs_in_live_hand_are_read():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-increased-costs-20261114.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/battle-increased-costs-20261114.png"))
     assert image is not None
     digits = DigitReader()
     digits.load()
@@ -114,7 +115,7 @@ def test_increased_red_costs_in_live_hand_are_read():
 
 
 def test_live_increased_cost_spell_uses_available_spell_mana():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-increased-costs-20261114.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/battle-increased-costs-20261114.png"))
     assert image is not None
     settings = load_settings()
     layout = settings.layout.to_layout()
@@ -132,7 +133,7 @@ def test_live_increased_cost_spell_uses_available_spell_mana():
 
 
 def test_live_two_rockets_include_leftmost_before_selecting():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/battle-two-rockets-20261114.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/battle-two-rockets-20261114.png"))
     assert image is not None
     settings = load_settings()
     layout = settings.layout.to_layout()
@@ -161,7 +162,7 @@ def test_live_two_rockets_include_leftmost_before_selecting():
 
 
 def test_mulligan_cards_are_recognized():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-4cards.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/mulligan-4cards.png"))
     assert image is not None
     cards = recognize_mulligan(image)
     assert [card.matches_target for card in cards] == [False] * 4
@@ -177,7 +178,7 @@ def test_mulligan_cards_are_recognized():
 
 
 def test_mulligan_does_not_need_support_or_reward_card_names():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-before.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/mulligan-support-before.png"))
     assert image is not None
     cards = recognize_mulligan(image)
     # 伊莉丝卡面可直接证明不是 Jinx，不依赖英雄品质标志。
@@ -185,7 +186,7 @@ def test_mulligan_does_not_need_support_or_reward_card_names():
 
 
 def test_real_unknown_mulligan_slots_preserve_independent_replacement():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-weekly-unknown-20261116.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/mulligan-weekly-unknown-20261116.png"))
     assert image is not None
     cards = recognize_mulligan(image)
     assert [card.matches_target for card in cards] == [None, False, None, False]
@@ -199,14 +200,14 @@ def test_real_unknown_mulligan_slots_preserve_independent_replacement():
 
 
 def test_mulligan_selected_card_is_unknown_without_prior_view():
-    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-support-first-selected.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/mulligan-support-first-selected.png"))
     assert image is not None
     assert [card.matches_target for card in recognize_mulligan(image)] == [None, False, False, False]
 
 
 def test_synthetic_jinx_and_obscured_slot():
     # 把素材嵌入真实换牌画面只检验接线，不等于真实 Jinx 换牌截图。
-    image = cv2.imread(str(Path("tests/fixtures/jinx/mulligan-4cards.png")))
+    image = cv2.imread(str(fixtures_root() / "jinx/mulligan-4cards.png"))
     target = cv2.imread(str(Path("src/lorwright/core/champions/jinx/assets/01PZ040.png")))
     assert image is not None and target is not None
     image[332:732, 347:627] = cv2.resize(target, (280, 400))

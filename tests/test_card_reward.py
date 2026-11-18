@@ -1,6 +1,5 @@
 """战斗奖励的实机画面、排序和保守识别。"""
 
-from pathlib import Path
 
 import cv2
 import pytest
@@ -17,8 +16,9 @@ from lorwright.core.perceive.reward_screen import (
     recognize_card_rewards,
     same_card_reward_choices,
 )
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures" / "card_rewards"
+FIXTURES = fixtures_root() / "card_rewards"
 
 
 def _image(name):

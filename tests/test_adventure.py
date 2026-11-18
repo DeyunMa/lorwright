@@ -1,6 +1,6 @@
 """AdventureLoop 流程回归：假设备 + 假引擎，锁住地图循环的行为。
 
-地图帧用 tests/fixtures/mapnav 的 1080p 实机截图；运行时与测试都在
+地图帧用库外 fixtures/mapnav 的 1080p 实机截图；运行时与测试都在
 1920×1080 设计空间，点击不再 ×2。
 2026-11-06 建立：本测试抓到过 coords 字段名错配（first_option vs
 rest_first_option），第一次进商店/休息面板就会 AttributeError。
@@ -20,8 +20,9 @@ from lorwright.core.models import UIState
 from lorwright.core.perceive.adventure_scene import find_home_adventure_entry
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
+FIXTURES = fixtures_root() / "mapnav"
 
 
 def _img(name: str) -> np.ndarray:

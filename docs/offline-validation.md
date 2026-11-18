@@ -5,9 +5,9 @@
 
 ## 截图放在哪里
 
-- 当前回归图片：`tests/fixtures/` 下的场景目录；新增素材只保留不含账号等敏感内容的原帧或原生裁剪，来源见 [`../tests/fixtures/README.md`](../tests/fixtures/README.md)。
-- 人工核对的预期值：`tests/fixtures/cases/*.json`，格式见同目录 README；有具体行为的回归也可直接写在对应测试中。
-- 含账号的完整战斗图、敏感原图、大批录制与诊断日志：已忽略的 `logs/` 或仓库外 `lorwright-artifacts/`，不直接提交。
+- 运行 `python tools/test_data.py` 后，在 `../lorwright-test-data/fixtures/` 按场景读取回归图片。样本来源见[截图说明](../tests/fixtures/README.md)。数据目录可通过 `LORWRIGHT_TEST_DATA` 指定。
+- 人工核对的预期值随仓保存在 `tests/fixtures/cases/*.json`，格式见同目录 README。具体行为的断言也可直接写在对应测试中。
+- 含账号的完整战斗图、敏感原图、大批录制与诊断日志留在已忽略的 `logs/` 或库外诊断目录。
 
 已纳入 10 个历史单图案例，覆盖 UI、法力/血量、手牌费用/展开态、单位数量。
 只标注已核实字段。每张图单独解析，不允许前图缓存掩盖本图读数失败。
@@ -29,7 +29,7 @@
 
 ## 多冒险截图对照
 
-`tools/audit_corpus.py` 可以重复扫描夹具、历史截图和地图样本，并按图片 SHA-256 对照结果。用同一版脚本、同一批输入、各版本自己的配置和识别资产分别运行。`--dir` 可重复传入，`--out` 保存逐图结果，`--compare` 列出两边未配对的样本和输出变化。避免在报告生成后移动或改写所用的输入图。
+`python tools/audit_corpus.py` 默认扫描库外测试数据中的 `fixtures/`。需要历史图时用 `python tools/test_data.py --include-history` 准备，再显式传入 `--dir ../lorwright-test-data/archives`。对比不同版本时使用同一版脚本、同一批输入和各版本自己的配置与识别资产。`--dir` 可重复传入，`--out` 保存逐图结果，`--compare` 按图片 SHA-256 列出未配对样本和输出变化。历史 380 张对照还使用了当时的额外输入。
 
 本轮回归包括三个周常的开局与早期节点、第三个周常的首领翼章和白银宝库两阶段，以及过往的治疗、商店、占星家、弃牌与战斗截图。已核实的读数、场景和动作候选见 `tests/test_audit_corpus.py`，地图点击顺序和结算后继见 `tests/test_adventure.py`。
 
@@ -88,10 +88,16 @@ UNKNOWN / BATTLE_END 不从未知位置刷新数字。进入新一轮 MULLIGAN �
 
 ## 本地检查与之后的实机验收
 
+开发环境从受影响的测试文件或用例开始。跨层契约、共享感知或测试数据准备流程发生变化时，扩大验证范围。CI 在开发阶段执行回归。同步 f1 后按 [f1 运维](../tools/f1/README.md) 核对部署和会话状态，实机验收以目标流程的事件和结果为依据。
+
 ```sh
-rtk proxy .venv/bin/python -m pytest -o addopts= -q
-rtk proxy .venv/bin/ruff check src tests tools
+python -m pip install -e ".[dev]"
+python tools/test_data.py
+python -m pytest tests/test_perception.py
+ruff check src tests tools
 ```
+
+整理旧测试时，先确认保留用例覆盖相同的行为和预期值。优先合并重复解析同一帧的断言。保留能区分其他形态、边界条件、标定或跨层行为的样本。历史资料按需复用。动态命名和参数化测试使用的样本也需要纳入引用核对。
 
 还修复了空白/稀疏图像中带掩膜模板匹配产生 NaN/Inf 导致假手牌的问题；
 相关测试用真实徽章裁片构造已知位置的图像，不将其冒充实机画面。
@@ -105,5 +111,4 @@ rtk proxy .venv/bin/ruff check src tests tools
 
 实机继续验证新增能力：单位相对位置、光效变化、展开中断的结算交接、结束回合
 后继，以及换牌确认后较长的入场动画。保留实际动作和时间，再验证连续战斗与整个冒险；
-开发恢复与完整无人值守分别记录。用户已授权本地验证后同步 f1 并继续，最新现场和
-接手步骤见 [`handoff.md`](handoff.md)。
+开发恢复与完整无人值守分别记录。最新现场和接手步骤见 [handoff.md](handoff.md)。

@@ -1,6 +1,5 @@
 """结算页实图识别；这些截图不是对完整胜利流程的实机验收。"""
 
-from pathlib import Path
 
 import cv2
 import pytest
@@ -16,8 +15,9 @@ from lorwright.core.perceive.result_screen import (
     result_screen,
 )
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
-FIXTURES = Path("tests/fixtures/continue")
+FIXTURES = fixtures_root() / "continue"
 
 
 def _load(name):
@@ -79,7 +79,7 @@ def test_result_transition_requires_both_regions_and_never_proves_completion():
     assert not is_result_transition(image[:540, :960])
     assert not is_result_transition(image.astype(np.float32))
     assert not is_result_transition(np.zeros_like(image))
-    battle = cv2.imread("tests/fixtures/screens/1080p_units_idle.png")
+    battle = cv2.imread(str(fixtures_root() / "screens/1080p_units_idle.png"))
     assert battle is not None and not is_result_transition(battle)
 
 

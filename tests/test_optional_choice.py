@@ -16,10 +16,11 @@ from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
 
 def _image():
-    image = cv2.imread("tests/fixtures/screens/f1-optional-choice-20261116.png")
+    image = cv2.imread(str(fixtures_root() / "screens/f1-optional-choice-20261116.png"))
     assert image is not None
     return image
 
@@ -57,7 +58,7 @@ def test_two_choice_cost_frames_block_idle_when_other_controls_are_missing(missi
     ("1080p_mulligan.png", UIState.MULLIGAN),
 ])
 def test_one_cost_frame_does_not_override_normal_battle_state(column, name, expected):
-    image = cv2.imread(f"tests/fixtures/screens/{name}")
+    image = cv2.imread(str(fixtures_root() / f"screens/{name}"))
     assert image is not None
     assert _parse(image).ui_state is expected
     source = _image()
@@ -87,7 +88,7 @@ def test_darkened_choice_does_not_allow_skip():
 @pytest.mark.parametrize("name", ["1080p_battle_turn2.png", "1080p_block_phase.png",
                                   "1080p_targeting.png", "1080p_mulligan.png"])
 def test_other_action_buttons_do_not_allow_skip(name):
-    image = cv2.imread(f"tests/fixtures/screens/{name}")
+    image = cv2.imread(str(fixtures_root() / f"screens/{name}"))
     assert image is not None
     assert _detector().detect(image) is not UIState.OPTIONAL_CHOICE
 

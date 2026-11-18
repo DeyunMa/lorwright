@@ -11,16 +11,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import cv2
 import numpy as np
 import pytest
 
 from lorwright.core.models import Rect
 from lorwright.core.perceive.units import find_unit_badges, to_units
+from tools.test_data import fixtures_root
 
-SCREENS = Path(__file__).parent / "fixtures" / "screens"
+SCREENS = fixtures_root() / "screens"
 MY_BOARD = Rect(200, 820, 1500, 260)
 ENEMY_BOARD = Rect(200, 100, 1500, 200)
 ATTACK_TOKEN_REGION = Rect(1640, 700, 140, 130)
@@ -28,8 +27,8 @@ ATTACK_TOKEN_REGION = Rect(1640, 700, 140, 130)
 
 @pytest.fixture(scope="module")
 def image() -> np.ndarray:
-    img = cv2.imread(str(SCREENS / "1080p_my_units.png"))
-    assert img is not None, "缺少 fixture 1080p_my_units.png"
+    img = cv2.imread(str(SCREENS / "1080p_targeting.png"))
+    assert img is not None, "缺少 fixture 1080p_targeting.png"
     return img
 
 

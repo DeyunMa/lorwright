@@ -1,7 +1,6 @@
 """地图图标实拍与用户分叉优先级；不依赖游戏。"""
 
 import random
-from pathlib import Path
 
 import cv2
 import pytest
@@ -9,8 +8,9 @@ import pytest
 from lorwright.core.decide.adventure import pick_map_node
 from lorwright.core.models import MapNodeKind
 from lorwright.core.perceive.mapnav import MapNode, node_kind
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
+FIXTURES = fixtures_root() / "mapnav"
 
 
 @pytest.mark.parametrize("preferred,other", [

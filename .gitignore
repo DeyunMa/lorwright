@@ -14,3 +14,17 @@ build/
 # 卡牌图库体积大，按需入库
 assets/cards/*.png
 !assets/cards/.gitkeep
+
+# 运行模板随仓维护，非运行图片使用 tools/test_data.py 指定的库外数据目录。
+/tests/fixtures/**/*.png
+/tests/fixtures/**/*.jpg
+/tests/fixtures/**/*.jpeg
+/tests/fixtures/**/*.webp
+/tests/fixtures/**/*.gif
+/tests/fixtures/**/*.bmp
+/research/**/*.png
+/research/**/*.jpg
+/research/**/*.jpeg
+/research/**/*.webp
+/research/**/*.gif
+/research/**/*.bmp

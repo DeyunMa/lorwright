@@ -1,6 +1,5 @@
 """辅助英雄真实画面与费用排序；不依赖游戏设备。"""
 
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -16,8 +15,9 @@ from lorwright.core.perceive.support_screen import (
     support_confirm_button,
     support_selection,
 )
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 def _image(path: str) -> np.ndarray:

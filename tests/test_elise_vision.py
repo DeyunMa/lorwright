@@ -1,6 +1,5 @@
 """伊莉絲手牌身份识别：真实 1080p 展开态截图与邻牌防借名回归。"""
 
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -9,10 +8,11 @@ from lorwright.core.champions.elise.vision import recognize_hand
 from lorwright.core.models import CardInHand, Rect
 from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.hand import DRAG_OFFSET_EXPANDED, recognize_expanded
+from tools.test_data import fixtures_root
 
 
 def test_recognizes_all_six_cards_in_real_expanded_hand():
-    image = cv2.imread(str(Path("tests/fixtures/screens/1080p_hand_expanded.png")))
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_hand_expanded.png"))
     assert image is not None
     digits = DigitReader()
     digits.load()
@@ -32,7 +32,7 @@ def test_recognizes_all_six_cards_in_real_expanded_hand():
 
 def test_occluded_slot_does_not_borrow_adjacent_card_identity():
     """裁剪窗口包含右侧邻牌时，未知/被遮挡卡面必须保留空名，不能借用邻牌身份。"""
-    image = cv2.imread(str(Path("tests/fixtures/screens/1080p_hand_expanded.png")))
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_hand_expanded.png"))
     assert image is not None
     digits = DigitReader()
     digits.load()

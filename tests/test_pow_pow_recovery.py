@@ -21,6 +21,7 @@ from lorwright.core.models import (
 )
 from lorwright.core.perceive.normalize import Scale
 from lorwright.core.perceive.state import StateParser
+from tools.test_data import fixtures_root
 
 
 def test_synthetic_target_recovery():
@@ -58,7 +59,7 @@ def test_generic_action_requires_visible_spell_and_correct_state():
 
 
 def test_missing_template_and_non_targeting_screen_do_not_produce_evidence(monkeypatch):
-    frame = cv2.imread("tests/fixtures/screens/1080p_targeting.png")
+    frame = cv2.imread(str(fixtures_root() / "screens/1080p_targeting.png"))
     assert frame is not None
     monkeypatch.setattr("lorwright.core.champions.jinx.vision._targeted_spell_template", lambda: None)
     assert recognize_targeted_spell(frame) is None

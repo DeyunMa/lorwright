@@ -1,7 +1,6 @@
 """地图控件在真实画面及遮挡时的识别回归。"""
 
 import random
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -19,8 +18,9 @@ from lorwright.core.perceive.adventure_scene import (
     recognize_weekly_adventures,
     weekly_detail_stars,
 )
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 def _image(relative: str) -> np.ndarray:

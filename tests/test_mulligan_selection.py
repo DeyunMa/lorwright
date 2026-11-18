@@ -1,15 +1,15 @@
 """起手按钮的真实帧与有限遮挡回归。"""
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
 from lorwright.core.perceive.mulligan import recognize_mulligan_selection
+from tools.test_data import fixtures_root
 
 
 def _load(name: str):
-    image = cv2.imread(str(Path("tests/fixtures/jinx") / name))
+    image = cv2.imread(str(fixtures_root() / "jinx" / name))
     assert image is not None
     return image
 
@@ -24,13 +24,13 @@ def test_selection_matches_real_frames(name, expected):
 
 
 def test_buttons_not_yet_shown_are_unknown():
-    image = cv2.imread("tests/fixtures/screens/1080p_mulligan.png")
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_mulligan.png"))
     assert image is not None
     assert recognize_mulligan_selection(image) == (False, False, None, None)
 
 
 def test_normalized_720p_buttons_are_readable():
-    image = cv2.imread("tests/fixtures/screens/720p_mulligan.png")
+    image = cv2.imread(str(fixtures_root() / "screens/720p_mulligan.png"))
     assert image is not None
     image = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
     assert recognize_mulligan_selection(image) == (False, False, False, False)

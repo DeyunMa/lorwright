@@ -5,7 +5,7 @@
 只记录不执行，于是同一套 `Engine` 可以离线跑，动作序列还能断言。
 
 用法：
-    lorwright run --replay tests/fixtures/replay/xxx --max-ticks 5
+    lorwright run --replay ../lorwright-test-data/fixtures/screens --max-ticks 5
 """
 
 from __future__ import annotations

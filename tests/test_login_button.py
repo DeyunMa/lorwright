@@ -4,10 +4,11 @@ import cv2
 
 from lorwright.core.models import Rect
 from lorwright.core.perceive.login import LoginDetector, LoginScreen
+from tools.test_data import fixtures_root
 
 
 def test_riot_button_visible_and_occluded_or_dimmed():
-    image = cv2.imread("tests/fixtures/screens/1080p_login_splash.png")
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_login_splash.png"))
     assert image is not None
     detector = LoginDetector()
     detector.load()
@@ -25,7 +26,7 @@ def test_riot_button_visible_and_occluded_or_dimmed():
 
 
 def test_missing_template_or_outside_frame_does_not_match():
-    image = cv2.imread("tests/fixtures/screens/1080p_login_splash.png")
+    image = cv2.imread(str(fixtures_root() / "screens/1080p_login_splash.png"))
     assert image is not None
     detector = LoginDetector()
     assert not detector.riot_button_visible(image, Rect(650, 790, 140, 90))

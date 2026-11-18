@@ -1,6 +1,5 @@
 """实机能力三选一：可识别的候选、品质及未知时的弃权。"""
 
-from pathlib import Path
 
 import cv2
 import pytest
@@ -13,12 +12,13 @@ from lorwright.core.perceive.reward_screen import (
     power_unselected,
     recognize_powers,
 )
+from tools.test_data import fixtures_root
 
 
 def test_recognizes_weekly_diamond_power_screen():
     from lorwright.core.perceive.reward_screen import is_power_screen
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-weekly-diamond-20261116.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-weekly-diamond-20261116.png"))
     assert is_power_screen(image)
     candidates = recognize_powers(image)
     assert candidates is not None
@@ -31,7 +31,7 @@ def test_recognizes_weekly_diamond_power_screen():
 def test_weekly_power_title_requires_visible_gold_text(damage):
     from lorwright.core.perceive.reward_screen import is_power_screen
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-weekly-diamond-20261116.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-weekly-diamond-20261116.png"))
     if damage == "missing":
         image[25:102, 880:1036] = 0
     elif damage == "dimmed":
@@ -45,7 +45,7 @@ def test_weekly_power_title_requires_visible_gold_text(damage):
 
 
 def test_recognizes_real_power_choices():
-    path = Path(__file__).parent / "fixtures/mapnav/1080p_ability_select.png"
+    path = fixtures_root() / "mapnav/1080p_ability_select.png"
     image = cv2.imread(str(path))
     result = recognize_powers(image)
     assert result is not None
@@ -57,7 +57,7 @@ def test_recognizes_real_power_choices():
 
 
 def test_recognizes_f1_power_choices_and_applies_jinx_default():
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-20261115.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-20261115.png"))
     result = recognize_powers(image)
     assert result is not None
     assert [(c.name, c.quality) for c in result] == [
@@ -76,7 +76,7 @@ def test_recognizes_f1_power_choices_and_applies_jinx_default():
 
 
 def test_selected_power_and_button_are_unambiguous():
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-selected-20261115.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-selected-20261115.png"))
     assert power_selection(image) == 2
     assert power_choose_enabled(image)
     assert recognize_powers(image) is not None
@@ -92,7 +92,7 @@ def test_selected_power_and_button_are_unambiguous():
 
 
 def test_unknown_power_names_use_visible_quality():
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-legendary-20261116.png"))
     candidates = recognize_powers(image)
     assert candidates is not None
     assert [(c.name, c.quality) for c in candidates] == [
@@ -104,7 +104,7 @@ def test_unknown_power_names_use_visible_quality():
 
 @pytest.mark.parametrize("target", [0, 1, 2])
 def test_unknown_highest_quality_is_selected_in_any_slot(target):
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-legendary-20261116.png"))
     slots = (472, 815, 1158)
     rare = image[584:610, 472:762].copy()
     legendary = image[584:610, 1158:1448].copy()
@@ -117,7 +117,7 @@ def test_unknown_highest_quality_is_selected_in_any_slot(target):
 
 @pytest.mark.parametrize("change", ["dimmed", "unknown_quality", "wrong_color"])
 def test_uncertain_power_quality_does_not_authorize_selection(change):
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/power_reward/f1-power-legendary-20261116.png"))
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-legendary-20261116.png"))
     if change == "dimmed":
         image = (image * 0.3).astype("uint8")
     elif change == "unknown_quality":
@@ -130,7 +130,7 @@ def test_uncertain_power_quality_does_not_authorize_selection(change):
 
 
 def test_missing_candidate_or_quality_abstains():
-    path = Path(__file__).parent / "fixtures/mapnav/1080p_ability_select.png"
+    path = fixtures_root() / "mapnav/1080p_ability_select.png"
     image = cv2.imread(str(path))
     for region in ((540, 583, 815, 1105), (584, 610, 815, 1105)):
         modified = image.copy()

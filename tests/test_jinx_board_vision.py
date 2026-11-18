@@ -11,11 +11,12 @@ from lorwright.core.config import load_settings
 from lorwright.core.decide.router import Router
 from lorwright.core.loop.engine import Engine
 from lorwright.core.models import Rect, UIState, Unit
+from tools.test_data import fixtures_root
 
 
 def board_image(filename="board-summoned-after-20261117.png"):
     image = np.zeros((1080, 1920, 3), np.uint8)
-    image[830:1040, 760:1150] = cv2.imread("tests/fixtures/jinx/" + filename)
+    image[830:1040, 760:1150] = cv2.imread(str(fixtures_root() / "jinx" / filename))
     return image
 
 

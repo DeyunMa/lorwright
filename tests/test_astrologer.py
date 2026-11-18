@@ -1,6 +1,5 @@
 """占星家实拍、购买排序和未知证据保护；扣款帧为合成。"""
 
-from pathlib import Path
 
 import cv2
 import pytest
@@ -16,10 +15,11 @@ from lorwright.core.perceive.astrologer import (
     is_power_vendor,
     same_astrologer_offers,
 )
+from tools.test_data import fixtures_root
 
 
 def image():
-    result = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-20261116.png"))
+    result = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-20261116.png"))
     assert result is not None
     return result
 
@@ -29,14 +29,13 @@ def remaining_frame():
 
     frame = np.zeros((1080, 1920, 3), np.uint8)
     frame[:1045, 530:] = cv2.imread(str(
-        Path(__file__).parent / "fixtures/screens/f1-astrologer-remaining-20261118.png"
+        fixtures_root() / "screens/f1-astrologer-remaining-20261118.png"
     ))
     return frame
 
 
 def test_remaining_astrologer_purchased_map_reads_nine():
-    frame = cv2.imread(str(Path(__file__).parent /
-                           "fixtures/screens/f1-astrologer-remaining-purchased-map-20261118.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-remaining-purchased-map-20261118.png"))
     assert frame is not None
     assert astrologer_map_gold(frame) == 970
     frame[1012:1031, 483:496] = 0
@@ -77,7 +76,7 @@ def test_remaining_astrologer_missing_evidence_blocks_purchase(damage):
 
 
 def test_soloist_reuses_paid_power_offer_contract():
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-20261116.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-soloist-20261116.png"))
     assert frame is not None
     offers = astrologer_offers(frame)
     assert offers is not None
@@ -91,7 +90,7 @@ def test_soloist_reuses_paid_power_offer_contract():
 
 @pytest.mark.parametrize("damage", ["title", "leave", "balance", "quality", "price"])
 def test_soloist_missing_evidence_does_not_authorize_purchase(damage):
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-20261116.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-soloist-20261116.png"))
     if damage == "title":
         frame[350:425, 560:850] = 0
     elif damage == "leave":
@@ -149,7 +148,7 @@ def test_obscured_balance_cannot_reuse_previous_value():
 
 
 def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
-    selected = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-selected-20261116.png"))
+    selected = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-selected-20261116.png"))
     assert selected is not None
     assert astrologer_selection(selected) == 2
     assert astrologer_gold(selected) == 950
@@ -158,7 +157,7 @@ def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
 
 
 def test_soloist_purchased_map_reads_exact_balance():
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-purchased-map-20261116.jpg"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-soloist-purchased-map-20261116.jpg"))
     assert frame is not None
     assert astrologer_map_gold(frame) == 670
     for left, right in [(483, 497), (500, 513), (516, 530)]:
@@ -168,7 +167,7 @@ def test_soloist_purchased_map_reads_exact_balance():
 
 
 def test_real_purchased_map_reads_exact_balance_and_rejects_obscured_digits():
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-purchased-map-20261116.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-purchased-map-20261116.png"))
     assert frame is not None
     assert astrologer_map_gold(frame) == 550
     assert astrologer_map_gold(selected_frame()) is None
@@ -183,8 +182,7 @@ def test_real_purchased_map_reads_exact_balance_and_rejects_obscured_digits():
 
 @pytest.mark.parametrize("left", [466, 541])
 def test_purchased_map_rejects_synthetic_adjacent_digit_outside_balance_roi(left):
-    frame = cv2.imread(str(Path(__file__).parent /
-                           "fixtures/screens/f1-astrologer-purchased-map-20261116.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-purchased-map-20261116.png"))
     assert frame is not None
     assert astrologer_map_gold(frame) == 550
     # 将实拍的 5 复制到读取框外，模拟多一位或被框边截断的余额。
@@ -193,7 +191,7 @@ def test_purchased_map_rejects_synthetic_adjacent_digit_outside_balance_roi(left
 
 
 def test_real_shifted_map_rejects_truncated_balance():
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/mapnav/1080p_map.png"))
+    frame = cv2.imread(str(fixtures_root() / "mapnav/1080p_map.png"))
     assert frame is not None
     # 余额左移，旧读取框只包含最后一位 0。
     assert astrologer_map_gold(frame) is None
@@ -213,7 +211,7 @@ def test_vendor_rejects_synthetic_digit_touching_roi_edge(read, top, bottom, lef
 
 
 def selected_frame():
-    frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-selected-20261116.png"))
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-selected-20261116.png"))
     assert frame is not None
     return frame
 

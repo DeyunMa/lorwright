@@ -2,9 +2,10 @@
 
 **先用本目录继续开发，不需要等待完整AI逆向。** 这里有经过来源核验的英雄知识、9张卡面、18个关键词图标、34个关键词的AI估值参考及已核验规则组件。没有完整人机决策算法，也没有自动接入业务代码。
 
-先运行（仅Python标准库，无需游戏、ADB、REA或Ghidra）：
+原图迁到了库外测试数据。以下命令使用 Python 标准库校验研究数据和原图。
 
 ```sh
+python tools/test_data.py --include-history
 python research/lor-client-07.10.013-v1/verify.py
 ```
 
@@ -40,4 +41,4 @@ python research/lor-client-07.10.013-v1/verify.py
 
 `elise-starter.json.cards`是易读的基础牌表；`keyword-ai-weights.json.keywords`是小型记录数组，倍率/加值缺失值为null；`elise-progression-source.json`较大，只有需要查具体星力/成长链时再读。`reference.schema.json`约束新生成的小型规则/系数文件。`verify.py`检查所有交付文件SHA、PNG尺寸和关键记录数。
 
-版本范围：APK07.10.013、下载资源branch7-10-release；官方卡牌静态参考固定7_10_0。禁止静默混入latest数据。完整AI研究继续保存在项目同级`lorwright-artifacts/analysis/stages/05-native-ai/round2/`，本资料包可以独立复制到Windows使用。
+版本范围为 APK07.10.013、下载资源 branch7-10-release 和官方卡牌静态参考 7_10_0。历史底稿位于已移出的旧资料目录。当前数据结构见[项目目录与图片](../../docs/layout.md)。

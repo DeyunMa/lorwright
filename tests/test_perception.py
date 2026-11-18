@@ -21,8 +21,9 @@ from lorwright.core.models import Layout, Rect, UIState
 from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
-SCREENS = Path("tests/fixtures/screens")
+SCREENS = fixtures_root() / "screens"
 
 #: 1280×720 时代的标定值。只服务于 `720p_*.png` 这批旧 fixture。
 LEGACY_720P = Layout(
@@ -217,7 +218,7 @@ def test_ten_mana_is_fresh_in_real_battle() -> None:
     ("1080p_confirm_phase.png", 2),
     ("1080p_battle_turn2.png", 3),
     ("1080p_hand_fan.png", 4),
-    ("1080p_my_units.png", 6),
+    ("1080p_targeting.png", 6),
     ("f1-karma-seven-mana-20261114.png", 7),
     ("f1-karma-eight-mana-20261114.png", 8),
 ])
@@ -246,7 +247,7 @@ def test_partially_obscured_ten_mana_is_not_fresh(shade) -> None:
     assert not state.readings["mana"].fresh
 
 
-def test_hand_costs_from_live_frame() -> None:
+def test_collapsed_hand_reads_costs_from_live_frame() -> None:
     """实战截图里的 6 张手牌费用必须全读对。
 
     这条盯的是「徽章抠图」：数字是白字、徽章底是蓝色、外环是青色。
@@ -254,6 +255,7 @@ def test_hand_costs_from_live_frame() -> None:
     改判据为 min(R,G,B)（三通道都亮才算白）后全对。
     """
     state = _parser().parse(_load("1080p_hand_fan.png"))
+    assert state.hand_expanded is False
     assert [c.cost for c in state.hand] == [3, 2, 5, 2, 6, 3]
 
 
@@ -270,22 +272,6 @@ def test_expanded_hand_is_detected_as_expanded() -> None:
     assert [c.cost for c in state.hand] == [1, 4, 3, 3, 2, 0]
 
 
-def test_collapsed_hand_is_not_expanded() -> None:
-    state = _parser().parse(_load("1080p_hand_fan.png"))
-    assert state.hand_expanded is False
-    assert len(state.hand) == 6
-
-
-def test_block_phase_is_not_my_turn() -> None:
-    """「略過格擋」也是同一块蓝色按钮，但这时手牌拖不动。
-
-    只靠颜色判定会把格挡阶段当成我方回合，策略每帧都试着出牌、每帧都失败
-    （表现为「拖拽没反应」，实际是游戏根本不接受）。
-    """
-    state = _parser().parse(_load("1080p_block_phase.png"))
-    assert state.ui_state is UIState.BLOCKING
-
-
 def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> None:
     from dataclasses import replace
 
@@ -293,6 +279,8 @@ def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> 
     from lorwright.core.models import ActionType
 
     state = _parser().parse(_load("1080p_block_phase.png"))
+    # 「略過格擋」和回合按钮同为蓝色，此时不能出牌。
+    assert state.ui_state is UIState.BLOCKING
     assert len(state.enemy_attackers) == 6
     assert all("Elusive" in unit.keywords for unit in state.enemy_attackers)
     assert all("Overwhelm" in unit.keywords for unit in state.enemy_attackers)
@@ -394,7 +382,7 @@ def test_targeting_button_is_detected() -> None:
 
     detector = UIStateDetector(action_button=Rect(1680, 470, 132, 132))
     detector.load()
-    frame = cv2.imread("tests/fixtures/screens/1080p_targeting.png")
+    frame = cv2.imread(str(fixtures_root() / "screens/1080p_targeting.png"))
     assert frame is not None
     assert detector.detect(frame) is UIState.TARGETING
 

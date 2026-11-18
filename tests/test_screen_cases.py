@@ -15,8 +15,9 @@ from lorwright.core.models import UIState
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 class StrictModel(BaseModel):
@@ -99,7 +100,7 @@ class CaseFile(StrictModel):
 
 
 def _cases():
-    paths = sorted((FIXTURES / "cases").glob("*.json"))
+    paths = sorted((Path(__file__).parent / "fixtures" / "cases").glob("*.json"))
     assert paths, "缺少截图案例 JSON"
     for path in paths:
         bundle = CaseFile.model_validate(json.loads(path.read_text(encoding="utf-8")))

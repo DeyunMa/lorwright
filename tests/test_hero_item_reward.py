@@ -1,6 +1,5 @@
 """英雄道具奖励页面识别，不依赖英雄、道具或生命值内容。"""
 
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -18,8 +17,9 @@ from lorwright.core.perceive.reward_screen import (
     recognize_hero_items,
     same_hero_item_cards,
 )
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 def short_title_reward():

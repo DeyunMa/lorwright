@@ -12,6 +12,7 @@ from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.discard import discard_candidates
 from lorwright.core.perceive.hand import Badge, read_cost
 from lorwright.core.perceive.reward_screen import _card_cost, _reward_digits
+from tools.test_data import fixtures_root
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,8 +26,8 @@ def _reader():
 def _glyphs(reward=False):
     if reward:
         # 奖励 1/0 保留原尺寸，避免压窄重采样把 1 的分数降到 0.92 以下。
-        one = cv2.imread(str(ROOT / "tests/fixtures/card_rewards/f1-narrow-one-reward-20261117.png"))
-        zero = cv2.imread(str(ROOT / "tests/fixtures/card_rewards/f1-weekly-second-reward-20261116.png"))
+        one = cv2.imread(str(fixtures_root() / "card_rewards/f1-narrow-one-reward-20261117.png"))
+        zero = cv2.imread(str(fixtures_root() / "card_rewards/f1-weekly-second-reward-20261116.png"))
         patches = (one[263:287, 521:532], zero[280:305, 432:450])
         return [cv2.threshold(cv2.cvtColor(p, cv2.COLOR_BGR2GRAY), 180, 255,
                               cv2.THRESH_BINARY)[1] for p in patches]
@@ -104,7 +105,7 @@ def test_reward_ten_with_partial_or_low_score_digit_stays_unknown(damage):
 
 
 def test_discard_ten_keeps_both_digits_in_public_candidates():
-    image = cv2.imread(str(ROOT / "tests/fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     cv2.circle(image, (152, 680), 23, (120, 60, 20), -1)
     _put_ten(image, (152, 680))
     candidates = discard_candidates(image, _reader())
@@ -120,7 +121,7 @@ def test_discard_requires_original_threshold_for_every_digit(monkeypatch):
         return (1, 0.84) if hit is not None and hit[0] == 1 else hit
 
     monkeypatch.setattr(reader, "classify", weak_one)
-    image = cv2.imread(str(ROOT / "tests/fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     cv2.circle(image, (152, 680), 23, (120, 60, 20), -1)
     _put_ten(image, (152, 680))
     candidates = discard_candidates(image, reader)

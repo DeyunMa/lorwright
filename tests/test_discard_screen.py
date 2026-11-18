@@ -1,17 +1,17 @@
-from pathlib import Path
 
 import cv2
 import pytest
 
 from lorwright.core.decide.discard import choose_discard
 from lorwright.core.models import DiscardCandidates, Rect
+from tools.test_data import fixtures_root
 
 
 def test_discard_candidates_include_visible_edge_cards():
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     digits = DigitReader("assets/digits")
     digits.load()
     candidates = discard_candidates(image, digits)
@@ -31,7 +31,7 @@ def test_obscured_discard_border_or_selected_cost_blocks_input(bounds):
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     x1, y1, x2, y2 = bounds
     image[y1:y2, x1:x2] = 0
     digits = DigitReader("assets/digits")
@@ -48,7 +48,7 @@ def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds):
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     x1, y1, x2, y2 = bounds
     # Cover the glyph inside the badge without removing the card or badge border.
     image[y1:y2, x1:x2] = (120, 60, 20)
@@ -65,7 +65,7 @@ def test_discard_ignores_isolated_highlight_at_badge_perimeter():
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     cv2.circle(image, (1289, 579), 3, (238, 238, 238), -1)
     digits = DigitReader()
     digits.load()

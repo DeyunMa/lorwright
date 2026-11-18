@@ -1,14 +1,14 @@
 """治疗师页面的实拍识别与遮挡保护。"""
 
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
 from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 @pytest.fixture(params=[

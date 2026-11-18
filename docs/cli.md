@@ -183,8 +183,9 @@ lorwright adventure --champion jinx --max-nodes 30 --jsonl
 lorwright run --champion elise --max-ticks 50 --jsonl
 
 # 只读本地截图，输入只记录，不连接或控制游戏。
-lorwright run --replay tests/fixtures/screens --max-ticks 3 --jsonl
-lorwright adventure --replay tests/fixtures/mapnav --max-nodes 1 --jsonl
+python tools/test_data.py
+lorwright run --replay ../lorwright-test-data/fixtures/screens --max-ticks 3 --jsonl
+lorwright adventure --replay ../lorwright-test-data/fixtures/mapnav --max-nodes 1 --jsonl
 ```
 
 这些现有 fixture 目录是独立场景集合，不是连续录像；上述回放仅验证命令与观测链路，不能作为冒险完成证据。精确复现某次行为时使用有序的专用截图目录。

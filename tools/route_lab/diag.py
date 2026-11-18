@@ -13,13 +13,14 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from lorwright.core.perceive import mapnav  # noqa: E402
+from tools.test_data import fixtures_root  # noqa: E402
 
 FIXTURE_DIRS = (
-    ROOT / "tests" / "fixtures" / "mapnav",
-    ROOT / "tests" / "fixtures" / "healer",
+    fixtures_root() / "mapnav",
+    fixtures_root() / "healer",
 )
 
 

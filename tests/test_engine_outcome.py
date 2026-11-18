@@ -2,7 +2,6 @@
 
 import time
 from dataclasses import replace
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -23,6 +22,7 @@ from lorwright.core.models import (
     UIState,
     Unit,
 )
+from tools.test_data import fixtures_root
 
 
 class Device:
@@ -213,7 +213,7 @@ def test_real_parsed_opponent_board_reroutes_engine(
     from lorwright.core.perceive.state import StateParser
     from lorwright.core.perceive.ui_state import UIStateDetector
 
-    image = cv2.imread(str(Path("tests/fixtures/screens") / filename))
+    image = cv2.imread(str(fixtures_root() / "screens" / filename))
     assert image is not None
     settings = load_settings()
     layout = settings.layout.to_layout()
@@ -274,7 +274,7 @@ def test_known_result_transition_observes_without_replaying_or_renewing_action(
     )
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[100:900, 300:1600] = cv2.imread(
-        "tests/fixtures/continue/f1-result-transition-20261117.png",
+        str(fixtures_root() / "continue/f1-result-transition-20261117.png"),
     )
     times = [0, 2, 12, elapsed]
 
@@ -345,7 +345,7 @@ def test_jinx_summon_with_enemy_healing_uses_parsed_board_identity(monkeypatch, 
     monkeypatch.setattr(parser.ui, "detect", lambda image: UIState.MY_TURN_IDLE)
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[830:1040, 760:1150] = cv2.imread(
-        "tests/fixtures/jinx/" + filename,
+        str(fixtures_root() / "jinx" / filename),
     )
     parsed = parser.parse(image)
     assert any(unit.name == "吉茵珂絲" for unit in parsed.my_units)
@@ -507,7 +507,7 @@ def test_board_inspection_never_overrides_unrelated_wait(monkeypatch, ui, action
 
 @pytest.mark.parametrize("transition", [True, False])
 def test_reward_timeout_clicks_once_and_requires_known_transition(monkeypatch, transition):
-    fixtures = Path(__file__).parent / "fixtures/reward_timeout"
+    fixtures = fixtures_root() / "reward_timeout"
     timeout = cv2.imread(str(fixtures / "f1.png"))
     home = cv2.imread(str(fixtures / "f1-after-home.png"))
     engine, device, router, _, snapshots = engine_for(
@@ -615,7 +615,7 @@ def test_play_unit_jinx_uses_special_expectation_with_real_highlighted_after(mon
                            my_unit_recognizer=PACK.recognize_my_units)
     parser_engine.parser.load()
     image = np.zeros((1080, 1920, 3), np.uint8)
-    image[:, 320:] = cv2.imread(f"tests/fixtures/screens/f1-squirrel-highlighted-{name}-20261118.png")
+    image[:, 320:] = cv2.imread(str(fixtures_root() / f"screens/f1-squirrel-highlighted-{name}-20261118.png"))
     after = parser_engine.parser.parse(image)
     assert [(unit.attack, unit.health) for unit in after.my_units] == [(4, 3), (3, 1), (6, 6), (9, 10)]
     assert after.my_units[-1].name == "吉茵珂絲"
@@ -738,7 +738,7 @@ def test_result_phase_can_interrupt_readiness_without_sending_candidate(monkeypa
     )
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[100:900, 300:1600] = cv2.imread(
-        "tests/fixtures/continue/f1-result-transition-20261117.png",
+        str(fixtures_root() / "continue/f1-result-transition-20261117.png"),
     )
 
     def capture():
@@ -763,7 +763,7 @@ def test_real_blocking_frame_confirms_once_after_two_fresh_parses(monkeypatch):
     for name in ("f1-blocking-readiness-stop-20261118.png",
                  "f1-blocking-readiness-20261118.png"):
         image = np.zeros((1080, 1920, 3), np.uint8)
-        image[:, 320:] = cv2.imread(f"tests/fixtures/screens/{name}")
+        image[:, 320:] = cv2.imread(str(fixtures_root() / f"screens/{name}"))
         images.append(image)
     settings = load_settings()
     settings.loop.tick_ms = settings.act.tap_wait_ms = 0
@@ -892,7 +892,7 @@ def test_real_readiness_and_result_phase_preserve_original_action_deadline(
     )
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[100:900, 300:1600] = cv2.imread(
-        "tests/fixtures/continue/f1-result-transition-20261117.png",
+        str(fixtures_root() / "continue/f1-result-transition-20261117.png"),
     )
 
     def capture():

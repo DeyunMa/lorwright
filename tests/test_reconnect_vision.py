@@ -7,10 +7,11 @@ import numpy as np
 import pytest
 
 from lorwright.core.perceive.reconnect import ReconnectDetector
+from tools.test_data import fixtures_root
 
 ASSETS = Path("assets/ui")
 SCREENS = sorted(
-    path for path in Path("tests/fixtures/screens").iterdir()
+    path for path in (fixtures_root() / "screens").iterdir()
     if path.suffix.lower() in {".png", ".jpg"}
 )
 CROPS = (

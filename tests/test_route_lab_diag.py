@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import pytest
 
+from tools.test_data import fixtures_root
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -20,7 +22,7 @@ def diag():
 
 
 def test_describe_preserves_runtime_token_and_radius(diag, monkeypatch, capsys):
-    image = cv2.imread(str(ROOT / "tests/fixtures/mapnav/f1-after-gold-zoomed-map-20261117.png"))
+    image = cv2.imread(str(fixtures_root() / "mapnav/f1-after-gold-zoomed-map-20261117.png"))
     assert image is not None
     token = diag.mapnav.locate_map_hero(image)
     assert token is not None and token.radius > 44

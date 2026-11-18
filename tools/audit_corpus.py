@@ -1,6 +1,6 @@
 """只读多冒险截图语料体检与前后对比工具；不操作设备、不修改输入图片、不含本地私有路径。
 
-默认扫描仓库内的 `tests/fixtures` 与 `research/archives`（可通过 `--dir` 指定任意
+默认扫描库外测试数据的 `fixtures`（可通过 `--dir` 指定任意
 额外目录，如实机 `logs/`），对可还原到 1920×1080 设计画布的独立画面评估：
 1. 场景识别覆盖（冒险入口、每周列表/详情、继续冒险、地图、节点面板、商店/治疗/宝箱/占星家、奖励、结算、对局 UI、登录/重连）；
 2. 数字与数值提取完整度（法力、法术法力、双方血量、手牌费用、弃牌费用、单位攻防、卡牌奖励/援军/占星家/地图金币/每周星级）；
@@ -17,6 +17,7 @@ import argparse
 import hashlib
 import json
 import random
+import sys
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -607,24 +608,27 @@ def compare_reports(before: dict, after: dict) -> dict:
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
+    from tools.test_data import fixtures_root
+
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--dir",
         action="append",
         dest="dirs",
-        help="要扫描的图片目录（可多次指定；默认扫描 tests/fixtures 与 research/archives）",
+        help="要扫描的图片目录（可多次指定，默认扫描库外 fixtures）",
     )
     ap.add_argument("--out", help="将完整 JSON 报告写入文件")
     ap.add_argument("--compare", help="与指定的修改前 JSON 报告做增量对比")
     ap.add_argument("--json", action="store_true", help="向标准输出打印 JSON")
     args = ap.parse_args()
 
-    target_dirs = (
-        [Path(d) for d in args.dirs]
-        if args.dirs
-        else [root / "tests" / "fixtures", root / "research" / "archives"]
-    )
+    if args.dirs:
+        target_dirs = [Path(d) for d in args.dirs]
+    else:
+        try:
+            target_dirs = [fixtures_root()]
+        except FileNotFoundError as exc:
+            ap.error(str(exc))
     result = audit_corpus(target_dirs)
     if args.out:
         out_path = Path(args.out)
@@ -664,4 +668,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     main()

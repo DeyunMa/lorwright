@@ -10,8 +10,9 @@ from lorwright.core.models import Action, ActionType, GameState, Layout
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 def _image(path: Path):

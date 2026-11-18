@@ -12,9 +12,10 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from lorwright.core.perceive import mapnav  # noqa: E402
+from tools.test_data import fixtures_root  # noqa: E402
 
 CASES = [
     ("mapnav/f1-healer-route-20261113.jpg", "T-healer", (1173, 521)),
@@ -60,8 +61,9 @@ def ring_profile(center, mask, radii=range(20, 96, 8)):
 
 
 def main():
+    fixtures = fixtures_root()
     for name, label, center in CASES:
-        path = ROOT / "tests" / "fixtures" / name
+        path = fixtures / name
         image = cv2.imread(str(path))
         if image is None:
             print(name, "MISSING")

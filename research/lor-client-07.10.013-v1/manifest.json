@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "README.md",
-      "bytes": 4380,
-      "sha256": "323b3c4a255c3fca3ba38d4448066fcca487a298fc24b221ca1338d20027ff56"
+      "bytes": 4384,
+      "sha256": "ed058d78c933c9c16e23438a19e6e049ff4c82b1876ba4708591b2a84f14b89b"
     },
     {
       "path": "data/elise-progression-source.json",
@@ -323,8 +323,8 @@
     },
     {
       "path": "verify.py",
-      "bytes": 1670,
-      "sha256": "786bdc835c6e8ffdd447553d8969582ef29e193fada837bb113ea3792a567ef3"
+      "bytes": 1903,
+      "sha256": "2170aac8bfaa8e4db9c9123857af6c468bc57437de392b95f02794bd8e57a0ed"
     }
   ]
 }

@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from lorwright.core.perceive.normalize import Normalizer
+from tools.test_data import fixtures_root
 
 
 def _load_audit_corpus():
@@ -68,8 +69,8 @@ def test_map_audit_uses_runtime_token_detector_when_available(monkeypatch) -> No
 def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
     mod = _load_audit_corpus()
     sample_files = [
-        Path("tests/fixtures/healer/f1-remaining-panel-20261118.png"),
-        Path("tests/fixtures/screens/1080p_hand_expanded.png"),
+        fixtures_root() / "healer/f1-remaining-panel-20261118.png",
+        fixtures_root() / "screens/1080p_hand_expanded.png",
     ]
     report = mod.audit_corpus(sample_files)
     assert report["schema_version"] == 1
@@ -105,7 +106,7 @@ def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
 
 def test_labeled_adventure_frames_preserve_scene_and_numeric_evidence():
     mod = _load_audit_corpus()
-    fixture_root = Path(__file__).parent / "fixtures"
+    fixture_root = fixtures_root()
     expectations = {
         "screens/weekly-list-20261115.png": ("weekly_list", {"stars": [1.5, 2, 2]}),
         "screens/weekly-two-detail-20261116.png": ("weekly_detail", {"stars": 2}),

@@ -14,11 +14,10 @@ LocalizedText_zh_tw 子集。结论（2026-11-06，全部经本脚本验证）�
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
-
-ARTIFACTS = Path("/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/01-prop/parsed")
 
 DECK = {
     "elise": [
@@ -33,8 +32,11 @@ DECK = {
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--parsed-dir", type=Path, required=True, help="历史 01-prop 解析目录")
+    args = parser.parse_args()
     zh = {}
-    with (ARTIFACTS / "LocalizedText_zh_tw" / "entries.jsonl").open() as f:
+    with (args.parsed_dir / "LocalizedText_zh_tw" / "entries.jsonl").open() as f:
         for line in f:
             e = json.loads(line)
             for fld in e["fields"]:
@@ -44,7 +46,7 @@ def main() -> int:
                         zh[pair["key"]] = pair["value"]
 
     cards = {}
-    with (ARTIFACTS / "GamePlayData" / "entries.jsonl").open() as f:
+    with (args.parsed_dir / "GamePlayData" / "entries.jsonl").open() as f:
         for line in f:
             e = json.loads(line)
             if e["type_hex"] != "446c92c7":

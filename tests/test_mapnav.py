@@ -2,7 +2,6 @@
 
 import math
 import random
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -26,8 +25,9 @@ from lorwright.core.perceive.mapnav import (
     reachable_nodes,
     recognize_map_token,
 )
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
+FIXTURES = fixtures_root() / "mapnav"
 
 
 def _load(name: str) -> np.ndarray:

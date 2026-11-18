@@ -1,13 +1,13 @@
 """节点面板金色按钮检测回归（2026-11-07 f1 1080p 实机截图）。"""
 
-from pathlib import Path
 
 import cv2
 import pytest
 
 from lorwright.core.perceive.panels import action_button
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
+FIXTURES = fixtures_root() / "mapnav"
 
 
 def _img(name: str):

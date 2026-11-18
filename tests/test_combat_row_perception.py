@@ -15,6 +15,7 @@ from lorwright.core.models import Action, ActionType, UIState
 from lorwright.core.perceive.hand import find_badges, find_badges_expanded
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.units import find_unit_badges
+from tools.test_data import fixtures_root
 
 
 class UI:
@@ -27,7 +28,7 @@ class UI:
 
 def frame_with_badge(y):
     layout = load_settings().layout.to_layout()
-    source = cv2.imread("tests/fixtures/screens/1080p_units_idle.png")
+    source = cv2.imread(str(fixtures_root() / "screens/1080p_units_idle.png"))
     badge = find_unit_badges(source, layout.my_board)[0].rect
     patch = source[badge.y:badge.y + badge.h, badge.x:badge.x + badge.w]
     frame = np.zeros_like(source)

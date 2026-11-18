@@ -33,10 +33,6 @@ ITEM_PATH_PREFIX = "ReforgedCampaigns/Items/"
 RELIC_PATH_PREFIX = "Loot/CardMetaProgression/Relics"
 CODE_TOKEN = __import__("re").compile(r"^[A-Z]\d{4}$")
 
-ARTIFACTS = Path("/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/01-prop/parsed")
-ADVENTURE = Path("/Users/mdy/Code/my-own/lorwright-artifacts/analysis/stages/03-adventure")
-
-
 def loc_dict(entries_path: Path) -> dict[str, str]:
     """LocalizedText entries.jsonl → {key: 文案}。"""
     out: dict[str, str] = {}
@@ -176,9 +172,9 @@ def _split_named(rows: list[dict], cat: str) -> tuple[list[dict], list[dict]]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gameplay", type=Path, default=ARTIFACTS / "GamePlayData" / "entries.jsonl")
-    ap.add_argument("--locale-dir", type=Path, default=ARTIFACTS)
-    ap.add_argument("--powers", type=Path, default=ADVENTURE / "powers.jsonl")
+    ap.add_argument("--gameplay", type=Path, required=True)
+    ap.add_argument("--locale-dir", type=Path, required=True)
+    ap.add_argument("--powers", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent / "data" / "reward-names.json")
     args = ap.parse_args()
 

@@ -1,12 +1,12 @@
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
 from lorwright.core.perceive.revive_screen import find_revive_button
+from tools.test_data import fixtures_root
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = fixtures_root()
 
 
 def _image(name: str) -> np.ndarray:

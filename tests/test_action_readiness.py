@@ -18,6 +18,7 @@ from lorwright.core.models import (
     UIState,
     Unit,
 )
+from tools.test_data import fixtures_root
 
 
 def state():
@@ -355,7 +356,7 @@ def test_real_handoff_frames_ignore_nonpositional_recognition_jitter(kind):
     for name in ("stop", "observed"):
         image = np.zeros((1080, 1920, 3), np.uint8)
         image[:, 320:] = cv2.imread(
-            f"tests/fixtures/screens/f1-handoff-readiness-{name}-20261117.png",
+            str(fixtures_root() / f"screens/f1-handoff-readiness-{name}-20261117.png"),
         )
         parsed = engine.parser.parse(image)
         assert parsed.ui_state is UIState.MY_TURN_IDLE
@@ -385,7 +386,7 @@ def test_real_purple_highlight_phases_keep_attack_readiness():
     action = Action(ActionType.ATTACK, raw={"attackers": [0, 1, 2, 3]})
     for name in ("stop", "current"):
         image = np.zeros((1080, 1920, 3), np.uint8)
-        image[:, 320:] = cv2.imread(f"tests/fixtures/screens/f1-squirrel-highlighted-{name}-20261118.png")
+        image[:, 320:] = cv2.imread(str(fixtures_root() / f"screens/f1-squirrel-highlighted-{name}-20261118.png"))
         parsed = engine.parser.parse(image)
         assert len(parsed.my_units) == 4
         assert parsed.my_units[-1].name == "吉茵珂絲"

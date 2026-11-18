@@ -1,13 +1,13 @@
-from pathlib import Path
 
 import cv2
 import numpy as np
 
 from lorwright.core.perceive.adventure_scene import reward_timeout_continue
+from tools.test_data import fixtures_root
 
 
 def test_reward_timeout_requires_message_and_button():
-    image = cv2.imread(str(Path(__file__).parent / "fixtures/reward_timeout/f1.png"))
+    image = cv2.imread(str(fixtures_root() / "reward_timeout/f1.png"))
     assert image is not None
     assert reward_timeout_continue(image).center == (960, 757)
     for region in ((650, 437, 1255, 495), (910, 735, 1008, 782)):

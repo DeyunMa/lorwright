@@ -57,8 +57,8 @@ logging:
   level: "INFO"
 
 # 界面坐标（格式 [x, y, w, h]）
-# 已按 Pie64 1920x1080 实测标定（2026-11-03，截图 tests/fixtures/screens/1080p_*.png）
-# 换分辨率就要重标定，详见 docs/handoff.md §3.4
+# 已按 Pie64 1920x1080 实测标定（2026-11-03，库外 fixtures/screens/1080p_*.png）
+# 换分辨率需重新标定，见 docs/architecture.md。
 layout:
   end_turn:     [1680, 470, 132, 132]   # 右侧圆形动作按钮（略過/跳過/結束回合）
   enemy_nexus:  [91, 353, 128, 114]     # 左上红色水晶（血量区域，不是攻击落点）

@@ -339,6 +339,21 @@ def test_main_menu_is_not_a_battle() -> None:
     assert state.ui_state is UIState.UNKNOWN
 
 
+def test_full_bleed_blue_background_is_not_mistaken_for_my_turn_idle() -> None:
+    """整屏蓝色过渡画面（如英雄之路星球入场）覆盖按钮区时，不能误判为我方行动回合。"""
+    detector = UIStateDetector(action_button=Rect(1680, 470, 132, 132))
+    detector.load()
+    blue_planet = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    # 下半屏高饱和亮蓝模拟星球地平线覆盖按钮及下方区域（BGR 对应 HSV H≈105, S=220, V=220）
+    blue_planet[440:, :] = (220, 145, 30)
+    assert detector.detect(blue_planet) is UIState.UNKNOWN
+
+    # 独立圆形蓝色按钮（上下边界外无大块同色背景）仍识别为 MY_TURN_IDLE
+    isolated_button = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    cv2.circle(isolated_button, (1746, 536), 64, (220, 145, 30), -1)
+    assert detector.detect(isolated_button) is UIState.MY_TURN_IDLE
+
+
 @pytest.mark.parametrize(
     ("name", "rect", "expected"),
     [

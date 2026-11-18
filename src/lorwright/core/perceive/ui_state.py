@@ -42,6 +42,21 @@ def blue_ratio(img: np.ndarray, rect: Rect) -> float:
     return float(mask.sum()) / 255.0 / (patch.shape[0] * patch.shape[1])
 
 
+def _is_isolated_blue_button(frame: np.ndarray, button: Rect) -> bool:
+    """确认蓝色区域是独立圆形动作按钮，而非整屏蓝色过渡背景（如星球入场画面）。"""
+    if blue_ratio(frame, button) < MIN_BLUE_RATIO:
+        return False
+    h_img = frame.shape[0]
+    band_h = max(12, int(button.h * 0.35))
+    gap = max(4, int(button.h * 0.12))
+    neighbors: list[Rect] = []
+    if button.y - gap - band_h >= 0:
+        neighbors.append(Rect(button.x, button.y - gap - band_h, button.w, band_h))
+    if button.y + button.h + gap + band_h <= h_img:
+        neighbors.append(Rect(button.x, button.y + button.h + gap, button.w, band_h))
+    return all(blue_ratio(frame, neighbor) < MIN_BLUE_RATIO for neighbor in neighbors)
+
+
 class UIStateDetector:
     """判断当前处于哪个界面。
 
@@ -160,7 +175,7 @@ class UIStateDetector:
         if by_text is not None:
             return by_text
 
-        if self.action_button and blue_ratio(frame, self.action_button) >= MIN_BLUE_RATIO:
+        if self.action_button and _is_isolated_blue_button(frame, self.action_button):
             return UIState.MY_TURN_IDLE
 
         # 4. 对手回合

@@ -30,7 +30,9 @@ def test_hero_first_plays_affordable_champion_only():
     policy = HeroFirstPolicy(frozenset({"吉茵珂絲"}))
     units = [Unit("", 1, 1, Rect(0, 0, 10, 10))]
     s = state(hand=[card(0, "其他牌", 1), card(1, "吉茵珂絲", 2)], my_units=units)
-    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=1)
+    assert policy.decide(s) == Action(
+        type=ActionType.PLAY_CARD, card_index=1, raw={"unit_card": True}
+    )
     assert policy.decide(replace(s, mana=1)) is None
     assert policy.decide(replace(s, hand_expanded=False)) is None
     assert policy.decide(replace(s, ui_state=UIState.ENEMY_TURN)) is None

@@ -438,4 +438,71 @@ def test_expanding_hand_does_not_blacklist_the_selected_card() -> None:
     action = policy.decide(expanded)
     assert action.type is ActionType.PLAY_CARD
     assert action.card_index == 0
+    assert action.raw == {"unit_card": True}
     assert policy.decide(expanded) == action
+
+
+def test_full_board_skips_unit_cards_instead_of_overplaying() -> None:
+    policy = SpiderAggroPolicy()
+    full_board = [unit("小蜘蛛", 1, 1) for _ in range(6)]
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=6,
+        hand_expanded=True,
+        hand=[
+            hand(0, "小蜘蛛", 1),
+            CardInHand(index=1, name="", cost=2, rect=RECT, visible_playable_unit=True),
+        ],
+        my_units=full_board,
+        has_attack_token=False,
+    )
+    assert rank_playable(state) == []
+    assert policy.decide(state).type is ActionType.END_TURN
+
+
+def test_named_card_failure_does_not_blacklist_same_cost_spider_and_mulligan_resets() -> None:
+    policy = SpiderAggroPolicy()
+    cards = [hand(0, "伊莉絲", 2), hand(1, "蜘術士", 2)]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=4, hand_expanded=True, hand=cards)
+
+    first = policy.decide(state)
+    assert first.card_index == 0
+    policy.on_action_sent(first, state)
+    # 假设英雄法术条件不满足未能打出，另一张同为 2 费的「蜘術士」仍应可出。
+    second = policy.decide(state)
+    assert second.type is ActionType.PLAY_CARD
+    assert second.card_index == 1
+
+    # 进入需要选目标的牌记录在 _needs_target，下一场对局 MULLIGAN 必须清空该记忆。
+    policy.on_action_sent(second, state)
+    policy.decide(GameState(ui_state=UIState.TARGETING, mana=4, hand=cards))
+    assert ("蜘術士", 2) in policy._needs_target
+    assert policy.decide(GameState(ui_state=UIState.MULLIGAN)) == Action(ActionType.CONFIRM)
+    assert not policy._needs_target
+    assert not policy._unplayable
+
+
+@pytest.mark.parametrize("ui_state", [UIState.BLOCKING, UIState.OPTIONAL_CHOICE, UIState.DISCARD])
+def test_shared_interactive_states_abstain_with_none(ui_state: UIState) -> None:
+    assert POLICY.decide(GameState(ui_state=ui_state)) is None
+
+
+def test_elise_card_reward_prefers_heavy_hands_then_lowest_verified_preview_cost() -> None:
+    from lorwright.core.champions import load
+    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
+
+    pack = load("elise")
+    candidates = [
+        CardRewardCandidate(RewardCandidate("", "rare", 5), "", cost_certain=False, preview_cost_verified=True),
+        CardRewardCandidate(RewardCandidate("", "unknown", 2), "", cost_certain=False, preview_cost_verified=True),
+        CardRewardCandidate(RewardCandidate("", "common", 3), "", cost_certain=False, preview_cost_verified=True),
+    ]
+    picked = pack.pick_card_reward(candidates)
+    assert picked is not None and picked.candidate is candidates[1]
+
+    with_pref = [
+        candidates[1],
+        CardRewardCandidate(RewardCandidate("", "common", 4), "重拳出擊", cost_certain=True, preview_cost_verified=True),
+    ]
+    preferred = pack.pick_card_reward(with_pref)
+    assert preferred is not None and preferred.candidate is with_pref[1]

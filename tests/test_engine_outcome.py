@@ -622,7 +622,7 @@ def test_play_unit_jinx_uses_special_expectation_with_real_highlighted_after(mon
     layers = _battle_layers(PACK)
     engine.router = RealRouter(layers)
     routed = engine.router.decide(before)
-    assert routed.layer == "play_unit" and routed.action.card_index == 1
+    assert routed.layer == "hero_first" and routed.action.card_index == 1
     assert routed.action.raw["unit_card"] is True
     pending = engine._make_outcome(routed.action, before, 8)
     assert pending.play_expectation.reason == "jinx_hand_rebuilt_and_summoned"

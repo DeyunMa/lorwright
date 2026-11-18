@@ -26,8 +26,8 @@ def test_battle_layers_include_blocking_policy():
         "optional_choice",
         "elise_spider_aggro",
         "expand_hand",
-        "play_unit",
         "hero_first",
+        "play_unit",
         "targeting",
         "attack_when_token",
         "unknown_card",
@@ -38,7 +38,25 @@ def test_battle_layers_include_blocking_policy():
 
 def test_jinx_layers_include_play_unit():
     names = [layer.name for layer in _battle_layers(load("jinx"))]
-    assert names[:5] == ["optional_choice", "jinx_opening", "expand_hand", "play_unit", "hero_first"]
+    assert names[:5] == ["optional_choice", "jinx_opening", "expand_hand", "hero_first", "play_unit"]
+
+
+def test_hero_first_preempts_cheaper_regular_unit_when_opening_abstains():
+    router = Router(
+        _battle_layers(load("jinx"), policy_kwargs={"jinx_summoned": True, "rockets_already_played": 2})
+    )
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=4,
+        hand_expanded=True,
+        hand=[
+            CardInHand(0, "佐恩小乞丐", 1, Rect(0, 900, 8, 8)),
+            CardInHand(1, "吉茵珂絲", 4, Rect(100, 900, 8, 8)),
+        ],
+    )
+    result = router.decide(state)
+    assert result.layer == "hero_first"
+    assert result.action == Action(ActionType.PLAY_CARD, card_index=1, raw={"unit_card": True})
 
 
 def test_jinx_resume_count_reaches_router():

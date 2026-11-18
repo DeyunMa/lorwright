@@ -47,7 +47,7 @@ def describe_status(phase: str, reason: str | None, details: dict) -> str:
         "reconnect_recovery_exhausted": "单次重启后仍持续重连，已停止，不再自动重启",
         "frame_expired_during_decision": "决策时画面已过期，重新截图",
         "battle_end": "已识别战斗结束画面，尚不代表获胜或冒险完成",
-        "adventure_victory": "已识别冒险最终胜利结算页；是否全程无人介入须结合完整运行记录确认",
+        "adventure_victory": "已识别冒险最终胜利结算页并核验退出结算；是否全程无人介入须结合完整运行记录确认",
         "discard_sample": "已选择一次弃牌并保存截图，后续确认流程尚未实现",
         "stop_requested": "已收到协作停止请求",
     }

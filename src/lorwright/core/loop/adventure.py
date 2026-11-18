@@ -607,8 +607,42 @@ class AdventureLoop:
         path = snapshot.save_snapshot(
             image, self.settings.perception.snapshot_dir, tag="adventure_victory",
         )
-        self._details.update(snapshot=str(path), outcome="victory")
-        self.result = LoopResult("completed", "adventure_victory")
+        self._details.update(snapshot=str(path), outcome="victory", settlement_closed=False)
+        button = find_continue_button(image)
+        if button is None:
+            self._snapshot(image, tag="adventure_victory_continue_missing")
+            return
+        deadline = time.monotonic() + 12
+        fresh = self._frame()
+        normalized = self._reward_design(fresh)
+        fresh_button = find_continue_button(fresh)
+        if (normalized is None or not is_adventure_victory(normalized[0])
+                or fresh_button is None
+                or any(abs(a - b) > 12 for a, b in zip(button.center, fresh_button.center, strict=True))
+                or time.monotonic() >= deadline):
+            self._snapshot(fresh, tag="adventure_victory_continue_unverified")
+            return
+        self._tap(*fresh_button.center)
+        after = fresh
+        for _ in range(6):
+            if time.monotonic() >= deadline:
+                break
+            self._wait(min(2, deadline - time.monotonic()),
+                       reason="adventure_victory_transition", wait_s=12)
+            after = self._frame()
+            normalized = self._reward_design(after)
+            if normalized is None or time.monotonic() >= deadline:
+                continue
+            design = normalized[0]
+            if (not is_adventure_victory(design)
+                    and (find_home_adventure_entry(design) is not None
+                         or find_weekly_entry(design) is not None
+                         or recognize_weekly_adventures(design) is not None)):
+                self._details.update(settlement_closed=True)
+                report("verified", "adventure_victory_transition", progress=True, **self._details)
+                self.result = LoopResult("completed", "adventure_victory")
+                return
+        self._snapshot(after, tag="adventure_victory_transition_unverified")
 
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""

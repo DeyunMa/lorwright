@@ -178,11 +178,14 @@ def test_optional_task_reward_clicks_once_then_resumes(adventure, awaiting_rewar
     task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
     victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
     assert task is not None and victory is not None
-    loop, device, engine, saved, _ = adventure([task, task, victory], [UIState.UNKNOWN] * 3)
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, engine, saved, _ = adventure(
+        [task, task, victory, victory, home], [UIState.UNKNOWN] * 3,
+    )
     loop._awaiting_battle_reward = awaiting_reward
     result = loop.run(max_nodes=2)
     assert result == LoopResult("completed", "adventure_victory")
-    assert len(device.taps) == 1
+    assert len(device.taps) == 2
     assert abs(device.taps[0][0] - 960) < 15
     assert abs(device.taps[0][1] - 954) < 15
     assert engine.run_calls == []
@@ -209,15 +212,63 @@ def test_task_reward_without_button_does_not_tap(adventure):
     assert saved == ["task_reward_continue_missing"]
 
 
+@pytest.mark.parametrize("successor", ["unchanged", "unknown", "map"])
+def test_final_victory_unverified_successor_never_repeats(adventure, successor):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    after = {"unchanged": victory, "unknown": _blank(),
+             "map": _img("f1-weekly-after-hero-reward-20261116.png")}[successor]
+    loop, device, _, saved, _ = adventure([victory, victory] + [after] * 6, [])
+    result = loop.run(max_nodes=1)
+    assert device.taps == [(953, 939)]
+    assert result == LoopResult("stopped", "adventure_victory_transition_unverified")
+    assert loop._details["settlement_closed"] is False
+    assert saved == ["adventure_victory", "adventure_victory_transition_unverified"]
+
+
+def test_final_victory_successor_after_deadline_is_not_completed(adventure, monkeypatch):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, _, _, _ = adventure([victory, victory, home], [])
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: clock.__setitem__(0, 13.0))
+    assert loop.run(max_nodes=1).reason == "adventure_victory_transition_unverified"
+    assert device.taps == [(953, 939)]
+    assert loop._details["settlement_closed"] is False
+
+
+def test_final_victory_missing_continue_never_taps(adventure):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    victory[900:] = 0
+    loop, device, _, _, _ = adventure([victory], [])
+    assert loop.run(max_nodes=1).reason == "adventure_victory_continue_missing"
+    assert device.taps == []
+
+
+def test_final_victory_continues_once_and_verifies_outer_screen(adventure):
+    from lorwright.core.perceive.buttons import find_continue_button
+
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, engine, saved, _ = adventure([victory, victory, home], [])
+    result = loop.run(max_nodes=1)
+    assert device.taps == [find_continue_button(victory).center]
+    assert result == LoopResult("completed", "adventure_victory")
+    assert loop._details["settlement_closed"] is True
+    assert engine.run_calls == []
+    assert saved == ["adventure_victory"]
+
+
 @pytest.mark.parametrize("awaiting_reward", [False, True])
 def test_adventure_victory_completes_instead_of_waiting_for_reward(adventure, awaiting_reward):
     image = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
     assert image is not None
-    loop, device, engine, saved, _ = adventure([image] * 7, [UIState.UNKNOWN] * 7)
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, engine, saved, _ = adventure([image, image, home], [UIState.UNKNOWN] * 7)
     loop._awaiting_battle_reward = awaiting_reward
     result = loop.run(max_nodes=1)
     assert result == LoopResult("completed", "adventure_victory")
-    assert device.taps == []
+    assert device.taps == [(953, 939)]
     assert engine.run_calls == []
     assert saved == ["adventure_victory"]
 
@@ -232,7 +283,8 @@ def test_final_victory_is_readable_through_cli(adventure, tmp_path):
 
     image = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
     assert image is not None
-    loop, device, _, _, _ = adventure([image], [UIState.UNKNOWN])
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, _, _, _ = adventure([image, image, home], [UIState.UNKNOWN])
     with RunSession(tmp_path, mode="adventure", champion="jinx", device="fake") as run:
         result = loop.run(max_nodes=1)
         run.finish(result.status, result.reason)
@@ -245,7 +297,8 @@ def test_final_victory_is_readable_through_cli(adventure, tmp_path):
     assert status["last_snapshot"] == str(Path("/tmp/fake.png"))
     assert "最终胜利结算页" in status["message"]
     assert "是否全程无人介入" in status["message"]
-    assert device.taps == []
+    assert status["details"]["settlement_closed"] is True
+    assert device.taps == [(953, 939)]
 
 
 @pytest.mark.parametrize("source", ["reward_wait", "missions", "vault"])
@@ -260,11 +313,12 @@ def test_final_victory_is_a_recognized_post_battle_destination(adventure, source
         assert before is not None
         before = cv2.resize(before, (1920, 1080))
         frames, script = [before, victory], [UIState.BATTLE_END, UIState.UNKNOWN]
-    loop, device, engine, saved, _ = adventure(frames, script)
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, engine, saved, _ = adventure(frames + [victory, home], script)
     loop._awaiting_battle_reward = source == "reward_wait"
     result = loop.run(max_nodes=2)
     assert result == LoopResult("completed", "adventure_victory")
-    assert len(device.taps) == (0 if source == "reward_wait" else 1)
+    assert len(device.taps) == (1 if source == "reward_wait" else 2)
     assert engine.run_calls == []
     assert saved == ["adventure_victory"]
 

@@ -82,5 +82,8 @@ def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
         "delta": 1,
     }
     assert len(diff["scene_transitions"]) == 1
+    assert diff["only_before"] == [] and diff["only_after"] == []
+    missing = {**report, "records": report["records"][:-1]}
     assert diff["scene_transitions"][0]["actionable_after"] is True
+    assert mod.compare_reports(report, missing)["only_before"] == [report["records"][-1]["key"]]
     assert mod.GenericPack().name == "generic"

@@ -566,6 +566,8 @@ def compare_reports(before: dict, after: dict) -> dict:
     return {
         "schema_version": 1,
         "metric_deltas": metric_deltas,
+        "only_before": sorted(set(before_by_key) - set(after_by_key)),
+        "only_after": sorted(set(after_by_key) - set(before_by_key)),
         "scene_transitions": transitions,
     }
 
@@ -605,6 +607,7 @@ def main() -> None:
         for key, item in diff["metric_deltas"].items():
             sign = "+" if item["delta"] > 0 else ""
             print(f"  {key}: {item['before']} -> {item['after']} ({sign}{item['delta']})")
+        print(f"仅基线存在：{len(diff['only_before'])} 张；仅本次存在：{len(diff['only_after'])} 张")
         print(f"=== 画面状态变化 ({len(diff['scene_transitions'])} 张) ===")
         for tr in diff["scene_transitions"]:
             print(

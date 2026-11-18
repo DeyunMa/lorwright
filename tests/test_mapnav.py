@@ -10,16 +10,21 @@ import pytest
 
 from lorwright.core.champions.jinx.vision import recognize_hero
 from lorwright.core.perceive.mapnav import (
+    HeroToken,
+    MapNode,
     _current_battle_node_visible,
+    _route_origin,
     detect_ability_nodes,
     detect_nodes,
     empty_point,
     hero_node,
+    locate_map_hero,
     next_node,
     next_node_by_path,
     occluded_route_zoom_button,
     panel_open,
     reachable_nodes,
+    recognize_map_token,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
@@ -488,7 +493,9 @@ def test_only_two_real_circle_nodes_survive_filters() -> None:
 
 def test_next_node_is_jhin_stage() -> None:
     image = _load("1080p_zoommax.png")
-    nxt = next_node(image)
+    token = locate_map_hero(image)
+    assert token is not None
+    nxt = next_node(image, hero=token)
     assert nxt is not None
     assert (nxt.x, nxt.y) == (1189, 370)
 
@@ -514,7 +521,9 @@ def test_gold_diamond_ability_node_is_not_next() -> None:
     image = _load("1080p_zoommax.png")
     abilities = detect_ability_nodes(image)
     assert any(abs(n.x - 824) <= 10 and abs(n.y - 635) <= 10 for n in abilities)
-    nxt = next_node(image)
+    token = locate_map_hero(image)
+    assert token is not None
+    nxt = next_node(image, hero=token)
     assert nxt is not None and (nxt.x, nxt.y) == (1189, 370)
 
 
@@ -725,11 +734,11 @@ def test_jinx_map_next_node_uses_observed_hero_and_is_not_a_panel() -> None:
     assert abs(nxt.y - 334) <= 20
 
 
-def test_map_fallback_accepts_detected_hero_node() -> None:
+def test_map_navigation_uses_detected_token() -> None:
     image = _load("1080p_map.png")
-    # 此图旧代码将 MapNode 当作 tuple，在路径回退时报 TypeError；
-    # 唯一检出的远处节点是下一节点，不能将其误判为当前位置。
-    nxt = next_node(image)
+    token = locate_map_hero(image)
+    assert token is not None
+    nxt = next_node(image, hero=token)
     assert nxt is not None
     assert abs(nxt.x - 1252) <= 20
     assert abs(nxt.y - 322) <= 20
@@ -1048,3 +1057,112 @@ def test_jinx_support_fork_rejects_dimmed_map() -> None:
     assert hero is not None
     dimmed = (image * 0.5).astype(np.uint8)
     assert next_node(dimmed, hero=hero) is None
+
+
+def test_generic_map_hero_zoommax_and_missing_hero():
+    image = _load("1080p_zoommax.png")
+    token = locate_map_hero(image)
+    assert token is not None
+    assert math.hypot(token.x - 1011, token.y - 450) < 8
+    assert 24 <= token.radius <= 36
+    assert recognize_map_token(image) == token.center
+    assert [node.center for node in reachable_nodes(image, hero=token)] == [(1189, 370)]
+    assert reachable_nodes(image, hero=None) == []
+
+
+def test_generic_map_hero_rejects_dim_and_obscured():
+    image = _load("1080p_zoommax.png")
+    assert locate_map_hero((image * 0.5).astype(np.uint8)) is None
+    cv2.rectangle(image, (970, 410), (1050, 490), (0, 0, 0), -1)
+    assert locate_map_hero(image) is None
+
+
+@pytest.mark.parametrize(("name", "center"), [
+    ("1080p_jinx_map.png", (735, 285)),
+    ("f1-two-star-after-first-battle-stable-20261116.png", (659, 67)),
+    ("f1-weekly-two-home-20261116.png", (296, 99)),
+    ("f1-weekly-panned-gold-20261116.png", (960, 320)),
+    ("f1-weekly-after-power-20261116.png", (963, 452)),
+])
+def test_token_geometry_handles_camera_and_terrain_changes(name, center):
+    token = locate_map_hero(_load(name))
+    assert token is not None
+    assert math.dist(token.center, center) <= 8
+
+
+def test_generic_elise_token_and_current_battle():
+    source = cv2.imread(str(FIXTURES.parent / "screens" / "720p_map.png"))
+    image = cv2.resize(source, (1920, 1080), interpolation=cv2.INTER_LINEAR)
+    token = locate_map_hero(image)
+    assert token is not None and math.dist(token.center, (959, 444)) <= 8
+    nodes = reachable_nodes(image, hero=token)
+    assert len(nodes) == 1 and math.dist(nodes[0].center, (959, 539)) <= 10
+
+
+def test_generic_zoomed_token_preserves_visible_route():
+    image = _load("f1-after-gold-zoomed-map-20261117.png")
+    token = locate_map_hero(image)
+    assert token is not None and 52 <= token.radius <= 64
+    assert [node.center for node in reachable_nodes(image, hero=token)] == [(1062, 331)]
+
+
+@pytest.mark.parametrize("name", ["1080p_panel.png", "1080p_jinx_exit_prompt.jpg",
+                                   "1080p_jinx_battle_detail.png"])
+def test_generic_token_rejects_non_navigation_scenes(name):
+    assert locate_map_hero(_load(name)) is None
+
+
+def test_visible_token_without_foot_evidence_is_rejected():
+    image = _load("1080p_zoommax.png")
+    # Preserve the entire token silhouette and map controls, removing the node and route.
+    image[493:576, 945:1077] = (35, 42, 49)
+    assert locate_map_hero(image) is None
+
+
+def test_duplicate_verified_tokens_are_ambiguous():
+    image = _load("1080p_zoommax.png")
+    image[365:575, 420:600] = image[365:575, 920:1100]
+    assert locate_map_hero(image) is None
+
+
+def test_route_origin_uses_measured_token_occlusion():
+    anchor = MapNode(100, 100, 30)
+    target = MapNode(300, 100, 30)
+    assert _route_origin(anchor, HeroToken(170, 151, 44), target) == anchor
+    # At 51 px from the edge, only the larger token overlaps the route.
+    assert _route_origin(anchor, HeroToken(170, 151, 56), target).radius == 106
+
+
+@pytest.mark.parametrize(("path", "center", "target"), [
+    ("screens/weekly-after-start-20261115.png", (608, 625), (816, 664)),
+    ("mapnav/f1-weekly-two-home-20261116.png", (296, 99), (514, 269)),
+    ("mapnav/f1-two-star-after-first-battle-20261116.png", (659, 67), (792, 260)),
+    ("mapnav/f1-two-star-after-first-battle-stable-20261116.png", (659, 67), (792, 260)),
+    ("screens/f1-astrologer-remaining-purchased-map-20261118.png", (1047, 452), None),
+])
+def test_weekly_early_map_routes_use_generic_token(path, center, target):
+    image = cv2.imread(str(FIXTURES.parent / path))
+    assert image is not None
+    token = locate_map_hero(image)
+    assert token is not None and math.dist(token.center, center) <= 8
+    nodes = reachable_nodes(image, hero=token)
+    if target is None:
+        assert nodes == []
+        zoom = occluded_route_zoom_button(image, token)
+        assert zoom is not None and zoom.center == (1822, 297)
+    else:
+        assert len(nodes) == 1 and math.dist(nodes[0].center, target) <= 8
+        assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["occlusion", "foot", "ambiguous"])
+def test_weekly_gold_terrain_does_not_substitute_for_token(damage):
+    image = cv2.imread(str(FIXTURES.parent / "screens/weekly-after-start-20261115.png"))
+    assert image is not None
+    if damage == "occlusion":
+        image[577:680, 553:657] = 0
+    elif damage == "foot":
+        image[681:752, 535:697] = 0
+    else:
+        image[555:751, 1120:1300] = image[555:751, 515:695]
+    assert locate_map_hero(image) is None

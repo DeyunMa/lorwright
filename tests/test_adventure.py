@@ -18,7 +18,7 @@ from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import UIState
 from lorwright.core.perceive.adventure_scene import find_home_adventure_entry
-from lorwright.core.perceive.mapnav import empty_point
+from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.ui_state import UIStateDetector
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mapnav"
@@ -100,6 +100,17 @@ def adventure(monkeypatch):
     return make
 
 
+
+def _record_map_localizations(monkeypatch):
+    frames = []
+
+    def locate(image):
+        frames.append(id(image))
+        return locate_map_hero(image)
+
+    monkeypatch.setattr("lorwright.core.loop.adventure.locate_map_hero", locate)
+    return frames
+
 @pytest.mark.parametrize("moved", [False, True])
 def test_bottom_map_target_is_revealed_once_before_click(adventure, monkeypatch, moved):
     before = _img("f1-weekly-after-hero-reward-20261116.png")
@@ -109,9 +120,12 @@ def test_bottom_map_target_is_revealed_once_before_click(adventure, monkeypatch,
     loop, device, _, saved, _ = adventure(frames, [UIState.UNKNOWN])
     loop.pack = load("jinx")
     drags = []
+    localized = _record_map_localizations(monkeypatch)
     monkeypatch.setattr(device, "drag", lambda *args: drags.append(args), raising=False)
     monkeypatch.setattr(loop, "_handle_node_panel", lambda: True)
     loop.run(max_nodes=1)
+    expected_frames = [before, after] if moved else [before] * 7
+    assert localized == [id(frame) for frame in expected_frames]
     assert len(drags) == 1
     if moved:
         assert len(device.taps) == 1
@@ -464,7 +478,7 @@ def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, 
     expected = (910, 233) if swapped else (689, 151)
     for seed in range(6):
         loop.rng.seed(seed)
-        node = loop._find_next(image)
+        node = loop._find_next(image, locate_map_hero(image))
         assert node is not None
         assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
 
@@ -554,7 +568,7 @@ def test_map_waits_for_confirmed_node_before_clicking(adventure, monkeypatch):
     monkeypatch.setattr("lorwright.core.loop.adventure.is_completed_panel", lambda _: False)
     from types import SimpleNamespace
 
-    monkeypatch.setattr(loop, "_find_next", lambda image: SimpleNamespace(
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: SimpleNamespace(
         x=100, y=200, radius=40, needs_reveal=False)
                         if image is stable else None)
     monkeypatch.setattr(loop, "_handle_node_panel", lambda: False)
@@ -568,7 +582,7 @@ def test_map_wait_obeys_stop_without_clicking(adventure, monkeypatch):
 
     image = _img("1080p_jinx_support_map.jpg")
     loop, device, _, _, _ = adventure([image], [])
-    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
     monkeypatch.setattr(loop, "_wait", lambda *args, **kwargs: (_ for _ in ()).throw(StopRequested()))
     with pytest.raises(StopRequested):
         loop.run(max_nodes=1)
@@ -957,7 +971,7 @@ def test_resume_then_revive_clicks_each_once_and_processes_map(adventure, monkey
         [resume, revive, _blank(), _img("1080p_map.png")], [],
     )
     loop.pack = load("jinx")
-    monkeypatch.setattr(loop, "_find_next", lambda image: None)
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
     result = loop.run(max_nodes=3)
     assert len(device.taps) == 2
     assert device.taps[1] == (960, 912)
@@ -1758,7 +1772,7 @@ def test_hero_item_real_map_transition_continues_adventure(adventure, monkeypatc
     after = _img("1080p_map.png")
     loop, device, _, saved, _ = adventure([image, after], [])
     loop.pack = load("jinx")
-    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
     loop.run(max_nodes=2)
     assert device.taps == [(960, 1003)]
     assert saved == ["map_no_next"]
@@ -1835,7 +1849,7 @@ def test_hero_item_sampling_rejects_unknown_page(adventure):
 def test_map_wait_redispatches_card_reward(adventure, monkeypatch):
     reward = cv2.imread(str(FIXTURES.parent / "card_rewards" / "before.png"))
     loop, device, _, saved, _ = adventure([_img("1080p_jinx_map.png"), reward], [])
-    monkeypatch.setattr(loop, "_find_next", lambda image: None)
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
     handled = []
     monkeypatch.setattr(loop, "_handle_card_reward", lambda image: handled.append(image) or False)
     loop.run(max_nodes=2)
@@ -1870,7 +1884,7 @@ def test_battle_end_hero_item_reward_continues_to_map(adventure, monkeypatch, de
     frames.extend([reward, after])
     loop, device, engine, saved, _ = adventure(frames, [UIState.MY_TURN_IDLE])
     loop.pack = load("jinx")
-    monkeypatch.setattr(loop, "_find_next", lambda _: None)
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
     loop.run(max_nodes=4)
     assert engine.run_calls == [loop.coords.battle_max_ticks]
     assert device.taps == [(960, 1003)]
@@ -2128,13 +2142,15 @@ def test_run_resumes_zoomed_halo_map_without_another_zoom(adventure):
     ("1080p_jinx_map.png", (982, 334)),
     ("f1-after-gold-zoomed-map-20261117.png", (1062, 331)),
 ])
-def test_occluded_route_zooms_once_then_reparses_before_node_input(adventure, name, point):
+def test_occluded_route_zooms_once_then_reparses_before_node_input(adventure, monkeypatch, name, point):
     # 第一种后继为合成；第二种来自实际缩放，节点点击后继仍用重复地图模拟。
     before = _img("f1-after-gold-map-20261117.png")
     fresh = _img(name)
     loop, device, _, saved, _ = adventure([before, fresh, fresh], [])
     loop.pack = load("jinx")
+    localized = _record_map_localizations(monkeypatch)
     loop.run(max_nodes=1)
+    assert localized == [id(before), id(fresh), id(fresh)]
     assert len(device.taps) == 2
     assert device.taps[0] == (1822, 297)
     assert abs(device.taps[1][0] - point[0]) <= 20
@@ -2292,7 +2308,9 @@ def test_jinx_unrecognized_panel_does_not_navigate(adventure):
 
 
 def test_jinx_unrecognized_map_avatar_does_not_navigate(adventure):
-    loop, device, _, saved, _ = adventure([_img("1080p_zoommax.png")], [UIState.UNKNOWN])
+    image = _img("1080p_zoommax.png")
+    image[410:490, 970:1050] = 0
+    loop, device, _, saved, _ = adventure([image] * 7, [UIState.UNKNOWN])
     loop.pack = load("jinx")
     loop.run(max_nodes=1)
     assert device.taps == []
@@ -2480,3 +2498,33 @@ def test_node_travel_staying_on_map_without_next_node_times_out_once(adventure):
     assert not loop._handle_node_panel()
     assert device.taps == [(817, 485)]
     assert saved == ["panel_transition_timeout"]
+
+
+@pytest.mark.parametrize("champion", ["jinx", "elise", None])
+def test_map_navigation_does_not_depend_on_champion_avatar(adventure, champion):
+    image = _img("1080p_jinx_map.png")
+    loop, _, _, _, _ = adventure([image], [])
+    loop.pack = load(champion) if champion else object()
+    node = loop._find_next(image, locate_map_hero(image))
+    assert node is not None
+    assert (node.x - 982) ** 2 + (node.y - 334) ** 2 < 20 ** 2
+
+
+def test_map_navigation_refuses_when_token_is_unverified(adventure):
+    image = _img("1080p_jinx_map.png")
+    loop, _, _, _, _ = adventure([image], [])
+    loop.pack = object()
+    assert loop._find_next(image, None) is None
+
+
+@pytest.mark.parametrize("completed", [True, False])
+def test_healer_map_verification_without_champion_avatar(adventure, completed):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-field-cook-20261116.png"))
+    after = cv2.imread(str(FIXTURES.parent / "healer/f1-after-heal.png"))
+    assert image is not None and after is not None
+    if not completed:
+        after[500:560, 930:990] = 0
+    loop, _, _, saved, _ = adventure([after], [])
+    loop.pack = object()
+    assert loop._handle_healer(image) is completed
+    assert saved == ["healer_completed" if completed else "healer_map_unverified"]

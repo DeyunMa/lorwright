@@ -63,8 +63,10 @@ from lorwright.core.perceive.astrologer import (
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 from lorwright.core.perceive.mapnav import (
+    HeroToken,
     _current_completed_node_visible,
     empty_point,
+    locate_map_hero,
     node_kind,
     occluded_route_zoom_button,
     panel_open,
@@ -532,17 +534,16 @@ class AdventureLoop:
                 self._snapshot(image, tag="unknown_scene")
                 return
             self._scene("map")
-            nxt = self._find_next(image)
+            hero = locate_map_hero(image)
+            nxt = self._find_next(image, hero)
             if nxt is None and not route_zoom_used:
-                recognize_hero = getattr(self.pack, "recognize_map_hero", None)
-                hero = recognize_hero(image) if recognize_hero is not None else None
                 zoom = occluded_route_zoom_button(image, hero)
                 if zoom is not None:
                     route_zoom_used = True
                     revealed = self._reveal_occluded_map_route(zoom)
                     if revealed is None:
                         return
-                    image, nxt = revealed
+                    image, hero, nxt = revealed
             if nxt is None:
                 if is_completed_panel(image):
                     if self._close_panel(image):
@@ -561,7 +562,8 @@ class AdventureLoop:
                         pending_image = image
                         break
                     if is_map(image) and not is_completed_panel(image):
-                        nxt = self._find_next(image)
+                        hero = locate_map_hero(image)
+                        nxt = self._find_next(image, hero)
                         if nxt is not None:
                             break
                 if pending_image is not None:
@@ -571,7 +573,7 @@ class AdventureLoop:
                     self._snapshot(image, tag="map_no_next")
                     return
             if nxt.needs_reveal or nxt.y + max(nxt.radius, 80) >= image.shape[0] - 40:
-                revealed = self._reveal_bottom_map_node(image, nxt)
+                revealed = self._reveal_bottom_map_node(image, nxt, hero)
                 if revealed is None:
                     return
                 image, nxt = revealed
@@ -734,17 +736,16 @@ class AdventureLoop:
             self._wait(2, reason="map_zoom_transition", wait_s=6)
             after = self._frame()
             if is_map(after) and not panel_open(after):
-                fresh = self._find_next(after)
+                hero = locate_map_hero(after)
+                fresh = self._find_next(after, hero)
                 if fresh is not None:
                     report("verified", "map_zoom_transition", progress=True)
-                    return after, fresh
+                    return after, hero, fresh
         self._snapshot(after, tag="map_zoom_unverified")
         return None
 
-    def _reveal_bottom_map_node(self, image, node):
+    def _reveal_bottom_map_node(self, image, node, hero: HeroToken | None):
         """底边目标先平移一次；新帧重新核实位置和路线后才允许点击。"""
-        recognize_hero = getattr(self.pack, "recognize_map_hero", None)
-        hero = recognize_hero(image) if recognize_hero is not None else None
         point = empty_point(image) if is_map(image) and not panel_open(image) else None
         if hero is None or point is None:
             self._snapshot(image, tag="map_pan_precondition_failed")
@@ -763,11 +764,11 @@ class AdventureLoop:
             after = self._frame()
             if not is_map(after) or panel_open(after):
                 continue
-            moved = recognize_hero(after)
-            if (moved is None or abs(moved[0] - hero[0]) > 75
-                    or abs(moved[1] - (hero[1] - distance)) > 75):
+            moved = locate_map_hero(after)
+            if (moved is None or abs(moved.x - hero.x) > 75
+                    or abs(moved.y - (hero.y - distance)) > 75):
                 continue
-            fresh = self._find_next(after)
+            fresh = self._find_next(after, moved)
             if (fresh is not None and not fresh.needs_reveal
                     and fresh.y + fresh.radius + 20 < after.shape[0]):
                 report("verified", "map_pan_transition", progress=True, **self._details)
@@ -775,10 +776,9 @@ class AdventureLoop:
         self._snapshot(after, tag="map_pan_unverified")
         return None
 
-    def _find_next(self, image):
-        recognize_hero = getattr(self.pack, "recognize_map_hero", None)
-        hero = recognize_hero(image) if recognize_hero is not None else None
-        if recognize_hero is not None and hero is None:
+    def _find_next(self, image, hero: HeroToken | None):
+        """从调用方在本帧识别的棋子选择已核实路线。"""
+        if hero is None:
             return None
         nodes = reachable_nodes(image, hero=hero, rng=self.rng)
         kinds = [node_kind(image, node) for node in nodes]
@@ -1094,9 +1094,8 @@ class AdventureLoop:
             logger.warning("adventure: 治疗后仍在治疗师页面，停止")
             tag = "healer_unchanged"
         elif is_map(after) and not panel_open(after):
-            recognize_hero = getattr(self.pack, "recognize_map_hero", None)
-            hero = recognize_hero(after) if recognize_hero is not None else None
-            if hero is not None and _current_completed_node_visible(after, hero):
+            hero = locate_map_hero(after)
+            if hero is not None and _current_completed_node_visible(after, hero.center):
                 logger.info("adventure: 治疗节点已完成，继续冒险")
                 self._snapshot(
                     after, tag="healer_completed"
@@ -1284,7 +1283,7 @@ class AdventureLoop:
             return False
         # 点了节点但还在地图：说明这次点击没打开面板（坐标/动画/网络问题）。
         # 此时不能再盲点「旅行」，否则会把地图上的空白当成按钮。
-        if is_map(image) and self._find_next(image) is not None:
+        if is_map(image) and self._find_next(image, locate_map_hero(image)) is not None:
             logger.warning("adventure: 节点点击后仍在地图，停止盲点（保存快照）")
             self._snapshot(
                 image, tag="map_panel_not_open"
@@ -1338,7 +1337,7 @@ class AdventureLoop:
                         break
                     # 旅行后回到无面板地图且已有下一可达节点：说明只是移动节点，继续下一轮。
                     # 若尚无可达节点，说明英雄仍在路径移动或节点页面尚未弹出，继续观察等待。
-                    if self._find_next(image) is not None:
+                    if self._find_next(image, locate_map_hero(image)) is not None:
                         return True
                 if attempt < 10:
                     self._wait(2, reason="node_transition", wait_s=24)

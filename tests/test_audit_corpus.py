@@ -51,6 +51,16 @@ def test_map_audit_requires_recognized_hero(monkeypatch) -> None:
     assert result == {"hero_found": False, "reachable": 0, "zoom_needed": False, "actionable": False}
 
 
+def test_map_audit_uses_runtime_token_detector_when_available(monkeypatch) -> None:
+    mod = _load_audit_corpus()
+    monkeypatch.setattr(mod.mapnav_perceive, "recognize_map_token", lambda image: None, raising=False)
+
+    class Pack:
+        recognize_map_hero = staticmethod(lambda image: (960, 540))
+
+    assert mod._resolve_map_hero(np.zeros((1, 1, 3), dtype=np.uint8), Pack()) is None
+
+
 def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
     mod = _load_audit_corpus()
     sample_files = [

@@ -190,12 +190,11 @@ def _reset_parser(parser: StateParser) -> None:
 
 
 def _resolve_map_hero(canvas: np.ndarray, pack) -> tuple[int, int] | None:
+    locate = getattr(mapnav_perceive, "recognize_map_token", None)
+    if locate is not None:
+        return locate(canvas)
     recognize_hero = getattr(pack, "recognize_map_hero", None)
-    hero = recognize_hero(canvas) if recognize_hero is not None else None
-    if hero is not None:
-        return hero
-    fallback = getattr(mapnav_perceive, "recognize_map_token", None)
-    return fallback(canvas) if fallback is not None else None
+    return recognize_hero(canvas) if recognize_hero is not None else None
 
 
 def evaluate_map_for_pack(canvas: np.ndarray, pack) -> dict:

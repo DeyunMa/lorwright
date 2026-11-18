@@ -149,3 +149,5 @@ PNG 为 JPEG 解码后的原尺寸裁剪，没有缩放或恢复有损细节。`
 `../lorwright-artifacts/analysis/diagnostics/`（**不在 git**，本地磁盘）：
 277+ 张原始截图，960×540 jpg 预览与 1920×1080 PNG 原帧混合。f1 重采
 完成后其中过时部分一次性归档，在此之前不要删除（是唯一底稿）。
+
+`continue/f1-silver-vault-20261118.png` 保留 `20261118T083453-9e15404b8b78` 独立 JPEG 的标题、图标和继续控件区。`assets/adventure/silver_vault_title.png` 取同会话停止 PNG 的标题。后继主页复用既有实拍组成离线序列。

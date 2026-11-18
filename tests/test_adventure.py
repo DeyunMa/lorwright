@@ -312,6 +312,26 @@ def test_final_victory_closes_reward_summary_before_completing(adventure, resume
     assert loop._details["settlement_closed"] is True
 
 
+def test_resume_silver_vault_closes_settlement(adventure):
+    vault = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-vault-20261118.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    assert vault is not None and home is not None
+    loop, device, _, _, _ = adventure([vault, vault, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "reward_settlement_closed")
+    assert loop._details["settlement_closed"] is True
+    assert device.taps == [(959, 955)]
+
+
+def test_silver_vault_verifies_revealed_shards_then_exits(adventure):
+    vault = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-vault-20261118.png"))
+    shards = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-vault-reward-20261118.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    assert vault is not None and shards is not None and home is not None
+    loop, device, _, _, _ = adventure([vault, vault, shards, shards, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "reward_settlement_closed")
+    assert device.taps == [(959, 955), (959, 955)]
+
+
 def test_final_victory_continues_once_and_verifies_outer_screen(adventure):
     from lorwright.core.perceive.buttons import find_continue_button
 

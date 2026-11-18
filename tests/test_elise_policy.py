@@ -487,22 +487,19 @@ def test_shared_interactive_states_abstain_with_none(ui_state: UIState) -> None:
     assert POLICY.decide(GameState(ui_state=ui_state)) is None
 
 
-def test_elise_card_reward_prefers_heavy_hands_then_lowest_verified_preview_cost() -> None:
+def test_elise_card_reward_keeps_preference_and_quality_priority() -> None:
     from lorwright.core.champions import load
-    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
+    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
 
     pack = load("elise")
+    assert not hasattr(pack, "pick_card_reward")
     candidates = [
-        CardRewardCandidate(RewardCandidate("", "rare", 5), "", cost_certain=False, preview_cost_verified=True),
-        CardRewardCandidate(RewardCandidate("", "unknown", 2), "", cost_certain=False, preview_cost_verified=True),
-        CardRewardCandidate(RewardCandidate("", "common", 3), "", cost_certain=False, preview_cost_verified=True),
+        CardRewardCandidate(RewardCandidate("", "rare", 5), "", cost_certain=True),
+        CardRewardCandidate(RewardCandidate("", "common", 2), "", cost_certain=True),
     ]
-    picked = pack.pick_card_reward(candidates)
-    assert picked is not None and picked.candidate is candidates[1]
-
-    with_pref = [
-        candidates[1],
-        CardRewardCandidate(RewardCandidate("", "common", 4), "重拳出擊", cost_certain=True, preview_cost_verified=True),
-    ]
-    preferred = pack.pick_card_reward(with_pref)
+    picked = pick_card_reward(candidates, pack.card_preferences, pack.item_preferences)
+    assert picked is not None and picked.candidate is candidates[0]
+    with_pref = [candidates[0],
+                 CardRewardCandidate(RewardCandidate("", "common", 4), "重拳出擊", cost_certain=True)]
+    preferred = pick_card_reward(with_pref, pack.card_preferences, pack.item_preferences)
     assert preferred is not None and preferred.candidate is with_pref[1]

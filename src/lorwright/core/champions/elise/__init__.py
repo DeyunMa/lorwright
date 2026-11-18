@@ -12,9 +12,6 @@ from lorwright.core.champions.elise.policy import (
     rank_playable,
     score,
 )
-from lorwright.core.champions.elise.policy import (
-    pick_card_reward as _pick_elise_card_reward,
-)
 from lorwright.core.champions.elise.vision import recognize_hand
 from lorwright.core.decide.card import CardDef
 
@@ -34,12 +31,6 @@ SPELL_PREFERENCES: tuple[Preference, ...] = ()
 CARD_PREFERENCES: tuple[Preference, ...] = ()
 
 
-def pick_card_reward(candidates):
-    return _pick_elise_card_reward(
-        candidates, card_preferences=CARD_PREFERENCES, item_preferences=ITEM_PREFERENCES
-    )
-
-
 class ElisePack:
     name = "elise"
     display_name = "伊莉絲"
@@ -48,7 +39,6 @@ class ElisePack:
     deck: tuple[CardDef, ...] = SPIDER_AGGRO
     lookup = staticmethod(lookup)
     recognize_hand = staticmethod(recognize_hand)
-    pick_card_reward = staticmethod(pick_card_reward)
 
     relic_preferences = RELIC_PREFERENCES
     item_preferences = ITEM_PREFERENCES

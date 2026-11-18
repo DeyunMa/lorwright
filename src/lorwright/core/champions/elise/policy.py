@@ -13,61 +13,9 @@
 
 from __future__ import annotations
 
-from lorwright.core.champions.base import Preference
 from lorwright.core.champions.elise.deck import Effect, EliseCard, lookup
 from lorwright.core.decide.base import Policy
-from lorwright.core.decide.rewards import QUALITY_RANK, CardRewardCandidate, CardRewardPick
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, UIState
-
-
-def _norm_reward(name: str) -> str:
-    return name.strip().casefold()
-
-
-def pick_card_reward(
-    candidates: list[CardRewardCandidate],
-    card_preferences: tuple[Preference, ...] = (),
-    item_preferences: tuple[Preference, ...] = (),
-) -> CardRewardPick | None:
-    """蜘蛛快攻卡牌奖励：专属卡牌/道具偏好优先，其余按已核实预览低费优先。"""
-    if not candidates:
-        return None
-
-    def preference_hit(preferences: tuple[Preference, ...], *, item: bool):
-        for pref in preferences:
-            names = {_norm_reward(name) for name in pref.names}
-            for candidate in candidates:
-                target = candidate.item_name if item else candidate.card.name
-                if _norm_reward(target) in names:
-                    return candidate, pref
-        return None
-
-    card_hit = preference_hit(card_preferences, item=False)
-    item_hit = preference_hit(item_preferences, item=True)
-    if card_hit and item_hit and card_hit[0] != item_hit[0]:
-        return None
-    hit = card_hit or item_hit
-    if hit:
-        return CardRewardPick(hit[0], f"Elise 偏好 {hit[1].names[0]}：{hit[1].note}")
-
-    if any(
-        c.card.cost is None or c.card.cost < 0
-        or not (c.cost_certain or c.preview_cost_verified)
-        for c in candidates
-    ):
-        return None
-    lowest = min(c.card.cost for c in candidates)
-    cheapest = [c for c in candidates if c.card.cost == lowest]
-    if len(cheapest) == 1:
-        return CardRewardPick(cheapest[0], "Elise：蜘蛛快攻低费优先")
-    if any(c.card.quality not in QUALITY_RANK for c in cheapest):
-        if not all(c.preview_cost_verified for c in cheapest):
-            return None
-        known = [c for c in cheapest if c.card.quality in QUALITY_RANK]
-        chosen = max(known, key=lambda c: QUALITY_RANK[c.card.quality]) if known else cheapest[0]
-        return CardRewardPick(chosen, "Elise：预览费用最低；品质不全，已知优先，同级按显示顺序")
-    chosen = max(cheapest, key=lambda c: QUALITY_RANK[c.card.quality])
-    return CardRewardPick(chosen, "Elise：同低费时品质最高优先")
 
 
 def score(card: EliseCard, *, spiders_on_board: int, enemy_max_attack: int) -> float:

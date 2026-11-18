@@ -17,6 +17,7 @@ import random
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -26,6 +27,7 @@ from lorwright.core.perceive.adventure_scene import button_is, is_map
 from lorwright.core.perceive.panels import action_button
 
 __all__ = [
+    "HeroToken",
     "MapNode",
     "center_hero",
     "detect_ability_nodes",
@@ -33,12 +35,14 @@ __all__ = [
     "empty_point",
     "glow_mask",
     "hero_node",
+    "locate_map_hero",
     "next_node",
     "next_node_by_path",
     "node_kind",
     "occluded_route_zoom_button",
     "panel_open",
     "reachable_nodes",
+    "recognize_map_token",
 ]
 
 
@@ -56,6 +60,124 @@ class MapNode:
     def rect(self, margin: int = 20) -> Rect:
         return Rect(self.x - self.radius - margin, self.y - self.radius - margin,
                     2 * (self.radius + margin), 2 * (self.radius + margin))
+
+
+class HeroToken(NamedTuple):
+    x: int
+    y: int
+    radius: int
+
+    @property
+    def center(self) -> tuple[int, int]:
+        return self.x, self.y
+
+
+def locate_map_hero(image: np.ndarray) -> HeroToken | None:
+    """以金属外框及脚下地图证据定位棋子；歧义或遮挡时拒识。"""
+    if image.shape != (1080, 1920, 3) or not is_map(image) or panel_open(image):
+        return None
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    gold_mask = cv2.inRange(hsv, (8, 55, 100), (38, 255, 255))
+    gold = gold_mask > 0
+    bright_gold = cv2.inRange(hsv, (15, 60, 130), (35, 255, 255)) > 0
+    angles = np.deg2rad(np.arange(0, 360, 5))
+    cosines, sines = np.cos(angles), np.sin(angles)
+    outer_angles = (angles < np.deg2rad(55)) | (angles > np.deg2rad(125))
+    found = []
+    for source, threshold in ((gray, 22), (gold_mask, 18)):
+        circles = cv2.HoughCircles(
+            cv2.GaussianBlur(source, (5, 5), 1), cv2.HOUGH_GRADIENT,
+            dp=1.2, minDist=20, param1=90, param2=threshold, minRadius=25, maxRadius=67,
+        )
+        if circles is None:
+            continue
+        for cx, cy, cr in np.rint(circles[0]).astype(int):
+            if (not (160 <= cx <= 1760 and 4 <= cy <= 825)
+                    or (cy > 760 and cx < 860) or (cy < 130 and cx < 170)):
+                continue
+            # 批量采样圆周，只有金环覆盖充分的候选才逐个核对内槽和底座。
+            radii, ys, xs = np.meshgrid(
+                np.arange(max(28, cr - 4), min(66, cr + 8) + 1),
+                np.arange(cy - 4, cy + 5, 2), np.arange(cx - 4, cx + 5, 2), indexing="ij",
+            )
+            margin = np.ceil(1.24 * radii)
+            valid = ((xs >= margin) & (xs + margin < image.shape[1]) & (ys >= margin)
+                     & (ys + np.ceil(2.7 * radii) < image.shape[0]))
+            radii, ys, xs = (values[valid] for values in (radii, ys, xs))
+            xx = (xs[:, None] + radii[:, None] * cosines).astype(int)
+            yy = (ys[:, None] + radii[:, None] * sines).astype(int)
+            coverage = gold[yy, xx].reshape(-1, 4, 18).mean(axis=2)
+            scores = coverage.mean(axis=1)
+            eligible = np.flatnonzero((scores >= 0.75) & (coverage.min(axis=1) >= 0.30))
+            for index in eligible[np.argsort(-scores[eligible], kind="stable")]:
+                token = HeroToken(int(xs[index]), int(ys[index]), int(radii[index]))
+                score = float(scores[index])
+                if _token_geometry_visible(
+                    gray, gold, bright_gold, token, cosines, sines, outer_angles, score,
+                ):
+                    found.append((score, token))
+                    break
+    verified = []
+    navigation_candidates = None
+    for score, token in sorted(found, reverse=True):
+        x, y, r = token
+        foot = (x, y + 2 * r)
+        if any(math.dist(token.center, other.center) <= 12 for other in verified):
+            continue
+        extent = int(1.2 * r)
+        foot_region = image[y + extent:y + int(2.7 * r), x - extent:x + extent]
+        _, _, stats, _ = cv2.connectedComponentsWithStats(_active_route_mask(foot_region))
+        if (_current_completed_node_visible(image, token.center)
+                or _current_diamond_visible(image, token.center) is not None
+                or _node_halo_score(image, foot) >= 0.10):
+            verified.append(token)
+        elif score >= 0.90:
+            # 单独的亮线也常出现在地形附近。弱脚下证据仅用于外环几乎完整的候选。
+            if navigation_candidates is None:
+                navigation_candidates = _navigation_candidates(image)
+            if (any(stats[1:, cv2.CC_STAT_AREA] >= 220)
+                    or _navigation_origin(image, token.center, navigation_candidates) is not None):
+                verified.append(token)
+    if len(verified) != 1:
+        return None
+    return verified[0]
+
+
+def _token_geometry_visible(
+    gray: np.ndarray, gold: np.ndarray, bright_gold: np.ndarray, token: HeroToken,
+    cosines: np.ndarray, sines: np.ndarray, outer_angles: np.ndarray, score: float,
+) -> bool:
+    x, y, r = token
+    xx, yy = (x + r * cosines).astype(int), (y + r * sines).astype(int)
+    inner = gray[(y + 0.8 * r * sines).astype(int), (x + 0.8 * r * cosines).astype(int)]
+    if float(gray[yy, xx].mean()) - float(inner.mean()) < 8:
+        return False
+    outer_x = (x + 1.24 * r * cosines[outer_angles]).astype(int)
+    outer_y = (y + 1.24 * r * sines[outer_angles]).astype(int)
+    outer_gold = float(gold[outer_y, outer_x].mean())
+    if outer_gold > 0.50 or score - outer_gold < 0.25:
+        # 暖色地形会进入宽金色掩码；仍须在亮金色掩码上看见近完整的外环和边界。
+        bright_ring = float(bright_gold[yy, xx].mean())
+        bright_outer = float(bright_gold[outer_y, outer_x].mean())
+        if bright_ring < 0.90 or bright_outer > 0.50 or bright_ring - bright_outer < 0.25:
+            return False
+    k = int(0.44 * r)
+    inset = np.s_[y - k:y + k + 1, x - k:x + k + 1]
+    portrait = gray[inset]
+    if portrait.std() < 15 or (portrait < 8).mean() > 0.20 or gold[inset].mean() > 0.50:
+        return False
+    # 亮金色底座尖端须突出于同一高度的左右侧翼。
+    rows = slice(y + r, y + int(1.32 * r) + 1)
+    tip, inner_flank, outer_flank = (int(scale * r) for scale in (0.24, 0.38, 0.72))
+    pointer = bright_gold[rows, x - tip:x + tip + 1].mean()
+    flank = (bright_gold[rows, x - outer_flank:x - inner_flank].mean()
+             + bright_gold[rows, x + inner_flank + 1:x + outer_flank + 1].mean()) / 2
+    return bool(pointer >= 0.20 and flank <= 0.36 and pointer - flank >= 0.12)
+
+def recognize_map_token(image: np.ndarray) -> tuple[int, int] | None:
+    token = locate_map_hero(image)
+    return token.center if token is not None else None
 
 
 def center_hero(image: np.ndarray) -> MapNode:
@@ -273,54 +395,51 @@ def next_node(
     image: np.ndarray,
     *,
     rng: random.Random | None = None,
-    hero: tuple[int, int] | None = None,
+    hero: HeroToken | tuple[int, int] | None = None,
 ) -> MapNode | None:
     """随机返回一个已核实可达节点；冒险层另外按语义优先级选择。"""
     nodes = reachable_nodes(image, hero=hero, rng=rng)
     return (rng or random).choice(nodes) if nodes else None
 
 
+def _active_route_mask(image: np.ndarray) -> np.ndarray:
+    blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
+    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+    return glow_mask(image) | cyan.astype(np.uint8)
+
+
 def reachable_nodes(
-    image: np.ndarray, *, hero: tuple[int, int] | None = None, rng: random.Random | None = None,
+    image: np.ndarray, *, hero: HeroToken | tuple[int, int] | None = None, rng: random.Random | None = None,
 ) -> list[MapNode]:
     """返回当前帧已核实的一跳目标；业务类型及优先级由调用方处理。
 
-    hero 由运行时头像识别器提供。省略时只供已有诊断以画面中心附近
-    的真实圆环推断锚点；运行时头像拒识不能调用此诊断模式继续导航。
+    hero 由运行时识别器提供；未识别时拒绝推断。
     """
     if image.shape != (1080, 1920, 3) or panel_open(image):
         return []
-    inferred = None
     if hero is None:
-        node = hero_node(image)
-        if _is_ring_node(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), node.x, node.y, node.radius):
-            inferred = _NavigationNode(node, "round")
-        hero = (node.x, node.y - 90)
+        return []
     candidates = _navigation_candidates(image)
-    current = inferred or _navigation_origin(image, hero, candidates)
+    current = _navigation_origin(image, hero[:2], candidates)
     if current is None:
         return []
     # 尚未挑战的脚下战斗是本地交互，不能当成一条通往其他节点的边。
-    if current.shape == "round" and _current_battle_node_visible(image, hero):
+    if current.shape == "round" and _current_battle_node_visible(image, hero[:2]):
         return [MapNode(hero[0], hero[1] + 95, 48)]
-    blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
-    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
-    mask = glow_mask(image) | cyan.astype(np.uint8)
+    mask = _active_route_mask(image)
     return _connected_navigation_nodes(image, current.node, hero, candidates, mask)
 
 
-def occluded_route_zoom_button(image: np.ndarray, hero: tuple[int, int] | None) -> Rect | None:
+def occluded_route_zoom_button(image: np.ndarray, hero: HeroToken | tuple[int, int] | None) -> Rect | None:
     """头像遮挡使短边没有安全取样区时，只授权放大取证，不授权节点输入。"""
     if hero is None or not is_map(image) or panel_open(image):
         return None
     candidates = _navigation_candidates(image)
-    current = _navigation_origin(image, hero, candidates)
+    current = _navigation_origin(image, hero[:2], candidates)
     if current is None:
         return None
-    blue, green, red = (image[:, :, i].astype(np.int16) for i in range(3))
-    cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
     _, labels, stats, _ = cv2.connectedComponentsWithStats(
-        glow_mask(image) | cyan.astype(np.uint8), connectivity=8,
+        _active_route_mask(image), connectivity=8,
     )
     for candidate in candidates:
         target = candidate.node
@@ -426,6 +545,13 @@ def _navigation_origin(
     rounds = [(score, candidate) for score, candidate in rounds if score >= 0.12]
     if rounds:
         return max(rounds, key=lambda item: item[0])[1]
+    # 缩小视角下蓝光较弱，但脚下的小型亮环仍可验证起点。
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    small_rings = [candidate for candidate in nearby if candidate.shape == "round"
+                   and candidate.node.radius <= 38
+                   and _is_ring_node(gray, *candidate.node.center, candidate.node.radius)]
+    if len(small_rings) == 1:
+        return small_rings[0]
     # 完成勾已确认头像脚下节点；动画可使圆环漏检，但不应丢掉已确认的锚点。
     completed = _current_completed_node_visible(image, hero)
     return _NavigationNode(MapNode(hero[0], hero[1] + 90, 48), "round") if completed else None
@@ -468,7 +594,9 @@ def _unlocked_unfinished_center(image: np.ndarray, node: MapNode) -> bool:
             and not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31)))
 
 
-def _route_origin(anchor: MapNode, hero: tuple[int, int], target: MapNode) -> MapNode:
+def _route_origin(
+    anchor: MapNode, hero: HeroToken | tuple[int, int], target: MapNode,
+) -> MapNode:
     """只有实际穿过头像的边才跳过已知遮挡，方向和节点类型不参与判断。"""
     dx, dy = target.x - anchor.x, target.y - anchor.y
     length = math.hypot(dx, dy)
@@ -477,14 +605,15 @@ def _route_origin(anchor: MapNode, hero: tuple[int, int], target: MapNode) -> Ma
     hx, hy = hero[0] - anchor.x, hero[1] - anchor.y
     projection = (hx * dx + hy * dy) / length
     perpendicular_sq = hx * hx + hy * hy - projection * projection
-    if 0 < projection < length and perpendicular_sq < 50 ** 2:
-        hidden_until = projection + math.sqrt(50 ** 2 - perpendicular_sq)
+    occlusion_radius = max(50, hero.radius + 6) if isinstance(hero, HeroToken) else 50
+    if 0 < projection < length and perpendicular_sq < occlusion_radius ** 2:
+        hidden_until = projection + math.sqrt(occlusion_radius ** 2 - perpendicular_sq)
         return MapNode(anchor.x, anchor.y, max(anchor.radius, math.ceil(hidden_until)))
     return anchor
 
 
 def _connected_navigation_nodes(
-    image: np.ndarray, anchor: MapNode, hero: tuple[int, int],
+    image: np.ndarray, anchor: MapNode, hero: HeroToken | tuple[int, int],
     candidates: list[_NavigationNode], mask: np.ndarray,
 ) -> list[MapNode]:
     """所有节点共用：同一亮线连通域、连续边、可见起点与有效目标。"""
@@ -857,7 +986,7 @@ def _lit_unfinished_ring(
 def next_node_by_path(
     image: np.ndarray,
     *,
-    hero: tuple[int, int] | None = None,
+    hero: HeroToken | tuple[int, int] | None = None,
     rng: random.Random | None = None,
 ) -> MapNode | None:
     """保留诊断入口，使用统一算法返回一个已核实可达节点。"""

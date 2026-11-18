@@ -17,8 +17,8 @@ def test_import() -> None:
 
 
 @pytest.mark.parametrize("ui_state", list(UIState))
-def test_policy_never_crashes_and_never_returns_none(ui_state: UIState) -> None:
-    """英雄包在 BLOCKING 弃权给通用格挡层；其余状态必须给出动作。"""
+def test_default_policy_yields_to_shared_interactions(ui_state: UIState) -> None:
+    """格挡、弃牌及可选选牌由共享流程处理。"""
     state = GameState(
         ui_state=ui_state,
         mana=3,
@@ -27,7 +27,7 @@ def test_policy_never_crashes_and_never_returns_none(ui_state: UIState) -> None:
         has_attack_token=True,
     )
     action = load().make_policy().decide(state)
-    if ui_state is UIState.BLOCKING:
+    if ui_state in (UIState.BLOCKING, UIState.DISCARD, UIState.OPTIONAL_CHOICE):
         assert action is None
     else:
         assert action is not None

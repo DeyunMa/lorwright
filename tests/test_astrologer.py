@@ -181,6 +181,37 @@ def test_real_purchased_map_reads_exact_balance_and_rejects_obscured_digits():
     assert astrologer_map_gold(frame) is None
 
 
+@pytest.mark.parametrize("left", [466, 541])
+def test_purchased_map_rejects_synthetic_adjacent_digit_outside_balance_roi(left):
+    frame = cv2.imread(str(Path(__file__).parent /
+                           "fixtures/screens/f1-astrologer-purchased-map-20261116.png"))
+    assert frame is not None
+    assert astrologer_map_gold(frame) == 550
+    # 将实拍的 5 复制到读取框外，模拟多一位或被框边截断的余额。
+    frame[1012:1031, left:left + 13] = frame[1012:1031, 483:496].copy()
+    assert astrologer_map_gold(frame) is None
+
+
+def test_real_shifted_map_rejects_truncated_balance():
+    frame = cv2.imread(str(Path(__file__).parent / "fixtures/mapnav/1080p_map.png"))
+    assert frame is not None
+    # 余额左移，旧读取框只包含最后一位 0。
+    assert astrologer_map_gold(frame) is None
+
+
+@pytest.mark.parametrize("read,top,bottom,left,right,edge", [
+    (astrologer_gold, 984, 1022, 1068, 1093, 1064),
+    (astrologer_offers, 704, 728, 1121, 1130, 1115),
+], ids=["balance", "price"])
+def test_vendor_rejects_synthetic_digit_touching_roi_edge(read, top, bottom, left, right, edge):
+    frame = image()
+    assert read(frame) is not None
+    glyph = frame[top:bottom, left:right].copy()
+    frame[top:bottom, left:right] = 0
+    frame[top:bottom, edge:edge + glyph.shape[1]] = glyph
+    assert read(frame) is None
+
+
 def selected_frame():
     frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-astrologer-selected-20261116.png"))
     assert frame is not None

@@ -17,11 +17,9 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
-`mapnav/f1-zoomed-boss-route-20261118.png` 与 `mapnav/f1-zoomed-boss-live-20261118.png` 分别来自 `20261118T080246-12057dbd4d25` 的停止 PNG 和独立 ADB JPEG，均仅保留 `[0:620,880:1320]` 并在原坐标补黑。两图已查看无账号。测试核验发光路线指向上缘金色首领翼章，且排除塔墙伪节点。断线、遮挡、锁、完成勾和调暗为合成。
+`mapnav/f1-zoomed-boss-route-20261118.png` 与 `mapnav/f1-zoomed-boss-live-20261118.png` 分别来自 `20261118T080246-12057dbd4d25` 的停止 PNG 和独立 ADB JPEG，均仅保留 `[0:620,880:1320]` 并在原坐标补黑。两图已查看无账号。回放测试在内存中从 `mapnav/f1-after-gold-zoomed-map-20261117.png` 补入返回键与缩放控件，以通过运行时地图门控。测试核验发光路线指向上缘金色首领翼章，且排除塔墙伪节点。断线、遮挡、锁、完成勾和调暗为合成。
 
 `mapnav/f1-reentry-cave-20261115.png` 为 f1 会话 `20261115T090328-f86a0a8fcae5` 的 `map_no_next` 原帧；右侧山洞阴影用于面板误判回归，锁图标裁剪用于节点安全识别。
-
-`screens/f1-scholar-nine-mana-10cards-20261118.png` 来自会话 `20261118T064251-3624df1ffab3` 的 `action_timeout` 原始 PNG，保存 `[0:1080,320:1920]`（1600×1080），已查看无账号；测试放回原坐标，其余补黑。画面为「聰慧學者」第 9 回合我方行动页，普通法力 9、法术法力 3、手牌展开共 10 张（槽 4 为 3 费吉茵珂絲、槽 5 为 2 费勤奮的學徒），我方场面为空。`assets/digits/9-mana1080.png` 取同图按原分割器归一化的普通法力数字 9，已查看。用于回归 1080p 法力 9 识别、多牌（>=6）展开间距 120px 下的拖拽点有效性，以及排除展开手牌卡面插画上的无数值伪单位。
 
 `screens/f1-astrologer-remaining-purchased-map-20261118.png` 来自 `20261118T051909-1f4bb873451c` 的购买后验停止 PNG，完整 1920×1080 已查看无账号。画面为无面板地图，余额 970；完整 38 条事件只有一次选中和一次购买输入。`astrologer_digits/9-map-remaining-20261118.png` 为同图按原分割器归一化的地图数字 9。实际 7/0 已可读，原字库缺该小尺寸 9。去掉 9 后只能读 70，不能通过精确 970 扣款后验；此遮挡为合成。修复不追认旧会话成功，不独立证明能力到账，恢复从当前地图继续。
 
@@ -46,8 +44,6 @@
 `card_rewards/f1-remaining-first-reward-20261118.png` 来自 `20261118T024821-a3639a07edd4` 首战后的独立 ADB JPEG，保存 `[18:1050,330:1580]`（1250×1032）奖励区，已查看无账号。三槽预览费用为 3/6/4；中槽数字完整分割但奖励字库缺 6。`reward_digits/6-remaining-first-20261118.png` 保存同图单字字形。测试补黑、损坏费用与交换字形均为合成；卡名保持未知，不登记新卡效果。
 
 `screens/weekly-one-remaining.png` 是 `20261118T024044-7b052ce9bb9f` 处理任务奖励并进入每周入口后的独立稳定 ADB JPEG 转 PNG，已查看无账号。两个不同肖像的绿色完成勾与上方 2 星时钟证明当前为 2/3 完成；原整块灰度模板漏掉左勾（0.8392，低于 0.88）。`weekly_completed_check.png` 来自左勾 `[650:700,675:735]` 的绿色二值字形；不包含肖像。三关完成测试由复制完成标记合成，不能当作实机三关通关证据。
-
-`continue/f1-silver-vault-20261118.png` 保留 `20261118T083453-9e15404b8b78` 独立 JPEG 的标题、图标和继续控件区。`assets/adventure/silver_vault_title.png` 取同会话停止 PNG 的标题。后继主页复用既有实拍组成离线序列。 `continue/f1-silver-vault-reward-20261118.png` 另保留 `20261118T084253-e93313c61033` 独立 JPEG 的中央奖励区。`assets/adventure/silver_vault_shards.png` 取该会话停止 PNG 的「碎片」标签，不含数量。
 
 `continue/f1-silver-relic-chest.png` 和 `f1-silver-relic-converted.png` 为 `20261118T022949-d467c3a40b23` 结算继续后及单次诊断开箱后的稳定 ADB JPEG 转 PNG，均已逐张查看无账号，分别包含白银箱与重复圣物转为星尘的界面。运行素材 `silver_relic_title/icon/chest` 和 `relic_reward_frame_top/bottom` 从对应完整图裁剪；卡框仅核验结构，不识别圣物效果或推断到账。动画隐藏按钮、遮挡和调暗为合成回归。
 
@@ -155,3 +151,6 @@ PNG 为 JPEG 解码后的原尺寸裁剪，没有缩放或恢复有损细节。`
 `../lorwright-artifacts/analysis/diagnostics/`（**不在 git**，本地磁盘）：
 277+ 张原始截图，960×540 jpg 预览与 1920×1080 PNG 原帧混合。f1 重采
 完成后其中过时部分一次性归档，在此之前不要删除（是唯一底稿）。
+
+`continue/f1-silver-vault-20261118.png` 保留 `20261118T083453-9e15404b8b78` 独立 JPEG 的标题、图标和继续控件区。`assets/adventure/silver_vault_title.png` 取同会话停止 PNG 的标题。后继主页复用既有实拍组成离线序列。
+`screens/f1-scholar-nine-mana-10cards-20261118.png` 来自会话 `20261118T064251-3624df1ffab3` 的 `action_timeout` 原始 PNG，保存 `[0:1080,320:1920]`（1600×1080），已查看无账号；测试放回原坐标，其余补黑。画面为「聰慧學者」第 9 回合我方行动页，普通法力 9、法术法力 3、手牌展开共 10 张（槽 4 为 3 费吉茵珂絲、槽 5 为 2 费勤奮的學徒），我方场面为空。`assets/digits/9-mana1080.png` 取同图按原分割器归一化的普通法力数字 9，已查看。用于回归 1080p 法力 9 识别、多牌（>=6）展开间距 120px 下的拖拽点有效性，以及排除展开手牌卡面插画上的无数值伪单位。

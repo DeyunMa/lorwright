@@ -7,8 +7,12 @@ from __future__ import annotations
 
 from lorwright.core.champions.base import Preference
 from lorwright.core.champions.elise.deck import BY_NAME, SPIDER_AGGRO, Effect, EliseCard, lookup
-from lorwright.core.champions.elise.policy import SpiderAggroPolicy, rank_playable, score
-from lorwright.core.champions.elise.vision import recognize_hand
+from lorwright.core.champions.elise.policy import (
+    SpiderAggroPolicy,
+    rank_playable,
+    score,
+)
+from lorwright.core.champions.elise.vision import HERO_ITEM_ART, recognize_hand
 from lorwright.core.decide.card import CardDef
 
 # 奖励偏好（用户确认，2026-11-05）。未命中走默认「品质>费用」。
@@ -35,6 +39,7 @@ class ElisePack:
     deck: tuple[CardDef, ...] = SPIDER_AGGRO
     lookup = staticmethod(lookup)
     recognize_hand = staticmethod(recognize_hand)
+    hero_item_art = HERO_ITEM_ART
 
     relic_preferences = RELIC_PREFERENCES
     item_preferences = ITEM_PREFERENCES

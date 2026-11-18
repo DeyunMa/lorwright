@@ -15,7 +15,6 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lorwright.core.champions.jinx.vision import recognize_hero  # noqa: E402
 from lorwright.core.perceive import mapnav  # noqa: E402
 
 FIXTURE_DIRS = (
@@ -37,9 +36,12 @@ def largest_glow_components(mask, limit=5):
 
 
 def describe(name, image):
-    hero = recognize_hero(image)
-    glow = mapnav.glow_mask(image)
     print(f"\n=== {name} ===")
+    if image.shape != (1080, 1920, 3):
+        print(f"  shape={image.shape} UNSUPPORTED (expected 1920×1080 BGR)")
+        return
+    hero = mapnav.locate_map_hero(image)
+    glow = mapnav.glow_mask(image)
     print(f"  shape={image.shape} glow_px={int(glow.sum())} panel_open={mapnav.panel_open(image)}")
     print(f"  hero={hero}")
     print("  detect_nodes=", [(n.x, n.y, n.radius) for n in mapnav.detect_nodes(image)])
@@ -47,8 +49,8 @@ def describe(name, image):
     rows, labels = largest_glow_components(glow)
     for area, bbox, centroid, cid in rows:
         line = f"    comp area={area:6d} bbox={bbox} centroid={centroid}"
-        if hero:
-            hx, hy = hero
+        if hero is not None:
+            hx, hy = hero.center
             near = int(labels[max(0, hy - 4):hy + 5, max(0, hx - 4):hx + 5].max())
             contour = cv2.findContours((labels == cid).astype(np.uint8) * 255,
                                        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -61,9 +63,9 @@ def describe(name, image):
          "node_kind": mapnav.node_kind(image, node), "needs_reveal": node.needs_reveal}
         for node in reach
     ])
-    if hero:
-        print("  current_completed_visible=", mapnav._current_completed_node_visible(image, hero))
-        print("  current_halo_visible=", mapnav._current_node_halo_visible(image, hero))
+    if hero is not None:
+        print("  current_completed_visible=", mapnav._current_completed_node_visible(image, hero.center))
+        print("  current_halo_visible=", mapnav._current_node_halo_visible(image, hero.center))
         nxt = mapnav.next_node(image, hero=hero)
         by_path = mapnav.next_node_by_path(image, hero=hero)
         print("  next_node=", None if nxt is None else (nxt.x, nxt.y, nxt.radius))
@@ -83,4 +85,5 @@ def main():
             describe(f"{path.parent.name}/{path.name}", image)
 
 
-main()
+if __name__ == "__main__":
+    main()

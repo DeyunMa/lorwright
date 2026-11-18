@@ -2,6 +2,8 @@
 
 本轮目标已完成。Jinx 通关第三个每周冒险，程序退出奖励结算，f1 每周列表已确认 3/3。此次包含开发修复与恢复。
 
+多冒险泛化的本地验证见 [`status.md`](status.md) 的「多冒险泛化」。
+
 ## 先读什么
 
 当前能力、运行代码、会话与验证以 [`status.md`](status.md) 为准。本页仅保留接手动作。持续规则见 [`../AGENTS.md`](../AGENTS.md)，命令见 [`cli.md`](cli.md)，架构见 [`architecture.md`](architecture.md)，环境及部署参考见 [`environment.md`](environment.md) 与 [`../tools/f1/`](../tools/f1/)。

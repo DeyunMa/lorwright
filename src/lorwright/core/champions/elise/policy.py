@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from lorwright.core.champions.elise.deck import Effect, EliseCard, lookup
 from lorwright.core.decide.base import Policy
+from lorwright.core.decide.card import CardKind
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, UIState
 
 
@@ -75,19 +76,28 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
     # 这套牌场上单位全是蜘蛛（含小蜘蛛 token），所以直接取单位数。
     # 换其他英雄时这段逻辑会跟着英雄包一起换掉。
     spiders_on_board = len(state.my_units)
+    board_full = spiders_on_board >= 6
     enemy_max_attack = max((u.attack for u in state.enemy_units), default=0)
 
     playable: list[tuple[CardInHand, EliseCard, float]] = []
     for card in state.hand:
-        if not (0 <= card.cost <= max(0, state.mana)):
+        if card.cost < 0:
             continue
         if state.hand_expanded and not card.drag_point_valid:
             continue
         definition = lookup(card.name)
+        available_mana = max(0, state.mana)
+        if (definition is not None and definition.kind is CardKind.SPELL
+                and state.spell_mana is not None and state.has_fresh_readings("spell_mana")):
+            available_mana += max(0, state.spell_mana)
+        if card.cost > available_mana:
+            continue
         if definition is None:
-            if not card.visible_playable_unit:
+            if board_full or not card.visible_playable_unit:
                 continue
             definition = EliseCard(card.name, cost=card.cost)
+        elif board_full and definition.is_unit:
+            continue
         playable.append(
             (
                 card,
@@ -125,14 +135,25 @@ class SpiderAggroPolicy(Policy):
         #: 永远出不了牌（实机 2026-11-04 卡了 10 个 tick）。
         self._pending_play: int | None = None
         self._pending_cost: int | None = None
+        self._pending_name: str = ""
         self._pending_hand: int = -1
-        #: 拖不动的费用。**按费用记，不按序号**：手牌展开态是平铺 7 张、
-        #: 收起态是扇形只露 6 张，同一个序号在两种状态下指的不是同一张牌，
-        #: 按序号记会在展开/收起之间反复失忆（实机死循环过）。
-        self._unplayable: set[int] = set()
-        #: 需要选目标的费用（冥血戰这类「擊殺1個友軍單位」的牌）。
-        #: 这是牌本身的性质，不是暂时状态，所以整场战斗都不再碰它。
-        self._needs_target: set[int] = set()
+        #: 拖不动的牌身份 `(name, cost)`。已知牌名按 `(牌名, 费用)` 隔离，避免一张同费
+        #: 条件牌拖不动时连带封死其他同费蜘蛛；未知牌退回 `("", cost)` 兼容收起/展开。
+        self._unplayable: set[tuple[str, int]] = set()
+        #: 需要选目标的牌身份 `(name, cost)`。整场对局不再碰该牌，新对局换牌时清空。
+        self._needs_target: set[tuple[str, int]] = set()
+
+    def reset_for_battle(self) -> None:
+        self._pending_play = None
+        self._pending_cost = None
+        self._pending_name = ""
+        self._pending_hand = -1
+        self._unplayable.clear()
+        self._needs_target.clear()
+
+    @staticmethod
+    def _card_key(card: CardInHand) -> tuple[str, int]:
+        return (card.name, card.cost)
 
     def on_action_sent(self, action: Action, before: GameState) -> None:
         """仅记录已发送的拖牌；视图动作不进入出牌状态。"""
@@ -144,41 +165,47 @@ class SpiderAggroPolicy(Policy):
             return
         self._pending_play = card.index
         self._pending_cost = card.cost
+        self._pending_name = card.name
         self._pending_hand = len(before.hand)
+
+    def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
+        """引擎已核实出牌成功时，不能再凭手牌数量把它当成失败。"""
+        if action.type is ActionType.PLAY_CARD and action.card_index == self._pending_play:
+            self._pending_play = None
+            self._pending_cost = None
+            self._pending_name = ""
 
     def _settle_previous_play(self, state: GameState) -> None:
         """上一 tick 的 play_card 成不成：手牌没减少就是没出成。"""
         if self._pending_play is None:
             return
         if len(state.hand) >= self._pending_hand and self._pending_cost is not None:
-            self._unplayable.add(self._pending_cost)
+            self._unplayable.add((self._pending_name, self._pending_cost))
         self._pending_play = None
         self._pending_cost = None
+        self._pending_name = ""
 
     def decide(self, state: GameState) -> Action | None:
-        # P0 守卫：没有优先权时，唯一合法的动作就是不动。
-        # 其余状态返回 NO_OP；BLOCKING 例外，必须弃权给通用格挡层。
-        if state.ui_state is UIState.BLOCKING:
-            # 格挡交给通用 BlockingPolicy（资格规则 + 穷举配对）。
-            # 这里必须弃权，不能返回 NO_OP，否则路由不会继续往下走。
+        # 格挡、可选选牌、弃牌交由通用层或引擎专用流程处理，必须弃权返回 None。
+        if state.ui_state in (UIState.BLOCKING, UIState.OPTIONAL_CHOICE, UIState.DISCARD):
             return None
 
-        # 起手换牌：「確定」按钮和动作按钮同位置同颜色，点一下保留整手牌。
-        # 蜘蛛快攻的起手本来就都是低费单位，换牌收益低于「卡住不出牌」的代价。
+        # 起手换牌是新对局边界：清空上一场战斗残留的失败/选目标记忆，直接确定保留低费起手。
         if state.ui_state is UIState.MULLIGAN:
+            self.reset_for_battle()
             return Action(type=ActionType.CONFIRM)
 
         # 「結算」= 战斗结算/提交声明，答案唯一，点一下就走。
-        # 不处理会一直 no_op 卡死（实机卡过 13 个 tick）。
         if state.ui_state is UIState.COMBAT_RESOLVING:
             return Action(type=ActionType.CONFIRM)
 
         # 「選擇目標」说明上一 tick 拖出的牌要选目标（击晕、替换、击杀友军…）。
-        # 这个状态下拖手牌没反应，必须点一个单位把选择做完。
         if state.ui_state is UIState.TARGETING:
             if self._pending_cost is not None:
-                self._needs_target.add(self._pending_cost)
+                self._needs_target.add((self._pending_name, self._pending_cost))
                 self._pending_play = None
+                self._pending_cost = None
+                self._pending_name = ""
             return Action(type=ActionType.NO_OP)
 
         if state.ui_state is not UIState.MY_TURN_IDLE:
@@ -191,24 +218,23 @@ class SpiderAggroPolicy(Policy):
         self._pending_hand = len(state.hand)
 
         # 单位已经被拖到攻击行 → 按钮已变成「確認」，下一步只能确认。
-        # 用位置判断而不是按钮文字：拖完的按钮是「確認」，状态机认不出它，
-        # 但攻击行的单位 y 坐标（≈710）和平躺的（≈930）差得很开。
         if state.my_units and _units_in_attack_row(state):
             return Action(type=ActionType.CONFIRM)
 
         if not state.hand_expanded and state.hand:
             return Action(type=ActionType.EXPAND_HAND)
 
-        # P4 出牌：先 buff 后普通，再按评分。每 tick 只出一张，下一 tick 重新感知。
+        # P4 出牌：先铺场后召唤时 buff，再按评分。每 tick 只出一张，下一 tick 重新感知。
         ranked = [
             item
             for item in rank_playable(state)
-            if item[0].cost not in self._unplayable
-            and item[0].cost not in self._needs_target
+            if self._card_key(item[0]) not in self._unplayable
+            and self._card_key(item[0]) not in self._needs_target
         ]
         if ranked:
-            card, _definition, _score = ranked[0]
-            return Action(type=ActionType.PLAY_CARD, card_index=card.index)
+            card, definition, _score = ranked[0]
+            raw = {"unit_card": True} if (definition.is_unit or card.visible_playable_unit) else {}
+            return Action(type=ActionType.PLAY_CARD, card_index=card.index, raw=raw)
 
         # P2 攻击声明：求解器说值得打才打
         attack = self._attack(state)

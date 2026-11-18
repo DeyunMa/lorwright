@@ -49,6 +49,14 @@ def test_darkened_healer_screen_does_not_authorize_click(healer_image):
     assert healer_heal_button(darkened) is None
 
 
+def test_solid_gold_cover_does_not_count_as_healer_title():
+    image = cv2.imread(str(FIXTURES / "healer/f1-full-health.png"))
+    assert image is not None and healer_heal_button(image) is not None
+    image[335:435, 540:805] = (32, 146, 230)
+    assert not is_healer_screen(image)
+    assert healer_heal_button(image) is None
+
+
 @pytest.mark.parametrize("relative", [
     "mapnav/1080p_jinx_map.png",
     "screens/1080p_jinx_support_selection.jpg",

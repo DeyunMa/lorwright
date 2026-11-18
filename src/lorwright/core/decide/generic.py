@@ -34,7 +34,8 @@ class HeroFirstPolicy(Policy):
         for card in state.hand:
             if (card.name in self.champion_names and card.drag_point_valid
                     and 0 <= card.cost <= max(0, state.mana)):
-                return Action(type=ActionType.PLAY_CARD, card_index=card.index)
+                return Action(type=ActionType.PLAY_CARD, card_index=card.index,
+                              raw={"unit_card": True})
         return None
 
 

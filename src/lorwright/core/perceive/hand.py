@@ -154,6 +154,7 @@ def _tilt(glyph: np.ndarray) -> float:
 
 def read_cost_glyphs(
     image: np.ndarray, center: tuple[int, int], rad: int = _GLYPH_RAD,
+    *, ignore_perimeter_highlights: bool = False,
 ) -> list[np.ndarray] | None:
     """从徽章抠出完整费用序列，逐字归一化并扶正；异常组件不能丢成个位。
 
@@ -183,10 +184,13 @@ def read_cost_glyphs(
     if any(12 <= stats[i, cv2.CC_STAT_AREA] < 20 and np.count_nonzero(core == i) >= 8
            for i in range(1, count)):
         return None
+    core_labels = set(core) if ignore_perimeter_highlights else None
     boxes = [
         (int(stats[i, 4]), int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]))
         for i in range(1, count)
-        if stats[i, 4] >= 20
+        if stats[i, 4] >= 20 and not (
+            core_labels is not None and i not in core_labels and max(stats[i, 2:4]) <= rad / 2
+        )
     ]
     if not 1 <= len(boxes) <= 2:
         return None

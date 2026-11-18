@@ -31,7 +31,12 @@ def _digits() -> DigitReader:
 def _number(image: np.ndarray, rect: Rect, *, balance: bool = False) -> int | None:
     glyphs = segment_glyphs(image, rect, threshold=180)
     low, high = (28, 45) if balance else (18, 26)
-    if not 1 <= len(glyphs) <= 5 or any(not low <= g.rect.h <= high for g in glyphs):
+    if not 1 <= len(glyphs) <= 5 or any(
+        not low <= g.rect.h <= high
+        or not rect.x < g.rect.x < g.rect.x + g.rect.w < rect.x + rect.w
+        or not rect.y < g.rect.y < g.rect.y + g.rect.h < rect.y + rect.h
+        for g in glyphs
+    ):
         return None
     hits = [_digits().classify(g.image) for g in glyphs]
     if any(hit is None for hit in hits):
@@ -47,7 +52,12 @@ def astrologer_map_gold(image: np.ndarray) -> int | None:
     """购买后直接回图时读取地图余额，仅覆盖已标定的原生布局。"""
     if image.shape[:2] != (1080, 1920) or not is_map(image) or panel_open(image):
         return None
-    return _number(image, Rect(477, 1003, 65, 35))
+    rect = Rect(477, 1003, 65, 35)
+    # 相邻数字可能完全位于固定框之外，不能把剩余尾数当成完整余额。
+    nearby = segment_glyphs(image, Rect(457, 1003, 105, 35), threshold=180)
+    if any(g.rect.x < rect.x or g.rect.x + g.rect.w > rect.x + rect.w for g in nearby):
+        return None
+    return _number(image, rect)
 
 
 def astrologer_offers(image: np.ndarray) -> list[RewardCandidate] | None:

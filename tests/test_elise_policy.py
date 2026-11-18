@@ -6,7 +6,16 @@ import pytest
 
 from lorwright.core.champions.elise import SpiderAggroPolicy
 from lorwright.core.champions.elise.policy import rank_playable
-from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.models import (
+    Action,
+    ActionType,
+    CardInHand,
+    GameState,
+    Reading,
+    Rect,
+    UIState,
+    Unit,
+)
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
 # 用 (0,0) 会被误判成已经声明过攻击
@@ -94,6 +103,18 @@ def test_elise_outranks_every_other_card():
         )
         ranked = rank_playable(state)
         assert ranked[0][1].name == "伊莉絲", f"伊莉絲 应该排在 {other.name} 前面"
+
+
+def test_spell_mana_only_applies_to_known_spells_with_fresh_reading():
+    cards = [hand(0, "傾巢而出", 6), hand(1, "群蛛之主", 5),
+             CardInHand(2, "未知", 5, RECT, visible_playable_unit=True)]
+    state = GameState(mana=3, spell_mana=3, hand=cards, readings={"spell_mana": Reading(3, 0)})
+    assert [card.index for card, _, _ in rank_playable(state)] == [0]
+    state.readings["spell_mana"] = Reading(3, 1)
+    assert rank_playable(state) == []
+    state.spell_mana = None
+    state.readings["spell_mana"] = Reading(3, 0)
+    assert rank_playable(state) == []
 
 
 def test_elise_is_chosen_over_cheaper_cards():
@@ -286,6 +307,17 @@ def test_unsent_candidate_does_not_attribute_targeting_to_card() -> None:
     assert policy.decide(state) == candidate
 
 
+def test_verified_play_with_replacement_card_does_not_blacklist_same_card():
+    policy = SpiderAggroPolicy()
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=3, hand_expanded=True,
+                      hand=[hand(0, "小蜘蛛", 1), hand(1, "小蜘蛛", 1)])
+    action = policy.decide(state)
+    policy.on_action_sent(action, state)
+    policy.on_action_outcome(action, state, state)
+    assert policy.decide(state).type is ActionType.PLAY_CARD
+    assert not policy._unplayable
+
+
 def test_unplayable_card_is_skipped_on_retry() -> None:
     """拖不动的牌不能每 tick 重试：手牌没减少就换下一张。
 
@@ -438,4 +470,68 @@ def test_expanding_hand_does_not_blacklist_the_selected_card() -> None:
     action = policy.decide(expanded)
     assert action.type is ActionType.PLAY_CARD
     assert action.card_index == 0
+    assert action.raw == {"unit_card": True}
     assert policy.decide(expanded) == action
+
+
+def test_full_board_skips_unit_cards_instead_of_overplaying() -> None:
+    policy = SpiderAggroPolicy()
+    full_board = [unit("小蜘蛛", 1, 1) for _ in range(6)]
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=6,
+        hand_expanded=True,
+        hand=[
+            hand(0, "小蜘蛛", 1),
+            CardInHand(index=1, name="", cost=2, rect=RECT, visible_playable_unit=True),
+        ],
+        my_units=full_board,
+        has_attack_token=False,
+    )
+    assert rank_playable(state) == []
+    assert policy.decide(state).type is ActionType.END_TURN
+
+
+def test_named_card_failure_does_not_blacklist_same_cost_spider_and_mulligan_resets() -> None:
+    policy = SpiderAggroPolicy()
+    cards = [hand(0, "伊莉絲", 2), hand(1, "蜘術士", 2)]
+    state = GameState(ui_state=UIState.MY_TURN_IDLE, mana=4, hand_expanded=True, hand=cards)
+
+    first = policy.decide(state)
+    assert first.card_index == 0
+    policy.on_action_sent(first, state)
+    # 假设英雄法术条件不满足未能打出，另一张同为 2 费的「蜘術士」仍应可出。
+    second = policy.decide(state)
+    assert second.type is ActionType.PLAY_CARD
+    assert second.card_index == 1
+
+    # 进入需要选目标的牌记录在 _needs_target，下一场对局 MULLIGAN 必须清空该记忆。
+    policy.on_action_sent(second, state)
+    policy.decide(GameState(ui_state=UIState.TARGETING, mana=4, hand=cards))
+    assert ("蜘術士", 2) in policy._needs_target
+    assert policy.decide(GameState(ui_state=UIState.MULLIGAN)) == Action(ActionType.CONFIRM)
+    assert not policy._needs_target
+    assert not policy._unplayable
+
+
+@pytest.mark.parametrize("ui_state", [UIState.BLOCKING, UIState.OPTIONAL_CHOICE, UIState.DISCARD])
+def test_shared_interactive_states_abstain_with_none(ui_state: UIState) -> None:
+    assert POLICY.decide(GameState(ui_state=ui_state)) is None
+
+
+def test_elise_card_reward_keeps_preference_and_quality_priority() -> None:
+    from lorwright.core.champions import load
+    from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
+
+    pack = load("elise")
+    assert not hasattr(pack, "pick_card_reward")
+    candidates = [
+        CardRewardCandidate(RewardCandidate("", "rare", 5), "", cost_certain=True),
+        CardRewardCandidate(RewardCandidate("", "common", 2), "", cost_certain=True),
+    ]
+    picked = pick_card_reward(candidates, pack.card_preferences, pack.item_preferences)
+    assert picked is not None and picked.candidate is candidates[0]
+    with_pref = [candidates[0],
+                 CardRewardCandidate(RewardCandidate("", "common", 4), "重拳出擊", cost_certain=True)]
+    preferred = pick_card_reward(with_pref, pack.card_preferences, pack.item_preferences)
+    assert preferred is not None and preferred.candidate is with_pref[1]

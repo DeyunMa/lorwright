@@ -1048,3 +1048,36 @@ def test_jinx_support_fork_rejects_dimmed_map() -> None:
     assert hero is not None
     dimmed = (image * 0.5).astype(np.uint8)
     assert next_node(dimmed, hero=hero) is None
+
+
+@pytest.mark.parametrize("name", ["f1-zoomed-boss-route-20261118.png",
+                                  "f1-zoomed-boss-live-20261118.png"])
+def test_zoomed_boss_crest_route_recognizes_top_boss_node(name: str) -> None:
+    image = _load(name)
+    hero = recognize_hero(image)
+    assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert math.hypot(nodes[0].x - 1103, nodes[0].y - 66) < 15
+    assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["origin", "cut", "lock", "completed", "obscured", "dim"])
+def test_zoomed_boss_crest_route_rejects_missing_evidence(damage: str) -> None:
+    image = _load("f1-zoomed-boss-route-20261118.png")
+    hero = recognize_hero(image)
+    assert hero is not None
+    if damage == "origin":
+        image[485:580, 1030:1130] = 0
+    elif damage == "cut":
+        image[230:260, 1070:1120] = 0
+    elif damage == "lock":
+        source = _load("f1-weekly-two-home-20261116.png")
+        image[48:84, 1085:1121] = source[515:551, 717:753]
+    elif damage == "completed":
+        image[48:84, 1085:1121] = image[516:552, 1063:1099]
+    elif damage == "obscured":
+        image[56:76, 1093:1113] = 128
+    else:
+        image[0:180, 990:1220] //= 3
+    assert reachable_nodes(image, hero=hero) == []

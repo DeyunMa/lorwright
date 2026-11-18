@@ -2460,3 +2460,22 @@ def test_node_travel_staying_on_map_without_next_node_times_out_once(adventure):
     assert not loop._handle_node_panel()
     assert device.taps == [(817, 485)]
     assert saved == ["panel_transition_timeout"]
+
+
+def test_map_next_node_wait_zooms_once_when_occluded_short_edge_settles(adventure):
+    # 奖励回图首帧可能仍在转场动画中，待 map_next_node 轮询稳定后才暴露被头像遮挡的短边。
+    in_transit_map = cv2.imread(str(FIXTURES.parent / "card_rewards" / "after.png"))
+    assert in_transit_map is not None
+    settled_occluded = _img("f1-after-gold-map-20261117.png")
+    zoomed = _img("f1-after-gold-zoomed-map-20261117.png")
+    loop, device, _, saved, _ = adventure(
+        [in_transit_map, settled_occluded, zoomed, zoomed],
+        [],
+    )
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 2
+    assert device.taps[0] == (1822, 297)
+    assert abs(device.taps[1][0] - 1062) <= 20
+    assert abs(device.taps[1][1] - 331) <= 20
+    assert saved == ["map_panel_not_open"]

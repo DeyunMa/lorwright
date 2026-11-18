@@ -318,6 +318,7 @@ class AdventureLoop:
             ui = post_battle_ui if post_battle_ui is not None else self.engine.parser.ui.detect(design)
             if ui in self.BATTLE_STATES:
                 last_continue = None
+                route_zoom_used = False
                 logger.info("adventure: 进入战斗，引擎接管")
                 self._scene("battle")
                 result = self.engine.run(max_ticks=self.coords.battle_max_ticks, close_device=False)
@@ -562,6 +563,17 @@ class AdventureLoop:
                         nxt = self._find_next(image)
                         if nxt is not None:
                             break
+                        if not route_zoom_used:
+                            recognize_hero = getattr(self.pack, "recognize_map_hero", None)
+                            hero = recognize_hero(image) if recognize_hero is not None else None
+                            zoom = occluded_route_zoom_button(image, hero)
+                            if zoom is not None:
+                                route_zoom_used = True
+                                revealed = self._reveal_occluded_map_route(zoom)
+                                if revealed is None:
+                                    return
+                                image, nxt = revealed
+                                break
                 if pending_image is not None:
                     continue
                 if nxt is None:
@@ -578,6 +590,7 @@ class AdventureLoop:
             self._wait(3)
             if not self._handle_node_panel():
                 return
+            route_zoom_used = False
 
     def _handle_task_reward(self, image):
         button = find_continue_button(image)

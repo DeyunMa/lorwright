@@ -166,10 +166,17 @@ def _gold_title_visible(image: np.ndarray, name: str,
                        (8, 100, 120), (35, 255, 255))
     if gold.shape[0] < title.shape[0] or gold.shape[1] < title.shape[1]:
         return False
-    coverage = float(cv2.matchTemplate(gold, title, cv2.TM_CCORR).max()) / (
-        np.count_nonzero(title) * 255.0 * 255.0
-    )
-    return coverage >= 0.98
+    coverage = cv2.matchTemplate(gold, title, cv2.TM_CCORR) / (np.count_nonzero(title) * 255.0 ** 2)
+    # Keep a margin around antialiased strokes. A solid gold patch covers the
+    # expected strokes but also fills the gaps between them.
+    near = cv2.dilate(title, np.ones((3, 3), dtype=np.uint8))
+    around = cv2.dilate(title, np.ones((9, 9), dtype=np.uint8))
+    gaps = cv2.subtract(around, near)
+    gap_count = np.count_nonzero(gaps)
+    if gap_count == 0:
+        return False
+    spill = cv2.matchTemplate(gold, gaps, cv2.TM_CCORR) / (gap_count * 255.0 ** 2)
+    return bool(np.any((coverage >= 0.98) & (spill <= 0.50)))
 
 
 def shop_leave_button(image: np.ndarray) -> Rect | None:

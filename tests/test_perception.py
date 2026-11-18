@@ -183,9 +183,7 @@ def test_assets_exist() -> None:
     assert (Path("assets/buttons") / "mulligan.png").exists()
     reader = DigitReader()
     reader.load()
-    # 9 还没采到样本。
-    # 没样本时读数返回 None（不猜），比读成错的强。
-    assert reader.digits >= set(range(0, 9)), f"缺字形：{reader.digits}"
+    assert reader.digits >= set(range(0, 10)), f"缺字形：{reader.digits}"
 
 
 def test_mulligan_is_not_my_turn() -> None:
@@ -384,3 +382,34 @@ def test_targeting_button_is_detected() -> None:
     frame = cv2.imread("tests/fixtures/screens/1080p_targeting.png")
     assert frame is not None
     assert detector.detect(frame) is UIState.TARGETING
+
+
+def test_scholar_nine_mana_and_ten_card_expanded_hand() -> None:
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.champions import load
+    from lorwright.core.decide.router import Router
+    from lorwright.core.models import ActionType
+
+    crop = _load("f1-scholar-nine-mana-10cards-20261118.png")
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:1920] = crop
+    pack = load("jinx")
+    parser = _parser()
+    parser.card_recognizer = pack.recognize_hand
+    parser.my_unit_recognizer = pack.recognize_my_units
+    state = parser.parse(image)
+    assert state.ui_state is UIState.MY_TURN_IDLE
+    assert state.mana == 9 and state.has_fresh_readings("mana")
+    assert state.spell_mana == 3 and state.has_fresh_readings("spell_mana")
+    assert state.hand_expanded is True
+    assert len(state.hand) == 10
+    assert [c.cost for c in state.hand] == [1, 2, 2, 3, 3, 2, 1, 1, 1, 2]
+    assert all(c.drag_point_valid for c in state.hand)
+    assert state.hand[4].name == "吉茵珂絲"
+    assert state.hand[5].name == "勤奮的學徒"
+    assert state.my_units == []
+    assert not state.readings["my_units_visible"].fresh
+    router = Router(_battle_layers(pack))
+    decision = router.decide(state)
+    assert decision.action.type is ActionType.PLAY_CARD
+    assert decision.action.card_index in (4, 5)

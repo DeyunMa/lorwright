@@ -591,6 +591,51 @@ def engine_for(monkeypatch, states, actions, timeout=8, *, check_readiness=False
     return engine, device, router, events, snapshots
 
 
+@pytest.mark.parametrize("name", ["stop", "current"])
+def test_play_unit_jinx_uses_special_expectation_with_real_highlighted_after(monkeypatch, name):
+    """发送前按事件合成，后帧来自停止实拍；不追认真实超时。"""
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.champions.jinx import PACK
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.router import Router as RealRouter
+
+    parser_engine = Engine(load_settings(), RealRouter([]), None,
+                           card_recognizer=PACK.recognize_hand,
+                           my_unit_recognizer=PACK.recognize_my_units)
+    parser_engine.parser.load()
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = cv2.imread(f"tests/fixtures/screens/f1-squirrel-highlighted-{name}-20261118.png")
+    after = parser_engine.parser.parse(image)
+    assert [(unit.attack, unit.health) for unit in after.my_units] == [(4, 3), (3, 1), (6, 6), (9, 10)]
+    assert after.my_units[-1].name == "吉茵珂絲"
+    assert not after.hand_expanded and len(after.hand) == 7
+    cards = [CardInHand(i, "吉茵珂絲" if i == 1 else "", 1,
+                        Rect(500 + i * 140, 845, 8, 8)) for i in range(6)]
+    before = ready(hand=cards, hand_expanded=True, mana=2, spell_mana=3,
+                   my_units=[Unit("", 4, 3, Rect(800, 850, 8, 8))],
+                   enemy_nexus_hp=17,
+                   readings={"mana": Reading(2, 0), "spell_mana": Reading(3, 0),
+                             "enemy_nexus_hp": Reading(17, 0)})
+    engine, device, _, events, snapshots = engine_for(
+        monkeypatch, [before, before, after], [], check_readiness=True,
+    )
+    layers = _battle_layers(PACK)
+    engine.router = RealRouter(layers)
+    routed = engine.router.decide(before)
+    assert routed.layer == "play_unit" and routed.action.card_index == 1
+    assert routed.action.raw["unit_card"] is True
+    pending = engine._make_outcome(routed.action, before, 8)
+    assert pending.play_expectation.reason == "jinx_hand_rebuilt_and_summoned"
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: 17.0 if device.frames == 3 else 0.0)
+    engine.run(max_ticks=3)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == "succeeded"
+    assert outcomes[-1]["reason"] == "jinx_hand_rebuilt_and_summoned"
+    assert len(device.drags) == 1 and device.taps == [] and snapshots == []
+    assert next(layer for layer in layers if layer.name == "jinx_opening").step == 2
+
+
 def test_generic_play_resource_refill_reroutes_without_success_callback(monkeypatch):
     """按 seq220–258 构造状态时序；不是中间动画实拍回放。"""
     from lorwright.core.champions.jinx.policy import JinxOpeningPolicy

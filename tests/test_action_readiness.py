@@ -368,6 +368,33 @@ def test_real_handoff_frames_ignore_nonpositional_recognition_jitter(kind):
     assert gate.ready(Action(kind))
 
 
+def test_real_purple_highlight_phases_keep_attack_readiness():
+    import cv2
+    import numpy as np
+
+    from lorwright.core.champions.jinx import PACK
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.router import Router
+    from lorwright.core.loop.engine import Engine
+
+    engine = Engine(load_settings(), Router([]), None,
+                    card_recognizer=PACK.recognize_hand,
+                    my_unit_recognizer=PACK.recognize_my_units)
+    engine.parser.load()
+    gate = ActionReadiness()
+    action = Action(ActionType.ATTACK, raw={"attackers": [0, 1, 2, 3]})
+    for name in ("stop", "current"):
+        image = np.zeros((1080, 1920, 3), np.uint8)
+        image[:, 320:] = cv2.imread(f"tests/fixtures/screens/f1-squirrel-highlighted-{name}-20261118.png")
+        parsed = engine.parser.parse(image)
+        assert len(parsed.my_units) == 4
+        assert parsed.my_units[-1].name == "吉茵珂絲"
+        gate.observe(parsed)
+        if name == "stop":
+            assert not gate.ready(action)
+    assert gate.ready(action)
+
+
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
 @pytest.mark.parametrize("change", ["card", "unit"])
 def test_handoff_ignores_values_not_used_by_its_input(kind, change):

@@ -309,8 +309,9 @@ def test_block_phase_recognizes_elusive_attackers_and_skips_illegal_blocks() -> 
 
 def test_overwhelm_icon_in_other_frame_and_ordinary_units() -> None:
     positive = _parser().parse(_load("1080p_commit_phase.png"))
-    # 现有定位只找回其中 4 个；不能将缺失的两个说成识别成功。
-    assert len(positive.enemy_units) == 4
+    # 原四个定位保留，补回 9/11；5/7 仍缺失，不能把生命 7 当成第六个单位。
+    assert len(positive.enemy_units) == 5
+    assert [unit.rect.center[0] for unit in positive.enemy_units] == [517, 688, 1005, 1210, 1350]
     assert all("Overwhelm" in unit.keywords for unit in positive.enemy_units)
     negative = _parser().parse(_load("1080p_units_combat.png"))
     assert all("Overwhelm" not in unit.keywords for unit in negative.enemy_units)

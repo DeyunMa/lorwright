@@ -147,9 +147,17 @@ def _orange_mask(hsv: np.ndarray) -> np.ndarray:
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
 
-def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[tuple[Rect, Rect]]:
+def _highlight_mask(hsv: np.ndarray) -> np.ndarray:
+    """紫色卡框特效也会覆盖数值底色；只作成对徽章的搜索起点。"""
+    return cv2.inRange(hsv, (120, 40, 120), (170, 255, 255))
+
+
+def _paired_stat_badges(
+    image: np.ndarray, plate: Rect, *, highlighted: bool = False,
+) -> list[tuple[Rect, Rect]]:
     """色块仅提供搜索起点；字形定位数值框，再核验左右底色与读数。"""
-    x0, y0 = max(0, plate.x - 10), max(0, plate.y - 5)
+    # 紫色可能只留在右侧生命框；仍须把左侧攻击框纳入同一对核验。
+    x0, y0 = max(0, plate.x - (74 if highlighted else 10)), max(0, plate.y - 5)
     # 高亮可连通整张卡框，攻击数字不一定在色块最左侧 90px 内。
     x1 = min(image.shape[1], plate.x + plate.w + 10)
     # 高亮可能把徽章连到整张卡框；敌我数值可分别在底部或顶部。
@@ -170,10 +178,14 @@ def _paired_stat_badges(image: np.ndarray, plate: Rect) -> list[tuple[Rect, Rect
             continue
         attack_patch = image[attack.y + 5:attack.y + 43, attack.x + 5:attack.x + 51]
         health_patch = image[health.y + 5:health.y + 43, health.x + 5:health.x + 51]
-        orange = _orange_mask(cv2.cvtColor(attack_patch, cv2.COLOR_BGR2HSV))
+        attack_hsv = cv2.cvtColor(attack_patch, cv2.COLOR_BGR2HSV)
+        orange = _orange_mask(attack_hsv)
         hsv = cv2.cvtColor(health_patch, cv2.COLOR_BGR2HSV)
         red_mask = (cv2.inRange(hsv, (0, 120, 100), (10, 255, 255))
                     | cv2.inRange(hsv, (170, 120, 100), (180, 255, 255)))
+        if highlighted:
+            orange |= _highlight_mask(attack_hsv)
+            red_mask |= _highlight_mask(hsv)
         if float((orange > 0).mean()) < 0.2 or float((red_mask > 0).mean()) < 0.2:
             continue
         if (_DEFAULT_STATS.read_badge(image, attack) is not None
@@ -225,6 +237,16 @@ def find_unit_badges(
         )
     if enemy:
         candidates.extend(_pink_enemy_badges(image, region, _keyword_icons(image, region, "elusive")))
+    # 紫色高亮不能直接按普通橙色方块接受：必须恢复左右框并读到两个数值。
+    # 相同分数下保留原定位点，避免光效恢复点改变已有单位的图标归属。
+    _, _, highlighted_stats, _ = cv2.connectedComponentsWithStats(_highlight_mask(hsv))
+    for x, y, w, h, area in highlighted_stats[1:]:
+        if area < 500 or w < 30 or h < 30:
+            continue
+        for rect, health_rect in _paired_stat_badges(
+            image, Rect(region.x + int(x), region.y + int(y), int(w), int(h)), highlighted=True,
+        ):
+            candidates.append(UnitBadge(rect.center, min(1.0, area / 2000.0), rect, health_rect))
 
     # 间距抑制：同卡上的 buff 图标紧挨着真方块，留面积大的那个
     candidates.sort(key=lambda b: -b.score)

@@ -51,7 +51,9 @@ class UnitStatsReader:
         buffed = (green >= 180) & (red <= 120) & (blue <= 120)
         masks = [white, buffed]
         if health:
-            masks.append((red >= 180) & (green <= 80) & (blue <= 80))
+            # 高亮会抬高红字的蓝绿通道；以红色优势保留笔画，亮度门槛不变。
+            red_contrast = red.astype(np.int16) - np.maximum(green, blue)
+            masks.append((red >= 180) & (red_contrast >= 80))
         # 字色分别分类，避免白色高亮和绿色数字拼成同一串；颜色读数冲突时弃权。
         values = {value for mask in masks
                   if (value := self._read_mask(mask.astype(np.uint8) * 255)) is not None}

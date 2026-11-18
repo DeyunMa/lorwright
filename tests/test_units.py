@@ -135,6 +135,53 @@ def test_wide_highlighted_frame_requires_paired_badge_evidence(side, damage):
     assert find_unit_badges(image, Rect(280, 240, 1340, 240), enemy=True) == []
 
 
+@pytest.mark.parametrize("name", ["stop", "current"])
+@pytest.mark.parametrize("offset", [(0, 0), (110, -45), (-120, -30)])
+def test_purple_highlighted_badges_keep_four_paired_units(name, offset):
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = cv2.imread(str(SCREENS / f"f1-squirrel-highlighted-{name}-20261118.png"))
+    dx, dy = offset
+    image = cv2.warpAffine(image, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+    units = to_units(find_unit_badges(image, Rect(200 + dx, 820 + dy, 1500, 260)), image=image)
+    assert [(unit.attack, unit.health) for unit in units] == [(4, 3), (3, 1), (6, 6), (9, 10)]
+
+
+@pytest.mark.parametrize("name", ["stop", "current"])
+@pytest.mark.parametrize("left", [642, 817, 991, 1166])
+@pytest.mark.parametrize("side", [0, 64])
+@pytest.mark.parametrize("damage", ["badge", "number"])
+def test_purple_highlight_requires_both_badges_and_readable_numbers(name, left, side, damage):
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = cv2.imread(str(SCREENS / f"f1-squirrel-highlighted-{name}-20261118.png"))
+    patch = image[858:896, left + side + 5:left + side + 51]
+    if damage == "badge":
+        patch[:] = 0
+    else:
+        blue, green, red = (patch[:, :, i] for i in range(3))
+        digits = ((patch.min(axis=2) >= 170)
+                  | ((green >= 180) & (red <= 120) & (blue <= 120))
+                  | ((red >= 180) & (red.astype(np.int16) - np.maximum(green, blue) >= 80)))
+        patch[digits] = 0
+    units = to_units(find_unit_badges(image, MY_BOARD), image=image)
+    assert len(units) == 3
+    assert all(abs(unit.rect.center[0] - (left + 68)) > 40 for unit in units)
+
+
+@pytest.mark.parametrize("color,expected", [((100, 100, 200), 3),
+                                            ((0, 0, 179), None),
+                                            ((140, 140, 200), None)])
+def test_tinted_red_health_keeps_brightness_and_color_contrast_requirements(color, expected):
+    from lorwright.core.perceive.unit_stats import UnitStatsReader
+
+    crop = cv2.imread(str(SCREENS / "f1-squirrel-highlighted-current-20261118.png"))
+    patch = crop[858:896, 711 - 320:757 - 320]
+    blue, green, red = (patch[:, :, i] for i in range(3))
+    glyph = (red >= 180) & (red.astype(np.int16) - np.maximum(green, blue) >= 80)
+    image = np.zeros((48, 56, 3), np.uint8)
+    image[5:43, 5:51][glyph] = color
+    assert UnitStatsReader().read_badge(image, Rect(0, 0, 56, 48), health=True) == expected
+
+
 def test_idle_state_units_are_found() -> None:
     """待命状态（蓝色发光描边）也要认得出 —— 这是整局不攻击的根因。"""
     img = cv2.imread(str(SCREENS / "1080p_units_idle.png"))

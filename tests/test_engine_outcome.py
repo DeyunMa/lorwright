@@ -591,6 +591,46 @@ def engine_for(monkeypatch, states, actions, timeout=8, *, check_readiness=False
     return engine, device, router, events, snapshots
 
 
+def test_generic_play_resource_refill_reroutes_without_success_callback(monkeypatch):
+    """按 seq220–258 构造状态时序；不是中间动画实拍回放。"""
+    from lorwright.core.champions.jinx.policy import JinxOpeningPolicy
+
+    cards = [CardInHand(i, "應急裝置" if i == 5 else "", 1,
+                        Rect(400 + i * 150, 839, 8, 8)) for i in range(7)]
+    before = ready(hand=cards, hand_expanded=True, mana=0, spell_mana=3,
+                   my_units=[Unit("", 4, 3, Rect(800, 850, 8, 8))],
+                   enemy_nexus_hp=10,
+                   readings={"mana": Reading(0, 0), "spell_mana": Reading(3, 0)})
+    animation = replace(before, ui_state=UIState.UNKNOWN, hand=cards[:5], readings={})
+    refill = replace(before, hand_expanded=False, mana=4, enemy_nexus_hp=18,
+                     my_units=[*before.my_units, Unit("", 3, 1, Rect(1000, 850, 8, 8))],
+                     readings={"mana": Reading(4, 0), "spell_mana": Reading(3, 0)})
+    policy = JinxOpeningPolicy()
+    action = policy.decide(before)
+    assert action.card_index == 5
+    states = [before, before, *([animation] * 5), refill, refill]
+    engine, device, router, events, snapshots = engine_for(
+        monkeypatch, states, [action, action, Action(ActionType.NO_OP), Action(ActionType.NO_OP)],
+        check_readiness=True,
+    )
+    router.layers = [policy]
+    callbacks = []
+    monkeypatch.setattr(policy, "on_action_outcome", lambda *args: callbacks.append(args))
+    clock = [0, 0, 1, 2, 3, 4, 5, 7.6, 8.2]
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
+                        lambda: clock[device.frames - 1])
+    result = engine.run(max_ticks=9)
+    outcomes = [event for event in events if event.get("event") == "action_outcome"]
+    assert outcomes[-1]["status"] == "needs_input"
+    assert outcomes[-1]["reason"] == "play_result_obscured_by_resource_refill"
+    assert all(event["status"] != "succeeded" for event in outcomes)
+    assert router.calls == 4
+    assert result.reason == "tick_limit" and snapshots == []
+    assert len(device.drags) == 1 and device.taps == []
+    assert callbacks == [] and policy.step == 0
+    assert engine._pending is None and engine._staged_play is None
+
+
 def test_readiness_uses_fresh_selected_slot_and_resets_after_each_input(monkeypatch):
     before = ready(hand_expanded=True, hand=[CardInHand(0, "known", 1, Rect(200, 900, 80, 100))])
     moved = replace(before, hand=[replace(before.hand[0], rect=Rect(400, 900, 80, 100))])

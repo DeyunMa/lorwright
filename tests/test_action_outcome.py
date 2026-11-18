@@ -27,6 +27,58 @@ def state(**kwargs):
     return GameState(**defaults)
 
 
+def test_play_cross_view_resource_refill_reroutes_without_claiming_success():
+    # seq220→252 的资源/视图模式；没有中间实拍，不能推断支付或出牌成功。
+    before = state(mana=0, spell_mana=3,
+                   readings={"mana": Reading(0, 0), "spell_mana": Reading(3, 0)})
+    after = state(mana=4, spell_mana=3, hand_expanded=False,
+                  readings={"mana": Reading(4, 0), "spell_mana": Reading(3, 0)})
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)
+    outcome = pending.observe(after, 7.6)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "play_result_obscured_by_resource_refill"
+    assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
+
+
+@pytest.mark.parametrize("change", ["unknown", "before_stale", "after_stale", "missing_spell",
+                                    "no_refill", "no_net_refill", "same_view"])
+def test_play_resource_refill_reroute_requires_fresh_cross_view_evidence(change):
+    before = state(mana=0, spell_mana=3,
+                   readings={"mana": Reading(0, 0), "spell_mana": Reading(3, 0)})
+    after = state(mana=4, spell_mana=3, hand_expanded=False, my_units=units(850, 850),
+                  readings={"mana": Reading(4, 0), "spell_mana": Reading(3, 0)})
+    if change == "unknown":
+        after = replace(after, ui_state=UIState.UNKNOWN)
+    elif change == "before_stale":
+        before = replace(before, readings={"mana": Reading(0, 1), "spell_mana": Reading(3, 0)})
+    elif change == "after_stale":
+        after = replace(after, readings={"mana": Reading(4, 0), "spell_mana": Reading(3, 1)})
+    elif change == "missing_spell":
+        after = replace(after, spell_mana=None, readings={"mana": Reading(4, 0)})
+    elif change == "no_refill":
+        after = replace(after, mana=0, readings=before.readings)
+    elif change == "no_net_refill":
+        after = replace(after, mana=2, spell_mana=1,
+                        readings={"mana": Reading(2, 0), "spell_mana": Reading(1, 0)})
+    else:
+        after = replace(after, hand_expanded=True)
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8)
+    assert pending.observe(after, 7).status is OutcomeStatus.WAITING
+
+
+def test_resource_refill_does_not_bypass_special_play_expectation():
+    from lorwright.core.decide.base import PlayExpectation
+
+    before = state(mana=0, spell_mana=3,
+                   readings={"mana": Reading(0, 0), "spell_mana": Reading(3, 0)})
+    after = state(mana=4, spell_mana=3, hand_expanded=False,
+                  readings={"mana": Reading(4, 0), "spell_mana": Reading(3, 0)})
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, 0), before, 8,
+                            play_expectation=PlayExpectation(lambda _: False, "specific", 8))
+    assert pending.observe(after, 7.6).status is OutcomeStatus.WAITING
+    assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
+
+
 def test_play_yields_to_discard_without_notifying_play_success():
     before = state()
     after = state(ui_state=UIState.DISCARD, hand=[])

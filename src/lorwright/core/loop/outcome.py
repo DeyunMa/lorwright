@@ -112,6 +112,17 @@ class ActionOutcome:
                     or (known and len(after.my_units) > len(before.my_units))
                 ):
                     reason = "hand_reduced_and_mana_or_board_changed"
+                elif (before.ui_state is after.ui_state is UIState.MY_TURN_IDLE
+                      and not after.hand_expanded
+                      and before.has_fresh_readings("mana", "spell_mana")
+                      and after.has_fresh_readings("mana", "spell_mana")
+                      and before.spell_mana is not None and after.spell_mana is not None
+                      and after.mana > before.mana
+                      and after.mana + after.spell_mana > before.mana + before.spell_mana):
+                    # 跨视图牌数不可比较，资源回填又掩盖了支付；新鲜行动页
+                    # 只支持重新决策，不通知出牌成功或推进英雄阶段。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT,
+                                   "play_result_obscured_by_resource_refill")
             elif kind is ActionType.DISCARD_CARD:
                 if (before.ui_state is UIState.DISCARD and after.ui_state in {
                     UIState.MY_TURN_IDLE, UIState.ENEMY_TURN, UIState.COMBAT_RESOLVING,

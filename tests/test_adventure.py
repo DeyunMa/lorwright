@@ -1653,6 +1653,75 @@ def test_hero_item_reward_wrong_selected_hero_stops(adventure):
     assert saved == ["hero_item_wrong_hero"]
 
 
+def _hero_item_tooltip_frames():
+    folder = FIXTURES.parent / "hero_item_reward"
+    tooltip = _blank()
+    tooltip[:, 350:1500] = cv2.imread(str(folder / "f1-selected-tooltip-20261118.png"))
+    # 合成关闭后的可见边框：仅恢复被提示遮挡的核验条带，不当作实机关闭证据。
+    clear = tooltip.copy()
+    reference = cv2.imread(str(folder / "both-selected.png"))
+    clear[245:625, 642:646] = reference[245:625, 642:646]
+    return tooltip, clear
+
+
+@pytest.mark.parametrize("reentry", [False, True])
+def test_hero_item_tooltip_dismisses_once_then_reverifies(adventure, monkeypatch, reentry):
+    from lorwright.core.perceive.reward_screen import hero_item_hero_selection
+
+    tooltip, clear = _hero_item_tooltip_frames()
+    assert hero_item_hero_selection(tooltip) is None
+    assert hero_item_hero_selection(clear) == 0
+    before = clear.copy()
+    if not reentry:
+        reference = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "jinx-selected.png"))
+        before[690:816, 471:475] = reference[690:816, 471:475]
+        before[960:1045, 800:1120] = reference[960:1045, 800:1120]
+    after = _blank()
+    frames = [clear, after] if reentry else [tooltip, clear, after]
+    loop, device, _, saved, _ = adventure(frames, [])
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop.rng, "choice", lambda options: options[0])
+    monkeypatch.setattr(loop, "_recognized_after_home", lambda frame: not frame.any())
+    assert loop._handle_hero_item_reward(tooltip if reentry else before) is not None
+    assert device.taps == ([] if reentry else [(615, 750)]) + [(1500, 900), (960, 1003)]
+    assert saved == []
+
+
+@pytest.mark.parametrize("successor", ["tooltip", "unknown", "changed_items", "changed_selection"])
+def test_hero_item_tooltip_unverified_successor_never_confirms_or_reselects(adventure, successor):
+    tooltip, clear = _hero_item_tooltip_frames()
+    if successor == "changed_items":
+        clear[700:744, 906:1036] = 0
+    elif successor == "changed_selection":
+        clear[690:816, 471:475] = clear[690:816, 815:819]
+    after = tooltip if successor == "tooltip" else _blank() if successor == "unknown" else clear
+    loop, device, _, saved, _ = adventure([after], [])
+    loop.pack = load("jinx")
+    assert loop._handle_hero_item_reward(tooltip) is None
+    assert device.taps == [(1500, 900)]
+    assert saved == ["hero_item_selection_unverified"]
+
+
+@pytest.mark.parametrize("damage", ["page", "heroes", "items", "button", "selection"])
+def test_hero_item_tooltip_requires_reward_evidence_before_dismiss(adventure, damage):
+    image, _ = _hero_item_tooltip_frames()
+    if damage == "page":
+        image[18:110, 760:1160] = 0
+    elif damage == "heroes":
+        image[275:455, 680:875] = 0
+    elif damage == "items":
+        image[700:744, 906:1036] = 0
+    elif damage == "button":
+        image[960:1045, 800:1120] = 0
+    else:
+        image[690:816, 471:475] = 0
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    assert loop._handle_hero_item_reward(image) is None
+    assert device.taps == []
+    assert saved == ["hero_item_selection_unverified"]
+
+
 def test_hero_item_reentry_confirms_without_new_choice(adventure, monkeypatch):
     image = cv2.imread(str(FIXTURES.parent / "hero_item_reward" / "both-selected.png"))
     after = _blank()

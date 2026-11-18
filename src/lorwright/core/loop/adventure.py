@@ -844,7 +844,39 @@ class AdventureLoop:
         return self.normalizer.fit(image)
 
     def _handle_hero_item_reward(self, image):
-        normalized = self._reward_design(image)
+        overlay_dismissed = False
+
+        def observe_selection():
+            nonlocal image, overlay_dismissed
+            normalized = self._reward_design(image)
+            if normalized is None:
+                return None
+            design, scale = normalized
+            if overlay_dismissed or hero_item_hero_selection(design) is not None:
+                return normalized
+            heroes = recognize_hero_item_cards(design)
+            items = recognize_hero_items(design)
+            index = hero_item_item_selection(design)
+            if (heroes is None or self.pack.name not in heroes or items is None
+                    or index is None or index < 0 or not hero_item_choose_enabled(design)):
+                return normalized
+            # 道具关键词提示会遮住英雄边框；已知奖励页右下空白只点一次，
+            # 重新采图后仍按完整边框核验，不能因按钮启用就直接确认。
+            overlay_dismissed = True
+            self._tap(*scale.to_device(1500, 900))
+            self._wait(2, reason="hero_item_overlay_dismiss", wait_s=2)
+            image = self._frame()
+            normalized = self._reward_design(image)
+            if normalized is None:
+                return None
+            after = normalized[0]
+            if (recognize_hero_item_cards(after) != heroes
+                    or recognize_hero_items(after) != items
+                    or hero_item_item_selection(after) != index):
+                return None
+            return normalized
+
+        normalized = observe_selection()
         if normalized is None:
             self._snapshot(image, tag="hero_item_selection_unverified")
             return
@@ -865,7 +897,7 @@ class AdventureLoop:
             self._tap(*scale.to_device((780, 1125)[hero_index], 430))
             self._wait(2, reason="hero_item_hero_selection", wait_s=2)
             image = self._frame()
-            normalized = self._reward_design(image)
+            normalized = observe_selection()
             if normalized is None:
                 self._snapshot(image, tag="hero_item_hero_unverified")
                 return
@@ -892,7 +924,7 @@ class AdventureLoop:
             self._tap(*scale.to_device((615, 960, 1300)[item_index], 750))
             self._wait(2, reason="hero_item_selection", wait_s=2)
             image = self._frame()
-            normalized = self._reward_design(image)
+            normalized = observe_selection()
             if normalized is None:
                 self._snapshot(image, tag="hero_item_selected_unverified")
                 return None

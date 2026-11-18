@@ -34,6 +34,15 @@ def remaining_frame():
     return frame
 
 
+def test_remaining_astrologer_purchased_map_reads_nine():
+    frame = cv2.imread(str(Path(__file__).parent /
+                           "fixtures/screens/f1-astrologer-remaining-purchased-map-20261118.png"))
+    assert frame is not None
+    assert astrologer_map_gold(frame) == 970
+    frame[1012:1031, 483:496] = 0
+    assert astrologer_map_gold(frame) != 970
+
+
 def test_remaining_astrologer_reads_balance_four():
     assert astrologer_gold(remaining_frame()) == 1470
 

@@ -460,6 +460,17 @@ def test_inspect_board_collapses_once_then_attacks(monkeypatch):
     assert len(device.drags) == 1
 
 
+def test_policy_end_turn_inspects_board_before_finishing(monkeypatch):
+    card = CardInHand(0, "spell", 3, Rect(400, 800, 80, 100))
+    expanded = ready(hand=[card], hand_expanded=True, has_attack_token=True)
+    engine, device, router, _, _ = engine_for(monkeypatch, [expanded], [Action(ActionType.END_TURN)])
+    engine.layout.collapse_hand_point = Rect(499, 619, 2, 2)
+    decide = router.decide
+    monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="elise"))
+    engine.run(max_ticks=1)
+    assert device.taps == [(500, 620)]
+
+
 def test_expanded_attack_collapses_before_using_fresh_unit_coordinates(monkeypatch):
     from lorwright.core.decide.generic import AttackWhenTokenPolicy, ExpandHandPolicy
     from lorwright.core.decide.router import Router as RealRouter
@@ -1524,7 +1535,8 @@ def test_stale_mulligan_decision_does_not_skip_to_confirmation(monkeypatch):
 
 @pytest.mark.parametrize("ui_state", [UIState.COMBAT_RESOLVING, UIState.MULLIGAN])
 @pytest.mark.parametrize("settled", [True, False])
-def test_phase_confirm_waits_for_settlement_without_repeating(monkeypatch, settled, ui_state):
+@pytest.mark.parametrize("layer", ["combat_confirm", "elise"])
+def test_phase_confirm_waits_for_settlement_without_repeating(monkeypatch, settled, ui_state, layer):
     # 换牌确认案例依据 f1 会话 20261117T014309-ca7207857b14 的事件时序构造。
     combat = ready(ui_state=ui_state)
     animation = replace(combat, ui_state=UIState.UNKNOWN)
@@ -1533,9 +1545,8 @@ def test_phase_confirm_waits_for_settlement_without_repeating(monkeypatch, settl
         monkeypatch, [combat, animation, final],
         [Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
     )
-    if ui_state is UIState.COMBAT_RESOLVING:
-        decide = router.decide
-        monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer="combat_confirm"))
+    decide = router.decide
+    monkeypatch.setattr(router, "decide", lambda state: replace(decide(state), layer=layer))
     clock = [0.0]
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
     build = engine._build_state

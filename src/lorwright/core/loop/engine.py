@@ -442,8 +442,7 @@ class Engine:
                         and (result.action.type is ActionType.ATTACK
                              or (result.action.type is ActionType.NO_OP
                                  and result.action.raw.get("inspect_board") is True)
-                             or (result.layer == "fallback"
-                                 and result.action.type is ActionType.END_TURN))):
+                             or result.action.type is ActionType.END_TURN)):
                     result.action = Action(type=ActionType.COLLAPSE_HAND)
                     result.layer = "inspect_board"
                     result.reason = "展开手牌可能遮挡友军，先收起并重新评估攻击"
@@ -562,8 +561,7 @@ class Engine:
                                 or (result.action.type is ActionType.CONFIRM
                                     and (self._staged_play is not None
                                          or state.ui_state is UIState.MULLIGAN
-                                         or (state.ui_state is UIState.COMBAT_RESOLVING
-                                             and result.layer == "combat_confirm")))):
+                                         or state.ui_state is UIState.COMBAT_RESOLVING))):
                             # 换牌入场、回合结束、法术和战斗确认可能超过普通观察窗口。
                             timeout = max(timeout, 20.0)
                         self._pending = self._make_outcome(result.action, state, timeout)

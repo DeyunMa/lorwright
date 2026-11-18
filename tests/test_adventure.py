@@ -2479,3 +2479,13 @@ def test_map_next_node_wait_zooms_once_when_occluded_short_edge_settles(adventur
     assert abs(device.taps[1][0] - 1062) <= 20
     assert abs(device.taps[1][1] - 331) <= 20
     assert saved == ["map_panel_not_open"]
+
+
+def test_resume_silver_vault_closes_settlement(adventure):
+    vault = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-vault-20261118.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    assert vault is not None and home is not None
+    loop, device, _, _, _ = adventure([vault, vault, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "reward_settlement_closed")
+    assert loop._details["settlement_closed"] is True
+    assert device.taps == [(959, 955)]

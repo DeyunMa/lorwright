@@ -46,6 +46,8 @@
 
 ## 最新会话与现场
 
+- **第三个每周冒险首领胜利**：f1 `28972c0` 通过 Windows 首领寻路专项 8 项。`20261118T083453-9e15404b8b78` 自动选中首领、旅行、进入战斗并获胜。655 条连续事件已核验，seq 626/635 各一次继续输入，随后停在 `adventure_victory_transition_unverified`。独立新图和停止图均为「白銀寶庫」。新增独立宝库阶段，以标题和图标核验，继续沿用单次点击和后继检查。退出结算及 3/3 待核验。
+
 - **首领地图节点**：f1 `b97ce1e` 的 12 项 Windows 专项通过。恢复会话 `20261118T080246-12057dbd4d25` 共 40 条连续事件，地图上没有发出输入，终态为 `map_no_next`。重启后的地图视角已改变，当前亮线通向画面顶部的金色翼章。停止 PNG 的普通圆环采样越过上缘，独立 JPEG 又把亮塔墙识别为小圆节点。首领外观使用金色内环、深色中心及同一条亮线的青色外环核验，保留锁、完成勾及遮挡检查；增加过亮中心拒识。两张完整实拍离线均只返回首领节点。实机结算与每周 3/3 待核验。
 
 - **聰慧學者胜利领奖与回图转场短边缩放**：`60130b6` 已安全快进部署至 f1，Windows `tests/test_perception.py` + `tests/test_unknown_unit_visual.py` 52 passed（6.98 秒）。恢复会话 `20261118T072303-292618c2a9ab` 自动完成重连重启后的登录，随后 `20261118T072527-c1817b69cd50`（完整 461 条事件信封、run_id 与连续 seq 已核验）从 7 血逆转战胜「聰慧學者」（seq 382 `battle_end`）、完成结算继续（seq 412）、选中并确认 2 费卡牌奖励（seq 426/431 `card_reward_transition`），返回地图后在 seq 461 以 `map_no_next` 停止。停止原帧与实时 ADB 截图已核验：Jinx 位于已完成菱形战斗节点上方 `(1040,452)`，左上方未完成圆环节点 `(989,357)` 距起点 `181px`，发光短边穿过头像后剩余净距 `17px <= 32px`，`occluded_route_zoom_button` 在停止帧返回 `(1795,270,55,55)`；但回图首帧（点击卡牌确认后 3.1 秒）尚在转场动画中，进入 `map_next_node` 6 次轮询后原循环仅调用 `_find_next` 而未检查 `occluded_route_zoom_button`，错失稳定后的单次放大取证。现已在 `map_next_node` 轮询帧同样接入 `occluded_route_zoom_button` 单次放大核验，并在成功完成节点面板或进入战斗后重置 `route_zoom_used`。新增回归 `test_map_next_node_wait_zooms_once_when_occluded_short_edge_settles` 在旧代码失败，修复后通过。

@@ -47,6 +47,8 @@
 
 `screens/weekly-one-remaining.png` 是 `20261118T024044-7b052ce9bb9f` 处理任务奖励并进入每周入口后的独立稳定 ADB JPEG 转 PNG，已查看无账号。两个不同肖像的绿色完成勾与上方 2 星时钟证明当前为 2/3 完成；原整块灰度模板漏掉左勾（0.8392，低于 0.88）。`weekly_completed_check.png` 来自左勾 `[650:700,675:735]` 的绿色二值字形；不包含肖像。三关完成测试由复制完成标记合成，不能当作实机三关通关证据。
 
+`continue/f1-silver-vault-20261118.png` 保留 `20261118T083453-9e15404b8b78` 独立 JPEG 的标题、图标和继续控件区。`assets/adventure/silver_vault_title.png` 取同会话停止 PNG 的标题。后继主页复用既有实拍组成离线序列。
+
 `continue/f1-silver-relic-chest.png` 和 `f1-silver-relic-converted.png` 为 `20261118T022949-d467c3a40b23` 结算继续后及单次诊断开箱后的稳定 ADB JPEG 转 PNG，均已逐张查看无账号，分别包含白银箱与重复圣物转为星尘的界面。运行素材 `silver_relic_title/icon/chest` 和 `relic_reward_frame_top/bottom` 从对应完整图裁剪；卡框仅核验结构，不识别圣物效果或推断到账。动画隐藏按钮、遮挡和调暗为合成回归。
 
 `continue/f1-adventure-rewards-content.png` 来自会话 `20261118T022351-b3bdec02acd8` 点击最终页继续后的独立 ADB JPEG，仅保存 `[350:1020,350:1500]`（1150×670）奖励区及按钮，已查看无账号。`assets/adventure/adventure_hero_xp.png` 是同图 `[630:667,500:690]` 英雄经验文字裁剪。测试将该内容与既有脱敏胜利标签组合，属于合成页面，不代表完整实机录像；运行识别同时要求胜利与经验标签，奖励种类和数量不作为页面身份。

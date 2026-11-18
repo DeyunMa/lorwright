@@ -57,6 +57,14 @@ def is_adventure_victory(image: np.ndarray) -> bool:
     )
 
 
+def is_adventure_rewards(image: np.ndarray) -> bool:
+    """胜利后的奖励汇总：胜利文字与英雄经验标签同时可见，不依赖奖励数值。"""
+    if image.shape != (1080, 1920, 3):
+        return False
+    return (_visible(image, "adventure_victory_label", (205, 96, 288, 146))
+            and _visible(image, "adventure_hero_xp", (450, 610, 920, 680), text_min=100))
+
+
 def result_screen(image: np.ndarray) -> str | None:
     """识别已采样的结算页；输入应为 1920×1080 设计帧。"""
     if image.shape != (1080, 1920, 3):

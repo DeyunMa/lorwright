@@ -8,6 +8,7 @@ import pytest
 from lorwright.core.models import UIState
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.result_screen import (
+    is_adventure_rewards,
     is_adventure_victory,
     is_result_transition,
     is_task_reward,
@@ -107,6 +108,23 @@ def test_adventure_victory_requires_all_three_visible_labels(name):
         obscured = image.copy()
         obscured[y1:y2, x1:x2] = 0
         assert not is_adventure_victory(obscured)
+
+
+def test_adventure_rewards_require_victory_and_hero_experience_labels():
+    image = _load("f1-adventure-victory-20261116.png")
+    image[250:] = 0
+    image[350:1020, 350:1500] = cv2.imread(str(FIXTURES / "f1-adventure-rewards-content.png"))
+    assert is_adventure_rewards(image)
+    assert not is_adventure_victory(image)
+    for bounds in ((205, 96, 288, 146), (450, 610, 920, 680)):
+        obscured = image.copy()
+        x1, y1, x2, y2 = bounds
+        obscured[y1:y2, x1:x2] = 0
+        assert not is_adventure_rewards(obscured)
+    assert not is_adventure_rewards((image * 0.6).astype("uint8"))
+    assert not is_adventure_rewards(_load("f1-adventure-victory-20261116.png"))
+    image[680:850] = 0
+    assert is_adventure_rewards(image)
 
 
 def test_task_reward_requires_fixed_title_and_icon_not_task_or_prize():

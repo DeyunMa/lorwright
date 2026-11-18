@@ -245,6 +245,22 @@ def test_final_victory_missing_continue_never_taps(adventure):
     assert device.taps == []
 
 
+@pytest.mark.parametrize("resume_rewards", [False, True])
+def test_final_victory_closes_reward_summary_before_completing(adventure, resume_rewards):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    rewards = victory.copy()
+    rewards[250:] = 0
+    rewards[350:1020, 350:1500] = cv2.imread(
+        str(FIXTURES.parent / "continue/f1-adventure-rewards-content.png"),
+    )
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    frames = [rewards, rewards, home] if resume_rewards else [victory, victory, rewards, rewards, home]
+    loop, device, _, _, _ = adventure(frames, [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == (1 if resume_rewards else 2)
+    assert loop._details["settlement_closed"] is True
+
+
 def test_final_victory_continues_once_and_verifies_outer_screen(adventure):
     from lorwright.core.perceive.buttons import find_continue_button
 
@@ -1284,7 +1300,8 @@ def test_different_result_pages_can_have_continue_in_same_place(adventure):
     assert all(image is not None for image in images)
     images = [cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_AREA)
               for image in images]
-    images[0][96:146, 205:288] = 0  # 合成普通结算页，专测同坐标按钮的转场。
+    for image in images:
+        image[96:146, 205:288] = 0  # 合成普通结算页，专测同坐标按钮的转场。
     loop, device, _, saved, _ = adventure(
         images + [_blank()] * 6,
         [UIState.BATTLE_END, UIState.BATTLE_END, UIState.BATTLE_END],

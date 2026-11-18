@@ -146,11 +146,29 @@ def find_resume_adventure_button(image: np.ndarray) -> Rect | None:
     return button if button_is(image, button, "resume_adventure") else None
 
 
+@cache
+def _shop_title_gold_mask() -> np.ndarray | None:
+    template = cv2.imread(str(_ASSETS / "shop_title.png"))
+    if template is None:
+        return None
+    return cv2.inRange(cv2.cvtColor(template, cv2.COLOR_BGR2HSV),
+                       (8, 100, 120), (35, 255, 255))
+
+
 def shop_leave_button(image: np.ndarray) -> Rect | None:
     """商店标题和明亮的离开文字同时可见才允许离开。"""
     if image.shape != (1080, 1920, 3):
         return None
-    if not _matches(image, "shop_title", (545, 345, 715, 430), 0.94):
+    title = _shop_title_gold_mask()
+    if title is None or not np.any(title):
+        return None
+    gold = cv2.inRange(cv2.cvtColor(image[345:430, 545:715], cv2.COLOR_BGR2HSV),
+                       (8, 100, 120), (35, 255, 255))
+    # 核验至少 98% 金色字迹；商人画像会变化，模板中的背景不参与授权。
+    coverage = cv2.matchTemplate(gold, title, cv2.TM_CCORR).max() / (
+        np.count_nonzero(title) * 255.0 * 255.0
+    )
+    if coverage < 0.98:
         return None
     if not _matches(image, "shop_leave", (630, 970, 760, 1040), 0.94):
         return None

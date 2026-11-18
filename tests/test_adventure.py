@@ -1214,6 +1214,41 @@ def test_item_chest_identity_does_not_match_other_nodes():
     assert item_chest_leave_button(_item_chest_panel()[:540, :960]) is None
 
 
+def _remaining_shop():
+    image = _blank()
+    image[340:1060, 530:975] = _img("f1-shop-20261118.png")
+    return image
+
+
+def test_shop_with_different_merchant_leaves_and_verifies_map(adventure):
+    from lorwright.core.perceive.adventure_scene import shop_leave_button
+
+    shop = _remaining_shop()
+    assert shop_leave_button(shop) is not None
+    loop, device, _, saved, _ = adventure(
+        [_img("f1-shop-leave-stable-20261116.jpg")], [],
+    )
+    assert loop._handle_shop(shop)
+    assert device.taps == [(691, 1004)]
+    assert saved == []
+
+
+@pytest.mark.parametrize("damage", ["title", "leave", "dimmed", "partial_title"])
+def test_remaining_shop_requires_visible_title_and_leave(damage):
+    from lorwright.core.perceive.adventure_scene import shop_leave_button
+
+    shop = _remaining_shop()
+    if damage == "title":
+        shop[345:430, 545:715] = 0
+    elif damage == "leave":
+        shop[984:1025, 648:735] = 0
+    elif damage == "partial_title":
+        shop[362:415, 620:675] = 0
+    else:
+        shop //= 2
+    assert shop_leave_button(shop) is None
+
+
 def test_shop_leaves_once_and_waits_if_result_is_not_map(adventure):
     shop = _img("f1-shop-20261114.png")
     loop, device, _, saved, _ = adventure([shop, shop], [])

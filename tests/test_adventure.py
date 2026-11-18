@@ -2427,3 +2427,36 @@ def test_weekly_transition_obeys_cooperative_stop(adventure, monkeypatch):
         loop.run(max_nodes=3)
     assert len(device.taps) == 1
     assert saved == []
+
+
+def test_node_travel_waits_past_in_transit_map_until_destination_panel_opens(adventure):
+    # 旅行点击后英雄先在无面板地图上移动（尚无下一可达节点），随后才弹出节点页面；
+    # 拼接既有实拍验证等待分支，不宣称单次连续录像。
+    in_transit_map = cv2.imread(str(FIXTURES.parent / "card_rewards" / "after.png"))
+    assert in_transit_map is not None
+    loop, device, _, saved, _ = adventure(
+        [
+            _img("1080p_node_panel.png"),
+            in_transit_map,
+            _remaining_shop(),
+            _img("f1-shop-leave-stable-20261116.jpg"),
+        ],
+        [],
+    )
+    loop.pack = load("jinx")
+    assert loop._handle_node_panel()
+    assert device.taps == [(817, 485), (691, 1004)]
+    assert saved == []
+
+
+def test_node_travel_staying_on_map_without_next_node_times_out_once(adventure):
+    in_transit_map = cv2.imread(str(FIXTURES.parent / "card_rewards" / "after.png"))
+    assert in_transit_map is not None
+    loop, device, _, saved, _ = adventure(
+        [_img("1080p_node_panel.png"), *([in_transit_map] * 11)],
+        [],
+    )
+    loop.pack = load("jinx")
+    assert not loop._handle_node_panel()
+    assert device.taps == [(817, 485)]
+    assert saved == ["panel_transition_timeout"]

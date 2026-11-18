@@ -1329,8 +1329,15 @@ class AdventureLoop:
                     return True
                 if is_power_screen(image):
                     return self._handle_power(image) is not None
-                if is_map(image) or is_battle_detail(image):
+                if is_battle_detail(image):
                     break
+                if is_map(image):
+                    if action != "travel" or panel_open(image):
+                        break
+                    # 旅行后回到无面板地图且已有下一可达节点：说明只是移动节点，继续下一轮。
+                    # 若尚无可达节点，说明英雄仍在路径移动或节点页面尚未弹出，继续观察等待。
+                    if self._find_next(image) is not None:
+                        return True
                 if attempt < 10:
                     self._wait(2, reason="node_transition", wait_s=24)
             else:
@@ -1339,9 +1346,6 @@ class AdventureLoop:
                     image, tag="panel_transition_timeout"
                 )
                 return False
-        # 旅行后回到地图：说明这个节点只是移动，继续下一轮找节点。
-        if last_action == "travel" and is_map(image) and self._find_next(image) is not None:
-            return True
         # 没有金色按钮（能力三选一／商店／信息面板）：不盲点，存快照停下。
         logger.warning("adventure: 面板未进入预期的下一阶段，停止（保存快照）")
         self._snapshot(

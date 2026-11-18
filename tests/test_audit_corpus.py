@@ -39,6 +39,18 @@ def test_prepare_canvas_restores_documented_crop_and_skips_tiny_icons() -> None:
     assert skip_mode == "skipped_16x24"
 
 
+def test_map_audit_requires_recognized_hero(monkeypatch) -> None:
+    mod = _load_audit_corpus()
+    monkeypatch.delattr(mod.mapnav_perceive, "recognize_map_token", raising=False)
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("must not infer a hero from the screen center")
+
+    monkeypatch.setattr(mod, "reachable_nodes", unexpected)
+    result = mod.evaluate_map_for_pack(np.zeros((1080, 1920, 3), dtype=np.uint8), mod.GenericPack())
+    assert result == {"hero_found": False, "reachable": 0, "zoom_needed": False, "actionable": False}
+
+
 def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
     mod = _load_audit_corpus()
     sample_files = [
@@ -55,6 +67,7 @@ def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
 
     synthetic_before = {
         "schema_version": 1,
+        "key_scheme": "sha256",
         "metrics": {**report["metrics"], "healer_actionable": 0},
         "records": [
             {**rec, "actionable": False} if rec["scene"] == "healer" else rec

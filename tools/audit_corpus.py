@@ -6,6 +6,9 @@
 2. 数字与数值提取完整度（法力、法术法力、双方血量、手牌费用、弃牌费用、单位攻防、卡牌奖励/援军/占星家/地图金币/每周星级）；
 3. 英雄解耦对比（同一批冒险与对局画面在 `jinx`、`elise` 及零素材 `generic` 包下的定位与可执行动作覆盖）；
 4. `--compare <before.json>` 输出修改前后的结构化指标增量与场景迁移明细。
+
+结果未经真值标注：场景数是分类输出，actionable 是局部启发式信号，
+均不代表准确率、运行时动作资格或成功率；裁图按尺寸放置，可能误配。
 """
 
 from __future__ import annotations
@@ -196,12 +199,8 @@ def _resolve_map_hero(canvas: np.ndarray, pack) -> tuple[int, int] | None:
 
 
 def evaluate_map_for_pack(canvas: np.ndarray, pack) -> dict:
-    recognize_hero = getattr(pack, "recognize_map_hero", None)
-    fallback = getattr(mapnav_perceive, "recognize_map_token", None)
     hero = _resolve_map_hero(canvas, pack)
-    if hero is None and recognize_hero is not None and fallback is None:
-        return {"hero_found": False, "reachable": 0, "zoom_needed": False, "actionable": False}
-    if hero is None and fallback is not None:
+    if hero is None:
         return {"hero_found": False, "reachable": 0, "zoom_needed": False, "actionable": False}
     nodes = reachable_nodes(canvas, hero=hero, rng=random.Random(0))
     kinds = [node_kind(canvas, node) for node in nodes]
@@ -264,6 +263,7 @@ def audit_corpus(directories: list[Path]) -> dict:
     for path in files:
         image = cv2.imread(str(path))
         if image is None:
+            metrics["unreadable_images"] += 1
             continue
         canvas, mode = prepare_canvas(image, normalizer)
         if canvas is None:
@@ -519,7 +519,8 @@ def audit_corpus(directories: list[Path]) -> dict:
             metrics["actionable_frames"] += 1
 
         records.append({
-            "key": f"{path.parent.name}/{path.name}",
+            "key": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "source": f"{path.parent.name}/{path.name}",
             "scene": scene,
             "actionable": actionable,
             "details": details,
@@ -528,6 +529,7 @@ def audit_corpus(directories: list[Path]) -> dict:
     return {
         "schema_version": 1,
         "unique_images": len(files),
+        "key_scheme": "sha256",
         "metrics": dict(sorted(metrics.items())),
         "scene_counts": dict(sorted(scene_counts.items())),
         "records": records,
@@ -536,6 +538,8 @@ def audit_corpus(directories: list[Path]) -> dict:
 
 def compare_reports(before: dict, after: dict) -> dict:
     """比较两次体检报告，返回指标增量与逐图场景迁移摘要。"""
+    if before.get("key_scheme") != "sha256" or after.get("key_scheme") != "sha256":
+        raise ValueError("reports must use sha256 keys; regenerate both with the same audit tool")
     all_metrics = sorted(set(before.get("metrics", {})) | set(after.get("metrics", {})))
     metric_deltas = {}
     for key in all_metrics:

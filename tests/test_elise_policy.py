@@ -6,7 +6,16 @@ import pytest
 
 from lorwright.core.champions.elise import SpiderAggroPolicy
 from lorwright.core.champions.elise.policy import rank_playable
-from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
+from lorwright.core.models import (
+    Action,
+    ActionType,
+    CardInHand,
+    GameState,
+    Reading,
+    Rect,
+    UIState,
+    Unit,
+)
 
 # 单位矩形放在己方半场（y≈905）：policy 用 y<800 判断「已拖到攻击行」，
 # 用 (0,0) 会被误判成已经声明过攻击
@@ -94,6 +103,18 @@ def test_elise_outranks_every_other_card():
         )
         ranked = rank_playable(state)
         assert ranked[0][1].name == "伊莉絲", f"伊莉絲 应该排在 {other.name} 前面"
+
+
+def test_spell_mana_only_applies_to_known_spells_with_fresh_reading():
+    cards = [hand(0, "傾巢而出", 6), hand(1, "群蛛之主", 5),
+             CardInHand(2, "未知", 5, RECT, visible_playable_unit=True)]
+    state = GameState(mana=3, spell_mana=3, hand=cards, readings={"spell_mana": Reading(3, 0)})
+    assert [card.index for card, _, _ in rank_playable(state)] == [0]
+    state.readings["spell_mana"] = Reading(3, 1)
+    assert rank_playable(state) == []
+    state.spell_mana = None
+    state.readings["spell_mana"] = Reading(3, 0)
+    assert rank_playable(state) == []
 
 
 def test_elise_is_chosen_over_cheaper_cards():

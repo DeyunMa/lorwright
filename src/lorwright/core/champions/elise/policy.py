@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from lorwright.core.champions.elise.deck import Effect, EliseCard, lookup
 from lorwright.core.decide.base import Policy
+from lorwright.core.decide.card import CardKind
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, UIState
 
 
@@ -80,11 +81,17 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
 
     playable: list[tuple[CardInHand, EliseCard, float]] = []
     for card in state.hand:
-        if not (0 <= card.cost <= max(0, state.mana)):
+        if card.cost < 0:
             continue
         if state.hand_expanded and not card.drag_point_valid:
             continue
         definition = lookup(card.name)
+        available_mana = max(0, state.mana)
+        if (definition is not None and definition.kind is CardKind.SPELL
+                and state.spell_mana is not None and state.has_fresh_readings("spell_mana")):
+            available_mana += max(0, state.spell_mana)
+        if card.cost > available_mana:
+            continue
         if definition is None:
             if board_full or not card.visible_playable_unit:
                 continue

@@ -245,6 +245,47 @@ def test_final_victory_missing_continue_never_taps(adventure):
     assert device.taps == []
 
 
+def test_relic_animation_waits_for_continue_before_single_input(adventure):
+    reward = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-relic-converted.png"))
+    animation = reward.copy()
+    animation[900:] = 0
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, _, _, _ = adventure([animation, animation, reward, reward, home], [])
+    assert loop.run(max_nodes=1).reason == "reward_settlement_closed"
+    assert len(device.taps) == 1
+
+
+@pytest.mark.parametrize("unchanged", [False, True])
+def test_resume_relic_reward_closes_without_claiming_victory(adventure, unchanged):
+    reward = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-relic-converted.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    after = [reward] * 6 if unchanged else [home]
+    loop, device, _, _, _ = adventure([reward, reward] + after, [])
+    result = loop.run(max_nodes=1)
+    assert result.reason == ("adventure_victory_transition_unverified" if unchanged
+                             else "reward_settlement_closed")
+    assert len(device.taps) == 1
+    assert loop._details["outcome"] == "unverified"
+
+
+def test_final_reward_chain_opens_relic_and_closes_converted_reward(adventure):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    rewards = victory.copy()
+    rewards[250:] = 0
+    rewards[350:1020, 350:1500] = cv2.imread(
+        str(FIXTURES.parent / "continue/f1-adventure-rewards-content.png"),
+    )
+    chest = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-relic-chest.png"))
+    converted = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-relic-converted.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, _, _, _ = adventure(
+        [victory, victory, rewards, rewards, chest, chest, converted, converted, home], [],
+    )
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 4
+    assert loop._details["settlement_closed"] is True
+
+
 @pytest.mark.parametrize("resume_rewards", [False, True])
 def test_final_victory_closes_reward_summary_before_completing(adventure, resume_rewards):
     victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))

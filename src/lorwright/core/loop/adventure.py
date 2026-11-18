@@ -72,8 +72,7 @@ from lorwright.core.perceive.mapnav import (
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.panels import action_button
 from lorwright.core.perceive.result_screen import (
-    is_adventure_rewards,
-    is_adventure_victory,
+    adventure_settlement,
     is_task_reward,
     result_screen,
 )
@@ -120,6 +119,7 @@ def _continue_view(image):
 
 
 class AdventureLoop:
+    SETTLEMENT_STAGES = ("victory", "rewards", "relic_chest", "relic_reward")
     BATTLE_STATES = {
         UIState.MULLIGAN,
         UIState.MY_TURN_IDLE,
@@ -180,8 +180,7 @@ class AdventureLoop:
             image = pending_image if pending_image is not None else self._frame()
             pending_image = None
             normalized = self._reward_design(image)
-            if normalized is not None and (is_adventure_victory(normalized[0])
-                                           or is_adventure_rewards(normalized[0])):
+            if normalized is not None and adventure_settlement(normalized[0]) is not None:
                 self._complete_adventure(image)
                 return
             if normalized is not None and is_task_reward(normalized[0]):
@@ -254,8 +253,7 @@ class AdventureLoop:
                 # 战斗结束后的地图背景不授权找节点，先核实奖励或结算页面。
                 for attempt in range(7):
                     design = self._reward_design(image)
-                    if design is not None and (is_adventure_victory(design[0])
-                                               or is_adventure_rewards(design[0])):
+                    if design is not None and adventure_settlement(design[0]) is not None:
                         self._complete_adventure(image)
                         return
                     if design is not None and is_task_reward(design[0]):
@@ -610,34 +608,55 @@ class AdventureLoop:
         path = snapshot.save_snapshot(
             image, self.settings.perception.snapshot_dir, tag="adventure_victory",
         )
-        self._details.update(snapshot=str(path), outcome="victory", settlement_closed=False)
         normalized = self._reward_design(image)
-        rewards = normalized is not None and is_adventure_rewards(normalized[0])
-        for _ in range(2):
-            after = self._continue_final_page(image, rewards=rewards)
+        stage = adventure_settlement(normalized[0]) if normalized is not None else None
+        victory = stage in {"victory", "rewards"}
+        self._details.update(snapshot=str(path), outcome="victory" if victory else "unverified",
+                             settlement_closed=False)
+        stages = self.SETTLEMENT_STAGES
+        for _ in stages:
+            if stage not in stages:
+                self._snapshot(image, tag="adventure_settlement_unknown")
+                return
+            self._scene("adventure_" + stage)
+            after = self._continue_final_page(image, stage=stage)
             if after is None:
                 return
             normalized = self._reward_design(after)
-            if not rewards and normalized is not None and is_adventure_rewards(normalized[0]):
-                image, rewards = after, True
-                self._scene("adventure_rewards")
+            next_stage = adventure_settlement(normalized[0]) if normalized is not None else None
+            if next_stage is not None:
+                image, stage = after, next_stage
                 continue
             self._details.update(settlement_closed=True)
             report("verified", "adventure_victory_transition", progress=True, **self._details)
-            self.result = LoopResult("completed", "adventure_victory")
+            self.result = LoopResult("completed", "adventure_victory" if victory
+                                     else "reward_settlement_closed")
             return
 
-    def _continue_final_page(self, image, *, rewards: bool):
-        predicate = is_adventure_rewards if rewards else is_adventure_victory
+    def _continue_final_page(self, image, *, stage: str):
+        stages = self.SETTLEMENT_STAGES
+        deadline = time.monotonic() + 12
         button = find_continue_button(image)
+        if button is None and stage in {"relic_chest", "relic_reward"}:
+            for _ in range(6):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                self._wait(min(2, remaining), reason="adventure_reward_animation", wait_s=12)
+                image = self._frame()
+                normalized = self._reward_design(image)
+                if normalized is None or adventure_settlement(normalized[0]) != stage:
+                    continue
+                button = find_continue_button(image)
+                if button is not None:
+                    break
         if button is None:
             self._snapshot(image, tag="adventure_victory_continue_missing")
             return
-        deadline = time.monotonic() + 12
         fresh = self._frame()
         normalized = self._reward_design(fresh)
         fresh_button = find_continue_button(fresh)
-        if (normalized is None or not predicate(normalized[0])
+        if (normalized is None or adventure_settlement(normalized[0]) != stage
                 or fresh_button is None
                 or any(abs(a - b) > 12 for a, b in zip(button.center, fresh_button.center, strict=True))
                 or time.monotonic() >= deadline):
@@ -655,19 +674,21 @@ class AdventureLoop:
             if normalized is None or time.monotonic() >= deadline:
                 continue
             design = normalized[0]
-            if (not predicate(design)
-                    and ((not rewards and is_adventure_rewards(design))
-                         or find_home_adventure_entry(design) is not None
-                         or find_weekly_entry(design) is not None
-                         or recognize_weekly_adventures(design) is not None)):
+            next_stage = adventure_settlement(design)
+            if next_stage is not None:
+                if stages.index(next_stage) > stages.index(stage):
+                    return after
+                continue
+            if (find_home_adventure_entry(design) is not None
+                    or find_weekly_entry(design) is not None
+                    or recognize_weekly_adventures(design) is not None):
                 return after
         self._snapshot(after, tag="adventure_victory_transition_unverified")
 
     def _recognized_after_home(self, image) -> bool:
         """只在现有冒险处理器可识别场景时结束主页转场等待。"""
         normalized = self._reward_design(image)
-        if normalized is not None and (is_adventure_victory(normalized[0])
-                                       or is_adventure_rewards(normalized[0])
+        if normalized is not None and (adventure_settlement(normalized[0]) is not None
                                        or is_task_reward(normalized[0])):
             return True
         if (is_power_vendor(image) or shop_leave_button(image) is not None

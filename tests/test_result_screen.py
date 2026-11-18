@@ -8,6 +8,7 @@ import pytest
 from lorwright.core.models import UIState
 from lorwright.core.perceive.buttons import find_continue_button
 from lorwright.core.perceive.result_screen import (
+    adventure_settlement,
     is_adventure_rewards,
     is_adventure_victory,
     is_result_transition,
@@ -108,6 +109,21 @@ def test_adventure_victory_requires_all_three_visible_labels(name):
         obscured = image.copy()
         obscured[y1:y2, x1:x2] = 0
         assert not is_adventure_victory(obscured)
+
+
+@pytest.mark.parametrize(("name", "stage", "bounds"), [
+    ("f1-silver-relic-chest.png", "relic_chest", (850, 510, 1080, 775)),
+    ("f1-silver-relic-converted.png", "relic_reward", (1085, 805, 1135, 855)),
+])
+def test_relic_settlement_requires_header_icon_and_content(name, stage, bounds):
+    image = _load(name)
+    assert adventure_settlement(image) == stage
+    for x1, y1, x2, y2 in ((185, 100, 565, 195), (65, 90, 190, 215), bounds):
+        obscured = image.copy()
+        obscured[y1:y2, x1:x2] = 0
+        assert adventure_settlement(obscured) is None
+    assert adventure_settlement((image * 0.6).astype("uint8")) is None
+    assert not is_adventure_victory(image)
 
 
 def test_adventure_rewards_require_victory_and_hero_experience_labels():

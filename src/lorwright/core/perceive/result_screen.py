@@ -65,6 +65,25 @@ def is_adventure_rewards(image: np.ndarray) -> bool:
             and _visible(image, "adventure_hero_xp", (450, 610, 920, 680), text_min=100))
 
 
+def adventure_settlement(image: np.ndarray) -> str | None:
+    """已采样的最终结算阶段；圣物箱本身不证明冒险获胜。"""
+    if is_adventure_victory(image):
+        return "victory"
+    if is_adventure_rewards(image):
+        return "rewards"
+    if (image.shape != (1080, 1920, 3)
+            or not _visible(image, "silver_relic_title", (185, 100, 565, 195))
+            or not _visible(image, "silver_relic_icon", (65, 90, 190, 215))):
+        return None
+    if (_visible(image, "relic_reward_frame_top", (790, 360, 840, 415), text_min=100)
+            and _visible(image, "relic_reward_frame_bottom", (1085, 805, 1135, 855),
+                         text_min=60)):
+        return "relic_reward"
+    if _visible(image, "silver_relic_chest", (850, 510, 1080, 775), text_min=100):
+        return "relic_chest"
+    return None
+
+
 def result_screen(image: np.ndarray) -> str | None:
     """识别已采样的结算页；输入应为 1920×1080 设计帧。"""
     if image.shape != (1080, 1920, 3):

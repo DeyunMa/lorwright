@@ -1,0 +1,73 @@
+"""离线截图语料体检与增量对比工具测试。"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import numpy as np
+
+from lorwright.core.perceive.normalize import Normalizer
+
+
+def _load_audit_corpus():
+    path = Path(__file__).resolve().parents[1] / "tools" / "audit_corpus.py"
+    spec = importlib.util.spec_from_file_location("audit_corpus", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["audit_corpus"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_prepare_canvas_restores_documented_crop_and_skips_tiny_icons() -> None:
+    mod = _load_audit_corpus()
+    normalizer = Normalizer((1920, 1080))
+    crop = np.full((685, 445, 3), 123, dtype=np.uint8)
+    canvas, mode = mod.prepare_canvas(crop, normalizer)
+    assert canvas is not None
+    assert mode == "crop_445x685"
+    x0, y0 = mod.CROP_PLACEMENTS[(685, 445)]
+    assert canvas.shape == (1080, 1920, 3)
+    assert int(canvas[y0, x0, 0]) == 123
+    assert int(canvas[0, 0, 0]) == 0
+
+    tiny = np.zeros((24, 16, 3), dtype=np.uint8)
+    skipped, skip_mode = mod.prepare_canvas(tiny, normalizer)
+    assert skipped is None
+    assert skip_mode == "skipped_16x24"
+
+
+def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:
+    mod = _load_audit_corpus()
+    sample_files = [
+        Path("tests/fixtures/healer/f1-remaining-panel-20261118.png"),
+        Path("tests/fixtures/screens/1080p_hand_expanded.png"),
+    ]
+    report = mod.audit_corpus(sample_files)
+    assert report["schema_version"] == 1
+    assert report["unique_images"] == 2
+    assert report["metrics"]["evaluated_frames"] == 2
+    assert report["scene_counts"]["healer"] == 1
+    assert report["scene_counts"]["battle_my_turn_idle"] == 1
+    assert report["metrics"]["battle_hand_costs_read"] == 6
+
+    synthetic_before = {
+        "schema_version": 1,
+        "metrics": {**report["metrics"], "healer_actionable": 0},
+        "records": [
+            {**rec, "actionable": False} if rec["scene"] == "healer" else rec
+            for rec in report["records"]
+        ],
+    }
+    diff = mod.compare_reports(synthetic_before, report)
+    assert diff["schema_version"] == 1
+    assert diff["metric_deltas"]["healer_actionable"] == {
+        "before": 0,
+        "after": 1,
+        "delta": 1,
+    }
+    assert len(diff["scene_transitions"]) == 1
+    assert diff["scene_transitions"][0]["actionable_after"] is True
+    assert mod.GenericPack().name == "generic"

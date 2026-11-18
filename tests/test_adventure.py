@@ -1148,15 +1148,18 @@ def test_gold_chest_identity_rejects_other_nodes_and_sizes():
     assert gold_chest_collect_button(_img("f1-gold-chest-20261117.png")[:540, :960]) is None
 
 
-def _item_chest_panel():
+def _item_chest_panel(hero=False):
     image = _blank()
-    image[340:1025, 530:975] = _img("f1-item-chest-panel-20261117.png")
+    name = ("f1-hero-item-chest-panel-20261118.png" if hero
+            else "f1-item-chest-panel-20261117.png")
+    image[340:1025, 530:975] = _img(name)
     return image
 
 
+@pytest.mark.parametrize("hero", [False, True])
 @pytest.mark.parametrize("entry", ["run", "panel", "travel"])
-def test_item_chest_leaves_once_and_verifies_map(adventure, entry):
-    chest = _item_chest_panel()
+def test_item_chest_leaves_once_and_verifies_map(adventure, entry, hero):
+    chest = _item_chest_panel(hero)
     stable = _img("1080p_jinx_map.png")
     frames = [chest, stable] if entry == "run" else [stable]
     if entry == "travel":
@@ -1173,11 +1176,12 @@ def test_item_chest_leaves_once_and_verifies_map(adventure, entry):
     assert saved == []
 
 
+@pytest.mark.parametrize("hero", [False, True])
 @pytest.mark.parametrize("damage", ["title", "leave", "partial_title", "partial_leave", "dimmed"])
-def test_item_chest_requires_visible_title_and_leave(adventure, damage):
+def test_item_chest_requires_visible_title_and_leave(adventure, damage, hero):
     from lorwright.core.perceive.adventure_scene import item_chest_leave_button
 
-    image = _item_chest_panel()
+    image = _item_chest_panel(hero)
     assert item_chest_leave_button(image) is not None
     if damage == "title":
         image[345:430, 545:805] = 0
@@ -1195,12 +1199,22 @@ def test_item_chest_requires_visible_title_and_leave(adventure, damage):
     assert device.taps == []
 
 
+@pytest.mark.parametrize("left", [563, 619, 675, 731, 787, 843])
+def test_hero_item_chest_requires_entire_six_character_title(left):
+    from lorwright.core.perceive.adventure_scene import item_chest_leave_button
+
+    image = _item_chest_panel(hero=True)
+    image[361:414, left:left + 56] = 0
+    assert item_chest_leave_button(image) is None
+
+
+@pytest.mark.parametrize("hero", [False, True])
 @pytest.mark.parametrize("successor", ["chest", "unknown", "panel"])
-def test_item_chest_leave_stops_without_repeating_input(adventure, successor):
-    image = {"chest": _item_chest_panel(), "unknown": _blank(),
+def test_item_chest_leave_stops_without_repeating_input(adventure, successor, hero):
+    image = {"chest": _item_chest_panel(hero), "unknown": _blank(),
              "panel": _img("1080p_node_panel.png")}[successor]
     loop, device, _, saved, _ = adventure([image] * 6, [])
-    assert not loop._leave_item_chest(_item_chest_panel())
+    assert not loop._leave_item_chest(_item_chest_panel(hero))
     assert len(device.taps) == 1
     assert device._frames == []
     assert saved == ["item_chest_leave_unverified"]

@@ -192,7 +192,9 @@ def gold_chest_collect_button(image: np.ndarray) -> Rect | None:
 
 def item_chest_leave_button(image: np.ndarray) -> Rect | None:
     """宝箱标题与离开文字须同时明亮完整，不依赖候选卡牌身份。"""
-    if _visible_patch(image, "item_chest_title", (545, 345, 805, 430)) is None:
+    titles = (("item_chest_title", (545, 345, 805, 430)),
+              ("hero_item_chest_title", (545, 345, 925, 430)))
+    if not any(_visible_patch(image, name, bounds) is not None for name, bounds in titles):
         return None
     return _visible_patch(image, "shop_leave", (630, 920, 760, 990))
 

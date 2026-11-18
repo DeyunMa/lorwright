@@ -36,7 +36,7 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
             return None
         cards.append(Rect(x + 80, y + 65, 50, 50))
         artwork.append(cv2.resize(art, (80, 80)))
-        glyphs = read_cost_glyphs(frame, (x, y), rad=26)
+        glyphs = read_cost_glyphs(frame, (x, y), rad=26, ignore_perimeter_highlights=True)
         hit = digits.classify_sequence(
             glyphs, rotations=(-15, -10, -5, 0, 5, 10, 15),
         ) if glyphs is not None else None

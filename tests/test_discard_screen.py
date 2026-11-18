@@ -61,6 +61,19 @@ def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds):
     assert candidates.costs == tuple(expected)
 
 
+def test_discard_ignores_isolated_highlight_at_badge_perimeter():
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    cv2.circle(image, (1289, 579), 3, (238, 238, 238), -1)
+    digits = DigitReader()
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert candidates.costs == (1, 1, 1, 6)
+
+
 def test_cost_ranking_and_unreadable_costs():
     cards = tuple(Rect(i, 0, 1, 1) for i in range(3))
     duplicate = ((1.0, 0.8, 0.1), (0.8, 1.0, 0.1), (0.1, 0.1, 1.0))

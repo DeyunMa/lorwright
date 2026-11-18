@@ -189,8 +189,8 @@ def _reset_parser(parser: StateParser) -> None:
     parser._previous_ui = UIState.UNKNOWN
 
 
-def _resolve_map_hero(canvas: np.ndarray, pack) -> tuple[int, int] | None:
-    locate = getattr(mapnav_perceive, "recognize_map_token", None)
+def _resolve_map_hero(canvas: np.ndarray, pack) -> tuple[int, ...] | None:
+    locate = getattr(mapnav_perceive, "locate_map_hero", None)
     if locate is not None:
         return locate(canvas)
     recognize_hero = getattr(pack, "recognize_map_hero", None)

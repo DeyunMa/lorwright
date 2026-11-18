@@ -41,7 +41,7 @@ def test_prepare_canvas_restores_documented_crop_and_skips_tiny_icons() -> None:
 
 def test_map_audit_requires_recognized_hero(monkeypatch) -> None:
     mod = _load_audit_corpus()
-    monkeypatch.delattr(mod.mapnav_perceive, "recognize_map_token", raising=False)
+    monkeypatch.delattr(mod.mapnav_perceive, "locate_map_hero", raising=False)
 
     def unexpected(*args, **kwargs):
         raise AssertionError("must not infer a hero from the screen center")
@@ -53,12 +53,16 @@ def test_map_audit_requires_recognized_hero(monkeypatch) -> None:
 
 def test_map_audit_uses_runtime_token_detector_when_available(monkeypatch) -> None:
     mod = _load_audit_corpus()
-    monkeypatch.setattr(mod.mapnav_perceive, "recognize_map_token", lambda image: None, raising=False)
+    monkeypatch.setattr(mod.mapnav_perceive, "locate_map_hero", lambda image: None, raising=False)
 
     class Pack:
         recognize_map_hero = staticmethod(lambda image: (960, 540))
 
-    assert mod._resolve_map_hero(np.zeros((1, 1, 3), dtype=np.uint8), Pack()) is None
+    image = np.zeros((1, 1, 3), dtype=np.uint8)
+    assert mod._resolve_map_hero(image, Pack()) is None
+    token = (960, 540, 56)
+    monkeypatch.setattr(mod.mapnav_perceive, "locate_map_hero", lambda image: token)
+    assert mod._resolve_map_hero(image, Pack()) == token
 
 
 def test_audit_corpus_evaluates_real_fixtures_and_compares_deltas() -> None:

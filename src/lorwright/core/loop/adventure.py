@@ -32,6 +32,7 @@ from lorwright.core.loop.reconnect import ReconnectTimeout
 from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.adventure_scene import (
     button_is,
+    can_resume_adventure,
     find_home_adventure_entry,
     find_resume_adventure_button,
     find_weekly_entry,
@@ -422,8 +423,7 @@ class AdventureLoop:
                 design_image, scale = self.normalizer.fit(image)
                 resume = find_resume_adventure_button(design_image)
                 if resume is not None:
-                    selected = getattr(self.pack, "recognize_selected_hero", None)
-                    if selected is None or not selected(design_image):
+                    if not can_resume_adventure(design_image, self.pack):
                         logger.warning("adventure: 无法确认所选英雄，停止")
                         self._snapshot(
                             image, tag="resume_hero_unknown"

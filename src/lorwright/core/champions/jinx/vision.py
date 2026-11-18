@@ -222,26 +222,6 @@ def _hero_template():
     return orb, keypoints, descriptors
 
 
-@lru_cache(maxsize=1)
-def _selected_name_template():
-    return cv2.imread(str(_ASSETS / "selected_name.png"), cv2.IMREAD_GRAYSCALE)
-
-
-def recognize_selected_hero(image: np.ndarray) -> bool:
-    """冒险选择页只有明确显示金克丝名字时才认可英雄匹配。"""
-    template = _selected_name_template()
-    if image.shape != (1080, 1920, 3) or template is None:
-        return False
-    region = cv2.cvtColor(image[930:1005, 300:520], cv2.COLOR_BGR2GRAY)
-    scores = cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED)
-    _, score, _, (x, y) = cv2.minMaxLoc(scores)
-    if score < 0.92:
-        return False
-    h, w = template.shape
-    white = template >= 200
-    return bool(white.any() and float(region[y:y + h, x:x + w][white].mean()) >= 170)
-
-
 def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     """地图上的 Jinx 头像：ORB 匹配模板，返回头像中心。"""
     orb, template_keypoints, template_descriptors = _hero_template()

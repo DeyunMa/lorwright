@@ -146,6 +146,81 @@ def find_resume_adventure_button(image: np.ndarray) -> Rect | None:
     return button if button_is(image, button, "resume_adventure") else None
 
 
+def _resume_nameplate_visible(gray: np.ndarray) -> bool:
+    """核验持续可见的铭牌和成行字迹，身份由插画核验。"""
+    plate = gray[953:989, 320:485]
+    if (plate < 12).mean() > 0.025:
+        return False
+    ink = plate >= 205
+    columns = np.flatnonzero(ink.sum(axis=0) >= 2)
+    groups = np.split(columns, np.flatnonzero(np.diff(columns) > 3) + 1)
+    if not 3 <= len(groups) <= 4:
+        return False
+    for group in groups:
+        if not group.size or not 20 <= group[-1] - group[0] + 1 <= 34:
+            return False
+        glyph = ink[:, group]
+        rows = np.flatnonzero(glyph.any(axis=1))
+        if not 23 <= rows[-1] - rows[0] + 1 <= 34 or glyph.sum() < 130:
+            return False
+    return True
+
+
+def _resume_art_orb():
+    return cv2.ORB_create(nfeatures=2000, edgeThreshold=15)
+
+
+@cache
+def _resume_art_reference(path: Path):
+    if not path.is_file():
+        return None
+    art = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if art is None:
+        return None
+    points, descriptors = _resume_art_orb().detectAndCompute(art, None)
+    if descriptors is None or len(descriptors) < 2:
+        return None
+    h, w = art.shape
+    return points, descriptors, np.array([w * 0.5, h * 0.358, 1.0])
+
+
+def can_resume_adventure(image: np.ndarray, pack) -> bool:
+    """同帧核验继续按钮、所选英雄铭牌和包内英雄插画。"""
+    art = getattr(pack, "hero_item_art", None)
+    if art is None or find_resume_adventure_button(image) is None:
+        return False
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if not _resume_nameplate_visible(gray):
+        return False
+    reference = _resume_art_reference(art)
+    if reference is None:
+        return False
+    ref_points, ref_descriptors, anchor = reference
+    # 房间内的英雄图案和地图棋子都不参与继续页的匹配。
+    x, y = 45, 835
+    crop = cv2.resize(gray[y:1070, x:265], None, fx=2, fy=2)
+    points, descriptors = _resume_art_orb().detectAndCompute(crop, None)
+    if descriptors is None:
+        return False
+    pairs = cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(descriptors, ref_descriptors, k=2)
+    good = [first for first, second in pairs if first.distance < 0.75 * second.distance]
+    if len(good) < 30:
+        return False
+    source = np.float32([ref_points[m.trainIdx].pt for m in good])
+    target = np.float32([points[m.queryIdx].pt for m in good]) / 2 + (x, y)
+    transform, inliers = cv2.estimateAffinePartial2D(source, target, ransacReprojThreshold=2)
+    if transform is None or inliers is None or not np.isfinite(transform).all():
+        return False
+    support = target[inliers.ravel() != 0]
+    return bool(
+        len(support) >= max(30, 0.55 * len(good))
+        and (np.ptp(support, axis=0) >= (45, 35)).all()
+        and 0.58 <= np.linalg.norm(transform[:, 0]) <= 0.80
+        and abs(transform[1, 0]) <= 0.08
+        and np.linalg.norm(transform @ anchor - (154, 943)) <= 16
+    )
+
+
 @cache
 def _gold_title_mask(name: str) -> np.ndarray | None:
     template = cv2.imread(str(_ASSETS / f"{name}.png"))

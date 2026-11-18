@@ -7,9 +7,10 @@ import cv2
 import numpy as np
 import pytest
 
-from lorwright.core.champions.jinx.vision import recognize_selected_hero
+from lorwright.core.champions import load
 from lorwright.core.decide.adventure import pick_lowest_weekly
 from lorwright.core.perceive.adventure_scene import (
+    can_resume_adventure,
     find_resume_adventure_button,
     find_weekly_entry,
     find_weekly_start,
@@ -89,12 +90,14 @@ def test_zoomed_live_map_requires_visible_controls(damage):
     assert not is_map(image)
 
 
-def test_resume_adventure_recognizes_button_and_selected_jinx():
-    image = _image("screens/f1-adventure-resume-20261114.png")
+@pytest.mark.parametrize("day", [14, 15])
+def test_resume_adventure_recognizes_button_and_selected_jinx(day):
+    image = _image(f"screens/f1-adventure-resume-202611{day}.png")
     button = find_resume_adventure_button(image)
     assert button is not None
     assert 1390 <= button.x <= 1410 and 940 <= button.y <= 955
-    assert recognize_selected_hero(image)
+    assert can_resume_adventure(image, load("jinx"))
+    assert not can_resume_adventure(image, load("elise"))
 
 
 @pytest.mark.parametrize("bounds", [
@@ -106,13 +109,40 @@ def test_resume_adventure_rejects_obscured_controls(bounds):
     x1, y1, x2, y2 = bounds
     image[y1:y2, x1:x2] = 0
     assert find_resume_adventure_button(image) is None
+    assert not can_resume_adventure(image, load("jinx"))
 
 
 def test_resume_adventure_rejects_dimmed_page():
     image = _image("screens/f1-adventure-resume-20261114.png")
     image = (image * 0.5).astype(np.uint8)
     assert find_resume_adventure_button(image) is None
-    assert not recognize_selected_hero(image)
+    assert not can_resume_adventure(image, load("jinx"))
+
+
+@pytest.mark.parametrize("damage", ["none", "shifted", "nameplate", "partial-name", "art"])
+def test_resume_adventure_elise_synthetic_local_artwork(damage):
+    # Synthetic local artwork substitution. The button and the visible nameplate
+    # are inherited from the Jinx frame. No Elise resume screenshot is available.
+    image = _image("screens/f1-adventure-resume-20261114.png")
+    pack = load("elise")
+    art = cv2.imread(str(pack.hero_item_art))
+    assert art is not None
+    anchor_x = 184 if damage == "shifted" else 154
+    transform = np.float32([[0.68, 0, anchor_x - 0.68 * 119], [0, 0.68, 943 - 0.68 * 128]])
+    crop = cv2.warpAffine(art, transform, (265, 1070))
+    yy, xx = np.ogrid[:1070, :265]
+    mask = ((xx - anchor_x + 4) / 75) ** 2 + ((yy - 952) / 62) ** 2 <= 1
+    image[835:1070, 45:265] = 26
+    image[:1070, :265][mask] = crop[mask]
+    if damage == "nameplate":
+        image[946:991, 320:485] = 0
+    elif damage == "partial-name":
+        image[953:989, 430:469] = 0
+    elif damage == "art":
+        image[885:1020, 65:240] = 0
+    assert find_resume_adventure_button(image) is not None
+    assert can_resume_adventure(image, pack) is (damage == "none")
+    assert not can_resume_adventure(image, load("jinx"))
 
 
 def test_resume_adventure_does_not_recognize_home_or_map():

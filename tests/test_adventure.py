@@ -1047,6 +1047,20 @@ def test_resume_adventure_stops_if_selected_hero_is_unverified(adventure, champi
     assert saved == ["resume_hero_unknown"]
 
 
+def test_resume_adventure_does_not_merge_evidence_across_frames(adventure):
+    image = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert image is not None
+    button_only = image.copy()
+    button_only[885:1020, 65:240] = 0
+    hero_only = image.copy()
+    hero_only[965:1000, 1535:1560] = 0
+    loop, device, _, saved, _ = adventure([button_only, hero_only], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    loop.run(max_nodes=1)
+    assert device.taps == []
+    assert saved == ["resume_hero_unknown"]
+
+
 @pytest.mark.parametrize("name", [
     "1080p_login_splash.png",
     "1080p_login_form.png",

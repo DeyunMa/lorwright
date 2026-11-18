@@ -399,6 +399,21 @@ def test_targeting_button_is_detected() -> None:
     assert detector.detect(frame) is UIState.TARGETING
 
 
+def test_scholar_mana_rejects_partial_glyph_without_overwriting_last_reading():
+    crop = _load("f1-scholar-nine-mana-10cards-20261118.png")
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[:, 320:] = crop
+    parser = _parser()
+    assert parser.parse(image).mana == 9
+
+    image[674:685, 1671:1693] = 0
+    state = parser.parse(image)
+    assert state.ui_state is UIState.MY_TURN_IDLE
+    assert state.mana == 9
+    assert not state.has_fresh_readings("mana")
+    assert state.spell_mana == 3
+
+
 def test_scholar_nine_mana_and_ten_card_expanded_hand() -> None:
     from lorwright.cli.app import _battle_layers
     from lorwright.core.champions import load

@@ -13,7 +13,7 @@ from lorwright.core.perceive import attack_token
 from lorwright.core.perceive import hand as hand_perceive
 from lorwright.core.perceive import units as units_perceive
 from lorwright.core.perceive.buttons import find_continue_button
-from lorwright.core.perceive.digits import DigitReader
+from lorwright.core.perceive.digits import DigitReader, segment_glyphs
 from lorwright.core.perceive.ui_state import UIStateDetector
 from lorwright.core.util.logger import logger
 
@@ -181,7 +181,15 @@ class StateParser:
                 image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w] = np.where(
                     (spread <= 70)[:, :, None], patch, 0,
                 )
-        value = self._read(image, rect) if readable else None
+        if readable and name == "mana" and rect is not None and rect.h == 45:
+            # The calibrated 1080p mana glyph is 30–31 pixels high.
+            # Check the unscaled glyph before resizing can turn a fragment into a 0.
+            glyphs = segment_glyphs(image, rect)
+            hit = (self.digits.classify_sequence([glyph.image for glyph in glyphs])
+                   if all(glyph.rect.h >= 25 for glyph in glyphs) else None)
+            value = hit[0] if hit is not None else None
+        else:
+            value = self._read(image, rect) if readable else None
         previous = self._readings.get(name, Reading())
         reading = (Reading(value, 0) if value is not None else Reading(
             previous.value,

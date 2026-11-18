@@ -77,7 +77,8 @@ def _power_quality(image: np.ndarray, x: int, *, y: int = 584, width: int = 290)
     """品质文字模板与颜色须一致，不从能力插画推断品质。"""
     region = image[y:y + 26, x:x + width]
     quality = _best(cv2.cvtColor(region, cv2.COLOR_BGR2GRAY), (
-        ("rarity_legendary", "legendary"), ("rarity_epic", "epic"),
+        ("rarity_legendary", "legendary"), ("rarity_legendary_compact", "legendary"),
+        ("rarity_epic", "epic"),
         ("rarity_rare", "rare"), ("rarity_common", "common"),
     ))
     hues = {"common": (35, 60), "rare": (90, 115),

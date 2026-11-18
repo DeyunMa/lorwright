@@ -24,6 +24,49 @@ def image():
     return result
 
 
+def remaining_frame():
+    import numpy as np
+
+    frame = np.zeros((1080, 1920, 3), np.uint8)
+    frame[:1045, 530:] = cv2.imread(str(
+        Path(__file__).parent / "fixtures/screens/f1-astrologer-remaining-20261118.png"
+    ))
+    return frame
+
+
+def test_remaining_astrologer_reads_balance_four():
+    assert astrologer_gold(remaining_frame()) == 1470
+
+
+def test_remaining_astrologer_reads_legendary_and_five_hundred_price():
+    frame = remaining_frame()
+    offers = astrologer_offers(frame)
+    assert offers is not None
+    assert [(c.quality, c.cost) for c in offers] == [
+        ("common", 200), ("common", 200), ("legendary", 500),
+    ]
+    assert pick_affordable_power(offers, 1470) == 2
+    assert astrologer_selection(frame) == -1
+    assert astrologer_buy_button(frame) is None
+
+
+@pytest.mark.parametrize("damage", ["balance", "price", "quality", "title", "leave"])
+def test_remaining_astrologer_missing_evidence_blocks_purchase(damage):
+    frame = remaining_frame()
+    if damage == "balance":
+        frame[977:1029, 1064:1204] = 0
+    elif damage == "price":
+        frame[700:734, 1759:1814] = 0
+    elif damage == "quality":
+        frame[503:529, 1629:1899] = 0
+    elif damage == "title":
+        frame[350:425, 560:750] = 0
+    else:
+        frame[910:990, 630:755] = 0
+    assert astrologer_gold(frame) is None or astrologer_offers(frame) is None
+    assert astrologer_buy_button(frame) is None
+
+
 def test_soloist_reuses_paid_power_offer_contract():
     frame = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-soloist-20261116.png"))
     assert frame is not None

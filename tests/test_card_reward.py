@@ -33,6 +33,36 @@ def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
     )
 
 
+def squirrel_reward():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-squirrel-reward-20261118.png")
+    return image
+
+
+def test_unknown_reward_locates_texture_inside_low_detail_art():
+    image = squirrel_reward()
+    candidates = recognize_card_rewards(image)
+    assert [card.card.cost for card in candidates] == [2, 4, 3]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
+    assert card_reward_target(image, 0, "").center == (555, 363)
+
+
+@pytest.mark.parametrize("damage", ["black_center", "flat_art", "cost", "title"])
+def test_low_detail_reward_preserves_target_visibility_requirements(damage):
+    image = squirrel_reward()
+    if damage == "black_center":
+        image[391:396, 553:558] = 0
+    elif damage == "flat_art":
+        image[343:433, 515:595] = 100
+    elif damage == "cost":
+        image[276:309, 428:464] = 0
+    else:
+        image[18:110, 760:1160] = 0
+    assert card_reward_target(image, 0, "") is None
+
+
 def remaining_first_reward():
     import numpy as np
 

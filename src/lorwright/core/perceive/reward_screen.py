@@ -442,12 +442,18 @@ def card_reward_target(image: np.ndarray, index: int, name: str) -> Rect | None:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         if not _card_visible(gray, x) or _card_cost(image, x) is None:
             return None
-        # 卡框内的插画中心；不需要先给这张卡建立身份模板。
         target = Rect(x + 191, 383, 20, 20)
         patch = gray[target.y:target.y + target.h, target.x:target.x + target.w]
-        if float((patch < 8).mean()) > 0.05 or float(patch.std()) < 5:
+        if float((patch < 8).mean()) > 0.05:
             return None
-        return target
+        # 插画中心可能是平滑头发；在同一插画内定位有纹理的点击点，
+        # 保留原黑洞和纹理门槛，不因未知卡牌补身份或点击遮挡中心。
+        for dx, dy in ((0, 0), (0, -30), (-30, 0), (30, 0), (0, 30)):
+            point = Rect(target.x + dx, target.y + dy, target.w, target.h)
+            patch = gray[point.y:point.y + point.h, point.x:point.x + point.w]
+            if float((patch < 8).mean()) <= 0.05 and float(patch.std()) >= 5:
+                return point
+        return None
     template = _template(card["art"])
     if template is None:
         return None

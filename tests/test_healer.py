@@ -13,11 +13,15 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(params=[
     "healer/f1-full-health.png", "screens/f1-field-cook-20261116.png",
-    "screens/f1-weekly-healer-20261116.png",
+    "screens/f1-weekly-healer-20261116.png", "healer/f1-remaining-panel-20261118.png",
 ])
 def healer_image(request) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / request.param))
     assert image is not None
+    if request.param == "healer/f1-remaining-panel-20261118.png":
+        full = np.zeros((1080, 1920, 3), np.uint8)
+        full[20:1045, 530:1510] = image
+        image = full
     return image
 
 

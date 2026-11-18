@@ -147,28 +147,34 @@ def find_resume_adventure_button(image: np.ndarray) -> Rect | None:
 
 
 @cache
-def _shop_title_gold_mask() -> np.ndarray | None:
-    template = cv2.imread(str(_ASSETS / "shop_title.png"))
+def _gold_title_mask(name: str) -> np.ndarray | None:
+    template = cv2.imread(str(_ASSETS / f"{name}.png"))
     if template is None:
         return None
     return cv2.inRange(cv2.cvtColor(template, cv2.COLOR_BGR2HSV),
                        (8, 100, 120), (35, 255, 255))
 
 
-def shop_leave_button(image: np.ndarray) -> Rect | None:
-    """商店标题和明亮的离开文字同时可见才允许离开。"""
-    if image.shape != (1080, 1920, 3):
-        return None
-    title = _shop_title_gold_mask()
-    if title is None or not np.any(title):
-        return None
-    gold = cv2.inRange(cv2.cvtColor(image[345:430, 545:715], cv2.COLOR_BGR2HSV),
+def _gold_title_visible(image: np.ndarray, name: str,
+                        bounds: tuple[int, int, int, int]) -> bool:
+    """核验至少 98% 金色字迹，排除节点人物画像的变化。"""
+    title = _gold_title_mask(name)
+    if image.shape != (1080, 1920, 3) or title is None or not np.any(title):
+        return False
+    x1, y1, x2, y2 = bounds
+    gold = cv2.inRange(cv2.cvtColor(image[y1:y2, x1:x2], cv2.COLOR_BGR2HSV),
                        (8, 100, 120), (35, 255, 255))
-    # 核验至少 98% 金色字迹；商人画像会变化，模板中的背景不参与授权。
-    coverage = cv2.matchTemplate(gold, title, cv2.TM_CCORR).max() / (
+    if gold.shape[0] < title.shape[0] or gold.shape[1] < title.shape[1]:
+        return False
+    coverage = float(cv2.matchTemplate(gold, title, cv2.TM_CCORR).max()) / (
         np.count_nonzero(title) * 255.0 * 255.0
     )
-    if coverage < 0.98:
+    return coverage >= 0.98
+
+
+def shop_leave_button(image: np.ndarray) -> Rect | None:
+    """商店标题和明亮的离开文字同时可见才允许离开。"""
+    if not _gold_title_visible(image, "shop_title", (545, 345, 715, 430)):
         return None
     if not _matches(image, "shop_leave", (630, 970, 760, 1040), 0.94):
         return None

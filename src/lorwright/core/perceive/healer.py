@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from lorwright.core.models import Rect
-from lorwright.core.perceive.adventure_scene import _template
+from lorwright.core.perceive.adventure_scene import _gold_title_visible, _template
 
 
 def _visible(
@@ -32,7 +32,7 @@ def _visible(
 
 def is_healer_screen(image: np.ndarray) -> bool:
     """识别治疗师页面；选项不清楚时仍由调用方保存快照停下。"""
-    return (any(_visible(image, name, (540, 335, 760, 435)) is not None
+    return (any(_gold_title_visible(image, name, (540, 335, 760, 435))
                 for name in ("healer_title", "healer_title_bright"))
             or _visible(image, "field_cook_title", (550, 345, 805, 430)) is not None)
 

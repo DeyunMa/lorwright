@@ -75,6 +75,9 @@ def adventure_settlement(image: np.ndarray) -> str | None:
         _visible(image, "silver_vault_title", (185, 100, 565, 195), score_min=0.94)
         and _visible(image, "silver_relic_icon", (65, 90, 190, 215))
     ):
+        if _visible(image, "silver_vault_shards", (890, 595, 1030, 669),
+                    text_min=100, score_min=0.94):
+            return "silver_vault_reward"
         return "silver_vault"
     if (image.shape != (1080, 1920, 3)
             or not _visible(image, "silver_relic_title", (185, 100, 565, 195))

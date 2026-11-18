@@ -120,7 +120,9 @@ def _continue_view(image):
 
 
 class AdventureLoop:
-    SETTLEMENT_STAGES = ("victory", "rewards", "silver_vault", "relic_chest", "relic_reward")
+    SETTLEMENT_STAGES = (
+        "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
+    )
     BATTLE_STATES = {
         UIState.MULLIGAN,
         UIState.MY_TURN_IDLE,
@@ -668,7 +670,7 @@ class AdventureLoop:
         stages = self.SETTLEMENT_STAGES
         deadline = time.monotonic() + 12
         button = find_continue_button(image)
-        if button is None and stage in {"silver_vault", "relic_chest", "relic_reward"}:
+        if button is None and stage in {"silver_vault", "silver_vault_reward", "relic_chest", "relic_reward"}:
             for _ in range(6):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:

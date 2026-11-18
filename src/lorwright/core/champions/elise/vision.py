@@ -18,6 +18,7 @@ from lorwright.core.models import CardInHand
 from lorwright.core.perceive.hand import DRAG_OFFSET_EXPANDED
 
 _ASSETS = Path(__file__).parent / "assets"
+HERO_ITEM_ART = _ASSETS / "01SI053.png"
 
 #: 卡码 → 牌表中文名（与 champions/elise/deck.py 一致）。
 _CODE_TO_NAME = {

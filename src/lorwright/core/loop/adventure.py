@@ -89,6 +89,7 @@ from lorwright.core.perceive.reward_screen import (
     hero_item_choose_enabled,
     hero_item_hero_selection,
     hero_item_item_selection,
+    hero_item_main_index,
     is_card_reward_screen,
     is_hero_item_reward_screen,
     is_power_screen,
@@ -100,6 +101,7 @@ from lorwright.core.perceive.reward_screen import (
     recognize_hero_items,
     recognize_powers,
     same_card_reward_choices,
+    same_hero_item_cards,
 )
 from lorwright.core.perceive.support_screen import (
     is_support_screen,
@@ -847,6 +849,7 @@ class AdventureLoop:
 
     def _handle_hero_item_reward(self, image):
         overlay_dismissed = False
+        hero_art = getattr(self.pack, "hero_item_art", None)
 
         def observe_selection():
             nonlocal image, overlay_dismissed
@@ -856,10 +859,10 @@ class AdventureLoop:
             design, scale = normalized
             if overlay_dismissed or hero_item_hero_selection(design) is not None:
                 return normalized
-            heroes = recognize_hero_item_cards(design)
+            hero_index = hero_item_main_index(design, hero_art)
             items = recognize_hero_items(design)
             index = hero_item_item_selection(design)
-            if (heroes is None or self.pack.name not in heroes or items is None
+            if (hero_index is None or items is None
                     or index is None or index < 0 or not hero_item_choose_enabled(design)):
                 return normalized
             # 道具关键词提示会遮住英雄边框；已知奖励页右下空白只点一次，
@@ -872,7 +875,8 @@ class AdventureLoop:
             if normalized is None:
                 return None
             after = normalized[0]
-            if (recognize_hero_item_cards(after) != heroes
+            if (not same_hero_item_cards(design, after)
+                    or hero_item_main_index(after, hero_art) != hero_index
                     or recognize_hero_items(after) != items
                     or hero_item_item_selection(after) != index):
                 return None
@@ -883,18 +887,17 @@ class AdventureLoop:
             self._snapshot(image, tag="hero_item_selection_unverified")
             return
         design, scale = normalized
-        heroes = recognize_hero_item_cards(design)
+        initial_design = design
+        hero_index = hero_item_main_index(design, hero_art)
         selected = hero_item_hero_selection(design)
         items = recognize_hero_items(design)
         item_index = hero_item_item_selection(design)
-        main = self.pack.name
-        if (heroes is None or main not in heroes or selected is None or items is None
+        if (hero_index is None or selected is None or items is None
                 or item_index is None
                 or (selected == -1 and not hero_item_choose_disabled(design))
                 or (item_index == -1 and not hero_item_choose_disabled(design))):
             self._snapshot(image, tag="hero_item_selection_unverified")
             return
-        hero_index = heroes.index(main)
         if selected == -1:
             self._tap(*scale.to_device((780, 1125)[hero_index], 430))
             self._wait(2, reason="hero_item_hero_selection", wait_s=2)
@@ -904,7 +907,8 @@ class AdventureLoop:
                 self._snapshot(image, tag="hero_item_hero_unverified")
                 return
             design, scale = normalized
-            if (recognize_hero_item_cards(design) != heroes
+            if (not same_hero_item_cards(initial_design, design)
+                    or hero_item_main_index(design, hero_art) != hero_index
                     or hero_item_hero_selection(design) != hero_index
                     or recognize_hero_items(design) != items
                     or hero_item_item_selection(design) != item_index
@@ -931,7 +935,8 @@ class AdventureLoop:
                 self._snapshot(image, tag="hero_item_selected_unverified")
                 return None
             design, scale = normalized
-        if (recognize_hero_item_cards(design) != heroes
+        if (not same_hero_item_cards(initial_design, design)
+                or hero_item_main_index(design, hero_art) != hero_index
                 or hero_item_hero_selection(design) != hero_index
                 or recognize_hero_items(design) != items
                 or hero_item_item_selection(design) != item_index

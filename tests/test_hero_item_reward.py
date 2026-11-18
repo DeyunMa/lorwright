@@ -3,24 +3,26 @@
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 
+from lorwright.core.champions import load
 from lorwright.core.perceive.reward_screen import (
     hero_item_choose_disabled,
     hero_item_choose_enabled,
     hero_item_hero_selection,
     hero_item_item_selection,
+    hero_item_main_index,
     is_hero_item_reward_screen,
     recognize_hero_item_cards,
     recognize_hero_items,
+    same_hero_item_cards,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def short_title_reward():
-    import numpy as np
-
     image = np.zeros((1080, 1920, 3), np.uint8)
     image[18:1050, 450:1470] = cv2.imread(str(
         FIXTURES / "hero_item_reward" / "f1-short-title-20261117.png"
@@ -59,7 +61,6 @@ def test_short_item_name_requires_two_visible_characters(damage):
 def test_main_hero_and_item_quality_survive_other_unknown_identities():
     from random import Random
 
-    from lorwright.core.champions import load
     from lorwright.core.decide.rewards import pick_hero_item_reward
 
     image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-weekly-reksai-20261116.png"))
@@ -170,3 +171,56 @@ def test_dimmed_and_other_reward_screens_are_not_recognized():
     assert not is_hero_item_reward_screen(image // 2)
     other = cv2.imread(str(FIXTURES / "card_rewards" / "before.png"))
     assert not is_hero_item_reward_screen(other)
+
+
+@pytest.mark.parametrize(("filename", "jinx", "elise"), [
+    ("f1-20261115.png", 0, 1),
+    ("f1-weekly-reksai-20261116.png", 0, None),
+    ("f1-short-title-20261117.png", 1, None),
+])
+def test_main_index_uses_configured_hero_art_on_real_frames(filename, jinx, elise):
+    image = (short_title_reward() if filename == "f1-short-title-20261117.png" else
+             cv2.imread(str(FIXTURES / "hero_item_reward" / filename)))
+    assert hero_item_main_index(image, load("jinx").hero_item_art) == jinx
+    assert hero_item_main_index(image, load("elise").hero_item_art) == elise
+
+
+@pytest.mark.parametrize("damage", ["left-obscured", "right-obscured", "duplicated", "shifted"])
+def test_main_index_requires_two_visible_slots_and_unique_geometric_match(damage):
+    image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-20261115.png"))
+    reference = load("jinx").hero_item_art
+    assert hero_item_main_index(image, reference) == 0
+    if damage == "left-obscured":
+        image[315:405, 720:810] = 0
+    elif damage == "right-obscured":
+        image[315:405, 1080:1170] = 0
+    elif damage == "duplicated":
+        image[275:455, 1020:1210] = image[275:455, 678:868]
+    else:
+        art = image[275:455, 680:875]
+        art[:] = cv2.warpAffine(art, np.float32([[1, 0, 24], [0, 1, 0]]),
+                                (195, 180), borderMode=cv2.BORDER_REFLECT)
+    assert hero_item_main_index(image, reference) is None
+
+
+def test_same_hero_cards_survive_real_highlights():
+    folder = FIXTURES / "hero_item_reward"
+    before = cv2.imread(str(folder / "before-sample.png"))
+    after = cv2.imread(str(folder / "both-selected.png"))
+    assert same_hero_item_cards(before, after)
+
+
+@pytest.mark.parametrize("damage", ["new-unknown-support", "support-partly-covered", "swapped"])
+def test_same_hero_cards_rejects_changes_in_either_slot(damage):
+    image = cv2.imread(str(FIXTURES / "hero_item_reward" / "f1-weekly-reksai-20261116.png"))
+    after = image.copy()
+    if damage == "new-unknown-support":
+        after[275:455, 1020:1210] = short_title_reward()[275:455, 680:870]
+        # Both frames retain a visible, unrecognized support card.
+        assert recognize_hero_item_cards(after) == recognize_hero_item_cards(image) == ("jinx", "")
+    elif damage == "support-partly-covered":
+        after[330:363, 1050:1100] = 0
+    else:
+        after[275:455, 680:870] = image[275:455, 1020:1210]
+        after[275:455, 1020:1210] = image[275:455, 680:870]
+    assert not same_hero_item_cards(image, after)

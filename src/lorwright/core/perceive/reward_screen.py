@@ -270,50 +270,116 @@ def hero_item_item_selection(image: np.ndarray) -> int | None:
     return states.index(True) if sum(states) == 1 else None
 
 
+# 插画内区避开选择外框。锚点为完整卡面 (宽度 50%, 高度 40%) 的实拍投影。
+_HERO_ITEM_ART_SLOTS = ((680, 875, 789), (1020, 1210, 1131))
+
+
+def _hero_item_tiles(art: np.ndarray) -> tuple[np.ndarray, ...]:
+    return tuple(tile for row in np.array_split(art, 3)
+                 for tile in np.array_split(row, 3, axis=1))
+
+
+def _hero_item_artwork(image: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
+    if not is_hero_item_reward_screen(image):
+        return None
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    left, right = (gray[275:455, x1:x2] for x1, x2, _ in _HERO_ITEM_ART_SLOTS)
+    if any(tile.std() < 10 or (tile < 8).mean() > 0.15
+           for art in (left, right) for tile in _hero_item_tiles(art)):
+        return None
+    return left, right
+
+
 @cache
-def _hero_item_templates():
-    root = Path(__file__).resolve().parents[1] / "champions"
+def _hero_item_art_features(path: Path):
+    if not path.is_file():
+        return None
+    art = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if art is None:
+        return None
+    points, descriptors = cv2.ORB_create(nfeatures=4000).detectAndCompute(art, None)
+    if descriptors is None or len(descriptors) < 2:
+        return None
+    h, w = art.shape
+    return points, descriptors, np.array([w * 0.5, h * 0.4, 1.0])
+
+
+def _hero_item_art_matches(artwork: tuple[np.ndarray, np.ndarray], references: dict[str, Path | None]):
     orb = cv2.ORB_create(nfeatures=4000)
-    templates = {}
-    for name, path in (("jinx", root / "jinx/assets/01PZ040.png"),
-                       ("elise", root / "elise/assets/01SI053.png")):
-        image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-        if image is None:
-            return orb, {}
-        _, descriptors = orb.detectAndCompute(image, None)
-        if descriptors is None:
-            return orb, {}
-        templates[name] = descriptors
-    return orb, templates
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    templates = {name: _hero_item_art_features(path) for name, path in references.items()
+                 if path is not None}
+    matches: list[set[str]] = []
+    for art, (x1, _, anchor_x) in zip(artwork, _HERO_ITEM_ART_SLOTS, strict=True):
+        matched: set[str] = set()
+        matches.append(matched)
+        points, descriptors = orb.detectAndCompute(art, None)
+        if descriptors is None or len(points) < 30:
+            return None
+        for name, template in templates.items():
+            if template is None:
+                continue
+            ref_points, ref_descriptors, anchor = template
+            pairs = matcher.knnMatch(descriptors, ref_descriptors, k=2)
+            good = [a for a, b in pairs if a.distance < 0.75 * b.distance]
+            if len(good) < 60:
+                continue
+            source = np.float32([ref_points[m.trainIdx].pt for m in good])
+            target = np.float32([points[m.queryIdx].pt for m in good])
+            transform, inliers = cv2.estimateAffinePartial2D(source, target, ransacReprojThreshold=3)
+            if transform is None or inliers is None or not np.isfinite(transform).all():
+                continue
+            support = target[inliers.ravel() != 0]
+            if len(support) < max(30, 0.6 * len(good)) or (np.ptp(support, axis=0) < 70).any():
+                continue
+            if (0.95 <= np.linalg.norm(transform[:, 0]) <= 1.22
+                    and abs(transform[1, 0]) <= 0.10
+                    and np.linalg.norm(transform @ anchor - (anchor_x - x1, 127)) <= 14):
+                matched.add(name)
+    return matches[0], matches[1]
+
+
+def hero_item_main_index(image: np.ndarray, hero_item_art: Path | None) -> int | None:
+    """两槽均可见且主英雄卡面只匹配一槽时，返回该槽的索引。"""
+    artwork = _hero_item_artwork(image)
+    if artwork is None or hero_item_art is None:
+        return None
+    matches = _hero_item_art_matches(artwork, {"main": hero_item_art})
+    if matches is None:
+        return None
+    slots = [i for i, slot in enumerate(matches) if slot]
+    return slots[0] if len(slots) == 1 else None
+
+
+def same_hero_item_cards(before: np.ndarray, after: np.ndarray) -> bool:
+    """逐槽核对可见插画，辅助英雄即使无名称也须保持一致。"""
+    first, second = _hero_item_artwork(before), _hero_item_artwork(after)
+    if first is None or second is None:
+        return False
+    for before_art, after_art in zip(first, second, strict=True):
+        for a, b in zip(_hero_item_tiles(before_art), _hero_item_tiles(after_art), strict=True):
+            if (cv2.absdiff(a, b).mean() > 10
+                    or cv2.matchTemplate(a, b, cv2.TM_CCOEFF_NORMED)[0, 0] < 0.96):
+                return False
+    return True
 
 
 def recognize_hero_item_cards(image: np.ndarray) -> tuple[str, str] | None:
-    """独立识别两槽英雄；可见但未建档的辅助英雄保留空身份。"""
-    if not is_hero_item_reward_screen(image):
+    """识别已安装英雄包的两槽身份，保留可见但未建档的辅助英雄。"""
+    from lorwright.core.champions import available, load
+
+    artwork = _hero_item_artwork(image)
+    if artwork is None:
         return None
-    orb, templates = _hero_item_templates()
-    if len(templates) != 2:
+    matches = _hero_item_art_matches(
+        artwork, {name: getattr(load(name), "hero_item_art", None) for name in available()},
+    )
+    if matches is None:
         return None
-    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
-    result = []
-    for x1, x2 in ((680, 875), (1020, 1210)):
-        region = cv2.cvtColor(image[275:455, x1:x2], cv2.COLOR_BGR2GRAY)
-        _, descriptors = orb.detectAndCompute(region, None)
-        if descriptors is None:
-            return None
-        scores = sorted(
-            ((sum(a.distance < 0.75 * b.distance for a, b in
-                  matcher.knnMatch(descriptors, reference, k=2)), name)
-             for name, reference in templates.items()), reverse=True,
-        )
-        if scores[0][0] < 60 or scores[0][0] - scores[1][0] < 30:
-            result.append("")
-        else:
-            result.append(scores[0][1])
-    known = [name for name in result if name]
-    if not known or len(set(known)) != len(known):
+    left, right = matches
+    if len(left) > 1 or len(right) > 1 or left & right or not (left or right):
         return None
-    return result[0], result[1]
+    return next(iter(left), ""), next(iter(right), "")
 
 
 def hero_item_hero_selection(image: np.ndarray) -> int | None:

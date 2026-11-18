@@ -4,6 +4,7 @@ from lorwright.core.champions.base import Preference
 from lorwright.core.champions.jinx.deck import JINX_DECK, lookup
 from lorwright.core.champions.jinx.policy import JinxOpeningPolicy, pick_card_reward
 from lorwright.core.champions.jinx.vision import (
+    HERO_ITEM_ART,
     recognize_hand,
     recognize_hero,
     recognize_mulligan,
@@ -39,6 +40,7 @@ class JinxPack:
     deck = JINX_DECK
     lookup = staticmethod(lookup)
     recognize_hand = staticmethod(recognize_hand)
+    hero_item_art = HERO_ITEM_ART
     recognize_map_hero = staticmethod(recognize_hero)
     recognize_selected_hero = staticmethod(recognize_selected_hero)
     recognize_mulligan = staticmethod(recognize_mulligan)

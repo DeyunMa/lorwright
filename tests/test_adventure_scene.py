@@ -14,6 +14,7 @@ from lorwright.core.perceive.adventure_scene import (
     find_weekly_entry,
     find_weekly_start,
     is_map,
+    is_weekly_list,
     recognize_weekly_adventures,
     weekly_detail_stars,
 )
@@ -165,6 +166,26 @@ def test_weekly_two_remaining_candidates_and_two_star_detail():
     image = _image("screens/weekly-two-detail-20261116.png")
     assert weekly_detail_stars(image) == 2
     assert find_weekly_start(image) is not None
+
+
+def test_weekly_list_remains_recognizable_after_all_three_are_completed():
+    image = _image("screens/weekly-one-remaining.png")
+    marker = image[637:717, 665:745].copy()
+    image[108:320, 850:1020] = 0
+    assert not is_weekly_list(image)
+    image[150:230, 895:975] = marker
+    assert is_weekly_list(image)
+    assert recognize_weekly_adventures(image) is None
+    image[637:717, 665:745] = 0
+    assert not is_weekly_list(image)
+
+
+def test_weekly_remaining_candidate_with_different_completed_portraits():
+    image = _image("screens/weekly-one-remaining.png")
+    candidates = recognize_weekly_adventures(image)
+    assert candidates is not None and len(candidates) == 1
+    assert candidates[0].stars == 2
+    assert abs(candidates[0].target.center[0] - 936) < 3
 
 
 def test_weekly_last_candidate_needs_two_completed_markers():

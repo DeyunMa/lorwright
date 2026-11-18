@@ -40,6 +40,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_battle_detail,
     is_completed_panel,
     is_map,
+    is_weekly_list,
     item_chest_leave_button,
     recognize_weekly_adventures,
     reward_timeout_continue,
@@ -614,24 +615,41 @@ class AdventureLoop:
         self._details.update(snapshot=str(path), outcome="victory" if victory else "unverified",
                              settlement_closed=False)
         stages = self.SETTLEMENT_STAGES
-        for _ in stages:
-            if stage not in stages:
+        seen = set()
+        for _ in range(len(stages) + 6):
+            if stage == "task_reward":
+                after = self._handle_task_reward(image)
+            elif stage in stages and stage not in seen:
+                seen.add(stage)
+                self._scene("adventure_" + stage)
+                after = self._continue_final_page(image, stage=stage)
+            else:
                 self._snapshot(image, tag="adventure_settlement_unknown")
                 return
-            self._scene("adventure_" + stage)
-            after = self._continue_final_page(image, stage=stage)
             if after is None:
                 return
             normalized = self._reward_design(after)
             next_stage = adventure_settlement(normalized[0]) if normalized is not None else None
+            if normalized is not None and is_task_reward(normalized[0]):
+                next_stage = "task_reward"
             if next_stage is not None:
                 image, stage = after, next_stage
                 continue
+            if normalized is None or not self._settlement_destination(normalized[0]):
+                self._snapshot(after, tag="adventure_victory_transition_unverified")
+                return
             self._details.update(settlement_closed=True)
             report("verified", "adventure_victory_transition", progress=True, **self._details)
             self.result = LoopResult("completed", "adventure_victory" if victory
                                      else "reward_settlement_closed")
             return
+
+        self._snapshot(image, tag="adventure_settlement_limit")
+
+    @staticmethod
+    def _settlement_destination(design) -> bool:
+        return (find_home_adventure_entry(design) is not None
+                or find_weekly_entry(design) is not None or is_weekly_list(design))
 
     def _continue_final_page(self, image, *, stage: str):
         stages = self.SETTLEMENT_STAGES
@@ -679,9 +697,7 @@ class AdventureLoop:
                 if stages.index(next_stage) > stages.index(stage):
                     return after
                 continue
-            if (find_home_adventure_entry(design) is not None
-                    or find_weekly_entry(design) is not None
-                    or recognize_weekly_adventures(design) is not None):
+            if is_task_reward(design) or self._settlement_destination(design):
                 return after
         self._snapshot(after, tag="adventure_victory_transition_unverified")
 
@@ -703,7 +719,7 @@ class AdventureLoop:
             design, _ = self.normalizer.fit(image)
             if (find_resume_adventure_button(design) is not None
                     or find_weekly_entry(design) is not None
-                    or recognize_weekly_adventures(design) is not None
+                    or is_weekly_list(design)
                     or weekly_detail_stars(design) is not None):
                 return True
         # 主页转场中的动画可能触发战斗按钮探针；单独的战斗 UI 状态

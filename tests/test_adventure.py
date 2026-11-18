@@ -245,6 +245,16 @@ def test_final_victory_missing_continue_never_taps(adventure):
     assert device.taps == []
 
 
+def test_final_settlement_handles_optional_task_before_outer_screen(adventure):
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    loop, device, _, _, _ = adventure([victory, victory, task, home], [])
+    assert loop.run(max_nodes=1).reason == "adventure_victory"
+    assert len(device.taps) == 2
+    assert loop._details["settlement_closed"] is True
+
+
 def test_relic_animation_waits_for_continue_before_single_input(adventure):
     reward = cv2.imread(str(FIXTURES.parent / "continue/f1-silver-relic-converted.png"))
     animation = reward.copy()

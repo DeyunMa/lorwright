@@ -229,10 +229,15 @@ def find_weekly_entry(image: np.ndarray) -> Rect | None:
 
 
 def _weekly_markers(image: np.ndarray, name: str) -> list[Rect]:
-    template = _template(name)
+    template = _template("weekly_completed_check" if name == "weekly_completed" else name)
     if template is None or not _world_controls(image):
         return []
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if name == "weekly_completed":
+        # 仅核验绿色勾字形，关卡肖像不是完成标记的一部分。
+        gray = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
+                           (35, 80, 110), (90, 255, 255))
+    else:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
     h, w = template.shape
     hits = []
@@ -269,6 +274,13 @@ def _rating_matches(image: np.ndarray, name: str, bounds: tuple[int, int, int, i
         if stats[component, cv2.CC_STAT_AREA] >= 3 and np.mean(actual[mask]) < 0.95:
             return False
     return True
+
+
+def is_weekly_list(image: np.ndarray) -> bool:
+    """三个时钟或完成勾齐全即为每周列表，包含全部已完成的情况。"""
+    return len(_weekly_markers(image, "weekly_clock")) + len(
+        _weekly_markers(image, "weekly_completed"),
+    ) == 3
 
 
 def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...] | None:

@@ -17,7 +17,8 @@ def test_discard_candidates_include_visible_edge_cards():
     candidates = discard_candidates(image, digits)
     assert candidates is not None
     assert len(candidates.cards) == 4
-    assert candidates.costs[:2] == (1, 1)
+    # The last two badges supply the discard1080 prototypes at (1306, 594) and (1702, 642).
+    assert candidates.costs == (1, 1, 1, 6)
     action = choose_discard(candidates)
     assert action is not None
     assert action.card_index in (0, 1)
@@ -37,6 +38,27 @@ def test_obscured_discard_border_or_selected_cost_blocks_input(bounds):
     digits.load()
     candidates = discard_candidates(image, digits)
     assert candidates is None or choose_discard(candidates) is None
+
+
+@pytest.mark.parametrize(("index", "bounds"), [
+    (2, (1292, 582, 1320, 594)),
+    (3, (1688, 630, 1716, 642)),
+], ids=["partial-one", "six-without-top-stroke"])
+def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds):
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/screens/f1-discard-candidates-20261117.png"))
+    x1, y1, x2, y2 = bounds
+    # Cover the glyph inside the badge without removing the card or badge border.
+    image[y1:y2, x1:x2] = (120, 60, 20)
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    expected = [1, 1, 1, 6]
+    expected[index] = None
+    assert candidates.costs == tuple(expected)
 
 
 def test_cost_ranking_and_unreadable_costs():

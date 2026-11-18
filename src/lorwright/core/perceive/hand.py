@@ -301,8 +301,10 @@ def _expanded_drag_point(
     height, width = image.shape[:2]
     if not (10 <= px < width - 10 and 10 <= py < height - 10):
         return None
-    # 密集扇形下卡牌倾斜、互相遮挡；只处理有足够间距的右侧邻牌。
-    if any(0 < other.center[0] - x < 180
+    # 密集扇形下卡牌倾斜、互相遮挡；多牌展开（>=6 张）时游戏压缩间距至约 120px，
+    # 此时卡身落点仍在邻牌左缘内侧，少牌仍维持 180px 防止异常重检或粘连。
+    min_gap = EXPANDED_MIN_DIST if len(badges) >= 6 else 180
+    if any(0 < other.center[0] - x < min_gap
            for other in badges):
         return None
     return px, py

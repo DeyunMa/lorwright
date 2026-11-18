@@ -131,6 +131,14 @@ class StateParser:
                 badges += units_perceive.find_unit_badges(image, lay.my_combat)
             badges.sort(key=lambda badge: badge.center[0])
             state.my_units = units_perceive.to_units(badges, image=image)
+            if state.hand_expanded and state.hand:
+                hand_left = min(card.rect.x for card in state.hand) - 90
+                hand_right = max(card.rect.x for card in state.hand) + 220
+                state.my_units = [
+                    unit for unit in state.my_units
+                    if not (unit.attack < 0 and unit.health < 0
+                            and hand_left <= unit.rect.x <= hand_right)
+                ]
             if readable_ui and self.my_unit_recognizer is not None:
                 state.my_units = self.my_unit_recognizer(image, state.my_units)
         if lay.enemy_board is not None:

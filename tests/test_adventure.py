@@ -2528,3 +2528,37 @@ def test_healer_map_verification_without_champion_avatar(adventure, completed):
     loop.pack = object()
     assert loop._handle_healer(image) is completed
     assert saved == ["healer_completed" if completed else "healer_map_unverified"]
+
+
+@pytest.mark.parametrize("revealed", [False, True])
+def test_map_wait_zooms_once_on_fresh_short_edge(adventure, monkeypatch, revealed):
+    in_transit = cv2.imread(str(FIXTURES.parent / "card_rewards" / "after.png"))
+    assert in_transit is not None
+    settled = _img("f1-after-gold-map-20261117.png")
+    zoomed = _img("f1-after-gold-zoomed-map-20261117.png")
+    after_zoom = [zoomed, zoomed.copy()] if revealed else [settled.copy() for _ in range(3)]
+    frames = [in_transit, settled, *after_zoom]
+    loop, device, _, saved, _ = adventure(frames, [])
+    localized = _record_map_localizations(monkeypatch)
+
+    loop.run(max_nodes=1)
+
+    assert localized == [id(frame) for frame in frames]
+    assert device.taps == ([(1822, 297), (1062, 331)] if revealed else [(1822, 297)])
+    assert saved == (["map_panel_not_open"] if revealed else ["map_zoom_unverified"])
+
+
+def test_map_zoom_allowance_renews_after_node(adventure, monkeypatch):
+    settled = _img("f1-after-gold-map-20261117.png")
+    zoomed = _img("f1-after-gold-zoomed-map-20261117.png")
+    # 重放同一对画面模拟不同节点，节点处理验证交接以替身完成。
+    frames = [settled, zoomed, settled.copy(), zoomed.copy()]
+    loop, device, _, saved, _ = adventure(frames, [])
+    localized = _record_map_localizations(monkeypatch)
+    monkeypatch.setattr(loop, "_handle_node_panel", lambda: True)
+
+    loop.run(max_nodes=2)
+
+    assert localized == [id(frame) for frame in frames]
+    assert device.taps == [(1822, 297), (1062, 331)] * 2
+    assert saved == []

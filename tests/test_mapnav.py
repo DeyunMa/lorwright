@@ -1166,3 +1166,45 @@ def test_weekly_gold_terrain_does_not_substitute_for_token(damage):
     else:
         image[555:751, 1120:1300] = image[555:751, 515:695]
     assert locate_map_hero(image) is None
+
+
+def _boss_map(kind):
+    image = _load(f"f1-zoomed-boss-{kind}-20261118.png")
+    # 脱敏素材仅保留地图中央。补入已知控件，使测试也走运行时场景门控。
+    controls = _load("f1-after-gold-zoomed-map-20261117.png")
+    image[65:105, 80:118] = controls[65:105, 80:118]
+    image[240:430, 1780:1864] = controls[240:430, 1780:1864]
+    return image
+
+
+@pytest.mark.parametrize(("kind", "expected"), [("route", (1103, 66)), ("live", (1103, 69))])
+def test_zoomed_boss_crest_is_the_only_reachable_node(kind, expected):
+    image = _boss_map(kind)
+    hero = locate_map_hero(image)
+    assert hero is not None and math.dist(hero.center, (1084, 420)) <= 8
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1  # 独立 ADB 帧上的亮塔墙不应成为第二个节点。
+    assert math.dist(nodes[0].center, expected) < 8
+    assert not nodes[0].needs_reveal
+
+
+@pytest.mark.parametrize("damage", ["origin", "cut", "lock", "completed", "obscured", "dim"])
+def test_zoomed_boss_crest_rejects_missing_route_or_target_evidence(damage):
+    image = _boss_map("route")
+    if damage == "origin":
+        image[485:580, 1030:1130] = 0
+    elif damage == "cut":
+        image[230:260, 1070:1120] = 0
+    elif damage == "lock":
+        source = _load("f1-weekly-two-home-20261116.png")
+        image[48:84, 1085:1121] = source[515:551, 717:753]
+    elif damage == "completed":
+        image[48:84, 1085:1121] = image[516:552, 1063:1099]
+    elif damage == "obscured":
+        image[56:76, 1093:1113] = 128
+    else:
+        image[0:180, 990:1220] //= 3
+    hero = locate_map_hero(image)
+    if damage != "origin":
+        assert hero is not None
+    assert reachable_nodes(image, hero=hero) == []

@@ -645,8 +645,16 @@ def _connected_navigation_nodes(
                 distances[label] = cv2.distanceTransform(
                     (labels != label).astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE,
                 )
-            route_end = (_component_port_contact(labels, int(label), origin, endpoint)
-                         if candidate.connection is not None else endpoint)
+            boss_crest = (
+                candidate.shape == "round"
+                and candidate.connection is None
+                and _boss_crest_visible(image, node.x, node.y, node.radius)
+            )
+            route_end = (
+                _component_port_contact(labels, int(label), origin, endpoint)
+                if candidate.connection is not None
+                else (MapNode(node.x, node.y, max(node.radius, 66)) if boss_crest else endpoint)
+            )
             if route_end is None or not _component_between_nodes(distances[label], origin, route_end):
                 continue
             if candidate.shape == "round" and not _lit_unfinished_ring(
@@ -658,8 +666,9 @@ def _connected_navigation_nodes(
                 image, labels, int(label), endpoint,
             ):
                 continue
-            region = image[max(0, node.y - node.radius - 18):min(1080, node.y + node.radius + 19),
-                           max(0, node.x - node.radius - 18):min(1920, node.x + node.radius + 19)]
+            score_extent = 116 if boss_crest else node.radius + 18
+            region = image[max(0, node.y - score_extent):min(1080, node.y + score_extent + 1),
+                           max(0, node.x - score_extent):min(1920, node.x + score_extent + 1)]
             b, g, r = (region[:, :, i].astype(np.int16) for i in range(3))
             score = float(((b > 165) & (g > 145) & (b - r > 35) & (g - r > 20)).mean())
             found.append((candidate.shape != "display", score, node))
@@ -895,34 +904,69 @@ def _component_touches_node(
     return float(distances[gold > 0].min()) <= 6
 
 
+def _boss_crest_visible(image: np.ndarray, x: int, y: int, radius: int) -> bool:
+    """识别金色翼章包裹的首领圆节点，避免将其与普通金块或塔墙混淆。"""
+    visible_radius = int(radius * 0.9)
+    if (radius < 45 or x < visible_radius or y < visible_radius
+            or x + visible_radius >= image.shape[1] or y + visible_radius >= image.shape[0]):
+        return False
+    extent = 72
+    y0, y1 = max(0, y - extent), min(image.shape[0], y + extent + 1)
+    x0, x1 = max(0, x - extent), min(image.shape[1], x + extent + 1)
+    region = image[y0:y1, x0:x1]
+    yy, xx = np.ogrid[y0 - y:y1 - y, x0 - x:x1 - x]
+    distance = xx * xx + yy * yy
+    gold_ring = (distance >= 42 ** 2) & (distance <= 72 ** 2)
+    hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    gold = (hsv[:, :, 0] >= 12) & (hsv[:, :, 0] <= 38) & (hsv[:, :, 1] >= 70) & (hsv[:, :, 2] >= 110)
+    inner_gray = cv2.cvtColor(image[max(0, y - 22):y + 23, x - 22:x + 23], cv2.COLOR_BGR2GRAY)
+    return bool(
+        float(inner_gray.mean()) <= 110
+        and gold_ring.any()
+        and float(gold[gold_ring].mean()) >= 0.45
+    )
+
+
 def _lit_unfinished_ring(
     image: np.ndarray, labels: np.ndarray, label: int, x: int, y: int, radius: int,
     *, min_cyan: float = 0.2, min_connected_cyan: int = 200,
 ) -> bool:
     """检查亮线与蓝环，并拒绝低纹理中心及绿色完成标记。"""
-    extent = radius + 18
-    if x < extent or y < extent or x + extent >= image.shape[1] or y + extent >= image.shape[0]:
+    visible_radius = int(radius * 0.9)
+    if (x < visible_radius or y < visible_radius
+            or x + visible_radius >= image.shape[1] or y + visible_radius >= image.shape[0]):
         return False
-    region = image[y - extent:y + extent + 1, x - extent:x + extent + 1]
-    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    boss_crest = _boss_crest_visible(image, x, y, radius)
+    extent = 116 if boss_crest else radius + 18
+    if not boss_crest and (
+        x < extent or y < extent or x + extent >= image.shape[1] or y + extent >= image.shape[0]
+    ):
+        return False
+    y0, y1 = max(0, y - extent), min(image.shape[0], y + extent + 1)
+    x0, x1 = max(0, x - extent), min(image.shape[1], x + extent + 1)
+    region = image[y0:y1, x0:x1]
+    yy, xx = np.ogrid[y0 - y:y1 - y, x0 - x:x1 - x]
     distance = xx * xx + yy * yy
-    annulus = (distance >= max(10, radius - 18) ** 2) & (distance <= extent ** 2)
+    inner_radius = 72 if boss_crest else max(10, radius - 18)
+    annulus = (distance >= inner_radius ** 2) & (distance <= extent ** 2)
     blue, green, red = (region[:, :, i].astype(np.int16) for i in range(3))
     cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
-    if float(cyan[annulus].mean()) < min_cyan:
+    if not annulus.any() or float(cyan[annulus].mean()) < min_cyan:
         return False
-    if any(float(cyan[annulus & quadrant].mean()) < 0.05 for quadrant in (
-        (xx < 0) & (yy < 0), (xx >= 0) & (yy < 0),
-        (xx < 0) & (yy >= 0), (xx >= 0) & (yy >= 0),
-    )):
+    if any(not (annulus & quadrant).any() or float(cyan[annulus & quadrant].mean()) < 0.05
+           for quadrant in (
+               (xx < 0) & (yy < 0), (xx >= 0) & (yy < 0),
+               (xx < 0) & (yy >= 0), (xx >= 0) & (yy >= 0),
+           )):
         return False
-    component = labels[y - extent:y + extent + 1, x - extent:x + extent + 1] == label
+    component = labels[y0:y1, x0:x1] == label
     if int(np.count_nonzero(component & annulus & cyan)) < min_connected_cyan:
         return False
     if not _unlocked_unfinished_center(image, MapNode(x, y, radius)):
         return False
     center_gray = cv2.cvtColor(image[y - 10:y + 10, x - 10:x + 10], cv2.COLOR_BGR2GRAY)
-    if float(center_gray.std()) < 12 or float(center_gray[5:15, 5:15].std()) < 5:
+    if (float(center_gray.mean()) >= 220 or float(center_gray.std()) < 12
+            or float(center_gray[5:15, 5:15].std()) < 5):
         return False
     visible_radius = int(radius * 0.9)
     visible = image[y - visible_radius:y + visible_radius, x - visible_radius:x + visible_radius]

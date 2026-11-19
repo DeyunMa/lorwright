@@ -570,7 +570,7 @@ def test_field_cook_heals_once_and_verifies_completed_map(adventure, success):
     assert image is not None
     after = cv2.imread(str(FIXTURES.parent / "healer/f1-after-heal.png")) if success else image
     assert after is not None
-    loop, device, _, saved, _ = adventure([after], [])
+    loop, device, _, saved, _ = adventure([after] * 8, [])
     loop.pack = load("jinx")
     assert loop._recognized_after_home(image)
     assert loop._handle_node_panel(image) is success
@@ -694,7 +694,7 @@ def test_unknown_screen_with_blue_content_never_triggers_panel_close(adventure):
 def test_healer_taps_once_and_stops_even_if_screen_does_not_change(adventure):
     image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
     assert image is not None
-    loop, device, engine, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop, device, engine, saved, _ = adventure([image] * 8, [UIState.UNKNOWN])
     loop.run(max_nodes=3)
     assert device.taps == [(1441, 1004)]
     assert saved == ["healer_unchanged"]
@@ -715,7 +715,7 @@ def test_healer_does_not_click_when_selected_option_is_unclear(adventure):
 def test_healer_opened_from_node_panel_stops_after_one_heal(adventure):
     image = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
     assert image is not None
-    loop, device, _, saved, _ = adventure([image, image], [UIState.UNKNOWN])
+    loop, device, _, saved, _ = adventure([image] * 8, [UIState.UNKNOWN])
     assert not loop._handle_node_panel()
     assert device.taps == [(1441, 1004)]
     assert saved == ["healer_unchanged"]
@@ -751,7 +751,7 @@ def test_healer_returning_to_map_without_completion_stops(adventure):
     after = cv2.imread(str(FIXTURES.parent / "healer" / "f1-after-heal.png"))
     assert before is not None and after is not None
     after[500:560, 930:990] = 0
-    loop, device, _, saved, _ = adventure([before, after], [UIState.UNKNOWN])
+    loop, device, _, saved, _ = adventure([before] + [after] * 7, [UIState.UNKNOWN])
     loop.pack = load("jinx")
     loop.run(max_nodes=2)
     assert device.taps == [(1441, 1004)]
@@ -2681,7 +2681,7 @@ def test_healer_map_verification_without_champion_avatar(adventure, completed):
     assert image is not None and after is not None
     if not completed:
         after[500:560, 930:990] = 0
-    loop, _, _, saved, _ = adventure([after], [])
+    loop, _, _, saved, _ = adventure([after] * 8, [])
     loop.pack = object()
     assert loop._handle_healer(image) is completed
     assert saved == ["healer_completed" if completed else "healer_map_unverified"]
@@ -2755,3 +2755,17 @@ def test_reentry_is_not_repeated_when_routes_stay_locked(adventure, monkeypatch)
     loop.run(max_nodes=2)
     assert len(device.taps) == 1
     assert saved == ["map_no_next"]
+
+
+def test_healer_waits_for_toast_before_verifying_completion(adventure):
+    # 2026-11-19 治疗后 3 秒的停止实拍（提示未消失、无完成勾）与随后另行采集的稳定地图，不是连续录像。
+    toast = cv2.imread(str(FIXTURES.parent / "healer/f1-healer-toast-map-20261119.png"))
+    done = cv2.imread(str(FIXTURES.parent / "healer/f1-healer-completed-map-20261119.png"))
+    if toast is None or done is None:
+        pytest.skip("缺少 2026-11-19 治疗实拍")
+    before = cv2.imread(str(FIXTURES.parent / "healer" / "f1-full-health.png"))
+    loop, device, _, saved, _ = adventure([toast, toast, done], [])
+    loop.pack = load("jinx")
+    assert loop._handle_healer(before) is True
+    assert device.taps == [(1441, 1004)]
+    assert saved == ["healer_completed"]

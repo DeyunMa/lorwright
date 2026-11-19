@@ -1147,8 +1147,13 @@ class AdventureLoop:
         _, scale = normalized
         self._tap(*scale.to_device(*button.center))
         logger.info("adventure: 已点击治疗，等待核对结果")
-        self._wait(3)
-        after = self._frame()
+        after = image
+        # 治疗提示动画结束后才出现完成勾；只观察，不重复点击。
+        for after in self._transition_frames("healer_transition", first_delay=3):
+            if is_map(after) and not panel_open(after):
+                hero = locate_map_hero(after)
+                if hero is not None and _current_completed_node_visible(after, hero.center):
+                    break
         if self._is_healer(after):
             logger.warning("adventure: 治疗后仍在治疗师页面，停止")
             tag = "healer_unchanged"

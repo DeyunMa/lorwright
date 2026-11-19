@@ -267,3 +267,14 @@ def test_reentered_soloist_selection_tolerates_one_pixel_border_offset():
     shifted[300:680, 984:987] = 70
     shifted[300:680, 987:988] = 70
     assert astrologer_selection(shifted) is None
+
+
+def test_reentered_soloist_purchase_reads_map_eight():
+    # 2026-11-19 重进独奏家并购买后的回图实拍，不在 491dc94 基线内；缺图时跳过。
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-soloist-reentered-purchased-map-20261119.png"))
+    if frame is None:
+        pytest.skip("缺少 f1-soloist-reentered-purchased-map-20261119.png")
+    assert astrologer_map_gold(frame) == 680
+    obscured = frame.copy()
+    obscured[1010:1034, 499:513] = 0
+    assert astrologer_map_gold(obscured) != 680

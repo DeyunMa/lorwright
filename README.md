@@ -1,6 +1,6 @@
 # LoRwright
 
-LoRwright 是一个基于屏幕视觉的《符文大地传说》英雄之路（Path of Champions）自动化工具。它识别截图，用规则选择动作，通过 ADB 操作 Android 游戏客户端，再从新截图核验结果。
+LoRwright 是一个基于屏幕视觉的《符文大地传说》英雄之路（Path of Champions）自动化工具。它识别截图，用规则选择动作，通过 ADB 操作 Android 游戏客户端，再从新截图核验结果。项目目标是让不同英雄自主完成每周冒险、每月挑战等任务。
 
 ## 主要能力
 
@@ -10,7 +10,7 @@ LoRwright 是一个基于屏幕视觉的《符文大地传说》英雄之路（P
 
 ## 支持范围
 
-项目使用 Python 3.11+、OpenCV 和 ADB，主要在 BlueStacks Pie64 的 1920×1080 截图环境中验证。金克丝和伊莉絲各自全程无人值守完成冒险仍待验收。
+项目使用 Python 3.11+、OpenCV 和 ADB，主要在 BlueStacks Pie64 的 1920×1080 截图环境中验证。各英雄的自动冒险覆盖范围和验收证据见[阶段状态](docs/status.md)。
 
 项目按纯视觉和普通设备输入设计，遵循[视觉感知约定](docs/adr/0002-vision-only-perception.md)。游戏自动化可能违反 Riot 的用户协议并带来账号风险。项目用于自动化技术研究。
 

@@ -160,7 +160,7 @@ def test_home_transition_ignores_a_frame_that_returns_after_deadline(adventure, 
     def capture_frame():
         frame = device.screencap()
         if frame.image is resume:
-            clock[0] += 11
+            clock[0] += 29
         return frame
 
     monkeypatch.setattr(loop, "capture_frame", capture_frame)
@@ -175,8 +175,28 @@ def test_home_transition_ignores_a_frame_that_returns_after_deadline(adventure, 
     assert device.taps == [find_home_adventure_entry(home).center]
     assert len(written) == 1 and written[0] is resume
     assert recorded[-1] == ("adventure_transition_deadline", {
-        "reason": "home_entry_transition", "wait_s": 12, "elapsed_s": 13.0,
+        "reason": "home_entry_transition", "wait_s": 30, "elapsed_s": 31.0,
     })
+
+
+def test_home_transition_accepts_observed_slow_world_load(adventure, monkeypatch):
+    # f1 上 2026-11-19 的主页进入耗时 10.2–15.5 秒；载入画面以空帧代替。
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    loop, device, _, saved, _ = adventure([home] + [_blank()] * 6 + [resume], [UIState.UNKNOWN])
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr(loop, "_wait", lambda seconds, **kwargs: clock.__setitem__(0, clock[0] + seconds))
+
+    def capture_frame():
+        clock[0] += 0.6
+        return device.screencap()
+
+    monkeypatch.setattr(loop, "capture_frame", capture_frame)
+    assert loop.run(max_nodes=1) == LoopResult("stopped", "iteration_limit")
+    assert clock[0] > 15
+    assert device.taps == [find_home_adventure_entry(home).center]
+    assert saved == []
 
 
 def test_home_transition_leaves_time_for_the_last_capture(adventure, monkeypatch):
@@ -941,7 +961,7 @@ def test_home_entry_persistent_battle_probe_times_out_without_entering_battle(ad
 def test_home_entry_unknown_transition_times_out_with_wait_report(adventure, monkeypatch):
     home = cv2.imread(str(FIXTURES.parent / "screens/1080p_home_adventure_entry.png"))
     assert home is not None
-    loop, device, _, saved, _ = adventure([home] + [_blank()] * 6, [])
+    loop, device, _, saved, _ = adventure([home] + [_blank()] * 14, [])
     reports = []
     monkeypatch.setattr(
         "lorwright.core.loop.adventure.report",
@@ -951,8 +971,8 @@ def test_home_entry_unknown_transition_times_out_with_wait_report(adventure, mon
     waits = [data for phase, reason, data in reports
              if phase == "waiting" and reason == "home_entry_transition"]
     remaining = [data["wait_s"] for data in waits]
-    assert len(remaining) == 6
-    assert 0 < remaining[-1] <= remaining[0] <= 12
+    assert len(remaining) == 14
+    assert 0 < remaining[-1] <= remaining[0] <= 30
     assert remaining == sorted(remaining, reverse=True)
     assert len(device.taps) == 1
     assert saved == ["home_entry_after"]

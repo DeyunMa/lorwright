@@ -554,7 +554,9 @@ class AdventureLoop:
                 if entry is not None:
                     self._tap(*scale.to_device(*entry.center))
                     after = image
-                    for after in self._transition_frames("home_entry_transition"):
+                    # 实机载入英雄之路需 10–16 秒，冷启动更久；窗口仍有界。
+                    for after in self._transition_frames("home_entry_transition",
+                                                         wait_s=30, attempts=14):
                         if self._recognized_after_home(after):
                             pending_image = after
                             report("verified", "home_entry_transition", progress=True, **self._details)

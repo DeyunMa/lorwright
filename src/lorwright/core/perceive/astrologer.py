@@ -92,9 +92,11 @@ def astrologer_selection(image: np.ndarray) -> int | None:
         right_edge = gray[300:680, x + 267:x + 270]
         edges = (edge, right_edge)
         top = gray[185:191, x + 15:x + 255]
-        strong_edges = all(float((part > 180).mean()) > 0.8 for part in edges)
+        # 边框可能相对取样窗偏 1px；按行判断窗内任一列高亮。
+        coverage = [float((part > 180).any(axis=1).mean()) for part in edges]
+        strong_edges = all(value > 0.8 for value in coverage)
         narrow_highlight = (float((top > 180).mean()) > 0.8
-                            and all(float((part > 180).mean()) > 0.72 for part in edges))
+                            and all(value > 0.72 for value in coverage))
         if all(float(part.mean()) > 200 for part in edges) and (strong_edges or narrow_highlight):
             states.append(True)
         elif (55 < float(edge.mean()) < 105 and float((edge > 180).mean()) < 0.02

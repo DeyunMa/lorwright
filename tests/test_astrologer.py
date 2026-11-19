@@ -150,7 +150,7 @@ def test_obscured_balance_cannot_reuse_previous_value():
 def test_selected_astrologer_with_narrow_border_requires_top_highlight():
     frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-selected-20261116.png"))
     assert frame is not None
-    frame[300:390, 1629] = 140
+    frame[300:390, 1629:1632] = 140
     assert astrologer_selection(frame) == 2
     frame[185:191, 1644:1884] = 28
     assert astrologer_selection(frame) is None
@@ -255,3 +255,15 @@ def test_real_selection_and_synthetic_exact_balance_change():
     changed = selected.copy()
     changed[280:390, 1709:1819] = 128
     assert not same_astrologer_offers(before, changed)
+
+
+def test_reentered_soloist_selection_tolerates_one_pixel_border_offset():
+    # 2026-11-19 重进独奏家后的停止实拍，不在 491dc94 基线内；缺图时跳过。
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-soloist-reentered-selected-20261119.png"))
+    if frame is None:
+        pytest.skip("缺少 f1-soloist-reentered-selected-20261119.png")
+    assert astrologer_selection(frame) == 0
+    shifted = frame.copy()
+    shifted[300:680, 984:987] = 70
+    shifted[300:680, 987:988] = 70
+    assert astrologer_selection(shifted) is None

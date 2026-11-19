@@ -102,6 +102,10 @@ Register-ScheduledTask -TaskName 'F1GameWatchdog' -Action $gameAction -Trigger $
 - 无线重连使用脚本中的 `$WifiProfile`，须在目标机以 SYSTEM 身份确认配置存在。`WlanConnect` 返回 0 只表示请求已提交，须另看无线事件及后续网络检测。
 - 每轮有开始和正常退出耗时；没有结束记录只能提示中断或日志失败，不能单独断言系统挂起。退避期仍会记录 Clash 摘要，但原有网络探测和恢复动作按退避策略跳过。
 
+## Clash 与 Tailscale
+
+f1 的 Clash Verge 开着 TUN，默认路由经 Meta 网卡。2026-11-19 的日志显示，Tailscale 的控制面、STUN 和 DERP 流量曾随规则走代理节点，出口 IP 在国内地址和多个境外节点间切换；代理不可用时控制面连接持续超时，远程访问和 LoR 一起断开。当前订阅的规则增强文件（`profiles.yaml` 中当前订阅 `option.rules` 指向的文件）已在 `prepend` 加入 `tailscaled.exe`、`tailscale-ipn.exe`、`tailscale.exe` 三条 `PROCESS-NAME ... DIRECT`，修改前的文件备份在 `C:\Code\lorwright-evidence\clash-backup-20261119`。更换订阅或重建规则增强后需重新核对。
+
 ## 边界
 
 - `gamewatchdog` 检查模拟器、ADB 和 LoR 进程。它遵循网络看门狗尚在生效的退避时间。故障计数只在状态文件更新时间距当前不足 6 分钟时压住游戏恢复，过期会记入日志。ADB 进程探测报错时记录探测失败，本轮不重启 LoR。`-DryRun` 只记录能否看到模拟器进程，跳过 ADB 和恢复写入。

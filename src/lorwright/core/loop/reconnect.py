@@ -123,12 +123,13 @@ def run_with_reconnect_recovery(settings, device, run_loop, *, auto_login=False)
         except ReconnectTimeout as exc:
             path = save_snapshot(exc.frame.image, settings.perception.snapshot_dir,
                                  tag="reconnect_timeout")
+            snapshot_path = str(path) if path is not None else None
             if restarted:
                 reason = "reconnect_recovery_exhausted"
-                report("stopped", reason, snapshot=str(path))
+                report("stopped", reason, snapshot=snapshot_path)
                 return LoopResult("stopped", reason)
             checkpoint()
-            report("recovery", "reconnect_restart", snapshot=str(path), attempt=1)
+            report("recovery", "reconnect_restart", snapshot=snapshot_path, attempt=1)
             record_event("client_restart_requested", reason="reconnect_timeout", attempt=1)
             restarted = True
             try:
@@ -144,5 +145,5 @@ def run_with_reconnect_recovery(settings, device, run_loop, *, auto_login=False)
                 checkpoint()
                 frame = device.screencap()
                 path = save_snapshot(frame.image, settings.perception.snapshot_dir, tag=reason)
-                report("stopped", reason, snapshot=str(path))
+                report("stopped", reason, snapshot=str(path) if path is not None else None)
                 return LoopResult("stopped", reason)

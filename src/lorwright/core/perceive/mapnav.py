@@ -136,8 +136,12 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
             # 单独的亮线也常出现在地形附近。弱脚下证据仅用于外环几乎完整的候选。
             if navigation_candidates is None:
                 navigation_candidates = _navigation_candidates(image)
-            if (any(stats[1:, cv2.CC_STAT_AREA] >= 220)
-                    or _navigation_origin(image, token.center, navigation_candidates) is not None):
+            origin = _navigation_origin(image, token.center, navigation_candidates)
+            # 未走到的能力节点，其金色展示框和亮线不能冒充棋子及脚下证据。
+            if (origin is not None and origin.shape == "diamond"
+                    and _diamond_target_visible(image, origin.node)):
+                continue
+            if origin is not None or any(stats[1:, cv2.CC_STAT_AREA] >= 220):
                 verified.append(token)
     if len(verified) != 1:
         return None

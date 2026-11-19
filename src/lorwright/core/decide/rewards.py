@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from random import Random
 
 from lorwright.core.champions.base import Preference
+from lorwright.core.decide.card import CardKind
 
 __all__ = [
     "QUALITY_RANK", "CardRewardCandidate", "CardRewardPick", "RewardCandidate",
@@ -65,6 +66,7 @@ class CardRewardCandidate:
     cost_certain: bool
     #: 画面预览费用已独立读出；不代表未知道具不会影响入组后的费用。
     preview_cost_verified: bool = False
+    kind: CardKind | None = None
 
 
 @dataclass(frozen=True)
@@ -78,7 +80,8 @@ def pick_card_reward(
     card_preferences: tuple[Preference, ...] = (),
     item_preferences: tuple[Preference, ...] = (),
 ) -> CardRewardPick | None:
-    """英雄偏好优先；否则按卡牌品质、有效费用排序。信息不足则弃权。"""
+    """跳过地标，然后按英雄偏好、卡牌品质、有效费用排序。"""
+    candidates = [c for c in candidates if c.kind is not CardKind.LANDMARK]
     if not candidates:
         return None
 

@@ -308,7 +308,8 @@ def test_start_success_reserves_id_and_passes_replay(tmp_path, monkeypatch):
     with RunSession(tmp_path, mode="battle", champion="", device=str(tmp_path),
                     run_id=output["run_id"]):
         pass
-    assert "--jsonl" in calls[0]
+    assert "--jsonl" not in calls[0]
+    assert output["console_log_format"] == "text"
 
 
 @pytest.mark.parametrize("option", ["--spell-already-played", "--jinx-summoned",
@@ -354,6 +355,28 @@ def test_start_rocket_recovery_validation_and_forwarding(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     index = commands[0].index("--rockets-already-played")
     assert commands[0][index + 1] == "1"
+
+
+def test_start_weekly_replay_slot_validation_and_forwarding(tmp_path, monkeypatch):
+    commands = []
+
+    def spawn(command, **kwargs):
+        commands.append(command)
+
+        def wait(timeout):
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        return SimpleNamespace(pid=os.getpid(), wait=wait)
+
+    monkeypatch.setattr(cli.subprocess, "Popen", spawn)
+    base = ["start", "--root", str(tmp_path), "--weekly-replay-slot"]
+    assert runner.invoke(cli.app, base + ["2"]).exit_code == 2
+    assert runner.invoke(cli.app, base + ["4", "--mode", "adventure"]).exit_code == 2
+    assert not commands
+    result = runner.invoke(cli.app, base + ["2", "--mode", "adventure"])
+    assert result.exit_code == 0, result.output
+    index = commands[0].index("--weekly-replay-slot")
+    assert commands[0][index + 1] == "2"
 
 
 def test_start_passes_riot_login_option_only_for_bootstrap(tmp_path, monkeypatch):

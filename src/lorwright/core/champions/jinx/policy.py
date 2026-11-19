@@ -1,6 +1,7 @@
 """用户指定的起手：應急裝置 → 减费 Jinx → 打掉 Jinx 生成的飞逝牌。"""
 
 from lorwright.core.decide.base import PlayExpectation
+from lorwright.core.decide.card import CardKind
 from lorwright.core.decide.rewards import QUALITY_RANK, CardRewardCandidate, CardRewardPick
 from lorwright.core.models import Action, ActionType, GameState, UIState
 
@@ -14,24 +15,22 @@ POW_POW_NAMES = frozenset({"砰砰", "碰碰", "Pow-Pow"})
 
 
 def pick_card_reward(candidates: list[CardRewardCandidate]) -> CardRewardPick | None:
-    """Jinx 奖励按已核实预览费用选择；同费比较已知品质，未知保留未知。"""
-    if not candidates or any(
-        c.card.cost is None or c.card.cost < 0
-        or not (c.cost_certain or c.preview_cost_verified) for c in candidates
+    """跳过地标，单位优先，同组先比已核验的费用，同费再比品质。"""
+    eligible = [c for c in candidates if c.kind is not None and c.kind is not CardKind.LANDMARK]
+    units = [c for c in eligible if c.kind.is_unit]
+    pool = units or eligible
+    if not pool:
+        return None
+    reason = "Jinx：单位优先，再比费用，同费选高品质"
+    if len(pool) == 1:
+        return CardRewardPick(pool[0], reason)
+    if any(
+        c.card.cost is None or c.card.cost < 0 or not (c.cost_certain or c.preview_cost_verified)
+        for c in pool
     ):
         return None
-    lowest = min(c.card.cost for c in candidates)
-    cheapest = [c for c in candidates if c.card.cost == lowest]
-    if len(cheapest) == 1:
-        return CardRewardPick(cheapest[0], "Jinx：费用最低优先")
-    if any(c.card.quality not in QUALITY_RANK for c in cheapest):
-        if not all(c.preview_cost_verified for c in cheapest):
-            return None
-        known = [c for c in cheapest if c.card.quality in QUALITY_RANK]
-        chosen = max(known, key=lambda c: QUALITY_RANK[c.card.quality]) if known else cheapest[0]
-        return CardRewardPick(chosen, "Jinx：预览费用最低；品质不全，已知优先，同级按显示顺序")
-    chosen = max(cheapest, key=lambda c: QUALITY_RANK[c.card.quality])
-    return CardRewardPick(chosen, "Jinx：费用相同时品质最高优先")
+    chosen = min(pool, key=lambda c: (c.card.cost, -QUALITY_RANK.get(c.card.quality, -2)))
+    return CardRewardPick(chosen, reason)
 
 
 class JinxOpeningPolicy:
@@ -89,6 +88,7 @@ class JinxOpeningPolicy:
             elif any(
                 not selected[i] and self._mulligan_targets[i] is not None
                 and observed[i] != self._mulligan_targets[i]
+                and (self._mulligan_targets[i] is True or observed[i] is not None)
                 for i in range(4)
             ):
                 return Action(type=ActionType.NO_OP)
@@ -100,6 +100,9 @@ class JinxOpeningPolicy:
             for card, current in zip(cards, selected, strict=True):
                 target = card.index in desired
                 if current != target:
+                    # 当前卡面暂时不可读时保留这张，其他槽仍由各自的两帧证据核验。
+                    if target and card.matches_target is None:
+                        continue
                     return Action(
                         type=ActionType.MULLIGAN_REPLACE,
                         raw={"points": [card.rect.center], "mulligan_index": card.index,

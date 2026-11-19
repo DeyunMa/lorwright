@@ -16,6 +16,12 @@ class CardKind(StrEnum):
     UNIT = "unit"
     SPELL = "spell"
     CHAMPION = "champion"
+    LANDMARK = "landmark"
+    EQUIPMENT = "equipment"
+
+    @property
+    def is_unit(self) -> bool:
+        return self in (CardKind.UNIT, CardKind.CHAMPION)
 
 
 @dataclass(frozen=True)
@@ -32,4 +38,4 @@ class CardDef:
 
     @property
     def is_unit(self) -> bool:
-        return self.kind in (CardKind.UNIT, CardKind.CHAMPION)
+        return self.kind.is_unit

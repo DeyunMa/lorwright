@@ -252,12 +252,16 @@ def login(
     模拟器重启会清掉登录态，而客户端卡在登录页时 `ui_state` 只能是 UNKNOWN，
     看门狗只会判「卡住」。所以登录得是个显式步骤。
     """
+    from lorwright.core.device.adb import secret_text_supported
     from lorwright.core.perceive.login import LoginDetector, LoginScreen
 
     settings = load_settings()
     user, pwd = settings.lor_username, settings.lor_password
     if not user or not pwd:
         console.print("[red]缺少 LOR_USERNAME / LOR_PASSWORD[/red]（写进 .env）")
+        raise typer.Exit(2)
+    if device == "adb" and not (secret_text_supported(user) and secret_text_supported(pwd)):
+        console.print("[red]凭据包含 ADB 输入不支持的字符[/red]")
         raise typer.Exit(2)
 
     layout = settings.layout.to_layout()
@@ -280,14 +284,16 @@ def login(
                 dev.tap(*layout.login_splash.center)
                 time.sleep(5)
                 continue
-            dev.tap(*layout.login_username.center)
-            time.sleep(0.6)
-            dev.text(user)
-            time.sleep(0.4)
-            dev.tap(*layout.login_password.center)
-            time.sleep(0.6)
-            dev.text(pwd)
-            time.sleep(0.4)
+            input_credential = dev.text_secret if device == "adb" else dev.text
+            try:
+                for field, value in ((layout.login_username, user), (layout.login_password, pwd)):
+                    dev.tap(*field.center)
+                    time.sleep(0.6)
+                    input_credential(value)
+                    time.sleep(0.4)
+            except Exception:
+                console.print("[red]登录凭据输入失败[/red]")
+                raise typer.Exit(1) from None
             dev.tap(*layout.login_submit.center)
             time.sleep(10)
     finally:
@@ -428,6 +434,7 @@ def _execute_session(
     bootstrap_f1: bool = False, open_riot_login: bool = False, auto_login: bool = False,
     rockets_already_played: int | None = None, confirm_empty_hand_once: bool = False,
     sample_hero_item_jinx: bool = False, hand_view: bool | None = None,
+    weekly_replay_slot: int | None = None,
 ) -> None:
     """运行入口共用生命周期；手牌视图任务不装配战斗策略。"""
     from lorwright.core.runtime.session import RunSession, StopRequested, checkpoint, report
@@ -509,6 +516,7 @@ def _execute_session(
                                 return AdventureLoop(
                                     settings, engine, dev, pack=pack,
                                     sample_hero_item_jinx=sample_hero_item_jinx,
+                                    weekly_replay_slot=None if restarted else weekly_replay_slot,
                                     capture_frame=capture_frame,
                                 ).run(max_nodes=max_nodes)
                             return engine.run(max_ticks=max_ticks or None, close_device=False)
@@ -594,6 +602,7 @@ def adventure(
     open_riot_login: bool = typer.Option(False, "--open-riot-login", help="在登录方式页打开 Riot 登录表单"),
     auto_login: bool = typer.Option(False, "--auto-login", help="使用配置凭据自动登录一次"),
     sample_hero_item_jinx: bool = typer.Option(False, help="受控采样：仅选择一次 Jinx 并保存画面"),
+    weekly_replay_slot: int | None = typer.Option(None, min=1, max=3, help="重玩已完成周常：1 上方，2 左下，3 右下"),
 ) -> None:
     """运行冒险流程，输出可查询的阶段、等待和停止原因。"""
     _execute_session(
@@ -603,6 +612,7 @@ def adventure(
         jinx_summoned=jinx_summoned, bootstrap_f1=bootstrap_f1,
         open_riot_login=open_riot_login, auto_login=auto_login,
         sample_hero_item_jinx=sample_hero_item_jinx,
+        weekly_replay_slot=weekly_replay_slot,
     )
 
 

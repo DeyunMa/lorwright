@@ -176,7 +176,9 @@ def test_mulligan_only_replaces_duplicate_jinx():
     assert action.type is ActionType.MULLIGAN_REPLACE
     assert action.raw["points"] == [cards[3].rect.center]
     unknown = replace(cards[0], matches_target=None)
-    assert policy.decide(replace(mulligan, mulligan_cards=[unknown, *cards[1:]])).type is ActionType.NO_OP
+    assert policy.decide(replace(mulligan, mulligan_cards=[unknown, *cards[1:]])).raw["mulligan_index"] == 3
+    unknown_jinx = replace(cards[1], matches_target=None)
+    assert policy.decide(replace(mulligan, mulligan_cards=[cards[0], unknown_jinx, *cards[2:]])).type is ActionType.NO_OP
     assert policy.decide(mulligan).type is ActionType.MULLIGAN_REPLACE
     selected_cards = [*cards[:3], replace(cards[3], matches_target=None)]
     assert policy.decide(replace(mulligan, mulligan_cards=selected_cards,
@@ -221,6 +223,20 @@ def test_mulligan_unknown_slots_do_not_block_known_actions(targets, desired):
         ui_state=UIState.MULLIGAN, mulligan_cards=cards,
         mulligan_selected=tuple(selected),
     )).type is ActionType.CONFIRM
+
+
+def test_mulligan_keeps_unreadable_non_target_and_replaces_still_visible_slot():
+    policy = load("jinx").make_policy()
+    cards = [mulligan_card(i, "其他牌") for i in range(4)]
+    initial = GameState(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4,
+                        mulligan_cards=cards)
+    assert policy.decide(initial).raw["mulligan_index"] == 0
+    blurred = replace(initial, mulligan_cards=[replace(cards[0], matches_target=None), *cards[1:]])
+    action = policy.decide(blurred)
+    assert action.type is ActionType.MULLIGAN_REPLACE
+    assert action.raw["mulligan_index"] == 1
+    remaining = replace(blurred, mulligan_selected=(False, True, True, True))
+    assert policy.decide(remaining).type is ActionType.CONFIRM
 
 
 def test_mulligan_replaces_all_cards_when_jinx_missing():

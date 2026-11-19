@@ -105,6 +105,21 @@ def test_elise_outranks_every_other_card():
         assert ranked[0][1].name == "伊莉絲", f"伊莉絲 应该排在 {other.name} 前面"
 
 
+def test_known_landmark_and_equipment_are_not_played_without_a_supported_flow(monkeypatch):
+    from lorwright.core.champions.elise.deck import EliseCard
+    from lorwright.core.decide.card import CardKind
+
+    definitions = {kind.value: EliseCard(kind.value, cost=1, kind=kind)
+                   for kind in (CardKind.LANDMARK, CardKind.EQUIPMENT)}
+    monkeypatch.setattr("lorwright.core.champions.elise.policy.lookup", definitions.get)
+    state = GameState(
+        mana=3, hand_expanded=True, my_units=[unit("友方单位", 2, 2)],
+        hand=[CardInHand(i, name, 1, RECT, visible_playable_unit=True)
+              for i, name in enumerate(definitions)],
+    )
+    assert rank_playable(state) == []
+
+
 def test_spell_mana_only_applies_to_known_spells_with_fresh_reading():
     cards = [hand(0, "傾巢而出", 6), hand(1, "群蛛之主", 5),
              CardInHand(2, "未知", 5, RECT, visible_playable_unit=True)]

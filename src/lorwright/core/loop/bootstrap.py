@@ -10,8 +10,15 @@ from dataclasses import dataclass
 from lorwright.core.device.adb import secret_text_supported
 from lorwright.core.device.base import Frame
 from lorwright.core.device.startup import PACKAGE
+from lorwright.core.models import UIState
+from lorwright.core.perceive.adventure_scene import (
+    find_home_adventure_entry,
+    find_resume_adventure_button,
+    is_map,
+)
 from lorwright.core.perceive.login import LoginDetector, LoginScreen
 from lorwright.core.perceive.normalize import Normalizer
+from lorwright.core.perceive.ui_state import UIStateDetector
 from lorwright.core.runtime.session import StopRequested, checkpoint, report
 
 
@@ -231,15 +238,29 @@ def _auto_login_impl(settings, device, frame, normalizer, detector) -> Bootstrap
         raise RuntimeError("自动登录输入失败") from None
     deadline = time.monotonic() + 30
     report("bootstrap", "waiting_login_transition", wait_s=30)
+    ui = UIStateDetector(threshold=settings.perception.match_threshold, action_button=layout.end_turn)
+    ui.load()
     while True:
         checkpoint()
         frame = device.screencap()
         image, _ = normalizer.fit(frame.image)
         screen = detector.detect(image)
-        if screen is not LoginScreen.FORM:
-            return BootstrapResult(frame, screen,
-                                   auto_login_stop="login_required" if screen is LoginScreen.SPLASH else None)
+        if frame.age_s() <= settings.loop.max_frame_age_s:
+            if screen is LoginScreen.SPLASH and time.monotonic() < deadline:
+                return BootstrapResult(frame, screen, auto_login_stop="login_required")
+            if (screen is LoginScreen.NONE and _post_login_scene(image, ui)
+                    and time.monotonic() < deadline):
+                return BootstrapResult(frame, screen)
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return BootstrapResult(frame, screen, auto_login_stop="login_transition_unverified")
         time.sleep(min(0.5, remaining))
+
+
+def _post_login_scene(image, ui) -> bool:
+    if find_home_adventure_entry(image) or find_resume_adventure_button(image) or is_map(image):
+        return True
+    battle_ui = ui.detect(image)
+    if battle_ui is UIState.MY_TURN_IDLE:
+        return ui.action_prompt(image) is not None
+    return battle_ui is not UIState.UNKNOWN

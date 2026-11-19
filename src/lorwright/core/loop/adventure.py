@@ -25,7 +25,7 @@ from lorwright.core.act.translate import ActionTranslator
 from lorwright.core.decide.adventure import pick_affordable_power, pick_lowest_weekly, pick_map_node
 from lorwright.core.decide.rewards import pick_card_reward, pick_hero_item_reward, pick_reward
 from lorwright.core.decide.support import pick_support_group
-from lorwright.core.device.base import Device
+from lorwright.core.device.base import Device, Frame
 from lorwright.core.loop.engine import Engine
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.loop.reconnect import ReconnectTimeout
@@ -33,6 +33,7 @@ from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.adventure_scene import (
     button_is,
     can_resume_adventure,
+    completed_weekly_targets,
     find_home_adventure_entry,
     find_resume_adventure_button,
     find_weekly_entry,
@@ -45,6 +46,7 @@ from lorwright.core.perceive.adventure_scene import (
     item_chest_leave_button,
     recognize_weekly_adventures,
     reward_timeout_continue,
+    selected_world_hero_matches,
     shop_leave_button,
     weekly_detail_stars,
 )
@@ -124,6 +126,10 @@ def _continue_view(image):
     return cv2.resize(content, (100, 60), interpolation=cv2.INTER_AREA)
 
 
+class _AdventureInputExpired(Exception):
+    """准备好的输入所依赖的画面已经过期。"""
+
+
 class AdventureLoop:
     SETTLEMENT_STAGES = (
         "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
@@ -140,13 +146,15 @@ class AdventureLoop:
     }
 
     def __init__(self, settings, engine, device: Device, *, pack,
-                 sample_hero_item_jinx: bool = False, capture_frame=None) -> None:
+                 sample_hero_item_jinx: bool = False, weekly_replay_slot: int | None = None,
+                 capture_frame=None) -> None:
         self.settings = settings
         self.engine = engine
         self.device = device
         self.capture_frame = capture_frame or (lambda: self.device.screencap())
         self.pack = pack
         self.sample_hero_item_jinx = sample_hero_item_jinx
+        self.weekly_replay_slot = weekly_replay_slot
         self.coords = settings.adventure.to_coords()
         self.translator = ActionTranslator(settings.layout.to_layout())
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
@@ -155,6 +163,8 @@ class AdventureLoop:
         self._last_scene = None
         self._details: dict = {}
         self._awaiting_battle_reward = False
+        self._latest_frame: Frame | None = None
+        self._late_transition_capture = False
 
     def run(self, max_nodes: int = 30) -> LoopResult:
         """max_nodes 是冒险循环迭代预算，不是已完成节点数。"""
@@ -162,6 +172,10 @@ class AdventureLoop:
         self._details = dict(iteration=0, iteration_limit=max_nodes)
         try:
             battle_result = self._run(max_nodes)
+        except _AdventureInputExpired:
+            assert self._latest_frame is not None
+            self._snapshot(self._latest_frame.image, tag="adventure_input_frame_expired")
+            return self.result
         except ReconnectTimeout:
             raise
         except StopRequested:
@@ -181,6 +195,9 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
+        replay_slot = self.weekly_replay_slot
+        if replay_slot is not None:
+            self._details["weekly_replay_slot"] = replay_slot
         route_zoom_used = False
         for iteration in range(1, max_nodes + 1):
             self._details.update(iteration=iteration)
@@ -214,9 +231,8 @@ class AdventureLoop:
             if timeout_button is not None:
                 self._scene("reward_timeout")
                 self._tap(*normalized[1].to_device(*timeout_button.center))
-                for _ in range(6):
-                    self._wait(2, reason="reward_timeout_transition", wait_s=12)
-                    after = self._frame()
+                after = image
+                for after in self._transition_frames("reward_timeout_transition"):
                     after_design = self._reward_design(after)
                     if after_design is None or reward_timeout_continue(after_design[0]) is not None:
                         continue
@@ -235,9 +251,8 @@ class AdventureLoop:
             if revive is not None:
                 self._scene("revive")
                 self._tap(*normalized[1].to_device(*revive.center))
-                for _ in range(6):
-                    self._wait(2, reason="revive_transition", wait_s=12)
-                    after = self._frame()
+                after = image
+                for after in self._transition_frames("revive_transition"):
                     after_design = self._reward_design(after)
                     if (after_design is not None
                             and find_revive_button(after_design[0]) is None
@@ -252,14 +267,16 @@ class AdventureLoop:
                 continue
             if self._is_card_reward(image):
                 self._scene("card_reward")
-                if not self._handle_card_reward(image):
+                pending_image = self._handle_card_reward(image)
+                if pending_image is None:
                     return
                 self._awaiting_battle_reward = False
                 continue
             post_battle_ui = None
             if self._awaiting_battle_reward:
                 # 战斗结束后的地图背景不授权找节点，先核实奖励或结算页面。
-                for attempt in range(7):
+                for reward_image in self._transition_frames("battle_reward_pending", initial=image):
+                    image = reward_image
                     design = self._reward_design(image)
                     if design is not None and adventure_settlement(design[0]) is not None:
                         self._complete_adventure(image)
@@ -277,11 +294,9 @@ class AdventureLoop:
                     if self._is_card_reward(image):
                         pending_image = image
                         break
-                    if attempt == 6:
-                        self._snapshot(image, tag="battle_reward_missing")
-                        return
-                    self._wait(2, reason="battle_reward_pending", wait_s=12)
-                    image = self._frame()
+                else:
+                    self._snapshot(image, tag="battle_reward_missing")
+                    return
                 if pending_image is not None:
                     continue
             if is_power_vendor(image):
@@ -344,9 +359,8 @@ class AdventureLoop:
                 if normalized is not None and result_screen(design) == "missions":
                     # 用户确认该任务结算页通过右下角继续；只点击一次。
                     self._tap(*normalized[1].to_device(1850, 1020))
-                    for _ in range(6):
-                        self._wait(2, reason="missions_transition", wait_s=12)
-                        after = self._frame()
+                    after = image
+                    for after in self._transition_frames("missions_transition"):
                         after_design = self._reward_design(after)
                         if after_design is not None and result_screen(after_design[0]) == "missions":
                             continue
@@ -385,9 +399,8 @@ class AdventureLoop:
                 self._tap(*plan.points[0])
                 last_continue = (x, y)
                 last_continue_view = _continue_view(image)
-                for _ in range(6):
-                    self._wait(2, reason="continue_transition", wait_s=12)
-                    after = self._frame()
+                after = image
+                for after in self._transition_frames("continue_transition"):
                     after_design = self._reward_design(after)
                     after_ui = self.engine.parser.ui.detect(
                         after_design[0] if after_design is not None else after
@@ -423,6 +436,9 @@ class AdventureLoop:
                 design_image, scale = self.normalizer.fit(image)
                 resume = find_resume_adventure_button(design_image)
                 if resume is not None:
+                    if replay_slot is not None:
+                        self._snapshot(image, tag="weekly_replay_active_adventure")
+                        return
                     if not can_resume_adventure(design_image, self.pack):
                         logger.warning("adventure: 无法确认所选英雄，停止")
                         self._snapshot(
@@ -430,9 +446,8 @@ class AdventureLoop:
                         )
                         return
                     self._tap(*scale.to_device(*resume.center))
-                    for _ in range(6):
-                        self._wait(2, reason="resume_transition", wait_s=12)
-                        after = self._frame()
+                    after = image
+                    for after in self._transition_frames("resume_transition"):
                         after_design = self._reward_design(after)
                         if is_map(after) or (after_design is not None
                                              and find_revive_button(after_design[0]) is not None):
@@ -449,12 +464,10 @@ class AdventureLoop:
                 if weekly_entry is not None:
                     self._scene("world_map")
                     self._tap(*scale.to_device(*weekly_entry.center))
-                    for _ in range(6):
-                        self._wait(2, reason="weekly_entry_transition", wait_s=12)
-                        after = self._frame()
+                    after = image
+                    for after in self._transition_frames("weekly_entry_transition"):
                         after_design = self._reward_design(after)
-                        if (after_design is not None
-                                and recognize_weekly_adventures(after_design[0]) is not None):
+                        if after_design is not None and is_weekly_list(after_design[0]):
                             pending_image = after
                             report("verified", "weekly_entry_transition", progress=True,
                                    **self._details)
@@ -463,49 +476,72 @@ class AdventureLoop:
                         self._snapshot(after, tag="weekly_entry_unverified")
                         return
                     continue
-                weekly = recognize_weekly_adventures(design_image)
-                if weekly is not None:
+                target = None
+                expected_stars = None
+                if replay_slot is not None:
+                    completed = completed_weekly_targets(design_image)
+                    if completed is not None:
+                        target = completed[replay_slot - 1]
+                        report("decided", "weekly_replay_target", **self._details)
+                else:
+                    weekly = recognize_weekly_adventures(design_image)
+                    if weekly is not None:
+                        stars = [candidate.stars for candidate in weekly]
+                        index = pick_lowest_weekly(stars, rng=self.rng)
+                        if index is None:
+                            self._snapshot(image, tag="weekly_stars_unknown")
+                            return
+                        target, expected_stars = weekly[index].target, weekly[index].stars
+                        report("decided", "lowest_weekly_stars", stars=expected_stars,
+                               candidates=stars, **self._details)
+                if target is not None:
                     self._scene("weekly_list")
-                    index = pick_lowest_weekly([candidate.stars for candidate in weekly], rng=self.rng)
-                    if index is None:
-                        self._snapshot(image, tag="weekly_stars_unknown")
-                        return
-                    selected_weekly_stars = weekly[index].stars
-                    report("decided", "lowest_weekly_stars", stars=selected_weekly_stars,
-                           candidates=[candidate.stars for candidate in weekly], **self._details)
-                    self._tap(*scale.to_device(*weekly[index].target.center))
-                    for _ in range(6):
-                        self._wait(2, reason="weekly_selection_transition", wait_s=12)
-                        after = self._frame()
+                    self._tap(*scale.to_device(*target.center))
+                    after = image
+                    for after in self._transition_frames("weekly_selection_transition"):
                         after_design = self._reward_design(after)
-                        if (after_design is not None
-                                and weekly_detail_stars(after_design[0]) == selected_weekly_stars
-                                and find_weekly_start(after_design[0]) is not None):
+                        if after_design is None:
+                            continue
+                        stars = weekly_detail_stars(after_design[0])
+                        if (stars is not None
+                                and (replay_slot is not None or stars == expected_stars)
+                                and find_weekly_start(after_design[0], replay=replay_slot is not None)
+                                is not None):
+                            selected_weekly_stars = stars
                             pending_image = after
                             report("verified", "weekly_selected", progress=True,
-                                   stars=selected_weekly_stars, **self._details)
+                                   stars=stars, **self._details)
                             break
                     else:
                         self._snapshot(after, tag="weekly_selection_unverified")
                         return
                     continue
+                if is_weekly_list(design_image):
+                    self._scene("weekly_list")
+                    reason = ("weekly_replay_list_unverified" if replay_slot is not None
+                              else "weekly_already_completed")
+                    self._snapshot(image, tag=reason)
+                    return
                 detail_stars = weekly_detail_stars(design_image)
                 if detail_stars is not None:
                     self._scene("weekly_detail")
                     if selected_weekly_stars is None:
                         self._snapshot(image, tag="weekly_detail_without_selection")
                         return
-                    start = find_weekly_start(design_image)
+                    start = find_weekly_start(design_image, replay=replay_slot is not None)
                     if detail_stars != selected_weekly_stars or start is None:
                         self._snapshot(image, tag="weekly_selection_unverified")
                         return
+                    if replay_slot is not None and not selected_world_hero_matches(design_image, self.pack):
+                        self._snapshot(image, tag="weekly_replay_hero_unknown")
+                        return
                     self._tap(*scale.to_device(*start.center))
-                    for _ in range(6):
-                        self._wait(2, reason="weekly_start_transition", wait_s=12)
-                        after = self._frame()
+                    after = image
+                    for after in self._transition_frames("weekly_start_transition"):
                         if is_map(after):
                             pending_image = after
                             selected_weekly_stars = None
+                            replay_slot = None
                             report("verified", "weekly_started", progress=True, **self._details)
                             break
                     else:
@@ -515,9 +551,8 @@ class AdventureLoop:
                 entry = find_home_adventure_entry(design_image)
                 if entry is not None:
                     self._tap(*scale.to_device(*entry.center))
-                    for _ in range(6):
-                        self._wait(2, reason="home_entry_transition", wait_s=12)
-                        after = self._frame()
+                    after = image
+                    for after in self._transition_frames("home_entry_transition"):
                         if self._recognized_after_home(after):
                             pending_image = after
                             report("verified", "home_entry_transition", progress=True, **self._details)
@@ -544,7 +579,7 @@ class AdventureLoop:
                 zoom = occluded_route_zoom_button(image, hero)
                 if zoom is not None:
                     route_zoom_used = True
-                    revealed = self._reveal_occluded_map_route(zoom)
+                    revealed = self._reveal_occluded_map_route(image, zoom)
                     if revealed is None:
                         return
                     image, hero, nxt = revealed
@@ -558,9 +593,7 @@ class AdventureLoop:
                     )
                     return
                 # 地图可能仍在转场动画中；只在重新识别到地图且没有面板时找节点。
-                for _ in range(6):
-                    self._wait(2, reason="map_next_node", wait_s=12)
-                    image = self._frame()
+                for image in self._transition_frames("map_next_node"):
                     if (self._is_card_reward(image) or self._is_hero_item_reward(image)
                             or self._is_support(image) or is_power_screen(image)):
                         pending_image = image
@@ -574,7 +607,7 @@ class AdventureLoop:
                             zoom = occluded_route_zoom_button(image, hero)
                             if zoom is not None:
                                 route_zoom_used = True
-                                revealed = self._reveal_occluded_map_route(zoom)
+                                revealed = self._reveal_occluded_map_route(image, zoom)
                                 if revealed is None:
                                     return
                                 image, hero, nxt = revealed
@@ -603,9 +636,8 @@ class AdventureLoop:
             self._snapshot(image, tag="task_reward_continue_missing")
             return None
         self._tap(*button.center)
-        for _ in range(6):
-            self._wait(2, reason="task_reward_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("task_reward_transition"):
             normalized = self._reward_design(after)
             if normalized is None:
                 continue
@@ -630,8 +662,8 @@ class AdventureLoop:
         normalized = self._reward_design(image)
         stage = adventure_settlement(normalized[0]) if normalized is not None else None
         victory = stage in {"victory", "rewards"}
-        self._details.update(snapshot=str(path), outcome="victory" if victory else "unverified",
-                             settlement_closed=False)
+        self._details.update(snapshot=str(path) if path is not None else None,
+                             outcome="victory" if victory else "unverified", settlement_closed=False)
         stages = self.SETTLEMENT_STAGES
         seen = set()
         for _ in range(len(stages) + 6):
@@ -744,11 +776,10 @@ class AdventureLoop:
         # 不能证明已进入冒险，应等待可识别的冒险页面。
         return False
 
-    def _reveal_occluded_map_route(self, button):
+    def _reveal_occluded_map_route(self, image, button):
         self._tap(*button.center)
-        for _ in range(3):
-            self._wait(2, reason="map_zoom_transition", wait_s=6)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("map_zoom_transition", wait_s=6, attempts=3):
             if is_map(after) and not panel_open(after):
                 hero = locate_map_hero(after)
                 fresh = self._find_next(after, hero)
@@ -768,14 +799,13 @@ class AdventureLoop:
         if distance < 80:
             self._snapshot(image, tag="map_pan_precondition_failed")
             return None
-        checkpoint()
+        self._require_fresh_input()
         report("execute", "map_pan", start=list(point),
                end=[point[0], point[1] - distance], **self._details)
+        self._require_fresh_input()
         self.device.drag(*point, point[0], point[1] - distance, 150, 600)
         after = image
-        for _ in range(6):
-            self._wait(2, reason="map_pan_transition", wait_s=12)
-            after = self._frame()
+        for after in self._transition_frames("map_pan_transition"):
             if not is_map(after) or panel_open(after):
                 continue
             moved = locate_map_hero(after)
@@ -842,9 +872,8 @@ class AdventureLoop:
             self._snapshot(image, tag="power_selected_unverified")
             return None
         self._tap(*scale.to_device(960, 1003))
-        for _ in range(6):
-            self._wait(2, reason="power_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("power_transition"):
             if not is_power_screen(after) and self._recognized_after_home(after):
                 report("verified", "power_transition", progress=True, **self._details)
                 return after
@@ -956,9 +985,8 @@ class AdventureLoop:
             self._snapshot(image, tag="hero_item_selected_unverified")
             return None
         self._tap(*scale.to_device(960, 1003))
-        for _ in range(6):
-            self._wait(2, reason="hero_item_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("hero_item_transition"):
             if not self._is_hero_item_reward(after) and self._recognized_after_home(after):
                 report("verified", "hero_item_transition", progress=True, **self._details)
                 return after
@@ -987,9 +1015,8 @@ class AdventureLoop:
             self._snapshot(image, tag="astrologer_leave_missing")
             return False
         self._tap(*button.center)
-        for _ in range(6):
-            self._wait(2, reason="astrologer_leave", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("astrologer_leave"):
             if is_map(after) and not panel_open(after):
                 report("verified", "astrologer_map_transition", progress=True)
                 return True
@@ -1025,9 +1052,8 @@ class AdventureLoop:
         self._tap(*button.center)
         # 购买只发送一次；以本帧金币的精确扣减核验，不根据按钮点击猜到账。
         expected_gold = gold - offers[index].cost
-        for _ in range(6):
-            self._wait(2, reason="astrologer_purchase", wait_s=12)
-            after = self._frame()
+        after = selected
+        for after in self._transition_frames("astrologer_purchase"):
             map_gold = astrologer_map_gold(after)
             if astrologer_gold(after) == expected_gold or map_gold == expected_gold:
                 report("verified", "astrologer_currency_paid", progress=True,
@@ -1047,9 +1073,8 @@ class AdventureLoop:
             return False
         self._scene("gold_chest")
         self._tap(*button.center)
-        for _ in range(6):
-            self._wait(2, reason="gold_chest_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("gold_chest_transition"):
             if is_map(after) and not panel_open(after):
                 report("verified", "gold_chest_map_transition", progress=True,
                        reward_credited_verified=False)
@@ -1065,9 +1090,8 @@ class AdventureLoop:
             return False
         self._scene("item_chest")
         self._tap(*button.center)
-        for _ in range(6):
-            self._wait(2, reason="item_chest_leave_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("item_chest_leave_transition"):
             if is_map(after) and not panel_open(after):
                 report("verified", "item_chest_map_transition", progress=True,
                        reward_skipped=True)
@@ -1082,9 +1106,8 @@ class AdventureLoop:
             self._snapshot(image, tag="shop_leave_missing")
             return False
         self._tap(*button.center)
-        for _ in range(6):
-            self._wait(2, reason="shop_leave_transition", wait_s=12)
-            after = self._frame()
+        after = image
+        for after in self._transition_frames("shop_leave_transition"):
             if is_map(after) and not panel_open(after):
                 report("verified", "shop_map_transition", progress=True)
                 logger.info("adventure: 已离开商店，继续寻找下一节点")
@@ -1167,9 +1190,8 @@ class AdventureLoop:
             )
             return False
         self._tap(*selected[1].to_device(*button.center))
-        for _ in range(6):
-            self._wait(2, reason="support_transition", wait_s=12)
-            next_image = self._frame()
+        next_image, next_design = selected_image, selected
+        for next_image in self._transition_frames("support_transition"):
             next_design = self._reward_design(next_image)
             if next_design is None or is_support_screen(next_design[0]):
                 continue
@@ -1182,18 +1204,18 @@ class AdventureLoop:
         self._snapshot(next_image, tag=tag)
         return False
 
-    def _handle_card_reward(self, image) -> bool:
-        """核验选中、确认和后继界面后继续；转场不等于证明服务端到账。"""
+    def _handle_card_reward(self, image) -> np.ndarray | None:
+        """核验选中、确认和后继界面后返回后继帧。"""
         normalized = self._reward_design(image)
         if normalized is None:
             self._snapshot(image, tag="card_reward_unknown")
-            return False
+            return None
         design, scale = normalized
         candidates = recognize_card_rewards(design)
         if candidates is None:
             logger.warning("adventure: 卡牌奖励信息不完整或已选中，停止")
             self._snapshot(image, tag="card_reward_unknown")
-            return False
+            return None
         champion_pick = getattr(self.pack, "pick_card_reward", None)
         picked = champion_pick(candidates) if champion_pick is not None else pick_card_reward(
             candidates, getattr(self.pack, "card_preferences", ()),
@@ -1202,11 +1224,12 @@ class AdventureLoop:
         if picked is None:
             logger.warning("adventure: 卡牌奖励无法安全排序，停止")
             self._snapshot(image, tag="card_reward_undecided")
-            return False
+            return None
         index = candidates.index(picked.candidate)
         name = picked.candidate.card.name or "未知卡牌"
         record_event("reward_decision", kind="card_reward", selection=index, reason=picked.reason,
                      candidates=[{"slot": slot, "name": candidate.card.name,
+                                  "card_kind": candidate.kind,
                                   "preview_cost": candidate.card.cost,
                                   "quality": candidate.card.quality}
                                  for slot, candidate in enumerate(candidates)])
@@ -1220,7 +1243,7 @@ class AdventureLoop:
             self._snapshot(
                 image, tag="card_reward_target_obscured"
             )
-            return False
+            return None
         self._tap(*scale.to_device(*target.center))
         self._wait(3)
         selected_image = self._frame()
@@ -1230,37 +1253,42 @@ class AdventureLoop:
             self._snapshot(
                 selected_image, tag="card_reward_selection_failed"
             )
-            return False
+            return None
         report("verified", "card_reward_selected", progress=True, selection=index)
         button = card_reward_confirm_button(selected[0])
         if button is None:
             self._snapshot(
                 selected_image, tag="card_reward_confirm_missing"
             )
-            return False
+            return None
         self._tap(*selected[1].to_device(*button.center))
-        for _ in range(6):
-            self._wait(2, reason="card_reward_transition", wait_s=12)
-            next_image = self._frame()
+        previous_scene = None
+        next_image, next_design = selected_image, selected
+        for next_image in self._transition_frames("card_reward_transition"):
             next_design = self._reward_design(next_image)
-            if next_design is None or is_card_reward_screen(next_design[0]):
-                continue
-            if is_map(next_design[0]) or is_power_screen(next_design[0]):
-                # 核验的是奖励交互结束，不能将它记作服务端到账证明。
+            next_scene = None
+            if next_design is not None and not is_card_reward_screen(next_design[0]):
+                if is_map(next_design[0]):
+                    next_scene = "map"
+                elif is_power_screen(next_design[0]):
+                    next_scene = "power"
+            # 奖励消退时可能短暂露出地图，等连续两帧核验后再交接。
+            if next_scene is not None and next_scene == previous_scene:
                 report("verified", "card_reward_transition", progress=True, selection=index,
                        reward_credited_verified=False)
-                return True
+                return next_image
+            previous_scene = next_scene
         tag = ("card_reward_confirm_unchanged" if next_design is not None
                and is_card_reward_screen(next_design[0]) else "card_reward_after_unknown")
         self._snapshot(next_image, tag=tag)
-        return False
+        return None
 
     def _close_panel(self, image) -> bool:
         # 动态找“非节点”的空白区域，不固定某个坐标。
-        point = empty_point(image)
-        if point is None:
-            return False
         for _ in range(2):
+            point = empty_point(image)
+            if point is None:
+                return False
             self._tap(*point)
             logger.info("adventure: 点击空白处关闭面板 ({}, {})", *point)
             self._wait(4)
@@ -1288,7 +1316,7 @@ class AdventureLoop:
         if self._is_support(image):
             return self._handle_support(image)
         if self._is_card_reward(image):
-            return self._handle_card_reward(image)
+            return self._handle_card_reward(image) is not None
         ui = self.engine.parser.ui.detect(image)
         if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
             return True  # 有些节点直接进战斗
@@ -1323,11 +1351,10 @@ class AdventureLoop:
             self._tap(*button.center)
             last_action = action
             logger.info("adventure: 面板按钮 ({}, {})", *button.center)
-            self._wait(4, reason="node_transition", wait_s=24)
             # 旅行或战斗可能先出现载入画面。只等待新帧，绝不重复点击；
             # 看到可识别的场景再交给对应处理，超时仍未知则停止。
-            for attempt in range(11):
-                image = self._frame()
+            for image in self._transition_frames("node_transition", wait_s=24, attempts=11,
+                                                 first_delay=4):
                 if is_power_vendor(image):
                     return self._handle_astrologer(image)
                 if gold_chest_collect_button(image) is not None:
@@ -1341,7 +1368,7 @@ class AdventureLoop:
                 if self._is_support(image):
                     return self._handle_support(image)
                 if self._is_card_reward(image):
-                    return self._handle_card_reward(image)
+                    return self._handle_card_reward(image) is not None
                 ui = self.engine.parser.ui.detect(image)
                 if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
                     return True
@@ -1356,8 +1383,6 @@ class AdventureLoop:
                     # 若尚无可达节点，说明英雄仍在路径移动或节点页面尚未弹出，继续观察等待。
                     if self._find_next(image, locate_map_hero(image)) is not None:
                         return True
-                if attempt < 10:
-                    self._wait(2, reason="node_transition", wait_s=24)
             else:
                 logger.warning("adventure: 节点转场后画面仍无法识别，停止")
                 self._snapshot(
@@ -1380,26 +1405,38 @@ class AdventureLoop:
         self._last_scene = scene
 
     def _snapshot(self, image, out_dir=None, *, tag: str):
+        if self._late_transition_capture:
+            assert self._latest_frame is not None
+            image = self._latest_frame.image
+            self._late_transition_capture = False
         path = snapshot.save_snapshot(
             image, out_dir or self.settings.perception.snapshot_dir, tag=tag,
         )
+        snapshot_path = str(path) if path is not None else None
         if tag == "healer_completed":
-            report("verified", tag, progress=True, snapshot=str(path))
+            report("verified", tag, progress=True, snapshot=snapshot_path)
         else:
             self.result = LoopResult("stopped", tag)
-            self._details.update(snapshot=str(path))
+            self._details.update(snapshot=snapshot_path)
             if tag == "battle_reward_missing" or tag.startswith("card_reward_"):
                 normalized = self._reward_design(image)
                 evidence = card_reward_diagnostics(normalized[0] if normalized is not None else image)
                 self._details["recognition_diagnostic"] = evidence
                 record_event("perception_diagnostic", reason=tag, expected_scene="card_reward",
-                             snapshot=str(path), **evidence)
+                             snapshot=snapshot_path, **evidence)
             report("stopped", tag, **self._details)
         return path
 
-    def _tap(self, *point) -> None:
+    def _require_fresh_input(self) -> None:
+        assert self._latest_frame is not None
         checkpoint()
+        if self._latest_frame.age_s() > self.settings.loop.max_frame_age_s:
+            raise _AdventureInputExpired
+
+    def _tap(self, *point) -> None:
+        self._require_fresh_input()
         report("execute", "adventure_tap", target=list(point), **self._details)
+        self._require_fresh_input()
         self.device.tap(*point)
 
     def _wait(
@@ -1410,10 +1447,35 @@ class AdventureLoop:
                **self._details)
         Engine._wait(seconds)
 
+    def _transition_frames(self, reason, *, wait_s=12, attempts=6, first_delay=2, initial=None):
+        """在固定时间窗口内轮询，跨过截止时间的截图不交给后继判定。"""
+        started = time.monotonic()
+        deadline = started + wait_s
+        if initial is not None:
+            yield initial
+        for attempt in range(attempts):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            delay = first_delay if attempt == 0 else 2
+            # 接近截止时给最后一次截图留出时间，而不是把预算全部用来等待。
+            self._wait(min(delay, remaining / 2), reason=reason, wait_s=remaining)
+            if time.monotonic() >= deadline:
+                return
+            image = self._frame()
+            elapsed = time.monotonic() - started
+            if elapsed >= wait_s:
+                self._late_transition_capture = True
+                record_event("adventure_transition_deadline", reason=reason, wait_s=wait_s,
+                             elapsed_s=round(elapsed, 3))
+                return
+            yield image
+
     def _frame(self):
         checkpoint()
+        self._late_transition_capture = False
         report("capture", **self._details)
         started = time.time()
-        frame = self.capture_frame()
+        self._latest_frame = self.capture_frame()
         report("recognize", capture_ms=round((time.time() - started) * 1000), **self._details)
-        return frame.image
+        return self._latest_frame.image

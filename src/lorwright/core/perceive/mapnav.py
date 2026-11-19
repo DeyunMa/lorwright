@@ -434,6 +434,25 @@ def reachable_nodes(
     return _connected_navigation_nodes(image, current.node, hero, candidates, mask)
 
 
+def current_unfinished_node(
+    image: np.ndarray, hero: HeroToken | tuple[int, int] | None,
+) -> MapNode | None:
+    """脚下圆节点有光环、未完成且未上锁时返回其位置，只表示可重新进入。
+
+    事件被断线打断后，后继路线保持锁定；是否重进及次数由冒险层决定。
+    """
+    if hero is None or image.shape != (1080, 1920, 3) or panel_open(image):
+        return None
+    current = _navigation_origin(image, hero[:2], _navigation_candidates(image))
+    if current is None or current.shape != "round":
+        return None
+    if (_current_completed_node_visible(image, hero[:2])
+            or not _current_node_halo_visible(image, hero[:2])
+            or not _unlocked_unfinished_center(image, current.node)):
+        return None
+    return current.node
+
+
 def occluded_route_zoom_button(image: np.ndarray, hero: HeroToken | tuple[int, int] | None) -> Rect | None:
     """头像遮挡使短边没有安全取样区时，只授权放大取证，不授权节点输入。"""
     if hero is None or not is_map(image) or panel_open(image):

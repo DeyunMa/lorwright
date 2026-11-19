@@ -13,6 +13,7 @@ from lorwright.core.perceive.mapnav import (
     MapNode,
     _current_battle_node_visible,
     _route_origin,
+    current_unfinished_node,
     detect_ability_nodes,
     detect_nodes,
     empty_point,
@@ -1208,3 +1209,35 @@ def test_zoomed_boss_crest_rejects_missing_route_or_target_evidence(damage):
     if damage != "origin":
         assert hero is not None
     assert reachable_nodes(image, hero=hero) == []
+
+
+def _interrupted_event_map() -> np.ndarray:
+    # 2026-11-19 断线后恢复的停止实拍，不在 491dc94 基线内；缺图时跳过。
+    image = cv2.imread(str(FIXTURES / "f1-soloist-interrupted-map-20261119.png"))
+    if image is None:
+        pytest.skip("缺少 f1-soloist-interrupted-map-20261119.png")
+    return image
+
+
+def test_interrupted_event_node_is_reentry_target_while_routes_stay_locked():
+    image = _interrupted_event_map()
+    hero = locate_map_hero(image)
+    assert reachable_nodes(image, hero=hero) == []
+    node = current_unfinished_node(image, hero)
+    assert node is not None and abs(node.x - 959) <= 10 and abs(node.y - 534) <= 10
+
+
+def test_interrupted_event_node_requires_halo_and_unlocked_center():
+    image = _interrupted_event_map()
+    hero = locate_map_hero(image)
+    dimmed = image.copy()
+    yy, xx = np.ogrid[:1080, :1920]
+    ring = ((xx - 959) ** 2 + (yy - 534) ** 2 >= 40 ** 2) & ((xx - 959) ** 2 + (yy - 534) ** 2 <= 75 ** 2)
+    dimmed[ring] = (dimmed[ring] * 0.4).astype(np.uint8)
+    assert current_unfinished_node(dimmed, hero) is None
+    assert current_unfinished_node(image, None) is None
+
+
+def test_completed_current_node_is_not_reentry_target():
+    image = _load("f1-weekly-after-second-reward-20261116.png")
+    assert current_unfinished_node(image, locate_map_hero(image)) is None

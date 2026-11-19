@@ -68,6 +68,7 @@ from lorwright.core.perceive.healer import healer_heal_button, is_healer_screen
 from lorwright.core.perceive.mapnav import (
     HeroToken,
     _current_completed_node_visible,
+    current_unfinished_node,
     empty_point,
     locate_map_hero,
     node_kind,
@@ -199,6 +200,7 @@ class AdventureLoop:
         if replay_slot is not None:
             self._details["weekly_replay_slot"] = replay_slot
         route_zoom_used = False
+        reentry_used = False
         for iteration in range(1, max_nodes + 1):
             self._details.update(iteration=iteration)
             report("adventure", **self._details)
@@ -573,6 +575,7 @@ class AdventureLoop:
                 self._snapshot(image, tag="unknown_scene")
                 return
             self._scene("map")
+            reentering = False
             hero = locate_map_hero(image)
             nxt = self._find_next(image, hero)
             if nxt is None and not route_zoom_used:
@@ -614,6 +617,9 @@ class AdventureLoop:
                                 break
                 if pending_image is not None:
                     continue
+                if nxt is None and not reentry_used:
+                    nxt = self._current_reentry(image)
+                    reentering = nxt is not None
                 if nxt is None:
                     logger.warning("adventure: 地图上找不到下一节点，停止（保存快照）")
                     self._snapshot(image, tag="map_no_next")
@@ -629,6 +635,8 @@ class AdventureLoop:
             if not self._handle_node_panel():
                 return
             route_zoom_used = False
+            # 重进后仍无可走后继就停止；正常走到下一节点后才再次允许。
+            reentry_used = reentering
 
     def _handle_task_reward(self, image):
         button = find_continue_button(image)
@@ -819,6 +827,15 @@ class AdventureLoop:
                 return after, fresh
         self._snapshot(after, tag="map_pan_unverified")
         return None
+
+    def _current_reentry(self, image):
+        """后继全部锁定时重进脚下未完成节点，结果交由节点处理逐项核验。"""
+        if not is_map(image):
+            return None
+        node = current_unfinished_node(image, locate_map_hero(image))
+        if node is not None:
+            record_event("map_current_reentry", x=node.x, y=node.y)
+        return node
 
     def _find_next(self, image, hero: HeroToken | None):
         """从调用方在本帧识别的棋子选择已核实路线。"""

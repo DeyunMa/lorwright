@@ -2699,3 +2699,39 @@ def test_map_zoom_allowance_renews_after_node(adventure, monkeypatch):
     assert localized == [id(frame) for frame in frames]
     assert device.taps == [(1822, 297), (1062, 331)] * 2
     assert saved == []
+
+
+def _interrupted_event_map() -> np.ndarray:
+    # 2026-11-19 断线打断独奏家后恢复的停止实拍，不在 491dc94 基线内；缺图时跳过。
+    image = cv2.imread(str(FIXTURES / "f1-soloist-interrupted-map-20261119.png"))
+    if image is None:
+        pytest.skip("缺少 f1-soloist-interrupted-map-20261119.png")
+    return image
+
+
+def test_locked_routes_reenter_interrupted_event_node_once(adventure, monkeypatch):
+    stopped = _interrupted_event_map()
+    vendor = cv2.imread(str(FIXTURES.parent / "screens/f1-soloist-20261116.png"))
+    assert vendor is not None
+    loop, device, _, saved, _ = adventure([stopped] * 7 + [vendor], [UIState.UNKNOWN] * 8)
+    loop.pack = load("jinx")
+    handled = []
+    monkeypatch.setattr(loop, "_handle_astrologer", lambda image: handled.append(image) or True)
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 959) <= 10 and abs(device.taps[0][1] - 534) <= 10
+    assert handled == [vendor]
+    assert saved == []
+
+
+def test_reentry_is_not_repeated_when_routes_stay_locked(adventure, monkeypatch):
+    stopped = _interrupted_event_map()
+    vendor = cv2.imread(str(FIXTURES.parent / "screens/f1-soloist-20261116.png"))
+    assert vendor is not None
+    loop, device, _, saved, _ = adventure([stopped] * 7 + [vendor] + [stopped] * 7,
+                                          [UIState.UNKNOWN] * 16)
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_handle_astrologer", lambda image: True)
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert saved == ["map_no_next"]

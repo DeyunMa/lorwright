@@ -147,6 +147,15 @@ def test_obscured_balance_cannot_reuse_previous_value():
     assert astrologer_gold(frame) is None
 
 
+def test_selected_astrologer_with_narrow_border_requires_top_highlight():
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-selected-20261116.png"))
+    assert frame is not None
+    frame[300:390, 1629] = 140
+    assert astrologer_selection(frame) == 2
+    frame[185:191, 1644:1884] = 28
+    assert astrologer_selection(frame) is None
+
+
 def test_real_selected_astrologer_preserves_offers_and_enables_purchase():
     selected = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-selected-20261116.png"))
     assert selected is not None

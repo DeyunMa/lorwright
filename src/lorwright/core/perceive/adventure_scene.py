@@ -186,8 +186,13 @@ def _resume_art_reference(path: Path):
 
 def can_resume_adventure(image: np.ndarray, pack) -> bool:
     """同帧核验继续按钮、所选英雄铭牌和包内英雄插画。"""
+    return find_resume_adventure_button(image) is not None and selected_world_hero_matches(image, pack)
+
+
+def selected_world_hero_matches(image: np.ndarray, pack) -> bool:
+    """世界地图左下角的英雄铭牌和插画必须与英雄包匹配。"""
     art = getattr(pack, "hero_item_art", None)
-    if art is None or find_resume_adventure_button(image) is None:
+    if art is None or image.shape != (1080, 1920, 3):
         return False
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if not _resume_nameplate_visible(gray):
@@ -255,8 +260,12 @@ def _gold_title_visible(image: np.ndarray, name: str,
 
 
 def shop_leave_button(image: np.ndarray) -> Rect | None:
-    """商店标题和明亮的离开文字同时可见才允许离开。"""
+    """识别普通商店，以及带右侧购买按钮的节点商贩布局。"""
     if not _gold_title_visible(image, "shop_title", (545, 345, 715, 430)):
+        if (_visible_patch(image, "map_back", (80, 65, 118, 105)) is not None
+                and _matches(image, "astrologer_buy", (1375, 970, 1510, 1040), 0.97)):
+            # 此布局的退出项高于普通商店。购买文字只用于核验面板。
+            return _visible_patch(image, "shop_leave", (630, 920, 760, 990))
         return None
     if not _matches(image, "shop_leave", (630, 970, 760, 1040), 0.94):
         return None
@@ -391,6 +400,18 @@ def is_weekly_list(image: np.ndarray) -> bool:
     ) == 3
 
 
+def completed_weekly_targets(image: np.ndarray) -> tuple[Rect, Rect, Rect] | None:
+    """三关全完成时，按上方、左下、右下返回可点击的关卡标记。"""
+    completed = _weekly_markers(image, "weekly_completed")
+    if len(completed) != 3 or _weekly_markers(image, "weekly_clock"):
+        return None
+    top, *bottom = completed
+    left, right = sorted(bottom, key=lambda hit: hit.x)
+    if top.y + top.h >= min(left.y, right.y) or not left.x < top.x < right.x:
+        return None
+    return top, left, right
+
+
 def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...] | None:
     """动态定位未完成时钟，结合完成勾核对三个位置，再读取星级。
 
@@ -431,12 +452,39 @@ def weekly_detail_stars(image: np.ndarray) -> float | None:
     return ratings[0] if len(ratings) == 1 else None
 
 
-def find_weekly_start(image: np.ndarray) -> Rect | None:
+def _weekly_replay_label(image: np.ndarray, button: Rect) -> bool:
+    """以深色笔画的分布区分「重玩冒險」和同位置的「開始冒險」。"""
+    x, y = button.center
+    if button.w < 150 or button.h < 38:
+        return False
+    gray = cv2.cvtColor(image[y - 19:y + 19, x - 75:x + 75], cv2.COLOR_BGR2GRAY)
+    ink = gray < 90
+    columns = np.flatnonzero(ink.any(axis=0))
+    groups = np.split(columns, np.flatnonzero(np.diff(columns) > 4) + 1)
+    if len(groups) != 4:
+        return False
+    reference = (0x1FF7FFF, 0x17B5ADF, 0x1FFFFFF, 0x1EFFFFF)
+    for group, expected in zip(groups, reference, strict=True):
+        glyph = ink[:, group[0]:group[-1] + 1]
+        rows = np.flatnonzero(glyph.any(axis=1))
+        glyph = glyph[rows[0]:rows[-1] + 1]
+        if not (24 <= glyph.shape[0] <= 28 and 24 <= glyph.shape[1] <= 28):
+            return False
+        cells = cv2.resize(glyph.astype(np.float32), (5, 5), interpolation=cv2.INTER_AREA) > 0.19
+        signature = int("".join("1" if filled else "0" for filled in cells.flat), 2)
+        if (signature ^ expected).bit_count() > 3:
+            return False
+    return True
+
+
+def find_weekly_start(image: np.ndarray, *, replay: bool = False) -> Rect | None:
     if weekly_detail_stars(image) is None:
         return None
     button = action_button(image)
     if button is None or button.x < 1300 or button.y < 900:
         return None
+    if replay:
+        return button if _weekly_replay_label(image, button) else None
     if _visible_patch(image, "weekly_start", (button.x, button.y,
                                              button.x + button.w, button.y + button.h)) is None:
         return None

@@ -73,6 +73,15 @@ def test_smooth_background_changes_preserve_detection(detector, brightness):
     assert detector.detect(image) is True
 
 
+def test_weak_reconnect_title_requires_strong_exit_button(detector):
+    image = _scene()
+    title = image[500:580, 750:1060]
+    title[:] = cv2.GaussianBlur(title, (0, 0), 1.28)
+    assert detector.detect(image) is True
+    image[910:1045, 800:1120] = 90
+    assert detector.detect(image) is False
+
+
 def test_jpeg_compression_preserves_detection(detector):
     encoded, data = cv2.imencode(".jpg", _scene(), [cv2.IMWRITE_JPEG_QUALITY, 85])
     assert encoded

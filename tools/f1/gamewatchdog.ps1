@@ -70,19 +70,11 @@ function Restart-AdbServer {
 }
 
 function Start-Pie64 {
-    if ($DryRun) {
-        Write-Log "dry-run: would run scheduled task $StartTask"
-        return
-    }
     Write-Log "running scheduled task $StartTask"
     & schtasks /run /tn $StartTask 2>&1 | Out-Null
 }
 
 function Restart-Emulator {
-    if ($DryRun) {
-        Write-Log 'dry-run: would stop HD-Player and run F1StartPie64'
-        return
-    }
     Write-Log 'outermost: restarting BlueStacks Pie64'
     Get-Process HD-Player -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 5
@@ -90,10 +82,6 @@ function Restart-Emulator {
 }
 
 function Restart-LorApp($serial) {
-    if ($DryRun) {
-        Write-Log 'dry-run: would force-stop and relaunch LoR'
-        return
-    }
     Write-Log 'restarting LoR app'
     & $Adb -s $serial shell am force-stop $Package 2>&1 | Out-Null
     Start-Sleep -Seconds 2
@@ -120,22 +108,34 @@ if ($state.backoffUntil) {
     $state['backoffUntil'] = $null
 }
 
-# Do not fight the network watchdog while it is in an unhealthy/backoff state.
+# 活跃退避按明确的截止时间计算。故障计数只在最近三次计划周期内有效。
 if (Test-Path $NetStateFile) {
     try {
-        $net = Get-Content $NetStateFile -Raw | ConvertFrom-Json
-        if ($net.fails -ge 2) {
-            Write-Log "network watchdog fails=$($net.fails), skip game actions"
-            exit 0
-        }
-        if ($net.backoffUntil -and (Get-Date) -lt [datetime]$net.backoffUntil) {
+        $netFile = Get-Item -LiteralPath $NetStateFile -ErrorAction Stop
+        $net = Get-Content -LiteralPath $NetStateFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $now = Get-Date
+        if ($net.backoffUntil -and $now -lt [datetime]$net.backoffUntil) {
             Write-Log "network watchdog backoff until $($net.backoffUntil), skip game actions"
             exit 0
         }
-    } catch {}
+        if ($net.fails -ge 2) {
+            $age = $now.ToUniversalTime() - $netFile.LastWriteTimeUtc
+            if ($age.TotalMinutes -ge 0 -and $age.TotalMinutes -lt 6) {
+                Write-Log "network watchdog fails=$($net.fails), skip game actions"
+                exit 0
+            }
+            Write-Log ('network watchdog failure count expired, ageSeconds={0:N0}' -f $age.TotalSeconds)
+        }
+    } catch {
+        Write-Log ('network watchdog state unreadable: ' + $_.Exception.Message)
+    }
 }
 
 $player = Get-Process HD-Player -ErrorAction SilentlyContinue
+if ($DryRun) {
+    Write-Log "dry-run: emulatorPresent=$([bool]$player); skip ADB checks and recovery"
+    exit 0
+}
 if (-not $player) {
     $state['noPlayer'] = [int]$state['noPlayer'] + 1
     Write-Log "no HD-Player process (count=$($state.noPlayer))"
@@ -167,18 +167,21 @@ if (-not $serial) {
 $state['adbFails'] = 0
 
 $gamePid = (& $Adb -s $serial shell pidof $Package 2>&1 | Out-String).Trim()
+$probeExit = $LASTEXITCODE
+# adb 断连的错误文字不是进程号，也不能当成游戏已经退出。
+if (($gamePid -and ($probeExit -ne 0 -or $gamePid -notmatch '^\d+(?:\s+\d+)*$')) -or $probeExit -gt 1) {
+    Write-Log "LoR process probe failed (adb exit=$probeExit), skip game recovery"
+    Save-State $state
+    exit 1
+}
 if (-not $gamePid) {
     $state['gameFails'] = [int]$state['gameFails'] + 1
     Write-Log "LoR process missing (count=$($state.gameFails))"
     if ($state.gameFails -eq 1 -or $state.gameFails -eq 2) {
-        if ($DryRun) {
-            Write-Log 'dry-run: would launch LoR'
-        } else {
-            Push-Location $Project
-            try {
-                & $Lorwright launch 2>&1 | ForEach-Object { Write-Log ('lorwright launch: ' + $_) }
-            } finally { Pop-Location }
-        }
+        Push-Location $Project
+        try {
+            & $Lorwright launch 2>&1 | ForEach-Object { Write-Log ('lorwright launch: ' + $_) }
+        } finally { Pop-Location }
     }
     if ($state.gameFails -ge $RestartAppAfter) {
         Restart-LorApp $serial

@@ -6,6 +6,7 @@ import pytest
 
 from lorwright.core.champions.base import Preference
 from lorwright.core.champions.jinx.policy import pick_card_reward as pick_jinx_card_reward
+from lorwright.core.decide.card import CardKind
 from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
 from lorwright.core.perceive.reward_screen import (
     _card_cost,
@@ -27,9 +28,9 @@ def _image(name):
     return image
 
 
-def _candidate(name, quality, cost, *, item="其他", cost_certain=True):
+def _candidate(name, quality, cost, *, item="其他", cost_certain=True, kind=CardKind.UNIT):
     return CardRewardCandidate(
-        RewardCandidate(name, quality, cost), item, cost_certain
+        RewardCandidate(name, quality, cost), item, cost_certain, kind=kind
     )
 
 
@@ -79,6 +80,7 @@ def test_remaining_first_reward_recognizes_preview_costs_and_target():
     candidates = recognize_card_rewards(image)
     assert candidates is not None
     assert [c.card.cost for c in candidates] == [3, 6, 4]
+    assert [c.card.quality for c in candidates] == ["common", "rare", "rare"]
     assert all(c.preview_cost_verified for c in candidates)
     assert all(c.card.name == "" for c in candidates)
     assert pick_jinx_card_reward(candidates).candidate is candidates[0]
@@ -118,7 +120,7 @@ def landmark_reward():
     return image
 
 
-def test_landmark_reward_uses_preview_cost_without_cataloguing_new_cards():
+def test_landmark_reward_reads_kind_and_quality_without_cataloguing_new_cards():
     image = landmark_reward()
     assert is_card_reward_screen(image)
     assert card_reward_selection(image) == -1
@@ -126,11 +128,32 @@ def test_landmark_reward_uses_preview_cost_without_cataloguing_new_cards():
     assert candidates is not None
     assert [c.card.cost for c in candidates] == [3, 2, 3]
     assert [c.card.name for c in candidates] == ["", "", ""]
-    assert candidates[1].card.quality == candidates[2].card.quality == "unknown"
+    assert [c.card.quality for c in candidates] == ["rare", "epic", "common"]
+    assert [c.kind for c in candidates] == ["unit", "unit", "landmark"]
     assert all(c.preview_cost_verified for c in candidates)
     assert pick_jinx_card_reward(candidates).candidate == candidates[1]
     assert card_reward_target(image, 1, "") is not None
     assert card_reward_target(image, 2, "") is not None
+
+
+@pytest.mark.parametrize("damage", ["dimmed", "cut", "recolored", "solid_color"])
+def test_epic_badge_requires_color_and_complete_shape(damage):
+    image = landmark_reward()
+    badge = image[642:661, 950:973]
+    if damage == "dimmed":
+        badge //= 2
+    elif damage == "cut":
+        badge[9:] = 0
+    elif damage == "recolored":
+        hsv = cv2.cvtColor(badge, cv2.COLOR_BGR2HSV)
+        hsv[:, :, 0] = 50
+        badge[:] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    else:
+        badge[2:17, 3:20] = (230, 30, 230)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert candidates[1].card.quality == "unknown"
+    assert candidates[1].kind == "unit"
 
 
 @pytest.mark.parametrize("region", [
@@ -157,7 +180,7 @@ def narrow_one_reward():
     return image
 
 
-def test_narrow_one_reward_recognizes_all_costs_and_selects_middle():
+def test_narrow_one_reward_reads_one_cost_spell_but_prefers_epic_unit():
     image = narrow_one_reward()
     assert is_card_reward_screen(image)
     assert card_reward_selection(image) == -1
@@ -165,8 +188,9 @@ def test_narrow_one_reward_recognizes_all_costs_and_selects_middle():
     candidates = recognize_card_rewards(image)
     assert candidates is not None
     assert [c.card.cost for c in candidates] == [7, 1, 7]
+    assert [c.kind for c in candidates] == [CardKind.UNIT, CardKind.SPELL, CardKind.UNIT]
     assert all(c.preview_cost_verified for c in candidates)
-    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
     assert card_reward_target(image, 1, candidates[1].card.name) is not None
 
 
@@ -184,13 +208,13 @@ def test_narrow_one_reward_rejects_missing_or_damaged_cost(damage):
     assert card_reward_target(image, 1, "") is None
 
 
-def test_two_star_first_battle_reward_selects_lowest_preview_cost():
+def test_two_star_first_battle_reward_prefers_lower_cost_unit():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)
     candidates = recognize_card_rewards(image)
     assert candidates is not None
     assert [candidate.card.cost for candidate in candidates] == [1, 3, 4]
-    assert pick_jinx_card_reward(candidates).candidate == candidates[0]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
 
 
 @pytest.mark.parametrize("region", [(351, 228, 384, 255), (360, 300, 365, 780),
@@ -340,9 +364,10 @@ def test_weekly_reward_with_champion_and_zero_cost_spell():
     candidates = recognize_card_rewards(image)
     assert candidates is not None
     assert [candidate.card.cost for candidate in candidates] == [0, 7, 5]
+    assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.CHAMPION, CardKind.SPELL]
     assert all(candidate.preview_cost_verified for candidate in candidates)
     pick = pick_jinx_card_reward(candidates)
-    assert pick is not None and pick.candidate == candidates[0]
+    assert pick is not None and pick.candidate is candidates[1]
     assert card_reward_target(image, 0, "") is not None
 
 
@@ -368,7 +393,7 @@ def test_weekly_reward_frame_on_bright_map_fog():
     candidates = recognize_card_rewards(image)
     assert candidates is not None
     assert [c.card.cost for c in candidates] == [5, 2, 5]
-    assert pick_jinx_card_reward(candidates).candidate == candidates[1]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
     assert card_reward_target(image, 1, "") is not None
 
 
@@ -468,13 +493,23 @@ def test_reward_quality_then_cost_and_unknowns():
     assert pick_card_reward([low, _candidate("无品质", "unranked", 0)]).candidate == low
 
 
-def test_jinx_prefers_lower_cost_then_higher_quality():
-    common = _candidate("便宜普通", "common", 1)
+def test_jinx_prefers_units_then_lowest_cost_then_quality():
+    common = _candidate("便宜优秀", "common", 1)
     rare = _candidate("昂贵稀有", "rare", 4)
-    assert pick_jinx_card_reward([common, rare]).candidate == common
-    assert pick_card_reward([common, rare]).candidate == rare
+    spell = _candidate("史诗法术", "epic", 0, kind=CardKind.SPELL)
+    assert pick_jinx_card_reward([common, spell, rare]).candidate is common
     equally_cheap_rare = _candidate("便宜稀有", "rare", 1)
-    assert pick_jinx_card_reward([common, equally_cheap_rare, rare]).candidate == equally_cheap_rare
+    assert pick_jinx_card_reward([common, spell, equally_cheap_rare]).candidate is equally_cheap_rare
+
+
+def test_rewards_exclude_landmarks_even_if_they_are_preferred():
+    landmark = _candidate("地标", "epic", 0, kind=CardKind.LANDMARK)
+    spell = _candidate("法术", "common", 1, kind=CardKind.SPELL)
+    unknown = _candidate("卡种不明", "epic", 0, kind=None)
+    assert pick_jinx_card_reward([landmark, unknown]) is None
+    assert pick_jinx_card_reward([landmark, unknown, spell]).candidate is spell
+    assert pick_card_reward([landmark, spell], card_preferences=(Preference(("地标",)),)).candidate is spell
+    assert pick_card_reward([landmark]) is None
 
 
 def test_f1_reward_image_costs_support_jinx_priority():
@@ -487,14 +522,15 @@ def test_f1_reward_image_costs_support_jinx_priority():
     assert _card_cost(image, 769) is None
 
 
-def test_jinx_reward_waits_when_cost_or_required_tiebreak_is_uncertain():
+def test_jinx_reward_requires_comparable_costs_and_only_uses_quality_for_ties():
     common = _candidate("普通", "common", 1)
     assert pick_jinx_card_reward([common, _candidate("未知费用", "rare", None)]) is None
     assert pick_jinx_card_reward([common, _candidate("费用变化", "rare", 4,
                                                      cost_certain=False)]) is None
-    assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 1)]) is None
-    # 最低费用唯一时，其他候选品质不影响排序。
-    assert pick_jinx_card_reward([common, _candidate("未知品质", "unknown", 4)]).candidate == common
+    cheaper_unknown = _candidate("便宜未知品质", "unknown", 0)
+    assert pick_jinx_card_reward([cheaper_unknown, common]).candidate is cheaper_unknown
+    same_cost_unknown = _candidate("同费未知品质", "unknown", 1)
+    assert pick_jinx_card_reward([same_cost_unknown, common]).candidate is common
 
 
 def test_weekly_real_reward_page_and_unknown_candidates():
@@ -509,23 +545,25 @@ def test_weekly_real_reward_page_and_unknown_candidates():
     ]
     assert all(c.item_name == "" and not c.cost_certain and c.preview_cost_verified
                for c in candidates)
-    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
     # 通用品质优先规则仍不能把缺失徽记当成普通或无品质。
     assert pick_card_reward(candidates) is None
     assert all(card_reward_target(image, i, "") is not None for i in range(3))
 
 
 @pytest.mark.parametrize("index", range(3))
-def test_weekly_candidates_move_with_slots_instead_of_fixed_lowest_position(index):
+def test_weekly_candidates_follow_the_unit_in_each_slot(index):
     image = _image("f1-weekly-reward-20261116.png")
     slots = (354, 769, 1184)
     unit = image[255:780, 409:684].copy()
     spell = image[255:780, 824:1099].copy()
     for i, x in enumerate(slots):
-        image[255:780, x + 55:x + 330] = spell if i == index else unit
+        image[255:780, x + 55:x + 330] = unit if i == index else spell
     candidates = recognize_card_rewards(image)
     assert candidates is not None
-    assert [c.card.cost for c in candidates] == [2 if i == index else 5 for i in range(3)]
+    assert [c.card.cost for c in candidates] == [5 if i == index else 2 for i in range(3)]
+    assert [c.kind for c in candidates] == [CardKind.UNIT if i == index else CardKind.SPELL
+                                            for i in range(3)]
     assert pick_jinx_card_reward(candidates).candidate is candidates[index]
 
 

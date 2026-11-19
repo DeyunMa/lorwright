@@ -16,7 +16,6 @@ class Watchdog:
     threshold: int = 3
     _last_sig: str = ""
     _repeat: int = 0
-    _history: list[str] = field(default_factory=list)
     _progressed: bool = field(default=False, init=False)
 
     @property
@@ -30,14 +29,12 @@ class Watchdog:
         `action` 是本帧要执行的动作。传 `NO_OP` 表示什么都没做，
         这种情况不计数——否则「对手回合」会被误判成卡死。
         """
-        sig = state.summary()
-        self._history.append(sig)
-
         if action is ActionType.NO_OP:
             # 没有动作 → 不更新基线，也不计数。
             self._progressed = False
             return False
 
+        sig = state.summary()
         self._progressed = sig != self._last_sig
         if self._progressed:
             self._repeat = 0

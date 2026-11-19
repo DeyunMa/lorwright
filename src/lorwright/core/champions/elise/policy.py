@@ -86,6 +86,10 @@ def rank_playable(state: GameState) -> list[tuple[CardInHand, EliseCard, float]]
         if state.hand_expanded and not card.drag_point_valid:
             continue
         definition = lookup(card.name)
+        if definition is not None and definition.kind not in (
+            CardKind.UNIT, CardKind.CHAMPION, CardKind.SPELL,
+        ):
+            continue  # 地标暂不打出，装备需要已核验的友方目标流程。
         available_mana = max(0, state.mana)
         if (definition is not None and definition.kind is CardKind.SPELL
                 and state.spell_mana is not None and state.has_fresh_readings("spell_mana")):

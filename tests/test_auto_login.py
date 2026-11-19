@@ -2,27 +2,32 @@ import time
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import cv2
 import numpy as np
 import pytest
 from typer.testing import CliRunner
 
 from lorwright.cli.app import app
+from lorwright.core.config import load_settings
 from lorwright.core.device.adb import AdbDevice
 from lorwright.core.device.base import Frame
 from lorwright.core.loop.bootstrap import _auto_login
 from lorwright.core.perceive.login import LoginScreen
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.runtime.session import StopRequested
+from tools.test_data import fixtures_root
 
 
 def setup_login():
     def rect(x):
         return SimpleNamespace(center=(x, 100))
+    defaults = load_settings()
     layout = SimpleNamespace(login_username=rect(100), login_password=rect(200),
-                             login_submit=rect(300))
+                             login_submit=rect(300), end_turn=defaults.layout.to_layout().end_turn)
     settings = SimpleNamespace(lor_username="fake-user", lor_password="fake-pass",
                                layout=SimpleNamespace(to_layout=lambda: layout),
-                               loop=SimpleNamespace(max_frame_age_s=5))
+                               loop=SimpleNamespace(max_frame_age_s=5),
+                               perception=defaults.perception, logging=defaults.logging)
     frame = Frame(image=np.zeros((1080, 1920, 3), dtype=np.uint8),
                   ts=time.time(), capture_ms=0)
     device = Mock()
@@ -32,11 +37,19 @@ def setup_login():
     return settings, frame, device, detector, Normalizer((1920, 1080))
 
 
-def test_single_submission_and_unrecognized_frame_handoff():
+def test_single_submission_waits_through_loading_until_home(monkeypatch):
     settings, frame, device, detector, normalizer = setup_login()
+    home = cv2.imread(str(fixtures_root() / "screens/1080p_home_adventure_entry.png"))
+    assert home is not None
+    loading = Frame(np.full_like(frame.image, 247), time.time(), 0)
+    ready = Frame(home, time.time(), 0)
+    device.screencap.side_effect = [frame] * 3 + [loading, ready]
+    detector.detect.side_effect = [LoginScreen.FORM] * 3 + [LoginScreen.NONE] * 2
+    monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)
     result = _auto_login(settings, device, frame, normalizer, detector)
     assert result.stop_reason is None
     assert result.login_screen is LoginScreen.NONE
+    assert result.frame is ready
     assert [c.args[0] for c in device.text_secret.call_args_list] == ["fake-user", "fake-pass"]
     assert device.tap.call_count == 3
 
@@ -89,15 +102,42 @@ def test_stop_before_input(monkeypatch):
     device.tap.assert_not_called()
 
 
-def test_form_timeout_does_not_retry(monkeypatch):
+@pytest.mark.parametrize("after_submit", [LoginScreen.FORM, LoginScreen.NONE])
+def test_login_timeout_does_not_retry(monkeypatch, after_submit):
     settings, frame, device, detector, normalizer = setup_login()
-    detector.detect.side_effect = None
-    detector.detect.return_value = LoginScreen.FORM
+    detector.detect.side_effect = [LoginScreen.FORM] * 3 + [after_submit]
+    monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)
     ticks = iter([0, 31])
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.monotonic", lambda: next(ticks))
     assert _auto_login(settings, device, frame, normalizer, detector).stop_reason == "login_transition_unverified"
     assert device.tap.call_count == 3
     assert device.text_secret.call_count == 2
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_legacy_adb_login_keeps_credentials_out_of_arguments_and_errors(tmp_path, monkeypatch, failure):
+    settings, _, device, detector, _ = setup_login()
+    settings.logging.dir = str(tmp_path)
+    settings.layout.to_layout().login_splash = SimpleNamespace(center=(40, 100))
+    monkeypatch.setattr("lorwright.cli.app.load_settings", lambda: settings)
+    monkeypatch.setattr("lorwright.cli.app._make_device", lambda _: device)
+    monkeypatch.setattr("lorwright.cli.app.time.sleep", lambda _: None)
+    monkeypatch.setattr("lorwright.core.perceive.login.LoginDetector", lambda: detector)
+    if failure:
+        device.text_secret.side_effect = RuntimeError("fake-user fake-pass")
+
+    result = CliRunner().invoke(app, ["login", "--tries", "1"])
+
+    device.text.assert_not_called()
+    device.close.assert_called_once()
+    assert "fake-user" not in result.output and "fake-pass" not in result.output
+    if failure:
+        assert result.exit_code == 1
+        assert device.tap.call_count == 1
+    else:
+        assert result.exit_code == 0
+        assert [call.args[0] for call in device.text_secret.call_args_list] == ["fake-user", "fake-pass"]
+        assert device.tap.call_count == 3
 
 
 def test_cli_requires_bootstrap(tmp_path, monkeypatch):

@@ -9,6 +9,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from lorwright.core.decide.card import CardKind
 from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate
 from lorwright.core.models import Rect
 from lorwright.core.perceive.adventure_scene import _template
@@ -507,7 +508,7 @@ def card_reward_target(image: np.ndarray, index: int, name: str) -> Rect | None:
             return None
         x = _CARD_SLOTS[index]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        if not _card_visible(gray, x) or _card_cost(image, x) is None:
+        if _card_kind(gray, x) is None or _card_cost(image, x) is None:
             return None
         target = Rect(x + 191, 383, 20, 20)
         patch = gray[target.y:target.y + target.h, target.x:target.x + target.w]
@@ -633,46 +634,55 @@ def _champion_title_visible(gray: np.ndarray, x: int) -> bool:
     return False
 
 
-def _card_visible(gray: np.ndarray, x: int) -> bool:
-    """独立识别卡牌类型框及相应标题位置，不从插画猜身份。"""
-    spell = any(_visible_match(gray, name, (x + 50, 590, x + 85, 640)) >= 0.93
-                for name in ("card_reward_spell_frame", "card_reward_spell_frame_teal"))
-    unit = _visible_match(gray, "card_reward_unit_frame", (x + 50, 250, x + 100, 290)) >= 0.93
-    champion = _visible_match(gray, "card_reward_champion_frame", (x + 265, 245, x + 320, 295)) >= 0.93
-    landmark = _visible_match(gray, "card_reward_landmark_frame", (x + 145, 505, x + 235, 550)) >= 0.93
-    if spell or landmark:
-        title = gray[487:514, x + 120:x + 300]
-        title_visible = int((title > 170).sum()) >= 120
-    elif unit:
-        title = gray[533:554, x + 75:x + 315]
-        title_visible = int((title > 170).sum()) >= 120
-    elif champion:
+def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
+    """核验唯一的卡种标志、相应标题布局和插画可见性。"""
+    kinds = (
+        (CardKind.SPELL, (x + 50, 590, x + 85, 640),
+         ("card_reward_spell_frame", "card_reward_spell_frame_teal")),
+        (CardKind.UNIT, (x + 50, 250, x + 100, 290), ("card_reward_unit_frame",)),
+        (CardKind.CHAMPION, (x + 265, 245, x + 320, 295), ("card_reward_champion_frame",)),
+        (CardKind.LANDMARK, (x + 145, 505, x + 235, 565), ("card_reward_landmark_frame",)),
+    )
+    matches = [kind for kind, rect, names in kinds
+               if any(_visible_match(gray, name, rect) >= 0.93 for name in names)]
+    if len(matches) != 1:
+        return None
+    kind = matches[0]
+    if kind is CardKind.CHAMPION:
         title_visible = _champion_title_visible(gray, x)
     else:
-        return False
+        title = (gray[533:554, x + 75:x + 315] if kind is CardKind.UNIT
+                 else gray[487:514, x + 120:x + 300])
+        title_visible = int((title > 170).sum()) >= 120
     art = gray[337:450, x + 130:x + 270]
-    return (title_visible and float((art < 8).mean()) < 0.05 and float(art.std()) > 10)
+    if title_visible and float((art < 8).mean()) < 0.05 and float(art.std()) > 10:
+        return kind
+    return None
 
 
 def _card_badge_quality(image: np.ndarray, x: int) -> str:
-    """徽记图案及颜色必须一致；缺徽记不等于普通或无品质。"""
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    rect = (x + 150, 625, x + 235, 670)
-    scores = sorted((_visible_match(gray, "card_reward_" + quality + "_badge", rect), quality)
-                    for quality in ("common", "rare"))
-    if scores[-1][0] < 0.93 or scores[-1][0] - scores[-2][0] < 0.05:
-        return "unknown"
-    quality = scores[-1][1]
-    template = _template("card_reward_" + quality + "_badge")
-    x1, y1, x2, y2 = rect
-    _, _, _, (dx, dy) = cv2.minMaxLoc(cv2.matchTemplate(
-        gray[y1:y2, x1:x2], template, cv2.TM_CCOEFF_NORMED))
-    h, w = template.shape
-    hsv = cv2.cvtColor(image[y1 + dy:y1 + dy + h, x1 + dx:x1 + dx + w], cv2.COLOR_BGR2HSV)
-    low, high = (35, 85) if quality == "common" else (85, 115)
-    colored = ((hsv[:, :, 0] >= low) & (hsv[:, :, 0] <= high)
-               & (hsv[:, :, 1] > 100) & (hsv[:, :, 2] > 100))
-    return quality if int(colored.sum()) >= 60 else "unknown"
+    """只读卡面底部的彩色徽记，核验颜色、尺寸和纵向轮廓。"""
+    # 法术、地标与单位的底边高度不同。此区域止于道具名上方。
+    hsv = cv2.cvtColor(image[625:667, x + 176:x + 207], cv2.COLOR_BGR2HSV)
+    matches = []
+    for quality, low, high in (("common", 35, 84), ("rare", 85, 115), ("epic", 130, 165)):
+        mask = cv2.inRange(hsv, (low, 100, 130), (high, 255, 255))
+        _, labels, stats, centers = cv2.connectedComponentsWithStats(mask)
+        for i, (left, top, w, h, area) in enumerate(stats[1:], 1):
+            if not (14 <= w <= 21 and 11 <= h <= 20 and abs(centers[i, 0] - 15) <= 5):
+                continue
+            widths = (labels[top:top + h, left:left + w] == i).sum(axis=1)
+            upper, middle, lower = (part.max() for part in np.array_split(widths, 3))
+            if quality == "common":
+                visible = 75 <= area <= 125 and upper > middle > lower and lower <= 0.6 * upper
+            elif quality == "rare":
+                visible = 95 <= area <= 150 and h >= 15 and middle + 1 >= upper and lower < middle
+            else:
+                visible = (155 <= area <= 215 and h >= 14 and upper >= 0.8 * w
+                           and middle >= 0.9 * w and 0.5 * middle <= lower <= 0.82 * middle)
+            if visible:
+                matches.append(quality)
+    return matches[0] if len(matches) == 1 else "unknown"
 
 
 def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | None:
@@ -691,12 +701,14 @@ def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | Non
         cost = _card_cost(image, x)
         if cost is None:
             return None
+        kind = _card_kind(gray, x)
         if card is not None:
             if _visible_match(gray, card["art"], (x + 55, 300, x + 325, 465)) < 0.93:
                 return None
-        elif not _card_visible(gray, x):
+        elif kind is None:
             return None
-        if item is None and int((gray[665:690, x + 125:x + 315] > 170).sum()) < 120:
+        item_title = gray[665:690, x + 125:x + 315]
+        if item is None and int((item_title > 170).sum()) < 120 and not _hero_item_title_visible(item_title):
             return None
         result.append(CardRewardCandidate(
             card=RewardCandidate(name=card["name"] if card else "",
@@ -705,6 +717,7 @@ def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | Non
             item_name=item["name"] if item else "",
             cost_certain=item["cost_certain"] if item else False,
             preview_cost_verified=True,
+            kind=kind,
         ))
     return result
 

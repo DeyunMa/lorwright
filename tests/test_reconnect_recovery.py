@@ -198,7 +198,11 @@ def test_shared_capture_interrupts_real_loops_before_short_unknown_timeout(scene
         elif context == "adventure":
             adventure.run(max_nodes=1)
         else:
-            adventure._handle_task_reward(np.zeros((1080, 1920, 3), np.uint8))
+            first = Frame(np.zeros((1080, 1920, 3), np.uint8))
+            device.screencap.side_effect = lambda: (
+                first if device.screencap.call_count == 1 else device.screencap.return_value
+            )
+            adventure._handle_task_reward(adventure._frame())
     assert now[0] >= 300
     assert not engine_device.closed
     assert router.calls == 0

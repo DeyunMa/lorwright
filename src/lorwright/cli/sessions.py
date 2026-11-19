@@ -93,6 +93,7 @@ def start(
     stall_timeout: Annotated[float, typer.Option(min=0.1, help="无进展告警阈值（秒）")] = 30.0,
     max_ticks: Annotated[int | None, typer.Option(min=1)] = None,
     max_nodes: Annotated[int | None, typer.Option(min=1)] = None,
+    weekly_replay_slot: Annotated[int | None, typer.Option(min=1, max=3, help="重玩已完成周常：1 上方，2 左下，3 右下")] = None,
     spell_already_played: Annotated[bool, typer.Option(help="Jinx 恢复中局：起手法术已打出")] = False,
     jinx_summoned: Annotated[bool, typer.Option(help="Jinx 恢复中局：Jinx 已下场")] = False,
     rockets_already_played: Annotated[int | None, typer.Option(min=0, max=2, help="Jinx 已打出火箭数")] = None,
@@ -104,7 +105,7 @@ def start(
     root: Root = None,
     json_output: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """后台启动；console.log 混合 stdout JSONL 和 stderr，事件消费者读 events 命令。"""
+    """后台启动。console.log 留启动诊断，结构化事件通过 events 命令读取。"""
     if mode not in {"battle", "adventure"}:
         raise typer.BadParameter("模式需为 battle 或 adventure")
     if mode == "adventure" and max_ticks is not None:
@@ -113,6 +114,8 @@ def start(
         raise typer.BadParameter("英雄道具采样仅适用于 adventure 模式")
     if mode == "battle" and max_nodes is not None:
         raise typer.BadParameter("max-nodes 仅适用于 adventure 模式")
+    if mode != "adventure" and weekly_replay_slot is not None:
+        raise typer.BadParameter("--weekly-replay-slot 仅适用于 adventure 模式")
     if mode != "battle" and (spell_already_played or jinx_summoned or confirm_empty_hand_once):
         raise typer.BadParameter("中局恢复选项仅适用于 battle 模式")
     if rockets_already_played is not None and (
@@ -138,7 +141,7 @@ def start(
     )
     _atomic_json(folder / "status.json", initial)
     command = [sys.executable, "-m", "lorwright.cli", "run" if mode == "battle" else "adventure",
-               "--run-id", run_id, "--jsonl", "--device", device,
+               "--run-id", run_id, "--device", device,
                "--stall-timeout", str(stall_timeout)]
     if champion:
         command += ["--champion", champion]
@@ -148,6 +151,8 @@ def start(
         command += ["--max-ticks", str(max_ticks)]
     if max_nodes is not None:
         command += ["--max-nodes", str(max_nodes)]
+    if weekly_replay_slot is not None:
+        command += ["--weekly-replay-slot", str(weekly_replay_slot)]
     if spell_already_played:
         command += ["--spell-already-played"]
     if jinx_summoned:
@@ -189,13 +194,13 @@ def start(
             _atomic_json(folder / "status.json", saved)
         _output(dict(run_id=run_id, pid=process.pid, status=saved["status"],
                      console_log=str(folder / "console.log"),
-                     console_log_format="mixed_jsonl_and_stderr"), json_output)
+                     console_log_format="text"), json_output)
         if saved["status"] == "failed":
             raise typer.Exit(1)
     else:
         _output(dict(run_id=run_id, pid=process.pid, status="starting",
                      console_log=str(folder / "console.log"),
-                     console_log_format="mixed_jsonl_and_stderr"), json_output)
+                     console_log_format="text"), json_output)
 
 
 @app.command()

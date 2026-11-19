@@ -196,6 +196,7 @@ def test_weekly_two_remaining_candidates_and_two_star_detail():
     image = _image("screens/weekly-two-detail-20261116.png")
     assert weekly_detail_stars(image) == 2
     assert find_weekly_start(image) is not None
+    assert find_weekly_start(image, replay=True) is None
 
 
 def test_weekly_list_remains_recognizable_after_all_three_are_completed():

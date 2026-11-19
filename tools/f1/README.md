@@ -17,6 +17,10 @@
 服务和包含换行的文件名需要另行检查；目录大小遇到无权限项可能不完整。该脚本
 仅供盘点，不能凭空结果认定目录可以删除。
 
+## f1 离线时的重试
+
+实机开发中遇到 f1 离线或 SSH 连接超时，先立即查询一次当前会话。若仍不可达，从首次失败起每隔 5 分钟重试一次，最多重试 5 次。SSH 查询一旦恢复，结束本轮重试，核对部署、控制进程、原会话和实时画面后继续当前冒险。若 5 次均失败，记录最后一次检查结果并结束本轮等待。
+
 ## 更新正式工作区
 
 日常开发在 Mac，f1 的正式工作区为 `C:\Code\lorwright`；正常情况下在该目录
@@ -86,19 +90,21 @@ $gameSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopI
 Register-ScheduledTask -TaskName 'F1GameWatchdog' -Action $gameAction -Trigger $gameTrigger -Principal $gamePrincipal -Settings $gameSettings -Force
 ```
 
-`F1NetWatchdog` 的部署命令见脚本头部注释。
+`F1NetWatchdog` 的部署命令见脚本头部注释。任务配置使用 5 分钟执行上限，上一轮未退出时跳过重叠轮次，避免单个探测挂起后长时间占住计划任务。
 
 ## 网络诊断边界
 
 - 看门狗记录 HTTP、DNS、Tailscale、无线事件、Wi-Fi 信号快照、路由和恢复动作；网关探测指定 WLAN 源地址，并记录 Windows 选路，不能单凭 ICMP 超时判断路由器故障。
 - 每轮额外尝试网关 TCP/53、223.5.5.5 TCP/53、1.1.1.1 TCP/443，跳过 HTTP 代理，通过 IP_UNICAST_IF 请求 WLAN 接口并绑定 WLAN 源地址，不修改系统路由；记录默认选路用于对照。尚未抓包验证实际出口，VPN/TUN 过滤仍可能影响结果。端口关闭或 TCP 被拦也会失败，TCP 成功不证明网页、DNS 查询或 Tailscale 正常。探测只用于记录，不参与恢复决策。
 - Clash 应用 `logs/latest.log` 的摘要只统计最近五分钟的 WARN、ERROR 和已识别的 WebSocket 重置，不复制日志正文或节点信息。它不证明代理节点是否切换；节点变化需另行核实可用的实际数据源。
+- 公网可用但 Tailscale 持续离线，以及整机网络恢复升级，两条路径共用 15 分钟的 Tailscale 重启冷却。先将冷却截止写到状态文件，再重启服务。
+- 看门狗每次主动停用 TUN 后，最多自动试开三次，间隔至少 60 分钟。达到上限后记录 `TUN trial limit reached`，继续观测网络。开关仅替换 UTF-8 的 `verge.yaml` 中唯一的顶层 `enable_tun_mode` 布尔值，保留其他字节和 BOM。
 - 无线重连使用脚本中的 `$WifiProfile`，须在目标机以 SYSTEM 身份确认配置存在。`WlanConnect` 返回 0 只表示请求已提交，须另看无线事件及后续网络检测。
 - 每轮有开始和正常退出耗时；没有结束记录只能提示中断或日志失败，不能单独断言系统挂起。退避期仍会记录 Clash 摘要，但原有网络探测和恢复动作按退避策略跳过。
 
 ## 边界
 
-- `gamewatchdog` 只保证“模拟器在、ADB 在、LoR 进程在”；不判断游戏内 UI、不点击、不重开对局。
+- `gamewatchdog` 检查模拟器、ADB 和 LoR 进程。它遵循网络看门狗尚在生效的退避时间。故障计数只在状态文件更新时间距当前不足 6 分钟时压住游戏恢复，过期会记入日志。ADB 进程探测报错时记录探测失败，本轮不重启 LoR。`-DryRun` 只记录能否看到模拟器进程，跳过 ADB 和恢复写入。
 - LoR 客户端重启会回到 Riot 登录页，脚本会尝试 `lorwright login`；自动登录失败时只记录，不无限重试。
 - 模拟器实例必须由交互式会话启动；`F1StartPie64` 使用 Administrator + Interactive，不能改成 SYSTEM。
 - 默认不重启整机。

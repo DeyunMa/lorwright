@@ -82,8 +82,7 @@ ADB 在线后还要等待 Android 完成启动及游戏包可查询，再启动�
 
 冒险命令或 `sessions start --mode adventure` 可同时传入 `--bootstrap-f1 --auto-login`，
 自动打开 Riot 登录方式并在识别到表单时使用配置的凭据提交一次。缺少凭据、坐标或
-画面过期时停止；提交后表单未消失会超时停止，不会重试。表单消失不代表登录成功，
-后续画面仍由冒险循环识别。当前 ADB 文本输入支持可打印 ASCII（`%` 除外）；
+画面过期时停止。提交后最多等 30 秒，用新帧核验主页入口、继续冒险、地图或战斗画面，再交给冒险循环。等不到明确场景则停止，且不会重复提交。当前 ADB 文本输入支持可打印 ASCII（`%` 除外）；
 其他字符会以 `login_credentials_unsupported` 停止。凭据通过标准输入传给 ADB，
 不会放在宿主机的 ADB 进程参数中；会话事件和日志不记录凭据。Android 内的输入
 命令仍会短暂携带文本。已有现有自动登录流程后进入游戏主页的局部实机记录，主页由后续新截图核验；模拟器关闭后的完整冷启动仍未验收。
@@ -93,7 +92,13 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 设备锁只约束本用户的 lorwright 会话；f1 原有 SYSTEM 看门狗和独立调试命令
 不受该锁约束，排障时须留意它们的动作。
 
-每周冒险按未完成候选中的最低星级选择，同星级使用会话 RNG 随机选择。当前视觉字库覆盖实拍 1.5/2 星；通过未完成时钟与完成勾合计三个位置确认列表，支持只剩一个或两个候选。未知星级仍停止；详情页还须独立核对星级与开始按钮。
+每周冒险按未完成候选中的最低星级选择，同星级使用会话 RNG 随机选择。当前视觉字库覆盖实拍 1.5/2 星。通过未完成时钟与完成勾合计三个位置确认列表，支持只剩一个或两个候选。未知星级时停止，详情页还须独立核对星级与开始按钮。
+
+三个周常全部完成后，可从世界地图或周常列表用 `--weekly-replay-slot` 指定重玩位置。`1` 对应上方，`2` 对应左下，`3` 对应右下。程序点击当前帧的完成勾，在新帧核对周常详情、重玩按钮与所选英雄。每次启动选择一关。
+
+```bash
+lorwright sessions start --mode adventure --champion jinx --weekly-replay-slot 1 --json
+```
 
 ## 读懂状态
 
@@ -135,7 +140,7 @@ Windows 后台工作进程使用脱离 SSH 作业对象的方式启动；如果�
 
 任务完成奖励是随机出现的可选插页。程序以固定标题和图标识别，任务名称和奖励内容可变化；出现才处理，识别“繼續”后单次点击并有界等待后继，不要求固定顺序。原页不变或后继未知会以 `task_reward_transition_unverified` 保存截图停止；缺少按钮为 `task_reward_continue_missing`。
 
-卡牌奖励选择新增 `reward_decision` 事件，记录所有候选的 `slot`（从 0 开始）、名称、`preview_cost`、品质，以及选中项和理由。奖励页停止时新增一次 `perception_diagnostic`，记录预期场景、截图、实际匹配分数、阈值和失败检查项；同一证据也放在状态 `details.recognition_diagnostic`，人读状态直接显示摘要。当前诊断覆盖页面标题、副标题和选择按钮；若页面检查均通过而候选或后验失败，仍须结合原停止原因及截图判断。
+卡牌奖励选择通过 `reward_decision` 事件记录所有候选的 `slot`（从 0 开始）、名称、`card_kind`（未确认时为 `null`）、`preview_cost`、品质，以及选中项和理由。奖励页停止时新增一次 `perception_diagnostic`，记录预期场景、截图、实际匹配分数、阈值和失败检查项；同一证据也放在状态 `details.recognition_diagnostic`，人读状态直接显示摘要。当前诊断覆盖页面标题、副标题和选择按钮；若页面检查均通过而候选或后验失败，仍须结合原停止原因及截图判断。
 
 动作结果事件 `action_outcome` 区分 `waiting`、`needs_input`、`succeeded` 与 `timed_out`。`needs_input` 表示后继需要重新路由，不等于原动作已成功：例如 `hand_expansion_interrupted` 为展开等待遇到明确结算提示，`confirmation_prompt_changed` 为确认阶段切换，`opponent_unit_appeared` 为同一已知 UI/手牌视图下，本帧敌军检出数量较前态增加，包含已有单位再增员。此时仍不能证明前态确为空场或场面已经完整识别。确认交互成功后，原出牌可继续报告 `waiting`，直到独立核验或原截止到达。新增实现是否已部署或实机触发，以 [`status.md`](status.md) 为准。
 
@@ -205,12 +210,14 @@ lorwright adventure --replay ../lorwright-test-data/fixtures/mapnav --max-nodes 
 logs/runs/<run_id>/
   status.json       # 原子更新的当前状态
   events.jsonl      # 按顺序追加的机器事件
-  console.log       # 后台启动时的 stdout/stderr 诊断
+  console.log       # 后台进程的人读诊断与异常
   snapshots/        # 按需保存的截图
   stop.request      # 外部停止请求，存在时在下一个安全点处理
 ```
 
-后台启动还保留进程回执。设备占用锁放在本机用户缓存下的 `lorwright/device-locks/`
+后台启动还保留进程回执，完整事件只追加到 `events.jsonl`。普通截图处理后释放；程序在停止等取证点保存当时的画面，Agent 通过会话查询按需取图。写图失败时在诊断日志记录原因，保留原停止结果。历史会话文件需按实际占用定期检查。
+
+设备占用锁放在本机用户缓存下的 `lorwright/device-locks/`
 （Windows 为 `LOCALAPPDATA`，Mac 为 `~/Library/Caches`），不随项目或日志根目录改变。
 ADB 与 desktop 会话共用一个交互设备锁，避免同时控制同一模拟器；回放按目录
 独立。更换日志目录不会绕开占用约束。

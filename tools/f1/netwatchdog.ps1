@@ -20,7 +20,7 @@ F1 网络看门狗
    L4 计数=9  重启 Tailscale 服务
 
 4. 恢复后清零计数；若 TUN 是看门狗关的，稳定 30 分钟后尝试重新开启：
-   试开 60 秒，HTTP+DNS 正常就保留；不正常立即关回，并等 60 分钟再试。
+   试开 60 秒，HTTP+DNS 正常就保留；不正常立即关回，间隔 60 分钟，每次停用最多试 3 次。
 
 5. 全部失败后退避 15 分钟，避免疯狂重启把系统搞得更乱。
 
@@ -28,6 +28,10 @@ F1 网络看门狗
 ----
   schtasks /create /tn F1NetWatchdog /tr "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Windows\Temp\netwatchdog.ps1" /sc minute /mo 2 /ru SYSTEM /rl HIGHEST /f
   schtasks /change /tn F1NetWatchdog /ri 2 /du 0001:00
+  $netTask = Get-ScheduledTask -TaskName F1NetWatchdog
+  $netTask.Settings.ExecutionTimeLimit = 'PT5M'
+  $netTask.Settings.MultipleInstances = 'IgnoreNew'
+  Set-ScheduledTask -TaskName F1NetWatchdog -Settings $netTask.Settings
 
 日志：C:\Windows\Temp\netwatchdog.log，轮转文件 .1 至 .9，合计不超过 1 GB。
 #>
@@ -48,9 +52,11 @@ $FailToDisableTun   = 5
 $FailToReconnectWifi= 7
 $FailToRestartTs    = 9
 $BackoffMinutes     = 15
+$TailscaleCooldownMinutes = 15
 $StableMinutesForTun= 30
 $TunTrialSeconds    = 60
 $TunRetryMinutes    = 60
+$MaxTunTrials       = 3
 
 # ---------------------------------------------------------------- 工具
 
@@ -86,6 +92,7 @@ function Get-State {
     $default = [ordered]@{
         fails           = 0
         tsFails         = 0
+        nextTsRestart   = $null
         tunDisabledByUs = $false
         tunReenableCount= 0
         stableTicks     = 0
@@ -106,7 +113,13 @@ function Get-State {
 }
 
 function Save-State($s) {
-    $s | ConvertTo-Json | Set-Content $StateFile -Encoding UTF8
+    try {
+        $s | ConvertTo-Json | Set-Content -LiteralPath $StateFile -Encoding UTF8 -ErrorAction Stop
+        return $true
+    } catch {
+        Write-Log ('state write failed: ' + $_.Exception.Message)
+        return $false
+    }
 }
 
 # ---------------------------------------------------------------- 健康检测
@@ -352,43 +365,55 @@ function Test-Internet {
 
 # ---------------------------------------------------------------- 恢复动作
 
-function Invoke-RestartClash {
-    Write-Log 'L1: restarting clash-verge service'
+function Invoke-RestartClash([string]$Stage = 'L1') {
+    Write-Log "${Stage}: restarting clash-verge service"
     try {
         Restart-Service clash_verge_service -Force -ErrorAction Stop
-        Write-Log ("L1: clash restart result=ok status=$((Get-Service clash_verge_service).Status)")
-    } catch { Write-Log ("L1: clash restart error=$($_.Exception.Message)") }
+        Write-Log "${Stage}: clash restart result=ok status=$((Get-Service clash_verge_service).Status)"
+    } catch { Write-Log "${Stage}: clash restart error=$($_.Exception.Message)" }
     Start-Sleep -Seconds 10
 }
 
-function Invoke-DisableTun {
-    if (-not (Test-Path $VergeYaml)) { Write-Log 'L2: verge.yaml not found, skip'; return $false }
-    $c = Get-Content $VergeYaml
-    if ($c -match 'enable_tun_mode:\s*true') {
-        ($c -replace 'enable_tun_mode:\s*true', 'enable_tun_mode: false') |
-            Set-Content $VergeYaml -Encoding UTF8
-        Write-Log 'L2: TUN disabled in verge.yaml'
-        Restart-Service clash_verge_service -Force
-        Start-Sleep -Seconds 10
-        return $true
+function Set-TunMode([bool]$Enabled) {
+    $temp = "$VergeYaml.$([Guid]::NewGuid()).tmp"
+    try {
+        $encoding = [Text.UTF8Encoding]::new($false, $true)
+        $content = $encoding.GetString([IO.File]::ReadAllBytes($VergeYaml))
+        $matches = [regex]::Matches($content, '(?m)^﻿?enable_tun_mode[ \t]*:[ \t]*(?<value>true|false)(?=[ \t]*(?:#[^\r\n]*)?\r?$)')
+        if ($matches.Count -ne 1) {
+            Write-Log 'TUN change skipped: expected exactly one enable_tun_mode setting'
+            return 'failed'
+        }
+        $value = $matches[0].Groups['value']
+        $target = if ($Enabled) { 'true' } else { 'false' }
+        if ($value.Value -eq $target) { return 'unchanged' }
+        $updated = $content.Remove($value.Index, $value.Length).Insert($value.Index, $target)
+        [IO.File]::WriteAllBytes($temp, $encoding.GetBytes($updated))
+        [IO.File]::Replace($temp, $VergeYaml, [NullString]::Value)
+        return 'changed'
+    } catch {
+        Write-Log "TUN change failed: $($_.Exception.GetType().Name)"
+        return 'failed'
+    } finally {
+        if ([IO.File]::Exists($temp)) { Remove-Item -LiteralPath $temp -ErrorAction SilentlyContinue }
     }
-    Write-Log 'L2: TUN already off'
-    return $false
+}
+
+function Invoke-DisableTun {
+    if ((Set-TunMode $false) -ne 'changed') { return $false }
+    Write-Log 'L2: TUN disabled in verge.yaml'
+    Invoke-RestartClash 'TUN'
+    return $true
 }
 
 function Invoke-EnableTun {
-    if (-not (Test-Path $VergeYaml)) { return $false }
-    $c = Get-Content $VergeYaml
-    if ($c -match 'enable_tun_mode:\s*true') { return $true }
-    if ($c -match 'enable_tun_mode:\s*false') {
-        ($c -replace 'enable_tun_mode:\s*false', 'enable_tun_mode: true') |
-            Set-Content $VergeYaml -Encoding UTF8
+    $change = Set-TunMode $true
+    if ($change -eq 'failed') { return $false }
+    if ($change -eq 'changed') {
         Write-Log 'TUN re-enabled after stable period'
-        Restart-Service clash_verge_service -Force
-        Start-Sleep -Seconds 10
-        return $true
+        Invoke-RestartClash 'TUN'
     }
-    return $false
+    return $true
 }
 
 function Invoke-ReconnectWifi {
@@ -459,7 +484,22 @@ public class WdgWlan {
     }
 }
 
-function Invoke-RestartTailscale {
+function Invoke-RestartTailscale($state) {
+    $now = Get-Date
+    if ($state.nextTsRestart) {
+        try {
+            if ($now -lt [datetime]$state.nextTsRestart) {
+                Write-Log "Tailscale restart cooldown until $($state.nextTsRestart), skip"
+                return
+            }
+        } catch {}
+    }
+    # 重启可能中断远程链路。先保存截止时间，让下一轮也遵守同一冷却期。
+    $state['nextTsRestart'] = $now.AddMinutes($TailscaleCooldownMinutes).ToString('o')
+    if (-not (Save-State $state)) {
+        Write-Log 'Tailscale restart skipped: cannot save cooldown'
+        return
+    }
     Write-Log 'L4: restarting Tailscale service'
     try {
         Restart-Service Tailscale -Force -ErrorAction Stop
@@ -493,7 +533,7 @@ if (Test-Healthy) {
     $state['fails'] = 0
 
     # 稳定计数：只有 TUN 是我们关的才需要跟踪
-    if ($state.tunDisabledByUs) {
+    if ($state.tunDisabledByUs -and $state.tunReenableCount -lt $MaxTunTrials) {
         $state['stableTicks'] = [int]$state['stableTicks'] + 1
         if ($state.stableTicks -ge [int]($StableMinutesForTun / 2)) {
             $retryAt = $null
@@ -504,12 +544,13 @@ if (Test-Healthy) {
                 Write-Log "TUN retry waiting until $($state.nextTunRetry)"
             } else {
                 $state['tunReenableCount'] = [int]$state['tunReenableCount'] + 1
-                $enabled = Invoke-EnableTun
                 $state['stableTicks'] = 0
-                if (-not $enabled) {
-                    Write-Log 'TUN trial could not enable TUN; keeping it OFF'
-                    $state['nextTunRetry'] = (Get-Date).AddMinutes($TunRetryMinutes).ToString('o')
-                } else {
+                $state['nextTunRetry'] = (Get-Date).AddMinutes($TunRetryMinutes).ToString('o')
+                if (-not (Save-State $state)) {
+                    Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
+                    exit 1
+                }
+                if (Invoke-EnableTun) {
                     Start-Sleep -Seconds $TunTrialSeconds
                     if (Test-Internet) {
                         Write-Log 'TUN trial OK; keeping TUN enabled'
@@ -517,10 +558,13 @@ if (Test-Healthy) {
                         $state['nextTunRetry'] = $null
                     } else {
                         Write-Log "TUN trial failed (attempt $($state.tunReenableCount)); disabling again"
-                        Invoke-DisableTun | Out-Null
-                        $state['tunDisabledByUs'] = $true
-                        $state['nextTunRetry'] = (Get-Date).AddMinutes($TunRetryMinutes).ToString('o')
+                        if (-not (Invoke-DisableTun)) { Write-Log 'TUN trial rollback unverified' }
                     }
+                } else {
+                    Write-Log 'TUN trial could not enable TUN'
+                }
+                if ($state.tunDisabledByUs -and $state.tunReenableCount -ge $MaxTunTrials) {
+                    Write-Log "TUN trial limit reached after $($state.tunReenableCount) attempts"
                 }
             }
         }
@@ -531,13 +575,16 @@ if (Test-Healthy) {
         $state['tsFails'] = [int]$state['tsFails'] + 1
         Write-Log "internet OK but Tailscale offline (tsFails=$($state.tsFails))"
         if ($state.tsFails -ge 2) {
-            Invoke-RestartTailscale
             $state['tsFails'] = 0
+            Invoke-RestartTailscale $state
         }
     } else {
         $state['tsFails'] = 0
     }
-    Save-State $state
+    if (-not (Save-State $state)) {
+        Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
+        exit 1
+    }
     Write-Log "end result=healthy elapsedMs=$($runTimer.ElapsedMilliseconds)"
     exit 0
 }
@@ -552,7 +599,11 @@ if ($state.fails -eq $FailToRestartClash) {
 }
 
 if ($state.fails -eq $FailToDisableTun) {
-    if (Invoke-DisableTun) { $state['tunDisabledByUs'] = $true }
+    if (Invoke-DisableTun) {
+        $state['tunDisabledByUs'] = $true
+        $state['tunReenableCount'] = 0
+        $state['nextTunRetry'] = $null
+    }
 }
 
 if ($state.fails -eq $FailToReconnectWifi) {
@@ -560,7 +611,7 @@ if ($state.fails -eq $FailToReconnectWifi) {
 }
 
 if ($state.fails -eq $FailToRestartTs) {
-    Invoke-RestartTailscale
+    Invoke-RestartTailscale $state
 }
 
 if ($state.fails -ge $FailToRestartTs) {
@@ -569,5 +620,8 @@ if ($state.fails -ge $FailToRestartTs) {
     Write-Log "ALL RECOVERY FAILED, backing off $BackoffMinutes min"
 }
 
-Save-State $state
+if (-not (Save-State $state)) {
+    Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
+    exit 1
+}
 Write-Log "end result=unhealthy elapsedMs=$($runTimer.ElapsedMilliseconds)"

@@ -20,6 +20,7 @@ from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import Rect, UIState
 from lorwright.core.perceive.adventure_scene import (
     find_home_adventure_entry,
+    find_weekly_entry,
     is_battle_loading,
     is_globe_loading,
     is_loading_screen,
@@ -382,6 +383,22 @@ def test_task_reward_waits_for_continue_after_item_animation(adventure, monkeypa
     loop, device, _, saved, _ = adventure([animation] * 5 + [ready, home], [])
     _clocked(loop, device, monkeypatch, 0.5)
     assert loop._handle_task_reward(animation) is home
+    assert len(device.taps) == 1
+    assert saved == []
+
+
+def test_task_reward_successor_world_map_with_cloud_over_weekly_label(adventure):
+    # 20261120T100953：结算任务插页后回到世界地图，云飘过「每週冒險」文字；任务页用另一场实拍代替。
+    world = cv2.imread(str(FIXTURES.parent / "screens/f1-world-cloud-over-weekly-20261120.png"))
+    ready = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    if world is None:
+        pytest.skip("missing f1-world-cloud-over-weekly-20261120.png")
+    assert find_weekly_entry(world) is not None
+    covered = world.copy()
+    covered[420:509, 1335:1428] //= 3
+    assert find_weekly_entry(covered) is None
+    loop, device, _, saved, _ = adventure([ready, world], [])
+    assert loop._handle_task_reward(ready) is world
     assert len(device.taps) == 1
     assert saved == []
 

@@ -363,7 +363,7 @@ class WeeklyAdventure:
 
 
 def _visible_patch(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
-                   threshold: float = 0.94) -> Rect | None:
+                   threshold: float = 0.94, max_residual: float = 15) -> Rect | None:
     """模板定位后还检查亮度和像素残差，排除遮罩及部分遮挡。"""
     template = _template(name)
     if template is None or image.shape != (1080, 1920, 3):
@@ -380,7 +380,7 @@ def _visible_patch(image: np.ndarray, name: str, bounds: tuple[int, int, int, in
     patch = gray[y:y + h, x:x + w]
     bright = template >= 130
     if (score < threshold or not bright.any()
-            or np.mean(cv2.absdiff(patch, template)[bright]) > 15
+            or np.mean(cv2.absdiff(patch, template)[bright]) > max_residual
             or np.percentile(patch[bright], 10) < 110):
         return None
     return Rect(x1 + x, y1 + y, w, h)
@@ -396,6 +396,11 @@ def find_weekly_entry(image: np.ndarray) -> Rect | None:
     if not _world_controls(image):
         return None
     label = _visible_patch(image, "weekly_entry", (350, 150, 1750, 940))
+    if label is None:
+        # 世界地图的云会飘过文字（20261120T100953 停止帧 0.937／残差 19）；
+        # 文字略放宽时，图标仍须按原门槛完整可见。
+        label = _visible_patch(image, "weekly_entry", (350, 150, 1750, 940),
+                               threshold=0.92, max_residual=22)
     if label is None:
         return None
     # 图标相对文字定位，地图上的入口可移动。

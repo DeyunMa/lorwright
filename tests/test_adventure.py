@@ -2929,6 +2929,23 @@ def test_locked_routes_reenter_interrupted_event_node_once(adventure, monkeypatc
     assert saved == []
 
 
+def test_locked_routes_reenter_interrupted_power_diamond_once(adventure, monkeypatch):
+    stopped = cv2.imread(str(FIXTURES / "f1-power-interrupted-map-20261120.png"))
+    if stopped is None:
+        pytest.skip("缺少 f1-power-interrupted-map-20261120.png")
+    power = cv2.imread(str(FIXTURES.parent / "power_reward/f1-power-20261115.png"))
+    assert power is not None
+    loop, device, _, saved, _ = adventure([stopped] * 7 + [power], [UIState.UNKNOWN] * 8)
+    loop.pack = load("jinx")
+    handled = []
+    monkeypatch.setattr(loop, "_handle_power", lambda image: handled.append(image) or image)
+    loop.run(max_nodes=1)
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 960) <= 10 and abs(device.taps[0][1] - 546) <= 10
+    assert handled and handled[0] is power
+    assert saved == []
+
+
 def test_reentry_is_not_repeated_when_routes_stay_locked(adventure, monkeypatch):
     stopped = _interrupted_event_map()
     vendor = cv2.imread(str(FIXTURES.parent / "screens/f1-soloist-20261116.png"))

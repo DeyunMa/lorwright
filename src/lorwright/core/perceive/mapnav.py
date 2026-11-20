@@ -476,6 +476,12 @@ def current_unfinished_node(
     if hero is None or image.shape != (1080, 1920, 3) or panel_open(image):
         return None
     current = _navigation_origin(image, hero[:2], _navigation_candidates(image))
+    if current is not None and current.shape == "diamond":
+        # 能力或支援菱形被打断时保留白蓝发光外框；完成后外框不再发光。
+        if (_current_diamond_glow_visible(image, current.node)
+                and _unlocked_unfinished_center(image, current.node)):
+            return current.node
+        return None
     if current is None or current.shape != "round":
         return None
     if (_current_completed_node_visible(image, hero[:2])
@@ -483,6 +489,24 @@ def current_unfinished_node(
             or not _unlocked_unfinished_center(image, current.node)):
         return None
     return current.node
+
+
+def _current_diamond_glow_visible(image: np.ndarray, node: MapNode) -> bool:
+    """脚下菱形外框四个象限都有白蓝发光；头像指针只遮挡上方中线附近。"""
+    x, y = node.center
+    extent = 70
+    if x < extent or y < extent or x + extent >= image.shape[1] or y + extent >= image.shape[0]:
+        return False
+    patch = image[y - extent:y + extent + 1, x - extent:x + extent + 1].astype(np.int16)
+    yy, xx = np.ogrid[-extent:extent + 1, -extent:extent + 1]
+    distance = np.abs(xx) + np.abs(yy)
+    blue, green, red = (patch[:, :, i] for i in range(3))
+    glow = (blue > 200) & (green > 185) & (blue >= red)
+    ring = (distance >= 38) & (distance <= 60)
+    return all(float(glow[ring & quadrant].mean()) >= 0.2 for quadrant in (
+        (xx < 0) & (yy >= 0) & (yy < 35), (xx >= 0) & (yy >= 0) & (yy < 35),
+        (xx < 0) & (yy < 0), (xx >= 0) & (yy < 0),
+    ))
 
 
 def occluded_route_zoom_button(image: np.ndarray, hero: HeroToken | tuple[int, int] | None) -> Rect | None:

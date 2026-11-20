@@ -1241,3 +1241,49 @@ def test_interrupted_event_node_requires_halo_and_unlocked_center():
 def test_completed_current_node_is_not_reentry_target():
     image = _load("f1-weekly-after-second-reward-20261116.png")
     assert current_unfinished_node(image, locate_map_hero(image)) is None
+
+
+def _interrupted_power_map() -> np.ndarray:
+    # 20261120T052533 的 map_no_next 停止实拍；不在 491dc94 基线内，缺图时跳过。
+    image = cv2.imread(str(FIXTURES / "f1-power-interrupted-map-20261120.png"))
+    if image is None:
+        pytest.skip("缺少 f1-power-interrupted-map-20261120.png")
+    return image
+
+
+def test_glowing_current_diamond_is_reentry_target_while_routes_stay_locked():
+    image = _interrupted_power_map()
+    hero = locate_map_hero(image)
+    assert reachable_nodes(image, hero=hero) == []
+    node = current_unfinished_node(image, hero)
+    assert node is not None and abs(node.x - 960) <= 10 and abs(node.y - 546) <= 10
+
+
+def test_unfinished_support_diamond_is_reentry_target():
+    image = cv2.imread(str(FIXTURES / "1080p_jinx_support_map.jpg"))
+    if image is None:
+        pytest.skip("缺少 1080p_jinx_support_map.jpg")
+    node = current_unfinished_node(image, locate_map_hero(image))
+    assert node is not None and abs(node.x - 960) <= 10 and abs(node.y - 413) <= 10
+
+
+@pytest.mark.parametrize("name", [
+    "f1-weekly-after-support-20261116.png",
+    "1080p_jinx_map.png",
+    "f1-weekly-after-power-20261116.png",
+    "1080p_jinx_fork_after_support.png",
+])
+def test_completed_current_diamond_is_not_reentry_target(name):
+    image = _load(name)
+    assert current_unfinished_node(image, locate_map_hero(image)) is None
+
+
+def test_current_diamond_reentry_requires_glow():
+    image = _interrupted_power_map()
+    hero = locate_map_hero(image)
+    dimmed = image.copy()
+    yy, xx = np.ogrid[:1080, :1920]
+    distance = np.abs(xx - 960) + np.abs(yy - 546)
+    ring = (distance >= 36) & (distance <= 62)
+    dimmed[ring] = (dimmed[ring] * 0.6).astype(np.uint8)
+    assert current_unfinished_node(dimmed, hero) is None

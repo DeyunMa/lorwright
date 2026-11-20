@@ -35,12 +35,12 @@ class Frame:
         return int(self.image.shape[0])
 
     def age_s(self, now: float | None = None) -> float:
-        """帧龄（秒）。`ts == 0` 表示设备没打时间戳，按「不过期」处理。"""
+        """帧龄（秒）。`ts` 与 `now` 使用单调时钟；`ts == 0` 表示设备没打时间戳，按「不过期」处理。"""
         if not self.ts:
             return 0.0
         import time as _time
 
-        return max(0.0, (_time.time() if now is None else now) - self.ts)
+        return max(0.0, (_time.monotonic() if now is None else now) - self.ts)
 
 
 class Device(Protocol):

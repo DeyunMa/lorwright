@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Callable
 from typing import Protocol
 
 from lorwright.core.util.logger import logger
@@ -15,7 +16,12 @@ class ShellRunner(Protocol):
     def run(self, *args: str) -> str: ...
 
 
-def launch_pie64(runner: ShellRunner, package: str) -> None:
+def launch_pie64(
+    runner: ShellRunner,
+    package: str,
+    *,
+    wait: Callable[[float, str], None] | None = None,
+) -> None:
     """Launch once, trace for eight seconds, stop tracing, verify survival.
 
     A running client is only brought to the foreground. Failed launches retain
@@ -44,6 +50,7 @@ def launch_pie64(runner: ShellRunner, package: str) -> None:
         runner.run("shell", "am", "start", "-n", activity)
         return
 
+    _wait = wait or (lambda seconds, _reason: time.sleep(seconds))
     trace = f"/data/local/tmp/lorwright-start-{uuid.uuid4().hex}.trace"
     stop_failed = False
     try:
@@ -53,7 +60,11 @@ def launch_pie64(runner: ShellRunner, package: str) -> None:
         )
         if "Error:" in result or "Exception" in result:
             raise RuntimeError("Android 拒绝带轨迹的启动")
-        time.sleep(8)
+        try:
+            _wait(8, "pie64_trace_capture")
+        except BaseException:
+            logger.warning("启动轨迹等待被中断，临时轨迹保留在：{}", trace)
+            raise
         started_pid = pid()
         if not started_pid:
             raise RuntimeError(f"LoR 启动后退出，诊断轨迹保留在 {trace}")
@@ -65,7 +76,11 @@ def launch_pie64(runner: ShellRunner, package: str) -> None:
             logger.error("停止启动轨迹失败，请检查设备连接：{}", trace)
     if stop_failed:
         raise RuntimeError("未确认启动轨迹已停止，停止后续操作")
-    time.sleep(22)
+    try:
+        _wait(22, "pie64_startup_verify")
+    except BaseException:
+        logger.warning("启动验证等待被中断，临时轨迹保留在：{}", trace)
+        raise
     focus = runner.run("shell", "dumpsys", "window", "windows")
     focused = any("mCurrentFocus" in line and package in line for line in focus.splitlines())
     if pid() != started_pid or not focused:

@@ -29,7 +29,7 @@ def setup_login():
                                loop=SimpleNamespace(max_frame_age_s=5),
                                perception=defaults.perception, logging=defaults.logging)
     frame = Frame(image=np.zeros((1080, 1920, 3), dtype=np.uint8),
-                  ts=time.time(), capture_ms=0)
+                  ts=time.monotonic(), capture_ms=0)
     device = Mock()
     device.screencap.return_value = frame
     detector = Mock()
@@ -41,8 +41,8 @@ def test_single_submission_waits_through_loading_until_home(monkeypatch):
     settings, frame, device, detector, normalizer = setup_login()
     home = cv2.imread(str(fixtures_root() / "screens/1080p_home_adventure_entry.png"))
     assert home is not None
-    loading = Frame(np.full_like(frame.image, 247), time.time(), 0)
-    ready = Frame(home, time.time(), 0)
+    loading = Frame(np.full_like(frame.image, 247), time.monotonic(), 0)
+    ready = Frame(home, time.monotonic(), 0)
     device.screencap.side_effect = [frame] * 3 + [loading, ready]
     detector.detect.side_effect = [LoginScreen.FORM] * 3 + [LoginScreen.NONE] * 2
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)
@@ -105,9 +105,12 @@ def test_stop_before_input(monkeypatch):
 @pytest.mark.parametrize("after_submit", [LoginScreen.FORM, LoginScreen.NONE])
 def test_login_timeout_does_not_retry(monkeypatch, after_submit):
     settings, frame, device, detector, normalizer = setup_login()
+    frame.ts = 10.0
+    post_frame = Frame(image=frame.image, ts=40.5, capture_ms=0)
+    device.screencap.side_effect = [frame, frame, frame, post_frame]
     detector.detect.side_effect = [LoginScreen.FORM] * 3 + [after_submit]
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)
-    ticks = iter([0, 31])
+    ticks = iter([10.0, 10.0, 10.0, 10.0, 10.0, 41.0, 41.0])
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.monotonic", lambda: next(ticks))
     assert _auto_login(settings, device, frame, normalizer, detector).stop_reason == "login_transition_unverified"
     assert device.tap.call_count == 3

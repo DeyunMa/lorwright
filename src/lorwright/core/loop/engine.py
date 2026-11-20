@@ -201,7 +201,7 @@ class Engine:
         try:
             while max_ticks is None or ticks < max_ticks:
                 ticks += 1
-                t0 = time.time()
+                t0 = time.monotonic()
 
                 checkpoint()
                 report("capture", tick=ticks)
@@ -570,7 +570,7 @@ class Engine:
                                 self._pending.deadline, self._staged_play.deadline,
                             )
 
-                elapsed_ms = round((time.time() - t0) * 1000)
+                elapsed_ms = round((time.monotonic() - t0) * 1000)
                 emit(
                     tick=ticks,
                     ui=state.ui_state.value,

@@ -157,7 +157,7 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
             report("bootstrap", "login_button_unverified", login_screen=screen.value)
             return BootstrapResult(frame=frame, login_screen=screen, button_unverified=True)
         checkpoint()
-        if time.time() - frame.ts > settings.loop.max_frame_age_s:
+        if not frame.ts or frame.age_s() > settings.loop.max_frame_age_s:
             raise RuntimeError("登录方式画面已过期，未点击")
         report("bootstrap", "opening_riot_login")
         device.tap(*scale.to_device(*button.center))
@@ -225,13 +225,13 @@ def _auto_login_impl(settings, device, frame, normalizer, detector) -> Bootstrap
     layout = settings.layout.to_layout()
     if not all((layout.login_username, layout.login_password, layout.login_submit)):
         return BootstrapResult(frame, LoginScreen.FORM, auto_login_stop="login_layout_missing")
-    if time.time() - frame.ts > settings.loop.max_frame_age_s:
+    if not frame.ts or frame.age_s() > settings.loop.max_frame_age_s:
         return BootstrapResult(frame, LoginScreen.FORM, auto_login_stop="login_frame_stale")
     def verified_form():
         checkpoint()
         fresh = device.screencap()
         image, scale = normalizer.fit(fresh.image)
-        if (time.time() - fresh.ts > settings.loop.max_frame_age_s
+        if (not fresh.ts or fresh.age_s() > settings.loop.max_frame_age_s
                 or detector.detect(image) is not LoginScreen.FORM):
             return None
         return scale

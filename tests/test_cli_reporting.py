@@ -215,6 +215,19 @@ def test_hand_view_configuration_failure_uses_session_jsonl(tmp_path, monkeypatc
     assert events[-1]["payload"]["reason"] == "execution_error"
 
 
+def test_adb_timeout_reports_device_timeout_terminal_reason(hand_runtime):
+    from lorwright.core.device.adb import AdbTimeout
+
+    hand_runtime.engine.observe_hand.side_effect = AdbTimeout("adb 超时（15.0s）：exec-out screencap -p")
+    result = CliRunner().invoke(app, ["hand", "--view", "collapsed", "--jsonl"])
+    assert result.exit_code == 1, result.output
+    events = [json.loads(line) for line in result.stdout.splitlines()]
+    terminals = [event for event in events if event["type"] == "session_finished"]
+    assert len(terminals) == 1
+    assert terminals[0]["payload"]["status"] == "failed"
+    assert terminals[0]["payload"]["reason"] == "device_timeout"
+
+
 def test_hand_view_cli_uses_shared_device_lock(tmp_path, monkeypatch):
     monkeypatch.setenv("LORWRIGHT_RUNS_DIR", str(tmp_path))
     with RunSession(tmp_path, mode="battle", champion="test", device="adb"):

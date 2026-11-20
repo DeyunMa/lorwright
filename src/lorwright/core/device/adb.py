@@ -27,6 +27,10 @@ def secret_text_supported(value: str) -> bool:
     return bool(value) and all(32 <= ord(char) <= 126 and char != "%" for char in value)
 
 
+class AdbTimeout(RuntimeError):
+    """adb 子进程超过超时上限时抛出，便于与代码异常区分。"""
+
+
 class AdbRunner:
     """adb 调用入口：统一重连与错误检查。
 
@@ -52,11 +56,18 @@ class AdbRunner:
         """
         if self._connected or not self.serial or ":" not in self.serial:
             return
-        self._connected = True
-        subprocess.run(
-            [self.adb, "connect", self.serial],
-            capture_output=True, timeout=self.timeout, check=False,
-        )
+        try:
+            p = subprocess.run(
+                [self.adb, "connect", self.serial],
+                capture_output=True, timeout=self.timeout, check=False,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"找不到 adb：{self.adb}") from e
+        except subprocess.TimeoutExpired as e:
+            raise AdbTimeout(f"adb 超时（{self.timeout}s）：connect {self.serial}") from e
+        out = (p.stdout + p.stderr).decode("utf-8", "ignore").lower()
+        if p.returncode == 0 and "connected to" in out:
+            self._connected = True
 
     def run(self, *args: str, stdin: bytes | None = None, binary: bool = False):
         self.ensure()
@@ -67,6 +78,9 @@ class AdbRunner:
             )
         except FileNotFoundError as e:
             raise RuntimeError(f"找不到 adb：{self.adb}") from e
+        except subprocess.TimeoutExpired as e:
+            # 仅记录 args，不记录 stdin，避免 text_secret 凭据泄漏。
+            raise AdbTimeout(f"adb 超时（{self.timeout}s）：{' '.join(args)}") from e
         if p.returncode != 0:
             err = p.stderr.decode("utf-8", "ignore").strip()
             raise RuntimeError(f"adb 失败（{p.returncode}）：{' '.join(args)} → {err}")
@@ -78,12 +92,13 @@ class AdbDevice:
 
     def __init__(
         self, serial: str | None = None, adb: str = "adb", timeout: float = 15.0,
-        launch_mode: str = "standard",
+        launch_mode: str = "standard", wait=None,
     ) -> None:
         self.serial = serial
         self.adb = adb
         self.timeout = timeout
         self.launch_mode = launch_mode
+        self._wait = wait
         self._size: tuple[int, int] | None = None
         self._adb = AdbRunner(adb=adb, serial=serial, timeout=timeout)
         self._surface: TouchSurface | None = None
@@ -119,25 +134,29 @@ class AdbDevice:
 
         serials = _scan()
         if not serials and connect and ":" in connect:
-            subprocess.run(
-                [adb, "connect", connect], capture_output=True, timeout=15, check=False
-            )
+            try:
+                subprocess.run(
+                    [adb, "connect", connect], capture_output=True, timeout=15, check=False
+                )
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return []
             serials = _scan()
         return serials
 
     # ---- Device 接口 ----
 
     def screencap(self) -> Frame:
-        t0 = time.time()
+        t0 = time.monotonic()
         raw = self._run("exec-out", "screencap", "-p", binary=True)
         arr = np.frombuffer(raw, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise RuntimeError("截图解码失败（可能是 adb 输出被污染）")
-        ms = int((time.time() - t0) * 1000)
+        now = time.monotonic()
+        ms = int((now - t0) * 1000)
         # 截图耗时是循环节奏的真正上限，先量再谈优化（docs/maa/04-screencap.md）
         logger.debug("screencap: {}x{} {}ms", img.shape[1], img.shape[0], ms)
-        return Frame(image=img, ts=time.time(), capture_ms=ms)
+        return Frame(image=img, ts=now, capture_ms=ms)
 
     # ---- 输入 ----
 
@@ -207,7 +226,7 @@ class AdbDevice:
         if self.launch_mode == "pie64_trace":
             from lorwright.core.device.startup import launch_pie64
 
-            launch_pie64(self._adb, package)
+            launch_pie64(self._adb, package, wait=self._wait)
             return
         self._run(
             "shell", "monkey", "-p", package,

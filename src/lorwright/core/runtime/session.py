@@ -96,20 +96,31 @@ def _sharing_conflict(exc: OSError) -> bool:
     return getattr(exc, "winerror", None) in {5, 32, 33}
 
 
-def _atomic_json(path: Path, value: dict) -> None:
+def _atomic_json(path: Path, value: dict, *, retries: int = 5) -> None:
     temp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     try:
         temp.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
-        for attempt in range(5):
+        for attempt in range(retries):
             try:
                 os.replace(temp, path)
                 break
             except OSError as exc:
-                if not _sharing_conflict(exc) or attempt == 4:
+                if not _sharing_conflict(exc) or attempt == retries - 1:
                     raise
                 time.sleep(0.05)
     finally:
         temp.unlink(missing_ok=True)
+
+
+def _read_json_retry(path: Path, *, retries: int = 3, delay_s: float = 0.02) -> dict:
+    for attempt in range(retries):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            if not _sharing_conflict(exc) or attempt == retries - 1:
+                raise
+            time.sleep(delay_s)
+    raise AssertionError("unreachable")
 
 
 def process_alive(pid: int | None) -> bool:
@@ -151,10 +162,10 @@ def read_status(root: str | Path | None, run_id: str | None = None) -> dict:
     status_path = run_path(base, run_id) / "status.json"
     if not status_path.exists():
         raise FileNotFoundError(f"找不到会话：{run_id}")
-    status = json.loads(status_path.read_text(encoding="utf-8"))
+    status = _read_json_retry(status_path)
     process_path = run_path(base, run_id) / "process.json"
     if status.get("pid") is None and process_path.exists():
-        status["pid"] = json.loads(process_path.read_text(encoding="utf-8"))["pid"]
+        status["pid"] = _read_json_retry(process_path)["pid"]
     now = time.time()
     age = max(0.0, now - status["heartbeat_at"])
     progress_age = max(0.0, now - status["last_progress_at"])
@@ -257,6 +268,7 @@ class RunSession:
         self._reported_health = None
         self._wait_key = None
         self._wait_deadline = None
+        self._terminal_unpersisted = False
 
     @property
     def finished(self) -> bool:
@@ -308,20 +320,33 @@ class RunSession:
             self._stop.set()
             if self._thread:
                 self._thread.join()
+            if self._terminal_unpersisted:
+                try:
+                    with self._mutex:
+                        self._persist()
+                        self._terminal_unpersisted = False
+                except OSError as exc:
+                    print(f"run-session: 退出时终态落盘仍失败: {exc}", file=sys.stderr, flush=True)
             if self._token is not None:
                 _active.reset(self._token)
             self._lock.release()
         return False
 
     def _persist(self):
-        _atomic_json(self.path / "status.json", self._status)
+        retries = 15 if self._status["status"] in TERMINAL else 5
+        _atomic_json(self.path / "status.json", self._status, retries=retries)
 
     def event(self, event_type, **payload):
         with self._mutex:
             if self._status["status"] in TERMINAL:
                 return
             self._append(event_type, payload)
-            self._persist()
+            try:
+                self._persist()
+            except OSError as exc:
+                if not _sharing_conflict(exc):
+                    raise
+                print(f"run-session: 状态文件共享冲突，跳过本次 status 持久化: {exc}", file=sys.stderr, flush=True)
 
     def _append(self, event_type, payload):
         seq = self._status["seq"] + 1
@@ -383,8 +408,15 @@ class RunSession:
                                 wait_phase=None, wait_reason=None)
             self._append("session_finished", dict(status=status, reason=reason,
                                                   **(details | {"message": message})))
-            self._persist()
-            self._stop.set()
+            # 终态写入不可跳过，否则外部会误判 process_exited_without_terminal。
+            try:
+                self._persist()
+                self._terminal_unpersisted = False
+            except OSError:
+                self._terminal_unpersisted = True
+                raise
+            finally:
+                self._stop.set()
 
     def _heartbeat(self):
         failed = False
@@ -405,8 +437,6 @@ class RunSession:
                         self.event("health", health=health)
                         self._reported_health = health
                 except OSError as exc:
-                    if not _sharing_conflict(exc):
-                        raise
                     if not failed:
                         print(f"run-heartbeat: 状态访问失败，将重试: {exc}", file=sys.stderr, flush=True)
                     failed = True

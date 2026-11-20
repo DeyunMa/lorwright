@@ -149,7 +149,7 @@ def test_adventure_never_clicks_an_expired_input_frame(adventure, monkeypatch):
     home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
     loop, device, _, saved, _ = adventure([home], [UIState.UNKNOWN])
     monkeypatch.setattr(loop, "capture_frame", lambda: Frame(home, ts=100.0))
-    monkeypatch.setattr("lorwright.core.loop.adventure.time.time", lambda: 103.0)
+    monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: 103.0)
 
     assert loop.run(max_nodes=1) == LoopResult("stopped", "adventure_input_frame_expired")
     assert device.taps == []

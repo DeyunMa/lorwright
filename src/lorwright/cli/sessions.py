@@ -15,6 +15,7 @@ import typer
 from lorwright.core.runtime.session import (
     TERMINAL,
     _atomic_json,
+    _read_json_retry,
     _utc,
     describe_status,
     new_run_id,
@@ -187,7 +188,7 @@ def start(
         _output(initial, json_output)
         raise typer.Exit(1) from exc
     if code is not None:
-        saved = json.loads((folder / "status.json").read_text(encoding="utf-8"))
+        saved = _read_json_retry(folder / "status.json")
         if saved["status"] not in TERMINAL:
             saved.update(status="failed", reason="process_exited_without_terminal",
                          pid=process.pid, details={"exit_code": code}, finished_at=_utc())

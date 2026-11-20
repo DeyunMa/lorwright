@@ -1803,7 +1803,7 @@ def test_frame_that_expires_during_decision_is_not_executed(monkeypatch):
         monkeypatch, [ready()], [Action(ActionType.END_TURN)],
     )
     frame = device.screencap()
-    frame.ts = time.time()
+    frame.ts = time.monotonic()
     monkeypatch.setattr(device, "screencap", lambda: frame)
     decide = router.decide
 
@@ -1832,7 +1832,7 @@ def test_pending_action_times_out_even_if_every_followup_frame_is_stale(monkeypa
     def frames():
         frame = capture()
         if device.frames > 1:
-            frame.ts = time.time() - 100
+            frame.ts = 1.0
         return frame
 
     monkeypatch.setattr(device, "screencap", frames)

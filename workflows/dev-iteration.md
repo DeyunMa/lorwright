@@ -20,11 +20,11 @@ Agent 不逐动作调度游戏，只改程序能力。
 一轮：
 1. 读终态的 `reason`、事件和停止截图，定位卡点。
 2. 用停止素材复现：写失败测试，修复后让它通过，按[开发闭环](../docs/architecture.md#开发闭环)复验相关场次。
-3. 在 Mac 上先跑相关专项测试，再跑完整回归（可用 `pytest -n auto` 并行加速，新增回归图后用 `python3 tools/test_data.py --check` 确认已登记且基线无缺失）。完整回归不过就不 push，在本轮内继续修。通过后提交，推送 `origin/main`，再把 f1 同步到同一提交（规则见 `AGENTS.md`）。优先用 `python3 tools/f1/sync.py --apply` 同步：脚本会先核对 f1 工作区干净、无非终态会话、可快进，再执行 `ff-only`；若 `pyproject.toml` 有变更，会在 f1 的 `.venv` 中重新安装依赖。测试只在 Mac 做，f1 同步后只核对提交、工作区和会话状态，不再跑测试。
+3. 在 Mac 上先跑相关专项测试，再跑完整回归（可用 `pytest -n auto` 并行加速，新增回归图后用 `python3 tools/test_data.py --check` 确认已登记且基线无缺失）。完整回归不过就不 push，在本轮内继续修。通过后提交，推送 `origin/main`，再把 f1 同步到同一提交（规则见 `AGENTS.md`）。优先用 `python3 tools/f1/sync.py --apply` 同步：脚本会先核对 f1 工作区干净、无非终态会话、可快进，再执行 `ff-only`；若 `pyproject.toml` 有变更，会在 f1 的 `.venv` 中重新安装依赖。测试只在 Mac 做，f1 同步后只核对提交、工作区和会话状态，不再跑测试。提交前看一眼 `git log`：出现不是本 goal 提交的新 commit（违反下文「并发」）时，把它们的哈希和标题记进账本，卡点归因时考虑进去。
 4. 从 f1 的当前实时画面重新启动会话，不放弃当前这局冒险。
 5. 回到触发，等下一个卡点或终态。
 
-**同一卡点**：同一个停止 `reason`，出现在同一类页面或冒险阶段（例如同一节点类型、同一奖励页）。修复后停在别处就算新卡点，计数归零。
+**同一卡点**：同一个停止 `reason`，出现在同一类页面或冒险阶段（例如同一节点类型、同一奖励页）。同一类问题的不同变体（例如各种载入画面超时）合并计数。修复后停在别处就算新卡点，计数归零。只补诊断或判断为环境问题的那一次不算修复，但要记进账本。
 
 **验收失败**：验收会话中途停下，这局转为推进；修复后要重新开一局验收。
 
@@ -40,7 +40,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 实现者需要的事实散在现有文档里，这里只给入口：
 - 连 f1：`ssh f1`（Mac 的 `~/.ssh/config` 已配置），工作区 `C:\Code\lorwright`，程序 `C:\Code\lorwright\.venv\Scripts\lorwright.exe`。每条 ssh 命令结束后 adb daemon 会被回收，见 `docs/environment.md` §5。
 - 会话命令、状态字段、停止原因：`docs/cli.md`。
-- 看停止截图：从 f1 的 `logs/runs/<run_id>/snapshots/` 用 `scp` 拷到 Mac 再读图（已实测 Windows OpenSSH 路径写法：`scp -r 'f1:C:/Code/lorwright/logs/runs/<run_id>/snapshots' logs/f1-pulls/<run_id>/`）。
+- 只读查看 f1：`python3 tools/f1/remote.py`，子命令 `status RUN`、`wait RUN --max 540`（有界等待到终态或 stalled）、`pull RUN`（截图、事件、状态拷到 `logs/f1-pulls/<run_id>/` 并打印精简事件）、`shot`（实时截图到 `logs/f1-pulls/`）、`focus`（前台窗口和 activity 栈）、`net`（TCP 连通和 netwatchdog 摘要）。它统一处理 ssh 保活、adb 在同一次调用内连接、截图按文件拉回等坑，优先用它，不再临时写脚本。
 - 把停止截图做成回归素材：按 `docs/offline-validation.md` 和 `docs/layout.md` 放入库外测试数据并标注。
 - f1 同步与运维边界：`tools/f1/README.md`。
 
@@ -49,7 +49,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 | 项 | 规则 |
 |---|---|
 | f1 同步 | 默认执行，无需逐次授权（见 `AGENTS.md`）。f1 有未提交改动、非终态会话或无法快进时，停止并报告 |
-| 预授权（随目标一次性确认） | `lorwright sessions start/status/events/stop`，冒险限目标清单内；读会话截图与日志；使用既有的 `--bootstrap-f1 --auto-login`（凭据在 f1 项目 `.env`） |
+| 预授权（随目标一次性确认） | `lorwright sessions start/status/events/stop`，冒险限目标清单内；读会话截图与日志；使用既有的 `--bootstrap-f1 --auto-login`（凭据在 f1 项目 `.env`）；`tools/f1/remote.py` 的只读查看（实时截图、前台窗口、网络），f1 上的产物只写 `C:\Code\lorwright\logs\` |
 | 仍需停下 | 改看门狗或计划任务；改 Clash/Tailscale/网络配置；改凭据；重启整机；bundle 恢复流程；删除或归档 f1 数据；目标清单以外的冒险 |
 
 ## 停止条件
@@ -72,27 +72,32 @@ Agent 不逐动作调度游戏，只改程序能力。
 - agent 自己看不到轮次编号，续接提示里没有这个信息，所以无法在第 45 轮主动交接。
 - goal 在两轮之间时，herdr 的 `agent_status` 显示 `idle`，不能用它判断 goal 状态，要读 pane 画面文字。
 
-**看守**：`tools/goal/watch.py`，不用 AI，测试在 `tests/test_goal_watch.py`。goal 第一轮由 goal 自己用 herdr 启动它，传入 goal 所在 pane 的 ID（goal 会话里的 `$HERDR_PANE_ID`）：
+**看守**：`tools/goal/watch.py`，不用 AI，测试在 `tests/test_goal_watch.py`。goal 第一轮由 goal 自己用 herdr 启动它，传入 goal 所在 pane 的 ID（goal 会话里的 `$HERDR_PANE_ID`）。**往下分屏**，保住 goal pane 的宽度；往右分会把 goal pane 压窄，底栏被截断：
 
 ```bash
-W=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
+W=$(herdr pane split --current --direction down --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
 herdr pane run "$W" "python3 tools/goal/watch.py $HERDR_PANE_ID"
 ```
 
-脚本每 60 秒用 `recent-unwrapped --lines 40` 读一次该 pane（避免窄 pane 折行截断暂停提示），日志在 `logs/goals/watch-<pane>.log`，并通过单实例锁 `logs/goals/watch-<pane>.lock` 防止续接或上下文压缩后重复起看守：
-- 只有底栏没有 `Goal running`，且画面上最近一条 goal 提示是 `Goal paused after 50 turns` 原文时，才发送 `/goal resume`，并写一行日志；
-- 底栏没有 `Goal running`，且最近一条提示不是这句原文（完成、受阻、被用户中断或清除），就退出，不 resume；
-- 读画面失败时，用 `herdr agent list` 区分瞬时读错与 agent 消失：agent 仍在则记日志重试，不退出；确认消失才按连续确认次数退出；`herdr` 连续不可达达上限时退出并记日志；
+脚本每 60 秒用 `recent-unwrapped --lines 40` 读一次该 pane，日志在 `logs/goals/watch-<pane>.log`，单实例锁 `logs/goals/watch-<pane>.lock`（锁文件内容是看守的 PID）：
+- 只有不在回合内（输入框不是 `Guide Devin while it works`、没有转圈行，底栏也没有 `Goal running`），且最近一条 goal 提示是 `Goal paused after 50 turns` 原文时，才发送 `/goal resume`，并写一行日志；
+- 只在看到明确的结束证据时退出：最近一条 goal 提示是 `✓ Goal …` / `✗ Goal …`（如 `Goal complete`、`Goal blocked`），或 goal 的 agent 已消失。用户取消回合、两轮之间、底栏被截断等其他情况一律继续守着，用户手动 `/goal resume` 后它仍然有效；
+- 读画面失败时，用 `herdr agent list` 区分瞬时读错与 agent 消失：agent 仍在则记日志重试；`herdr` 连续不可达达上限时退出并记日志；
 - 最多 resume 10 次，到上限后退出，并在日志里说明原因。
 
-2026-11-19 实测：一个 55 轮的测试 goal 在第 50 轮暂停后，看守自动 resume 一次，goal 跑到 `Goal complete` 后看守自行退出。
+2026-11-19 实测：一个 55 轮的测试 goal 在第 50 轮暂停后，看守自动 resume 一次，goal 跑到 `Goal complete` 后看守自行退出。2026-11-20 goal-jinx 实跑中，旧版看守因 67 列窄 pane 截断底栏误退出一次，另有两次所在 pane 被外部关闭而静默消失，于是有了下面两条规则。
+
+**看守存活检查**：goal 每轮开始时用 `ps -p "$(cat logs/goals/watch-${HERDR_PANE_ID//:/-}.lock)"` 检查锁文件里的 PID 是否还活着；不在就按上面的命令重启（单实例锁保证不会起两个），并把新 PID 记进账本。
+
+**看守归属**：看守 pane 由启动它的 goal 负责。其他 agent 结束自己的监测时不得关闭看守 pane；第五层 `improve` 发现看守消失时可以重启它，但不关闭它。
 
 因此每轮尽量包含一次完整的「等待 → 修复 → 同步 → 重启」，等待放在轮内用 `status --wait` 完成，不为等待而结束一轮。
-账本顶部的「当前状态」每轮结束前更新，暂停续接或上下文压缩后，Agent 先读这一段再继续。
+账本顶部的「当前状态」每轮结束前更新，暂停续接或上下文压缩后，Agent 先读这一段再继续。账本只用文件写入或编辑工具更新，不用 shell heredoc：实测 shell 写中文会截断甚至清空账本。
 
 ## 并发
 
 goal 运行期间独占 Mac 主检出目录的 `main` 和 f1 设备锁。启动前置条件：本机工作区干净，f1 上没有非终态会话。
+运行期间，除第四层自己外，任何 agent 都不向 `main` 合入或推送：要合入的改动放在分支或独立 worktree，等第四层结束、受阻或用户暂停它之后再合。2026-11-20 运行期间外部合入了运行时代码和规格改动，结果账本把别人的合入记成了 goal 的修复，规格改动 goal 也没有读到。
 用户会在启动时把 Mac 和 f1 都交给 goal。
 
 ## 可选第五层：外层记录与收口优化（`improve`）
@@ -119,6 +124,7 @@ herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HER
 - 只在 `improve` 的 Herdr 状态为 `idle` / `done` 时发消息，不往正在进行的对话或回合里插话：定时消息遇忙跳过本次，结束消息每次读取后重试直到送达。用户正在 `improve` 输入框打字而 agent 仍为 `idle` 时，消息会和已输入的文字一起提交。
 - 判断 goal 是否在回合内看输入框占位文字和转圈行，不看底栏的 `Goal running`（窄 pane 会截断底栏）。
 - 日志和单实例锁：`logs/improve/notify-<goal pane>.log|.lock`；重复启动的第二个唤醒器读到锁即退出。
+- 唤醒器在送达 `[improve-notify]` 后退出。用户之后 `/goal resume` 让第四层继续时，`improve` 要按上面的命令重新启动唤醒器。
 - 收口改动在第四层释放工作区之后才合入 `main` 并推送。第四层运行期间若要预先开发，放在独立 worktree 的分支里，不从 worktree 推送 `origin/main`，否则第四层下一次 push 会被拒、`tools/f1/sync.py` 的目标比对也会失败。
 
 ## 模型策略与实测
@@ -172,7 +178,7 @@ goal 第一轮：检查并发前置条件 → 创建或读取账本 → 启动�
 | 目标写法 | 用户在外层对话用一句话给出，例如「用 Elise 完成一轮每周冒险」；Agent 展开成逐个冒险，按顺序推进，一个验收通过再开始下一个 |
 | 验收起点 | 验收会话必须在冒险开始之前启动（周常列表、世界地图、主页或模拟器关闭）。f1 停在冒险中途时，先按推进跑完这一局，再开新一局做验收 |
 | 权限模式 | goal 会话用 Bypass（`devin --permission-mode bypass` 或 `/bypass`）。复核用前台 `subagent_general` |
-| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部维护「当前状态」：目标、各冒险阶段、f1 run_id、看守 pane、最近 commit、同一卡点修复次数，下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
+| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部维护「当前状态」：目标、各冒险阶段、f1 run_id、看守 pane 和 PID、最近 commit、同一卡点修复次数，下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
 | 模型 | 按上文「模型策略与实测」执行：第四层 `/goal` 可选 `Fusion`（Opus 5.5 Lead + SWE-2 Sidekick）或零额度 `SWE-2 High`（配 `improve` Opus 巡检兜底），第五层 `improve` 保持 `Opus 5.5`；卡点反复返工时用 `/model` 切到 `Fusion` 或 `Opus 5.5`，goal 不受影响 |
 | 每周刷新 | 不处理。用户安排运行时间避开刷新，单次 goal 也不会跑到一周 |
 | 每月挑战 | 本阶段不涉及，不进入目标 |

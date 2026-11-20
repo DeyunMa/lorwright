@@ -209,6 +209,19 @@ Administrator 的交互式会话启动，`adventure --bootstrap-f1` 在 ADB 未�
 2026-11-15 的新版本只实机验证了接管已运行的模拟器与游戏；完整的
 “模拟器关闭 → 任务启动 → 游戏就绪”流程仍须单独实机验证。
 
+### 5.4 PowerShell 5.1 会写坏重定向的二进制输出
+
+f1 的 `powershell.exe` 是 Windows PowerShell 5.1。它把原生命令的输出当文本重新编码，
+所以 `adb exec-out screencap -p > live.png` 得到的 PNG 是坏的（2026-11-20 实测）。
+截图要先在设备上写文件，再 `adb pull` 回来：
+
+```powershell
+& $adb -s 127.0.0.1:5555 shell screencap -p /sdcard/lw-live.png
+& $adb -s 127.0.0.1:5555 pull /sdcard/lw-live.png C:\Code\lorwright\logs\live\live.png
+```
+
+Mac 上用 `python3 tools/f1/remote.py shot` 即按这个方式取图并拷回。
+
 ## 6. 迷你模式
 
 BlueStacks 的「迷你模式」只改变**宿主窗口**的显示方式，

@@ -64,12 +64,14 @@ def test_complete_and_canceled_goals_count_as_stopped() -> None:
     assert mod.goal_state(CANCELED) == "stopped"
 
 
-def _run(mod, monkeypatch, tmp_path, screens, *, tick_s=1e9, confirm=3, send_ok=True):
+def _run(mod, monkeypatch, tmp_path, screens, *, tick_s=1e9, confirm=3, send_ok=True, improve=None):
     sent: list[str] = []
+    improve_states = iter(improve) if improve is not None else None
     screens = iter(screens)
     clock = iter(range(0, 10_000, 100))
     monkeypatch.setattr(mod, "read_screen", lambda target: next(screens))
     monkeypatch.setattr(mod, "agent_exists", lambda target: False)
+    monkeypatch.setattr(mod, "agent_status", lambda target: next(improve_states) if improve_states else "idle")
     monkeypatch.setattr(mod, "send_prompt", lambda target, text: sent.append(text) or send_ok)
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     monkeypatch.setattr(mod.time, "monotonic", lambda: next(clock))
@@ -117,6 +119,7 @@ def test_failed_hand_over_is_retried(monkeypatch, tmp_path) -> None:
     results = iter([False, True])
     screens = iter([COMPLETE] * 5)
     monkeypatch.setattr(mod, "read_screen", lambda target: next(screens))
+    monkeypatch.setattr(mod, "agent_status", lambda target: "idle")
     monkeypatch.setattr(mod, "send_prompt", lambda target, text: attempts.append(text) or next(results))
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     code = mod.notify("w5:pJ", "w5:p5", tick_s=1e9, interval=0, confirm=3,
@@ -135,3 +138,50 @@ def test_second_notifier_exits_on_the_lock(monkeypatch, tmp_path) -> None:
         assert "already holds lock" in (tmp_path / "n.log").read_text(encoding="utf-8")
     finally:
         holder.close()
+
+
+def test_tick_is_skipped_while_the_improve_agent_is_busy(monkeypatch, tmp_path) -> None:
+    mod = _load_notify()
+    sent: list[str] = []
+    screens = iter([IN_TURN_TRUNCATED] * 6 + [COMPLETE] * 3)
+    current = {"screen": None}
+    clock = iter(range(0, 10_000, 100))
+
+    def read(target):
+        current["screen"] = next(screens)
+        return current["screen"]
+
+    monkeypatch.setattr(mod, "read_screen", read)
+    monkeypatch.setattr(mod, "agent_status",
+                        lambda target: "working" if current["screen"] is IN_TURN_TRUNCATED else "idle")
+    monkeypatch.setattr(mod, "send_prompt", lambda target, text: sent.append(text) or True)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(mod.time, "monotonic", lambda: next(clock))
+    code = mod.notify("w5:pJ", "w5:p5", tick_s=150, interval=0, confirm=3,
+                      log_path=tmp_path / "n.log", lock_path=tmp_path / "n.lock")
+    log = (tmp_path / "n.log").read_text(encoding="utf-8")
+    assert code == 0
+    assert "tick skipped: improve is working" in log
+    assert sent[-1].startswith("[improve-notify]")
+    assert all("goal=working" not in line for line in log.splitlines() if "tick sent" in line)
+
+
+def test_hand_over_waits_until_the_improve_agent_is_idle(monkeypatch, tmp_path) -> None:
+    mod = _load_notify()
+    screens = [COMPLETE] * 6
+    code, sent = _run(mod, monkeypatch, tmp_path, screens, improve=["working", "blocked", "done"])
+    assert code == 0
+    assert len(sent) == 1 and sent[0].startswith("[improve-notify]")
+    text = (tmp_path / "n.log").read_text(encoding="utf-8")
+    assert "hand-over deferred: improve is working" in text
+    assert "hand-over deferred: improve is blocked" in text
+
+
+def test_cli_defaults_to_twenty_minute_ticks_and_improve_logs(monkeypatch) -> None:
+    mod = _load_notify()
+    seen = {}
+    monkeypatch.setattr(mod, "notify", lambda goal, improve, **kw: seen.update(kw) or 0)
+    assert mod.main(["w5:pJ", "w5:p5"]) == 0
+    assert seen["tick_s"] == 1200
+    assert str(seen["log_path"]) == "logs/improve/notify-w5-pJ.log"
+    assert str(seen["lock_path"]) == "logs/improve/notify-w5-pJ.lock"

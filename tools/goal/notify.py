@@ -3,7 +3,7 @@
 Run inside a Herdr pane below the improve session; the improve agent starts it itself:
 
     python3 tools/goal/notify.py <goal-pane> "$HERDR_PANE_ID"
-    python3 tools/goal/notify.py w5:pJ w5:p5 --tick-interval 1200 --interval 60 --confirm 3
+    python3 tools/goal/notify.py w5:pJ w5:p5 --tick-interval 1800 --interval 60 --confirm 3
 
 The notifier makes no decisions. Every `--interval` seconds it reads the goal pane
 and sends prompts to the improve pane through `herdr agent prompt`, which starts
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("goal", help="Herdr pane id or agent name hosting the fourth-layer goal")
     parser.add_argument("improve", help="Herdr pane id or agent name of the improve agent to wake")
-    parser.add_argument("--tick-interval", type=float, default=1200.0, help="seconds between [improve-tick] prompts")
+    parser.add_argument("--tick-interval", type=float, default=1800.0, help="seconds between [improve-tick] prompts")
     parser.add_argument("--interval", type=float, default=60.0)
     parser.add_argument("--confirm", type=int, default=3)
     parser.add_argument("--max-read-errors", type=int, default=10)

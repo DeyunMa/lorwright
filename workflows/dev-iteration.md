@@ -104,7 +104,7 @@ goal 运行期间独占 Mac 主检出目录的 `main` 和 f1 设备锁。启动�
 - **第四层运行期（只读记录者）**：`improve` 只读观察第四层运行与账本，记录暴露出的规格漏洞、工具缺陷、重复脚手架和架构债；不修改仓库文件、不打断第四层推进（仅在看守进程意外退出等 1 级阻塞时做最小外部兜底）。
 - **第四层结束或受阻后（收口优化回合）**：第四层释放工作区后，`improve` 接管 `main` 集中做一轮收口优化（修复记录项、跑回归、提交推送），让下一轮 `/goal` 站在更稳的底座上起跑。
 
-**启动第五层**：新开一个**干净的** Devin 会话做 `improve`，不要复用长上下文的旧会话：唤醒器每 20 分钟就让它完整跑一轮，长上下文会让每一轮都很贵。`improve` 第一轮先确认第四层 goal 所在的 pane（`herdr agent list`），再用 herdr 在自己下方开一个 pane 运行唤醒器 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
+**启动第五层**：新开一个**干净的** Devin 会话做 `improve`，不要复用长上下文的旧会话：唤醒器每 30 分钟就让它完整跑一轮，长上下文会让每一轮都很贵。`improve` 第一轮先确认第四层 goal 所在的 pane（`herdr agent list`），再用 herdr 在自己下方开一个 pane 运行唤醒器 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
 
 ```bash
 P=$(herdr pane split --current --direction down --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
@@ -112,7 +112,7 @@ herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HER
 ```
 
 唤醒器每 60 秒读一次 goal 的画面，经 `herdr agent prompt` 给 `improve` 发两类消息，每条都会让 `improve` 完整跑一轮：
-- `[improve-tick]`：默认每 1200 秒（`--tick-interval` 可调）一次。`improve` 按运行期规则只读检查，把观察追加到 `logs/improve/notes.md`；
+- `[improve-tick]`：默认每 1800 秒（30 分钟，`--tick-interval` 可调）一次。`improve` 按运行期规则只读检查，把观察追加到 `logs/improve/notes.md`；
 - `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，也不是 50 轮暂停），或 goal 的 agent 消失时发一次，送达后唤醒器退出。`improve` 按收口规则核对 goal 已结束、本机工作区干净、f1 无非终态会话，再按 `logs/improve/notes.md` 收口。
 
 细节：

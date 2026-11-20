@@ -182,6 +182,6 @@ def test_cli_defaults_to_twenty_minute_ticks_and_improve_logs(monkeypatch) -> No
     seen = {}
     monkeypatch.setattr(mod, "notify", lambda goal, improve, **kw: seen.update(kw) or 0)
     assert mod.main(["w5:pJ", "w5:p5"]) == 0
-    assert seen["tick_s"] == 1200
+    assert seen["tick_s"] == 1800
     assert str(seen["log_path"]) == "logs/improve/notify-w5-pJ.log"
     assert str(seen["lock_path"]) == "logs/improve/notify-w5-pJ.lock"

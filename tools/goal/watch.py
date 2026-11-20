@@ -16,11 +16,13 @@ user cancelled or a footer truncated by a narrow pane, keeps it watching, so it 
 still there after a manual `/goal resume`. "In a turn" is read from the input
 placeholder and spinner lines because narrow panes truncate the footer's
 `Goal running`. A per-target lock file prevents duplicate watchers after resume
-or compaction. Transient read errors are checked against `herdr agent list` so
+or compaction. To stop the watcher on purpose, create the `.off` file next to its
+log (`logs/goals/watch-<target>.off`): it exits within one interval, and the goal's
+per-round liveness check must not restart it while the file exists. Transient read errors are checked against `herdr agent list` so
 brief hiccups do not terminate the watcher early.
 
 Exit codes:
-  0  the goal ended, its agent is gone, or another watcher holds the lock
+  0  the goal ended, its agent is gone, the `.off` file exists, or another watcher holds the lock
   1  herdr remained unreachable for `--max-read-errors` consecutive reads
   2  bad arguments
   3  the resume limit was reached
@@ -152,6 +154,7 @@ def watch(
     lock_path: Path | None = None,
     max_read_errors: int = 10,
 ) -> int:
+    off_path = log_path.with_suffix(".off")
     resolved_lock = lock_path or log_path.with_suffix(".lock")
     lock_handle = acquire_lock(resolved_lock)
     if lock_handle is None:
@@ -161,6 +164,9 @@ def watch(
         resumes = ended_reads = read_errors = 0
         log(log_path, f"watching {target} interval={interval}s max_resumes={max_resumes}")
         while True:
+            if off_path.exists():
+                log(log_path, f"exit: disabled by {off_path} after {resumes} resumes")
+                return 0
             screen = read_screen(target)
             if screen is None:
                 exists = agent_exists(target)

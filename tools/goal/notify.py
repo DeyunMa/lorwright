@@ -20,7 +20,9 @@ finds it busy is skipped until the next tick, the hand-over is retried every rea
 
 "Inside a turn" is read from the input placeholder and spinner lines, not from
 the footer's `Goal running`, because narrow panes truncate the footer.
-Exit codes: 0 the hand-over prompt was sent or another notifier holds the lock,
+To stop it on purpose, create the `.off` file next to its log
+(`logs/improve/notify-<goal>.off`); it exits within one interval.
+Exit codes: 0 the hand-over prompt was sent, the `.off` file exists, or another notifier holds the lock,
 1 herdr stayed unreachable, 2 bad arguments. Log and lock default to
 `logs/improve/notify-<goal>.log|.lock` (ignored by Git).
 """
@@ -48,9 +50,9 @@ WORKING, PAUSED, STOPPED = "working", "paused", "stopped"
 READY_STATES = ("idle", "done")
 
 TICK_TEXT = ("[improve-tick] 定时只读检查第四层 goal（pane {goal}，当前 {state}）。"
-             "按 workflows/dev-iteration.md 第五层「运行期」规则把观察记到 logs/improve/notes.md，不改仓库文件，不打断 goal。")
+             "按 workflows/improve.md「运行期」规则把观察记到 logs/improve/notes.md，不改仓库文件，不打断 goal。")
 EVENT_TEXT = ("[improve-notify] 第四层 goal（pane {goal}）{what}，已连续 {count} 次确认。"
-              "按 workflows/dev-iteration.md 第五层「收口优化」规则先核对 goal 已结束、本机工作区干净、"
+              "按 workflows/improve.md「收口优化」规则先核对 goal 已结束、本机工作区干净、"
               "f1 无非终态会话，再按 logs/improve/notes.md 的记录接手收口。")
 
 
@@ -108,7 +110,11 @@ def notify(
         stopped = read_errors = 0
         next_tick = time.monotonic() + tick_s
         log(log_path, f"notifying {improve} about {goal} tick={tick_s:.0f}s interval={interval}s confirm={confirm}")
+        off_path = log_path.with_suffix(".off")
         while True:
+            if off_path.exists():
+                log(log_path, f"exit: disabled by {off_path}")
+                return 0
             screen = read_screen(goal)
             if screen is None:
                 exists = agent_exists(goal)

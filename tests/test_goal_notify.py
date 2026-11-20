@@ -185,3 +185,12 @@ def test_cli_defaults_to_twenty_minute_ticks_and_improve_logs(monkeypatch) -> No
     assert seen["tick_s"] == 1800
     assert str(seen["log_path"]) == "logs/improve/notify-w5-pJ.log"
     assert str(seen["lock_path"]) == "logs/improve/notify-w5-pJ.lock"
+
+
+def test_off_file_stops_the_notifier(monkeypatch, tmp_path) -> None:
+    mod = _load_notify()
+    (tmp_path / "n.off").write_text("", encoding="utf-8")
+    monkeypatch.setattr(mod, "read_screen", lambda target: (_ for _ in ()).throw(AssertionError))
+    assert mod.notify("w5:pJ", "w5:p5", tick_s=60, interval=0, confirm=3,
+                      log_path=tmp_path / "n.log", lock_path=tmp_path / "n.lock") == 0
+    assert "disabled by" in (tmp_path / "n.log").read_text(encoding="utf-8")

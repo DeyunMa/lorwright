@@ -202,3 +202,21 @@ def test_single_instance_lock_prevents_duplicate_watcher(monkeypatch, tmp_path) 
     reacquired = mod.acquire_lock(lock)
     assert reacquired is not None
     reacquired.close()
+
+
+def test_off_file_stops_the_watcher_without_resuming(monkeypatch, tmp_path) -> None:
+    mod = _load_watch()
+    log = tmp_path / "watch.log"
+    screens = iter([PAUSED, PAUSED])
+    sent: list[str] = []
+
+    def read(target):
+        (tmp_path / "watch.off").write_text("", encoding="utf-8")
+        return next(screens)
+
+    monkeypatch.setattr(mod, "read_screen", read)
+    monkeypatch.setattr(mod, "send_resume", lambda target: sent.append(target) or True)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    assert mod.watch("w1:p1", 0, 10, 2, log, lock_path=tmp_path / "watch.lock") == 0
+    assert sent == ["w1:p1"]
+    assert "disabled by" in log.read_text(encoding="utf-8")

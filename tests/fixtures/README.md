@@ -19,6 +19,8 @@
 
 `screens/f1-portal-loading-20261120.png` 来自会话 `20261120T045638-3875b3d10cfa` 的 `resume_transition_unverified` 停止原始 PNG，完整 1920×1080，无界面与账号。点击「繼續冒險」12.5 秒后仍为菱形传送门载入画面。四角 250×150 区域蓝色占比均为 1.0；其余 1080p 测试图四角最低值最高 0.35。载入持续与后继地图为合成时序。
 
+`reconnect/f1-connecting-20261120.png` 来自会话 `20261120T062818-92f3a3d6aabc` 的 `unknown_scene` 停止原始 PNG，完整 1920×1080，只有「連線中……」与「退出」按钮，无账户信息。放在 `reconnect/` 而非 `screens/`，因为 `screens/` 全部作为重连负例。`assets/ui/connecting_title.png` 取同图 `[512:568,845:1008]`（不含省略号），在其余 1080p 测试图上最高 0.20；原退出按钮模板在此图为 0.88。遮挡反例为合成。
+
 `screens/f1-battle-loading-20261120.png` 来自会话 `20261120T055622-65b587450ac2` 的 `panel_transition_timeout` 停止原始 PNG，完整 1920×1080，已查看无账号（只有英雄与对手名）。点击战斗开始 24 秒后仍为 VS 载入页，左上「載入中…… 0:05」。`assets/adventure/battle_loading_label.png` 取自 `screens/1080p_battle_loading_20261114.png` 的 `[50:84,58:150]`（「載入中」三字），高通后在新图得分 0.93，其余 1080p 测试图最高 0.34。载入持续与换牌后继为合成时序。
 
 `screens/f1-portal-loading-dim-20261120.png` 来自会话 `20261120T051452-edca4f57b9b4` 的 `continue_transition_unverified` 停止原始 PNG，完整 1920×1080，无界面与账号。战斗胜利后点击结算「繼續」12 秒仍为传送门载入画面，内图已淡出，左上与右下角更暗（V≈39）。识别要求四角蓝色（V≥15）占比至少 0.9，且底部中央 `[880:1080,500:1420]` 亮度 99.5 分位低于 180：两张传送门图为 86/115，蓝角接近的银色圣物箱与任务完成页为 255。

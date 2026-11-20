@@ -122,3 +122,18 @@ def test_missing_either_template_safely_rejected(tmp_path, missing):
     detector = ReconnectDetector(root=tmp_path)
     detector.load()
     assert detector.detect(_scene()) is False
+
+
+def test_connecting_variant_is_detected_on_real_frame(detector):
+    # 20261120T062818 的 unknown_scene 停止原图：「連線中……」与同款退出按钮，无账户信息。
+    image = cv2.imread(str(fixtures_root() / "reconnect/f1-connecting-20261120.png"))
+    if image is None:
+        pytest.skip("missing reconnect/f1-connecting-20261120.png")
+    assert detector.detect(image)
+    no_button = image.copy()
+    no_button[910:1045, 800:1120] = no_button[700:835, 800:1120]
+    assert not detector.detect(no_button)
+    no_title = image.copy()
+    no_title[500:580, 750:1060] = no_title[300:380, 750:1060]
+    assert not detector.detect(no_title)
+

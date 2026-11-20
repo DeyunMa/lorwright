@@ -1,4 +1,4 @@
-"""重连页识别：静态标题与底部退出按钮必须同时出现。"""
+"""重连页识别：静态标题（「重新連線中」或「連線中」）与底部退出按钮必须同时出现。"""
 
 from __future__ import annotations
 
@@ -22,27 +22,28 @@ class ReconnectDetector:
     ) -> None:
         self.root = Path(root)
         self.threshold = threshold
-        self._title: np.ndarray | None = None
+        self._titles: tuple[np.ndarray, ...] = ()
         self._button: np.ndarray | None = None
 
     def load(self) -> None:
-        self._title = _read(self.root / "reconnect_title.png")
+        self._titles = tuple(title for name in ("reconnect_title.png", "connecting_title.png")
+                             if (title := _read(self.root / name)) is not None)
         self._button = _read(self.root / "reconnect_exit_button.png")
 
     def detect(self, image: np.ndarray) -> bool:
         if image.shape != (1080, 1920, 3) or image.dtype != np.uint8:
             return False
-        if self._title is None or self._button is None:
+        if not self._titles or self._button is None:
             return False
         # 固定设计区域内留少量定位余量；标题模板不包含右侧动态省略号。
         # 对局背景的蓝光会降低标题对比度，标题分数略低时要求更完整的按钮证据。
         title = _detail(image[500:580, 750:1060])
         button = _detail(image[910:1045, 800:1120])
-        return (exists(title, self._title, self.threshold)
-                and exists(button, self._button, self.threshold)) or (
-            exists(title, self._title, self.threshold - 0.02)
+        return any((exists(title, template, self.threshold)
+                    and exists(button, self._button, self.threshold)) or (
+            exists(title, template, self.threshold - 0.02)
             and exists(button, self._button, max(0.92, self.threshold))
-        )
+        ) for template in self._titles)
 
 
 def _detail(image: np.ndarray) -> np.ndarray:

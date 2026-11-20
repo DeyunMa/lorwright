@@ -136,6 +136,7 @@ class _AdventureInputExpired(Exception):
 class AdventureLoop:
     SERVICE_ERROR_LIMIT = 3
     LOADING_EXTENSION_S = 90
+    SETTLEMENT_ANIMATION_S = 30
     SETTLEMENT_STAGES = (
         "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
     )
@@ -798,14 +799,13 @@ class AdventureLoop:
 
     def _continue_final_page(self, image, *, stage: str):
         stages = self.SETTLEMENT_STAGES
-        deadline = time.monotonic() + 12
         button = find_continue_button(image)
-        if button is None and stage in {"silver_vault", "silver_vault_reward", "relic_chest", "relic_reward"}:
-            for _ in range(6):
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    break
-                self._wait(min(2, remaining), reason="adventure_reward_animation", wait_s=12)
+        if button is None:
+            # 胜利页的经验条和各奖励页都有动画，「繼續」播完才出现；期间只观察不输入。
+            animation_deadline = time.monotonic() + self.SETTLEMENT_ANIMATION_S
+            while (remaining := animation_deadline - time.monotonic()) > 0:
+                self._wait(min(2, remaining), reason="adventure_reward_animation",
+                           wait_s=self.SETTLEMENT_ANIMATION_S)
                 image = self._frame()
                 normalized = self._reward_design(image)
                 if normalized is None or adventure_settlement(normalized[0]) != stage:
@@ -816,6 +816,7 @@ class AdventureLoop:
         if button is None:
             self._snapshot(image, tag="adventure_victory_continue_missing")
             return
+        deadline = time.monotonic() + 12
         fresh = self._frame()
         normalized = self._reward_design(fresh)
         fresh_button = find_continue_button(fresh)

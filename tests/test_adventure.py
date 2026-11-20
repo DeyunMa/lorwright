@@ -414,6 +414,31 @@ def test_final_victory_missing_continue_never_taps(adventure):
     assert device.taps == []
 
 
+def test_final_victory_waits_for_continue_after_xp_animation(adventure, monkeypatch):
+    # 20261120T094049：胜利页先播经验条动画（无「繼續」），稍后实时画面出现「繼續」；两图非连续录像，账号名已涂黑。
+    animation = cv2.imread(str(FIXTURES.parent / "continue/f1-victory-animation-20261120.png"))
+    ready = cv2.imread(str(FIXTURES.parent / "continue/f1-victory-ready-20261120.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    if animation is None or ready is None:
+        pytest.skip("missing 20261120 victory fixtures")
+    loop, device, _, _, _ = adventure([animation] * 6 + [ready, ready, home], [])
+    _clocked(loop, device, monkeypatch, 0.5)
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 1
+    assert loop._details["settlement_closed"] is True
+
+
+def test_final_victory_animation_wait_is_bounded(adventure, monkeypatch):
+    animation = cv2.imread(str(FIXTURES.parent / "continue/f1-victory-animation-20261120.png"))
+    if animation is None:
+        pytest.skip("missing f1-victory-animation-20261120.png")
+    loop, device, _, _, _ = adventure([animation] * 80, [])
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    assert loop.run(max_nodes=1).reason == "adventure_victory_continue_missing"
+    assert device.taps == []
+    assert clock[0] <= AdventureLoop.SETTLEMENT_ANIMATION_S + 5
+
+
 def test_final_settlement_handles_optional_task_before_outer_screen(adventure):
     victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
     task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))

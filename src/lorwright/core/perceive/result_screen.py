@@ -62,7 +62,8 @@ def is_adventure_rewards(image: np.ndarray) -> bool:
     if image.shape != (1080, 1920, 3):
         return False
     return (_visible(image, "adventure_victory_label", (205, 96, 288, 146))
-            and _visible(image, "adventure_hero_xp", (450, 610, 920, 680), text_min=100))
+            # 奖励项数量会变；只有英雄经验一项时标签居中（20261120T095325）。
+            and _visible(image, "adventure_hero_xp", (450, 600, 1470, 700), text_min=100))
 
 
 def adventure_settlement(image: np.ndarray) -> str | None:

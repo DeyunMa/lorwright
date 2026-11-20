@@ -27,6 +27,7 @@ from lorwright.core.perceive.adventure_scene import (
     service_error_confirm,
 )
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
+from lorwright.core.perceive.result_screen import adventure_settlement
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
 
@@ -425,6 +426,20 @@ def test_final_victory_waits_for_continue_after_xp_animation(adventure, monkeypa
     _clocked(loop, device, monkeypatch, 0.5)
     assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
     assert len(device.taps) == 1
+    assert loop._details["settlement_closed"] is True
+
+
+def test_final_rewards_page_with_only_hero_xp_is_recognised(adventure):
+    # 20261120T095325：胜利页「繼續」后只有英雄经验一项的奖励汇总；后继主页为合成序列，账号名已涂黑。
+    ready = cv2.imread(str(FIXTURES.parent / "continue/f1-victory-ready-20261120.png"))
+    rewards = cv2.imread(str(FIXTURES.parent / "continue/f1-rewards-hero-xp-only-20261120.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    if ready is None or rewards is None:
+        pytest.skip("missing 20261120 settlement fixtures")
+    assert adventure_settlement(rewards) == "rewards"
+    loop, device, _, _, _ = adventure([ready, ready, rewards, rewards, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 2
     assert loop._details["settlement_closed"] is True
 
 

@@ -1,20 +1,26 @@
 """Resume a Devin CLI /goal that paused at its 50-turn limit.
 
-Run inside a Herdr pane next to the goal session; the goal starts it itself:
+Run inside a Herdr pane below the goal session (a downward split keeps the goal
+pane wide); the goal starts it itself:
 
     python3 tools/goal/watch.py w5:p5
     python3 tools/goal/watch.py w5:p5 --interval 60 --max-resumes 10
 
 The watcher makes no decisions about the work. Every interval it reads the goal
 pane's recent unwrapped output (so narrow panes do not break the pause line) and
-only sends `/goal resume` when the footer (last 3 non-empty lines) no longer
-shows `Goal running` and the latest goal status line starts with the turn-limit
-pause message. A per-target lock file prevents duplicate watchers after resume
+only sends `/goal resume` when no turn is in progress and the latest goal status
+line starts with the turn-limit pause message. It exits only on positive evidence
+that the goal ended (a `✓ Goal …` / `✗ Goal …` status line such as `Goal complete`
+or `Goal blocked`) or that its agent is gone. Anything else, including a turn the
+user cancelled or a footer truncated by a narrow pane, keeps it watching, so it is
+still there after a manual `/goal resume`. "In a turn" is read from the input
+placeholder and spinner lines because narrow panes truncate the footer's
+`Goal running`. A per-target lock file prevents duplicate watchers after resume
 or compaction. Transient read errors are checked against `herdr agent list` so
 brief hiccups do not terminate the watcher early.
 
 Exit codes:
-  0  the goal is no longer active, agent is gone, or another watcher holds the lock
+  0  the goal ended, its agent is gone, or another watcher holds the lock
   1  herdr remained unreachable for `--max-read-errors` consecutive reads
   2  bad arguments
   3  the resume limit was reached
@@ -45,18 +51,26 @@ GOAL_STATUS_PREFIXES = (
     "⚠ Goal ",
 )
 
-RUNNING, RESUME, ENDED = "running", "resume", "ended"
+TERMINAL_PREFIXES = ("✓ Goal ", "✗ Goal ")
+IN_TURN_MARKERS = ("Guide Devin while it works", "Running tools", "Thinking")
+
+RUNNING, RESUME, ENDED, IDLE = "running", "resume", "ended", "idle"
+
+
+def in_turn(lines: list[str]) -> bool:
+    return any(marker in line for line in lines[-8:] for marker in IN_TURN_MARKERS)
 
 
 def classify(screen: str) -> str:
     non_empty = [line.strip() for line in screen.splitlines() if line.strip()]
-    footer = non_empty[-3:]
-    if any(RUNNING_TEXT in line for line in footer):
+    if in_turn(non_empty) or any(RUNNING_TEXT in line for line in non_empty[-3:]):
         return RUNNING
     statuses = [line for line in non_empty if line.startswith(GOAL_STATUS_PREFIXES)]
     if statuses and statuses[-1].startswith(PAUSE_PREFIX):
         return RESUME
-    return ENDED
+    if statuses and statuses[-1].startswith(TERMINAL_PREFIXES):
+        return ENDED
+    return IDLE
 
 
 def read_screen(target: str, lines: int = 40) -> str | None:
@@ -166,7 +180,7 @@ def watch(
             else:
                 read_errors = 0
                 state = classify(screen)
-                if state == RUNNING:
+                if state in (RUNNING, IDLE):
                     ended_reads = 0
                 elif state == RESUME:
                     ended_reads = 0
@@ -194,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("target", nargs="?", help="Herdr pane id or agent name hosting the goal")
     parser.add_argument("--interval", type=float, default=60.0)
     parser.add_argument("--max-resumes", type=int, default=10)
-    parser.add_argument("--confirm", type=int, default=2, help="consecutive non-running reads before exiting")
+    parser.add_argument("--confirm", type=int, default=2, help="consecutive goal-ended reads before exiting")
     parser.add_argument("--max-read-errors", type=int, default=10, help="consecutive herdr-unreachable reads before exiting")
     parser.add_argument("--log", type=Path)
     parser.add_argument("--lock", type=Path)

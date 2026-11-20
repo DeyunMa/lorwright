@@ -34,9 +34,16 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from watch import GOAL_STATUS_PREFIXES, PAUSE_PREFIX, acquire_lock, agent_exists, log, read_screen  # noqa: E402
+from watch import (  # noqa: E402
+    GOAL_STATUS_PREFIXES,
+    PAUSE_PREFIX,
+    acquire_lock,
+    agent_exists,
+    in_turn,
+    log,
+    read_screen,
+)
 
-IN_TURN_MARKERS = ("Guide Devin while it works", "Running tools", "Thinking")
 WORKING, PAUSED, STOPPED = "working", "paused", "stopped"
 READY_STATES = ("idle", "done")
 
@@ -49,7 +56,7 @@ EVENT_TEXT = ("[improve-notify] 第四层 goal（pane {goal}）{what}，已连�
 
 def goal_state(screen: str) -> str:
     lines = [line.strip() for line in screen.splitlines() if line.strip()]
-    if any(marker in line for line in lines[-8:] for marker in IN_TURN_MARKERS):
+    if in_turn(lines):
         return WORKING
     statuses = [line for line in lines if line.startswith(GOAL_STATUS_PREFIXES)]
     if statuses and statuses[-1].startswith(PAUSE_PREFIX):

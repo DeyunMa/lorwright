@@ -67,12 +67,64 @@ def test_completed_goal_ends_the_watch() -> None:
     assert _load_watch().classify(COMPLETE) == "ended"
 
 
-def test_stop_after_an_earlier_pause_is_not_resumed() -> None:
-    assert _load_watch().classify(RESUMED_LATER_STOPPED) == "ended"
+def test_stop_after_an_earlier_pause_is_neither_resumed_nor_ended() -> None:
+    assert _load_watch().classify(RESUMED_LATER_STOPPED) == "idle"
 
 
-def test_screen_without_goal_status_ends_the_watch() -> None:
-    assert _load_watch().classify(PROMPT_BOX) == "ended"
+def test_screen_without_goal_status_keeps_watching() -> None:
+    assert _load_watch().classify(PROMPT_BOX) == "idle"
+
+
+NARROW_BOX = """
+────────────────────── 按 dev-iteration.md 执行第四层循环并验… ─
+"""
+
+IN_TURN_TRUNCATED = """
+ ⏺ cd /Users/mdy/Code/my-own/lorwright && for i in 1 2 3 4 5; d…
+⠈⠉ Running tools · 3m 2s (esc twice to interrupt)
+""" + NARROW_BOX + """❭ Guide Devin while it works
+────────────────────────────────────────────────────────────────
+Claude Opus 5.5 Medium Fast · bypass · 1 shell ↓ · ⏺ Goal r…
+"""
+
+BLOCKED = """
+ ✓ Ran command · Exited with code 0
+ ✓ Goal blocked
+ 我把这个 goal 标记为受阻：1 号位还没打完，也没完成验收。
+ ⏺ ~/Code/my-own/lorwright
+""" + NARROW_BOX + """❭ Ask Devin to build features, fix bugs, or work on your code
+────────────────────────────────────────────────────────────────
+Claude Opus 5.5 Medium · bypass                    ctrl+o to expand edits
+"""
+
+CANCELED = """
+ ✱ Continuing goal (turn 2)
+ ✓ R=20261120T035554-905357f970d3; mkdir -p logs/f1-pulls/$R && scp -q …
+ ✱ Canceled. What should Devin do?
+""" + NARROW_BOX + """❭ Ask Devin to build features, fix bugs, or work on your code
+────────────────────────────────────────────────────────────────
+Claude Opus 5.5 Medium Fast · bypass · ⏺ Goal running  ctrl+v t…
+"""
+
+
+def test_truncated_footer_inside_a_turn_is_running() -> None:
+    assert _load_watch().classify(IN_TURN_TRUNCATED) == "running"
+
+
+def test_blocked_goal_ends_the_watch() -> None:
+    assert _load_watch().classify(BLOCKED) == "ended"
+
+
+def test_cancelled_turn_keeps_watching_without_resume(monkeypatch, tmp_path) -> None:
+    mod = _load_watch()
+    assert mod.classify(CANCELED.replace("⏺ Goal running", "")) == "idle"
+    screens = iter([CANCELED.replace("⏺ Goal running", "")] * 5 + [IN_TURN_TRUNCATED, BLOCKED, BLOCKED])
+    monkeypatch.setattr(mod, "read_screen", lambda target: next(screens))
+    monkeypatch.setattr(mod, "send_resume", lambda target: (_ for _ in ()).throw(AssertionError))
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    log = tmp_path / "watch.log"
+    assert mod.watch("w1:p1", 0, 10, 2, log) == 0
+    assert "goal no longer active" in log.read_text(encoding="utf-8")
 
 
 def test_quoted_goal_running_or_tool_line_in_body_does_not_mask_pause() -> None:

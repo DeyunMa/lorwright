@@ -62,17 +62,18 @@ def is_globe_loading(image: np.ndarray) -> bool:
 
 
 def is_portal_loading(image: np.ndarray) -> bool:
-    """继续冒险后的菱形传送门载入画面：四角都是平滑的深蓝星云，没有界面控件。"""
+    """进出冒险地图的菱形传送门载入画面：四角都是深蓝星云，底部中央没有亮色控件。"""
     if image.shape != (1080, 1920, 3):
         return False
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     for y1, y2, x1, x2 in ((0, 150, 0, 250), (0, 150, 1670, 1920),
                            (930, 1080, 0, 250), (930, 1080, 1670, 1920)):
         corner = hsv[y1:y2, x1:x2]
-        blue = cv2.inRange(corner, (100, 60, 40), (125, 255, 200))
+        blue = cv2.inRange(corner, (100, 60, 15), (125, 255, 200))
         if np.count_nonzero(blue) / blue.size < 0.9:
             return False
-    return True
+    # 奖励页与任务页同样有蓝色四角，但底部中央总有按钮或文字。
+    return float(np.percentile(hsv[880:1080, 500:1420, 2], 99.5)) < 180
 
 
 def is_loading_screen(image: np.ndarray) -> bool:

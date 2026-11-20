@@ -1231,14 +1231,16 @@ def test_resume_adventure_does_not_repeat_on_unchanged_page(adventure):
     assert saved == ["resume_transition_unverified"]
 
 
-def test_portal_loading_screen_is_recognized():
-    portal = cv2.imread(str(FIXTURES.parent / "screens/f1-portal-loading-20261120.png"))
+@pytest.mark.parametrize("name", ["f1-portal-loading-20261120.png", "f1-portal-loading-dim-20261120.png"])
+def test_portal_loading_screen_is_recognized(name):
+    portal = cv2.imread(str(FIXTURES.parent / "screens" / name))
     if portal is None:
-        pytest.skip("missing fixture f1-portal-loading-20261120.png")
+        pytest.skip(f"missing fixture {name}")
     assert is_portal_loading(portal)
     assert is_loading_screen(portal)
     for path in ("screens/f1-adventure-resume-20261114.png", "continue/f1-task-completed-20261116.png",
-                 "screens/weekly-start-animation-20261115.png"):
+                 "screens/weekly-start-animation-20261115.png", "continue/f1-silver-relic-chest.png",
+                 "continue/f1-silver-relic-converted.png"):
         other = cv2.imread(str(FIXTURES.parent / path))
         if other is not None:
             assert not is_portal_loading(other)
@@ -1273,6 +1275,27 @@ def test_resume_adventure_portal_loading_extension_is_bounded(adventure, monkeyp
     assert clock[0] <= 12 + AdventureLoop.LOADING_EXTENSION_S + 5
     assert len(device.taps) == 1
     assert saved == ["resume_transition_unverified"]
+
+
+def test_any_transition_keeps_observing_while_portal_loading_persists(adventure, monkeypatch):
+    # 20261120T051452 战斗结算「繼續」后 12 秒仍为传送门载入画面；后继帧为合成时序。
+    portal = cv2.imread(str(FIXTURES.parent / "screens/f1-portal-loading-dim-20261120.png"))
+    if portal is None:
+        pytest.skip("missing fixture f1-portal-loading-dim-20261120.png")
+    map_image = _img("f1-weekly-after-hero-reward-20261116.png")
+    loop, device, _, _, _ = adventure([portal] * 20 + [map_image], [])
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    seen = next(f for f in loop._transition_frames("continue_transition") if f is map_image)
+    assert seen is map_image
+    assert clock[0] > 12
+    assert device.taps == []
+
+
+def test_transition_does_not_extend_for_non_loading_frames(adventure, monkeypatch):
+    loop, device, _, _, _ = adventure([_blank()] * 100, [])
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    list(loop._transition_frames("continue_transition"))
+    assert clock[0] <= 13
 
 
 @pytest.mark.parametrize("champion", ["jinx", "elise"])

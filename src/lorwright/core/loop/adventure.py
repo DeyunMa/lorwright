@@ -686,7 +686,7 @@ class AdventureLoop:
                 after_design is not None and find_revive_button(after_design[0]) is not None
             )
 
-        next_image = self._await_loading_transition(
+        next_image = self._await_transition(
             "resume_transition",
             _accepted,
             initial_image=image,
@@ -715,7 +715,7 @@ class AdventureLoop:
     def _handle_home_entry(self, image, scale, entry):
         self._tap(*scale.to_device(*entry.center))
         # 实机载入英雄之路需 10–16 秒，冷启动更久；窗口仍有界。
-        return self._await_loading_transition(
+        return self._await_transition(
             "home_entry_transition",
             self._recognized_after_home,
             initial_image=image,
@@ -723,32 +723,6 @@ class AdventureLoop:
             verified_reason="home_entry_transition",
             wait_s=30,
             attempts=14,
-        )
-
-    def _await_loading_transition(self, reason, accept, *, initial_image, unverified_tag,
-                                  verified_reason=None, wait_s=12, attempts=6):
-        """先按原窗口等待；窗口末仍是已知载入画面时再有界延长，期间只观察不输入。"""
-        after = initial_image
-        for after in self._transition_frames(
-            reason, wait_s=wait_s, attempts=attempts, initial=initial_image,
-        ):
-            if accept(after):
-                if verified_reason is not None:
-                    report("verified", verified_reason, progress=True, **self._details)
-                return after
-        assert self._latest_frame is not None
-        if not is_loading_screen(self._latest_frame.image):
-            self._snapshot(after, tag=unverified_tag)
-            return None
-        # 网络慢时载入画面可持续超过原窗口；只在仍是载入画面时延长，总窗口有界。
-        return self._await_transition(
-            f"{reason}_loading",
-            accept,
-            initial_image=self._latest_frame.image,
-            unverified_tag=unverified_tag,
-            verified_reason=verified_reason,
-            wait_s=self.LOADING_EXTENSION_S,
-            attempts=45,
         )
 
     def _handle_task_reward(self, image):
@@ -1591,18 +1565,38 @@ class AdventureLoop:
         for attempt in range(attempts):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                return
+                break
             delay = first_delay if attempt == 0 else 2
             # 接近截止时给最后一次截图留出时间，而不是把预算全部用来等待。
             self._wait(min(delay, remaining / 2), reason=reason, wait_s=remaining)
             if time.monotonic() >= deadline:
-                return
+                break
             image = self._frame()
             elapsed = time.monotonic() - started
             if elapsed >= wait_s:
                 self._late_transition_capture = True
                 record_event("adventure_transition_deadline", reason=reason, wait_s=wait_s,
                              elapsed_s=round(elapsed, 3))
+                break
+            yield image
+        yield from self._loading_extension_frames(reason)
+
+    def _loading_extension_frames(self, reason):
+        """原窗口末仍是已知载入画面时继续有界观察；只截图，不重新决策或输入。"""
+        if self._latest_frame is None or not is_loading_screen(self._latest_frame.image):
+            return
+        self._late_transition_capture = False
+        record_event("adventure_loading_extension", reason=reason,
+                     wait_s=self.LOADING_EXTENSION_S)
+        yield self._latest_frame.image
+        deadline = time.monotonic() + self.LOADING_EXTENSION_S
+        while (remaining := deadline - time.monotonic()) > 0:
+            self._wait(min(2, remaining / 2), reason=f"{reason}_loading", wait_s=remaining)
+            if time.monotonic() >= deadline:
+                return
+            image = self._frame()
+            if time.monotonic() >= deadline:
+                self._late_transition_capture = True
                 return
             yield image
 

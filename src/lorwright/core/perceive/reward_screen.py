@@ -77,15 +77,31 @@ def _best(region: np.ndarray, choices: tuple[tuple[str, str], ...]) -> str | Non
 def _power_quality(image: np.ndarray, x: int, *, y: int = 584, width: int = 290) -> str | None:
     """品质文字模板与颜色须一致，不从能力插画推断品质。"""
     region = image[y:y + 26, x:x + width]
-    quality = _best(cv2.cvtColor(region, cv2.COLOR_BGR2GRAY), (
+    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+    choices = (
         ("rarity_legendary", "legendary"), ("rarity_legendary_compact", "legendary"),
         ("rarity_epic", "epic"),
         ("rarity_rare", "rare"), ("rarity_common", "common"),
-    ))
+    )
+    quality = _best(gray, choices)
     hues = {"common": (35, 60), "rare": (90, 115),
             "epic": (135, 160), "legendary": (15, 30)}
     if quality is None:
         return None
+    # 颜色只在匹配到的品质文字框内核验；选中卡片的金色外框会伸进取样区左右边缘。
+    best = None
+    for template_name, value in choices:
+        template = _template(template_name)
+        if (value != quality or template is None or template.shape[0] > gray.shape[0]
+                or template.shape[1] > gray.shape[1]):
+            continue
+        _, score, _, (tx, ty) = cv2.minMaxLoc(cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED))
+        if best is None or score > best[0]:
+            best = (score, tx, ty, template.shape)
+    if best is None:
+        return None
+    _, tx, ty, (th, tw) = best
+    region = region[ty:ty + th, tx:tx + tw]
     hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
     visible = (hsv[:, :, 1] > 70) & (hsv[:, :, 2] > 100)
     low, high = hues[quality]

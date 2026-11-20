@@ -91,6 +91,23 @@ def test_selected_power_and_button_are_unambiguous():
     assert not power_choose_enabled(disabled)
 
 
+def test_selected_middle_power_quality_ignores_frame_glow():
+    # 20261120T054830 选中中间能力后的停止实拍；选中金框伸进品质取样区左缘。
+    image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-selected-middle-20261120.png"))
+    if image is None:
+        pytest.skip("missing f1-power-selected-middle-20261120.png")
+    candidates = recognize_powers(image)
+    assert candidates is not None
+    assert [c.quality for c in candidates] == ["common", "rare", "rare"]
+    assert power_selection(image) == 1
+    assert power_choose_enabled(image)
+    recolored = image.copy()
+    hsv = cv2.cvtColor(recolored[584:610, 935:955], cv2.COLOR_BGR2HSV)
+    hsv[:, :, 0] = 20
+    recolored[584:610, 935:955] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    assert recognize_powers(recolored) is None
+
+
 def test_unknown_power_names_use_visible_quality():
     image = cv2.imread(str(fixtures_root() / "power_reward/f1-power-legendary-20261116.png"))
     candidates = recognize_powers(image)

@@ -27,6 +27,10 @@ def secret_text_supported(value: str) -> bool:
     return bool(value) and all(32 <= ord(char) <= 126 and char != "%" for char in value)
 
 
+class AdbTimeout(RuntimeError):
+    """adb 子进程超过超时上限时抛出，便于与代码异常区分。"""
+
+
 class AdbRunner:
     """adb 调用入口：统一重连与错误检查。
 
@@ -52,11 +56,18 @@ class AdbRunner:
         """
         if self._connected or not self.serial or ":" not in self.serial:
             return
-        self._connected = True
-        subprocess.run(
-            [self.adb, "connect", self.serial],
-            capture_output=True, timeout=self.timeout, check=False,
-        )
+        try:
+            p = subprocess.run(
+                [self.adb, "connect", self.serial],
+                capture_output=True, timeout=self.timeout, check=False,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"找不到 adb：{self.adb}") from e
+        except subprocess.TimeoutExpired as e:
+            raise AdbTimeout(f"adb 超时（{self.timeout}s）：connect {self.serial}") from e
+        out = (p.stdout + p.stderr).decode("utf-8", "ignore").lower()
+        if p.returncode == 0 and "connected to" in out:
+            self._connected = True
 
     def run(self, *args: str, stdin: bytes | None = None, binary: bool = False):
         self.ensure()
@@ -67,6 +78,9 @@ class AdbRunner:
             )
         except FileNotFoundError as e:
             raise RuntimeError(f"找不到 adb：{self.adb}") from e
+        except subprocess.TimeoutExpired as e:
+            # 仅记录 args，不记录 stdin，避免 text_secret 凭据泄漏。
+            raise AdbTimeout(f"adb 超时（{self.timeout}s）：{' '.join(args)}") from e
         if p.returncode != 0:
             err = p.stderr.decode("utf-8", "ignore").strip()
             raise RuntimeError(f"adb 失败（{p.returncode}）：{' '.join(args)} → {err}")
@@ -119,9 +133,12 @@ class AdbDevice:
 
         serials = _scan()
         if not serials and connect and ":" in connect:
-            subprocess.run(
-                [adb, "connect", connect], capture_output=True, timeout=15, check=False
-            )
+            try:
+                subprocess.run(
+                    [adb, "connect", connect], capture_output=True, timeout=15, check=False
+                )
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return []
             serials = _scan()
         return serials
 

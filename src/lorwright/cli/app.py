@@ -437,6 +437,7 @@ def _execute_session(
     weekly_replay_slot: int | None = None,
 ) -> None:
     """运行入口共用生命周期；手牌视图任务不装配战斗策略。"""
+    from lorwright.core.device.adb import AdbTimeout
     from lorwright.core.runtime.session import RunSession, StopRequested, checkpoint, report
 
     root = Path(os.environ.get("LORWRIGHT_RUNS_DIR", "logs/runs"))
@@ -539,6 +540,11 @@ def _execute_session(
                 reason = "stop_requested" if isinstance(exc, StopRequested) else "interrupted"
                 session.finish("cancelled", reason)
                 exit_code = 130
+            except AdbTimeout as exc:
+                session.finish("failed", "device_timeout", error_type=type(exc).__name__,
+                               message=str(exc))
+                logger.error("设备超时：{}", exc)
+                exit_code = 1
             except Exception as exc:
                 session.finish("failed", "execution_error", error_type=type(exc).__name__,
                                message=str(exc))

@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`screens/f1-home-service-error-20261120.png` 来自会话 `20261120T035554-905357f970d3` 的 `unknown_scene` 停止原始 PNG，完整 1920×1080，已查看无账号。主页背景与 `screens/1080p_home_service_error.png` 不同，弹窗标题、错误代码 170000 和「確定」按钮位置相同。`service_error_title.png` 与 `service_error_confirm.png` 取自后者 `[366:428,846:1074]` 与 `[662:714,898:1022]`；两图均为 1.0，其余 1080p 测试图最高 0.28/0.59。点击后继回到主页为合成序列，不是实机后验。
+
 `mapnav/f1-zoomed-boss-route-20261118.png` 与 `mapnav/f1-zoomed-boss-live-20261118.png` 分别来自 `20261118T080246-12057dbd4d25` 的停止 PNG 和独立 ADB JPEG，均仅保留 `[0:620,880:1320]` 并在原坐标补黑。两图已查看无账号。回放测试在内存中从 `mapnav/f1-after-gold-zoomed-map-20261117.png` 补入返回键与缩放控件，以通过运行时地图门控。测试核验发光路线指向上缘金色首领翼章，且排除塔墙伪节点。断线、遮挡、锁、完成勾和调暗为合成。
 
 `mapnav/f1-reentry-cave-20261115.png` 为 f1 会话 `20261115T090328-f86a0a8fcae5` 的 `map_no_next` 原帧；右侧山洞阴影用于面板误判回归，锁图标裁剪用于节点安全识别。

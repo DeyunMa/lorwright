@@ -47,6 +47,7 @@ from lorwright.core.perceive.adventure_scene import (
     recognize_weekly_adventures,
     reward_timeout_continue,
     selected_world_hero_matches,
+    service_error_confirm,
     shop_leave_button,
     weekly_detail_stars,
 )
@@ -132,6 +133,7 @@ class _AdventureInputExpired(Exception):
 
 
 class AdventureLoop:
+    SERVICE_ERROR_LIMIT = 3
     SETTLEMENT_STAGES = (
         "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
     )
@@ -166,6 +168,7 @@ class AdventureLoop:
         self._awaiting_battle_reward = False
         self._latest_frame: Frame | None = None
         self._late_transition_capture = False
+        self._service_errors = 0
 
     def run(self, max_nodes: int = 30) -> LoopResult:
         """max_nodes 是冒险循环迭代预算，不是已完成节点数。"""
@@ -232,6 +235,12 @@ class AdventureLoop:
             timeout_button = reward_timeout_continue(normalized[0]) if normalized else None
             if timeout_button is not None:
                 pending_image = self._handle_reward_timeout(image, normalized, timeout_button)
+                if pending_image is None:
+                    return
+                continue
+            service_error = service_error_confirm(normalized[0]) if normalized else None
+            if service_error is not None:
+                pending_image = self._handle_service_error(image, normalized, service_error)
                 if pending_image is None:
                     return
                 continue
@@ -585,6 +594,36 @@ class AdventureLoop:
             initial_image=image,
             unverified_tag="reward_timeout_transition_unverified",
             verified_reason="reward_timeout_transition",
+        )
+
+    def _handle_service_error(self, image, normalized, button):
+        self._scene("service_error")
+        if self._service_errors >= self.SERVICE_ERROR_LIMIT:
+            self._snapshot(image, tag="service_error_repeated")
+            return None
+        self._service_errors += 1
+        self._details.update(service_errors=self._service_errors)
+        self._tap(*normalized[1].to_device(*button.center))
+
+        def _accepted(after) -> bool:
+            after_design = self._reward_design(after)
+            if after_design is None or service_error_confirm(after_design[0]) is not None:
+                return False
+            after_ui = self.engine.parser.ui.detect(after_design[0])
+            return (
+                find_home_adventure_entry(after_design[0]) is not None
+                or self._recognized_after_home(after)
+                or after_ui in self.BATTLE_STATES | {UIState.BATTLE_END}
+            )
+
+        return self._await_transition(
+            "service_error_transition",
+            _accepted,
+            initial_image=image,
+            unverified_tag="service_error_transition_unverified",
+            verified_reason="service_error_dismissed",
+            wait_s=20,
+            attempts=8,
         )
 
     def _handle_revive(self, image, normalized, revive):

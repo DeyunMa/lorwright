@@ -51,6 +51,16 @@ def reward_timeout_continue(image: np.ndarray) -> Rect | None:
     return None
 
 
+def service_error_confirm(image: np.ndarray) -> Rect | None:
+    """识别「服務錯誤」弹窗及其「確定」按钮；只匹配固定标题与按钮，不读错误代码。"""
+    if image.shape != (1080, 1920, 3):
+        return None
+    if (_matches(image, "service_error_title", (800, 330, 1120, 470), 0.9)
+            and _matches(image, "service_error_confirm", (850, 630, 1070, 750), 0.9)):
+        return Rect(850, 655, 220, 65)
+    return None
+
+
 def find_home_adventure_entry(image: np.ndarray) -> Rect | None:
     """定位主页卡片的「快來玩 英雄之路」文字；不明确时弃权。
 

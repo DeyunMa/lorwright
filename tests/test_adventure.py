@@ -18,7 +18,7 @@ from lorwright.core.device.base import Frame
 from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import Rect, UIState
-from lorwright.core.perceive.adventure_scene import find_home_adventure_entry
+from lorwright.core.perceive.adventure_scene import find_home_adventure_entry, service_error_confirm
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
@@ -997,14 +997,60 @@ def test_home_entry_stop_during_transition_does_not_tap_again(adventure, monkeyp
     assert saved == []
 
 
-def test_home_entry_ignores_service_error_overlay(adventure):
-    image = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_home_service_error.png"))
-    assert image is not None
+SERVICE_ERROR_SAMPLES = ("1080p_home_service_error.png", "f1-home-service-error-20261120.png")
+
+
+def _service_error(name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    if image is None:
+        pytest.skip(f"missing fixture {name}")
+    return image
+
+
+@pytest.mark.parametrize("name", SERVICE_ERROR_SAMPLES)
+def test_service_error_dialog_is_recognized_without_home_entry(name):
+    image = _service_error(name)
     assert find_home_adventure_entry(image) is None
-    loop, device, _, saved, _ = adventure([image], [UIState.UNKNOWN])
+    assert service_error_confirm(image) == Rect(850, 655, 220, 65)
+
+
+@pytest.mark.parametrize("name", SERVICE_ERROR_SAMPLES)
+def test_service_error_confirms_once_then_enters_adventure(adventure, name):
+    error = _service_error(name)
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    assert home is not None and resume is not None
+    entry = find_home_adventure_entry(home)
+    assert entry is not None
+    loop, device, _, saved, _ = adventure([error, error, home, resume], [])
+    loop.run(max_nodes=2)
+    assert device.taps == [(960, 687), entry.center]
+    assert saved == []
+
+
+def test_service_error_that_stays_stops_without_repeating(adventure):
+    error = _service_error(SERVICE_ERROR_SAMPLES[0])
+    loop, device, _, saved, _ = adventure([error] * 12, [])
+    loop.run(max_nodes=3)
+    assert device.taps == [(960, 687)]
+    assert saved == ["service_error_transition_unverified"]
+
+
+def test_service_error_unknown_transition_stops_without_repeating(adventure):
+    error = _service_error(SERVICE_ERROR_SAMPLES[0])
+    loop, device, _, saved, _ = adventure([error] + [_blank()] * 10, [])
+    loop.run(max_nodes=1)
+    assert device.taps == [(960, 687)]
+    assert saved == ["service_error_transition_unverified"]
+
+
+def test_service_error_recurring_beyond_limit_stops(adventure):
+    error = _service_error(SERVICE_ERROR_SAMPLES[0])
+    loop, device, _, saved, _ = adventure([error], [])
+    loop._service_errors = AdventureLoop.SERVICE_ERROR_LIMIT
     loop.run(max_nodes=1)
     assert device.taps == []
-    assert saved == ["unknown_scene"]
+    assert saved == ["service_error_repeated"]
 
 
 def test_home_entry_rejects_partially_dimmed_label():
@@ -1144,7 +1190,6 @@ def test_resume_adventure_does_not_merge_evidence_across_frames(adventure):
     "1080p_login_form.png",
     "1080p_hand_expanded.png",
     "1080p_targeting.png",
-    "1080p_home_service_error.png",
 ])
 def test_unknown_non_map_screens_never_trigger_a_tap(adventure, name):
     image = cv2.imread(str(FIXTURES.parent / "screens" / name))

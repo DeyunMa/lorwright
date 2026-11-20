@@ -5,24 +5,25 @@ F1 网络看门狗
 
 设计要点
 --------
-1. 健康判定必须用「真实 HTTP 请求」，不能只测 TCP 连接
-   —— Clash 的 TUN 会假装接受任何 TCP 连接，TCP 通 ≠ 能上网。
+1. 按故障所在层分类，只做对症的恢复。fake-ip 下系统 DNS 总能拿到本地假地址，
+   不能作为健康依据；故障层由绑定 WLAN 接口、绕过 Clash 的 TCP 探测判定：
+   link     网关 TCP/53 与 ICMP 均无回应（WiFi 已关联但数据不通）
+   upstream 网关有回应，223.5.5.5 / 119.29.29.29 的 TCP/53 均不通（路由器外侧）
+   proxy    直连外网可达，经默认路由（Clash TUN）的国内 HTTP 失败
+   tailscale 以上都正常，仅 Tailscale 离线
 
-2. 三项独立检测，至少两项通过才算健康：
-   A. HTTP 204（真实请求，能验证整条链路）
-   B. DNS 查询（验证解析链路）
-   C. Tailscale 自身在线（不证明其他设备可以连接）
+2. 同类故障连续计数（类型变化即重新计数），每 2 分钟一次：
+   link     第 2 次起每 3 次轮流：重连 WiFi、重启 WLAN 网卡（第 2、5、8…次），
+            不退避；本机动作代价低，2026-11-20 的 34 分钟断网中退避白白浪费了 15 分钟
+   proxy    第 2、5 次重启 Clash Verge 服务
+   upstream 本机无对症动作，只记录
+   tailscale 连续 2 次重启 Tailscale 服务（冷却 15 分钟）
+   link 以外的故障连续 8 次后退避 15 分钟。不再改写 verge.yaml 开关 TUN：
+   Clash Verge 界面持有内存配置，外部改写不生效且会造成配置与实际不一致。
 
-3. 分级升级，每级间隔 2 个检测周期（4 分钟），避免网络抖动误触发：
-   L1 计数=3  重启 Clash Verge 服务（重建 TUN）
-   L2 计数=5  关闭 TUN 模式（牺牲 LoR 保远程访问）
-   L3 计数=7  重连 WiFi
-   L4 计数=9  重启 Tailscale 服务
-
-4. 恢复后清零计数；若 TUN 是看门狗关的，稳定 30 分钟后尝试重新开启：
-   试开 60 秒，HTTP+DNS 正常就保留；不正常立即关回，间隔 60 分钟，每次停用最多试 3 次。
-
-5. 全部失败后退避 15 分钟，避免疯狂重启把系统搞得更乱。
+3. 测试：-Simulate 'lan=1,wan=0,http=0,ts=1' 以给定探测结果代替真实探测；
+   -DryRun 只记录将执行的动作，不保存状态、不执行恢复。
+   tools/f1/test-netwatchdog.ps1 覆盖分类与动作表。
 
 部署
 ----
@@ -36,6 +37,8 @@ F1 网络看门狗
 日志：C:\Windows\Temp\netwatchdog.log，轮转文件 .1 至 .9，合计不超过 1 GB。
 #>
 
+param([switch]$DryRun, [string]$Simulate)
+
 $ErrorActionPreference = 'SilentlyContinue'
 
 $LogFile   = 'C:\Windows\Temp\netwatchdog.log'
@@ -47,16 +50,11 @@ $WifiProfile = 'CU_1001_5G' # 已保存的 WLAN 配置名称，不是网络位�
 $runTimer = [Diagnostics.Stopwatch]::StartNew()
 
 # ---- 阈值（改这里就能调灵敏度）----
-$FailToRestartClash = 3
-$FailToDisableTun   = 5
-$FailToReconnectWifi= 7
-$FailToRestartTs    = 9
-$BackoffMinutes     = 15
+$RecoveryCounts      = @(2, 5)   # 同类故障第几次执行对症动作
+$FailsToBackoff      = 8
+$BackoffMinutes      = 15
 $TailscaleCooldownMinutes = 15
-$StableMinutesForTun= 30
-$TunTrialSeconds    = 60
-$TunRetryMinutes    = 60
-$MaxTunTrials       = 3
+$WifiCooldownMinutes = 4   # 跨故障段的最短间隔；段内由计数间隔 3 次控制
 
 # ---------------------------------------------------------------- 工具
 
@@ -91,13 +89,11 @@ function Write-Log([string]$msg) {
 function Get-State {
     $default = [ordered]@{
         fails           = 0
+        failKind        = $null
         tsFails         = 0
         nextTsRestart   = $null
-        tunDisabledByUs = $false
-        tunReenableCount= 0
-        stableTicks     = 0
+        nextWifiReconnect = $null
         backoffUntil    = $null
-        nextTunRetry    = $null
     }
     if (Test-Path $StateFile) {
         try {
@@ -138,21 +134,6 @@ function Test-Http {
             $innerType = if ($ex.InnerException) { $ex.InnerException.GetType().FullName } else { '' }
             Write-Log ("http probe endpoint=$u exception=$($ex.GetType().FullName) status=$($ex.Status) error=$($ex.Message) inner=$innerType innerError=$($ex.InnerException.Message)")
         }
-    }
-    return $false
-}
-
-function Test-Dns {
-    # 先试系统 DNS（走路由器），再试公共 DNS
-    try {
-        $r = Resolve-DnsName 'www.baidu.com' -Type A -ErrorAction Stop
-        if ($r) { Write-Log 'dns probe resolver=system result=ok'; return $true }
-    } catch { Write-Log ("dns probe resolver=system error=$($_.Exception.Message)") }
-    foreach ($srv in @('223.5.5.5', '119.29.29.29')) {
-        try {
-            $r = Resolve-DnsName 'www.baidu.com' -Server $srv -Type A -ErrorAction Stop
-            if ($r) { Write-Log ("dns probe resolver=$srv result=ok"); return $true }
-        } catch { Write-Log ("dns probe resolver=$srv error=$($_.Exception.Message)") }
     }
     return $false
 }
@@ -291,22 +272,27 @@ function Write-DirectProbe([string]$label, [string]$target, [int]$port, [string]
         $async = $client.BeginConnect($target, $port, $null, $null)
         if (-not $async.AsyncWaitHandle.WaitOne(3000)) {
             Write-Log ("direct-probe label=$label target=$target port=$port source=$source requestedInterface=WLAN index=$interfaceIndex defaultRoute=$($route.InterfaceAlias) result=timeout elapsedMs=$($timer.ElapsedMilliseconds)")
-            return
+            return 'timeout'
         }
         $client.EndConnect($async)
         Write-Log ("direct-probe label=$label target=$target port=$port source=$source requestedInterface=WLAN index=$interfaceIndex defaultRoute=$($route.InterfaceAlias) result=connected elapsedMs=$($timer.ElapsedMilliseconds)")
+        return 'connected'
     } catch {
         $ex = $_.Exception
         if ($ex.InnerException) { $ex = $ex.InnerException }
         Write-Log ("direct-probe label=$label target=$target port=$port source=$source requestedInterface=WLAN index=$interfaceIndex defaultRoute=$($route.InterfaceAlias) result=error type=$($ex.GetType().Name) socketCode=$($ex.SocketErrorCode) elapsedMs=$($timer.ElapsedMilliseconds)")
+        # 网关拒绝连接也证明局域网链路可达。
+        if ("$($ex.SocketErrorCode)" -eq 'ConnectionRefused') { return 'refused' }
+        return 'error'
     } finally {
         if ($client) { $client.Close() }
         if ($async) { $async.AsyncWaitHandle.Close() }
     }
 }
 
-function Write-DirectProbes {
-    # 绕过 HTTP 代理，按 WLAN 接口发起连接；不修改系统路由。
+function Get-LinkStatus {
+    # 绕过 Clash，按 WLAN 接口发起连接；不修改系统路由。
+    $result = [pscustomobject]@{ lan = $false; wan = $false }
     try {
         $adapter = Get-NetAdapter -Name 'WLAN' -ErrorAction Stop
         $interfaceIndex = [int]$adapter.ifIndex
@@ -314,24 +300,57 @@ function Write-DirectProbes {
             Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.AddressState -eq 'Preferred' -and -not $_.SkipAsSource } | Select-Object -First 1 -ExpandProperty IPAddress
         $gateway = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction Stop |
             Where-Object { $_.InterfaceAlias -eq 'WLAN' -and $_.NextHop -ne '0.0.0.0' } | Select-Object -First 1 -ExpandProperty NextHop
-        if (-not $source) { Write-Log 'direct-probe result=no-wlan-ip'; return }
-        if ($gateway) { Write-DirectProbe 'gateway' $gateway 53 $source $interfaceIndex }
-        else { Write-Log 'direct-probe label=gateway result=no-gateway' }
-        Write-DirectProbe 'internet-dns' '223.5.5.5' 53 $source $interfaceIndex
-        Write-DirectProbe 'internet-https' '1.1.1.1' 443 $source $interfaceIndex
+        if (-not $source) { Write-Log 'direct-probe result=no-wlan-ip'; return $result }
+        if ($gateway) {
+            $result.lan = (Write-DirectProbe 'gateway' $gateway 53 $source $interfaceIndex) -in @('connected', 'refused')
+            if (-not $result.lan) {
+                & ping.exe -4 -S $source -n 2 -w 1500 $gateway | Out-Null
+                $result.lan = $LASTEXITCODE -eq 0
+                Write-Log ("direct-probe label=gateway-icmp target=$gateway exitCode=$LASTEXITCODE")
+            }
+        } else { Write-Log 'direct-probe label=gateway result=no-gateway' }
+        foreach ($target in @('223.5.5.5', '119.29.29.29')) {
+            if ((Write-DirectProbe 'internet-dns' $target 53 $source $interfaceIndex) -eq 'connected') { $result.wan = $true; break }
+        }
     } catch { Write-Log ("direct-probe result=setup-error type=$($_.Exception.GetType().Name)") }
+    return $result
 }
 
-function Test-Healthy {
-    Write-WlanEvents
-    Write-WifiSnapshot
-    Write-DirectProbes
-    $http = Test-Http
-    $dns  = Test-Dns
-    $ts   = Test-Tailscale
-    $score = [int]$http + [int]$dns + [int]$ts
-    Write-Log ("health: http=$http dns=$dns tailscale=$ts  score=$score/3")
-    if (-not $http -or -not $dns -or -not $ts) {
+function Get-FailureKind([bool]$Lan, [bool]$Wan, [bool]$Http, [bool]$Tailscale) {
+    if (-not $Lan) { return 'link' }
+    if (-not $Wan) { return 'upstream' }
+    if (-not $Http) { return 'proxy' }
+    if (-not $Tailscale) { return 'tailscale' }
+    return 'healthy'
+}
+
+function Get-RecoveryAction([string]$Kind, [int]$Count) {
+    if ($Kind -eq 'link') {
+        if ($Count -lt 2 -or ($Count - 2) % 3 -ne 0) { return 'none' }
+        if ((($Count - 2) / 3) % 2 -eq 0) { return 'wifi' }
+        return 'adapter'
+    }
+    if ($Count -ge $FailsToBackoff) { return 'backoff' }
+    if ($Kind -eq 'proxy' -and $Count -in $RecoveryCounts) { return 'clash' }
+    return 'none'
+}
+
+function Get-HealthKind {
+    if ($Simulate) {
+        $v = @{}
+        foreach ($pair in $Simulate -split ',') { $k, $x = $pair -split '=', 2; $v[$k.Trim()] = $x.Trim() -eq '1' }
+        $link = [pscustomobject]@{ lan = $v['lan']; wan = $v['wan'] }; $http = $v['http']; $ts = $v['ts']
+        Write-Log "simulate probes=$Simulate"
+    } else {
+        Write-WlanEvents
+        Write-WifiSnapshot
+        $link = Get-LinkStatus
+        $http = Test-Http
+        $ts   = Test-Tailscale
+    }
+    $kind = Get-FailureKind $link.lan $link.wan $http $ts
+    Write-Log ("health: lan=$($link.lan) wan=$($link.wan) http=$http tailscale=$ts kind=$kind")
+    if ($kind -ne 'healthy' -and -not $Simulate) {
         Write-NetworkDiagnostics
         foreach ($service in @('Tailscale', 'clash_verge_service')) {
             $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
@@ -355,12 +374,7 @@ function Test-Healthy {
             }
         } catch { Write-Log ("diagnostic system-events result=$($_.Exception.Message)") }
     }
-    return ($score -ge 2)
-}
-
-function Test-Internet {
-    # TUN 试开只要求真实 HTTP + DNS；Tailscale 掉线有单独的处理路径。
-    return (Test-Http) -and (Test-Dns)
+    return $kind
 }
 
 # ---------------------------------------------------------------- 恢复动作
@@ -372,48 +386,6 @@ function Invoke-RestartClash([string]$Stage = 'L1') {
         Write-Log "${Stage}: clash restart result=ok status=$((Get-Service clash_verge_service).Status)"
     } catch { Write-Log "${Stage}: clash restart error=$($_.Exception.Message)" }
     Start-Sleep -Seconds 10
-}
-
-function Set-TunMode([bool]$Enabled) {
-    $temp = "$VergeYaml.$([Guid]::NewGuid()).tmp"
-    try {
-        $encoding = [Text.UTF8Encoding]::new($false, $true)
-        $content = $encoding.GetString([IO.File]::ReadAllBytes($VergeYaml))
-        $matches = [regex]::Matches($content, '(?m)^﻿?enable_tun_mode[ \t]*:[ \t]*(?<value>true|false)(?=[ \t]*(?:#[^\r\n]*)?\r?$)')
-        if ($matches.Count -ne 1) {
-            Write-Log 'TUN change skipped: expected exactly one enable_tun_mode setting'
-            return 'failed'
-        }
-        $value = $matches[0].Groups['value']
-        $target = if ($Enabled) { 'true' } else { 'false' }
-        if ($value.Value -eq $target) { return 'unchanged' }
-        $updated = $content.Remove($value.Index, $value.Length).Insert($value.Index, $target)
-        [IO.File]::WriteAllBytes($temp, $encoding.GetBytes($updated))
-        [IO.File]::Replace($temp, $VergeYaml, [NullString]::Value)
-        return 'changed'
-    } catch {
-        Write-Log "TUN change failed: $($_.Exception.GetType().Name)"
-        return 'failed'
-    } finally {
-        if ([IO.File]::Exists($temp)) { Remove-Item -LiteralPath $temp -ErrorAction SilentlyContinue }
-    }
-}
-
-function Invoke-DisableTun {
-    if ((Set-TunMode $false) -ne 'changed') { return $false }
-    Write-Log 'L2: TUN disabled in verge.yaml'
-    Invoke-RestartClash 'TUN'
-    return $true
-}
-
-function Invoke-EnableTun {
-    $change = Set-TunMode $true
-    if ($change -eq 'failed') { return $false }
-    if ($change -eq 'changed') {
-        Write-Log 'TUN re-enabled after stable period'
-        Invoke-RestartClash 'TUN'
-    }
-    return $true
 }
 
 function Invoke-ReconnectWifi {
@@ -484,6 +456,16 @@ public class WdgWlan {
     }
 }
 
+function Invoke-RestartWlanAdapter {
+    Write-Log 'L3: restarting WLAN adapter'
+    try {
+        Restart-NetAdapter -Name 'WLAN' -Confirm:$false -ErrorAction Stop
+        Write-Log 'L3: WLAN adapter restart requested'
+    } catch { Write-Log ("L3: adapter restart error=$($_.Exception.Message)") }
+    Start-Sleep -Seconds 15
+    Write-WifiSnapshot
+}
+
 function Invoke-RestartTailscale($state) {
     $now = Get-Date
     if ($state.nextTsRestart) {
@@ -510,9 +492,21 @@ function Invoke-RestartTailscale($state) {
 
 # ---------------------------------------------------------------- 主流程
 
+# 被点源加载时只提供函数，供测试脚本调用。
+if ($MyInvocation.InvocationName -eq '.') { return }
+
 $state = Get-State
-Write-Log ("start state=$($state | ConvertTo-Json -Compress)")
+Write-Log ("start state=$($state | ConvertTo-Json -Compress) dryRun=$DryRun")
 Write-ClashLogSummary
+
+function Complete-Run([string]$Result, [int]$Code = 0) {
+    if (-not $DryRun -and -not (Save-State $state)) {
+        Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
+        exit 1
+    }
+    Write-Log "end result=$Result elapsedMs=$($runTimer.ElapsedMilliseconds)"
+    exit $Code
+}
 
 # 退避期内直接退出
 if ($state.backoffUntil) {
@@ -526,102 +520,48 @@ if ($state.backoffUntil) {
     $state['backoffUntil'] = $null
 }
 
-if (Test-Healthy) {
-    if ($state.fails -gt 0) {
-        Write-Log "RECOVERED after $($state.fails) consecutive failures"
-    }
+$kind = Get-HealthKind
+if ($kind -in @('healthy', 'tailscale')) {
+    if ($state.fails -gt 0) { Write-Log "RECOVERED after $($state.fails) consecutive $($state.failKind) failures" }
     $state['fails'] = 0
-
-    # 稳定计数：只有 TUN 是我们关的才需要跟踪
-    if ($state.tunDisabledByUs -and $state.tunReenableCount -lt $MaxTunTrials) {
-        $state['stableTicks'] = [int]$state['stableTicks'] + 1
-        if ($state.stableTicks -ge [int]($StableMinutesForTun / 2)) {
-            $retryAt = $null
-            if ($state.nextTunRetry) {
-                try { $retryAt = [datetime]$state.nextTunRetry } catch {}
-            }
-            if ($retryAt -and (Get-Date) -lt $retryAt) {
-                Write-Log "TUN retry waiting until $($state.nextTunRetry)"
-            } else {
-                $state['tunReenableCount'] = [int]$state['tunReenableCount'] + 1
-                $state['stableTicks'] = 0
-                $state['nextTunRetry'] = (Get-Date).AddMinutes($TunRetryMinutes).ToString('o')
-                if (-not (Save-State $state)) {
-                    Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
-                    exit 1
-                }
-                if (Invoke-EnableTun) {
-                    Start-Sleep -Seconds $TunTrialSeconds
-                    if (Test-Internet) {
-                        Write-Log 'TUN trial OK; keeping TUN enabled'
-                        $state['tunDisabledByUs'] = $false
-                        $state['nextTunRetry'] = $null
-                    } else {
-                        Write-Log "TUN trial failed (attempt $($state.tunReenableCount)); disabling again"
-                        if (-not (Invoke-DisableTun)) { Write-Log 'TUN trial rollback unverified' }
-                    }
-                } else {
-                    Write-Log 'TUN trial could not enable TUN'
-                }
-                if ($state.tunDisabledByUs -and $state.tunReenableCount -ge $MaxTunTrials) {
-                    Write-Log "TUN trial limit reached after $($state.tunReenableCount) attempts"
-                }
-            }
-        }
-    }
-
-    # 网络通但 Tailscale 掉线 → 单独处理（不触发完整升级链）
-    if (-not (Test-Tailscale)) {
+    $state['failKind'] = $null
+    if ($kind -eq 'tailscale') {
         $state['tsFails'] = [int]$state['tsFails'] + 1
         Write-Log "internet OK but Tailscale offline (tsFails=$($state.tsFails))"
         if ($state.tsFails -ge 2) {
             $state['tsFails'] = 0
-            Invoke-RestartTailscale $state
+            if ($DryRun) { Write-Log 'dry-run action=tailscale' } else { Invoke-RestartTailscale $state }
         }
-    } else {
-        $state['tsFails'] = 0
+        Complete-Run 'tailscale-offline'
     }
-    if (-not (Save-State $state)) {
-        Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
-        exit 1
-    }
-    Write-Log "end result=healthy elapsedMs=$($runTimer.ElapsedMilliseconds)"
-    exit 0
+    $state['tsFails'] = 0
+    Complete-Run 'healthy'
 }
 
-# 不健康
+if ($state.failKind -ne $kind) { $state['fails'] = 0 }
+$state['failKind'] = $kind
 $state['fails'] = [int]$state['fails'] + 1
-$state['stableTicks'] = 0
-Write-Log "UNHEALTHY, consecutive fails = $($state.fails)"
-
-if ($state.fails -eq $FailToRestartClash) {
-    Invoke-RestartClash
-}
-
-if ($state.fails -eq $FailToDisableTun) {
-    if (Invoke-DisableTun) {
-        $state['tunDisabledByUs'] = $true
-        $state['tunReenableCount'] = 0
-        $state['nextTunRetry'] = $null
+$action = Get-RecoveryAction $kind $state.fails
+Write-Log "UNHEALTHY kind=$kind consecutive=$($state.fails) action=$action"
+if ($DryRun) {
+    Write-Log "dry-run action=$action"
+} elseif ($action -in @('wifi', 'adapter')) {
+    $until = $null
+    if ($state.nextWifiReconnect) { try { $until = [datetime]$state.nextWifiReconnect } catch {} }
+    if ($until -and (Get-Date) -lt $until) { Write-Log "wifi recovery cooldown until $($state.nextWifiReconnect), skip" }
+    else {
+        $state['nextWifiReconnect'] = (Get-Date).AddMinutes($WifiCooldownMinutes).ToString('o')
+        if (-not (Save-State $state)) { Write-Log 'wifi recovery skipped: cannot save cooldown' }
+        elseif ($action -eq 'wifi') { Invoke-ReconnectWifi }
+        else { Invoke-RestartWlanAdapter }
     }
+} elseif ($action -eq 'clash') {
+    Invoke-RestartClash 'proxy'
 }
-
-if ($state.fails -eq $FailToReconnectWifi) {
-    Invoke-ReconnectWifi
-}
-
-if ($state.fails -eq $FailToRestartTs) {
-    Invoke-RestartTailscale $state
-}
-
-if ($state.fails -ge $FailToRestartTs) {
+if ($action -eq 'backoff') {
     $state['backoffUntil'] = (Get-Date).AddMinutes($BackoffMinutes).ToString('o')
     $state['fails'] = 0
-    Write-Log "ALL RECOVERY FAILED, backing off $BackoffMinutes min"
+    $state['failKind'] = $null
+    Write-Log "$kind persisted for $FailsToBackoff checks, backing off $BackoffMinutes min"
 }
-
-if (-not (Save-State $state)) {
-    Write-Log "end result=state-write-failed elapsedMs=$($runTimer.ElapsedMilliseconds)"
-    exit 1
-}
-Write-Log "end result=unhealthy elapsedMs=$($runTimer.ElapsedMilliseconds)"
+Complete-Run "unhealthy kind=$kind"

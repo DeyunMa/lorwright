@@ -4,7 +4,7 @@
 
 | 脚本 | 计划任务 | 运行身份 | 职责 |
 |---|---|---|---|
-| `netwatchdog.ps1` | `F1NetWatchdog`，每 2 分钟 | SYSTEM | HTTP/DNS/Tailscale 健康检查；Clash/TUN/WiFi/Tailscale 分级恢复 |
+| `netwatchdog.ps1` | `F1NetWatchdog`，每 2 分钟 | SYSTEM | 按链路、上游、代理、Tailscale 分类故障并对症恢复 |
 | `gamewatchdog.ps1` | `F1GameWatchdog`，每 5 分钟 | SYSTEM | 模拟器进程、ADB、LoR 进程的最外层恢复 |
 | `start-pie64.ps1` | `F1StartPie64`，手动/被调用 | Administrator + Interactive | 在交互式桌面启动 Pie64；已在跑时只记日志 |
 
@@ -94,17 +94,29 @@ Register-ScheduledTask -TaskName 'F1GameWatchdog' -Action $gameAction -Trigger $
 
 ## 网络诊断边界
 
-- 看门狗记录 HTTP、DNS、Tailscale、无线事件、Wi-Fi 信号快照、路由和恢复动作；网关探测指定 WLAN 源地址，并记录 Windows 选路，不能单凭 ICMP 超时判断路由器故障。
-- 每轮额外尝试网关 TCP/53、223.5.5.5 TCP/53、1.1.1.1 TCP/443，跳过 HTTP 代理，通过 IP_UNICAST_IF 请求 WLAN 接口并绑定 WLAN 源地址，不修改系统路由；记录默认选路用于对照。尚未抓包验证实际出口，VPN/TUN 过滤仍可能影响结果。端口关闭或 TCP 被拦也会失败，TCP 成功不证明网页、DNS 查询或 Tailscale 正常。探测只用于记录，不参与恢复决策。
-- Clash 应用 `logs/latest.log` 的摘要只统计最近五分钟的 WARN、ERROR 和已识别的 WebSocket 重置，不复制日志正文或节点信息。它不证明代理节点是否切换；节点变化需另行核实可用的实际数据源。
-- 公网可用但 Tailscale 持续离线，以及整机网络恢复升级，两条路径共用 15 分钟的 Tailscale 重启冷却。先将冷却截止写到状态文件，再重启服务。
-- 看门狗每次主动停用 TUN 后，最多自动试开三次，间隔至少 60 分钟。达到上限后记录 `TUN trial limit reached`，继续观测网络。开关仅替换 UTF-8 的 `verge.yaml` 中唯一的顶层 `enable_tun_mode` 布尔值，保留其他字节和 BOM。
+- 故障层由绑定 WLAN 接口、绕过 Clash 的 TCP 探测判定：网关 TCP/53 有应答或被拒即局域网可达，超时再用 `ping -S` 兜底；223.5.5.5、119.29.29.29 的 TCP/53 任一连通即外网可达。fake-ip 下系统 DNS 总返回本地假地址，已不作健康依据。1.1.1.1 在 f1 网络中始终超时，已移除。分类与动作表见脚本头部，`tools/f1/test-netwatchdog.ps1` 在 f1 上运行覆盖分类、动作表及 `-Simulate -DryRun` 全流程。
+- 2026-11-19 至 20 的断网经此分类均为 link：网关 TCP 与 ICMP、直连 223.5.5.5 同时超时，WiFi 仍显示关联、信号 88–89%。驱动断开事件多为 0x48005「动态密钥交换未能在配置的时间范围内成功」。Clash 重启与关闭 TUN 对这类故障无效；重连 WiFi 后 1–2 分钟恢复。
+- 看门狗不再改写 `verge.yaml` 开关 TUN：Clash Verge 界面持有内存配置，外部改写不生效，还会让 `enable_tun_mode` 与实际状态不一致。2026-11-20 已把被旧逻辑改成 `false` 的值恢复为 `true`。
+- Clash 应用 `logs/latest.log` 的摘要只统计最近五分钟的 WARN、ERROR 和已识别的 WebSocket 重置，不复制日志正文或节点信息。
+- Tailscale 持续离线时重启服务，冷却 15 分钟；先将冷却截止写入状态文件，再重启。
 - 无线重连使用脚本中的 `$WifiProfile`，须在目标机以 SYSTEM 身份确认配置存在。`WlanConnect` 返回 0 只表示请求已提交，须另看无线事件及后续网络检测。
-- 每轮有开始和正常退出耗时；没有结束记录只能提示中断或日志失败，不能单独断言系统挂起。退避期仍会记录 Clash 摘要，但原有网络探测和恢复动作按退避策略跳过。
+- 每轮有开始和正常退出耗时；没有结束记录只能提示中断或日志失败，不能单独断言系统挂起。link 故障不退避；其他故障连续 8 次后退避 15 分钟，退避期只记录 Clash 摘要。
 
 ## Clash 与 Tailscale
 
 f1 的 Clash Verge 开着 TUN，默认路由经 Meta 网卡。2026-11-19 的日志显示，Tailscale 的控制面、STUN 和 DERP 流量曾随规则走代理节点，出口 IP 在国内地址和多个境外节点间切换；代理不可用时控制面连接持续超时，远程访问和 LoR 一起断开。当前订阅的规则增强文件（`profiles.yaml` 中当前订阅 `option.rules` 指向的文件）已在 `prepend` 加入 `tailscaled.exe`、`tailscale-ipn.exe`、`tailscale.exe` 三条 `PROCESS-NAME ... DIRECT`，修改前的文件备份在 `C:\Code\lorwright-evidence\clash-backup-20261119`。更换订阅或重建规则增强后需重新核对。
+
+2026-11-20 的调整，修改前文件备份在 `C:\Code\lorwright-evidence\clash-backup-20261120`：
+
+| 项 | 位置 | 值 |
+|---|---|---|
+| 顶层 `ipv6` | 界面内核配置 `config.yaml` | `false`（f1 无 IPv6，netcheck `v6=false`） |
+| `dns.ipv6` | 当前订阅的合并增强文件（`option.merge`） | `false` |
+| `enable_tun_mode` | `verge.yaml` | 恢复为 `true` |
+
+改完后经计划任务以交互身份重启 Clash Verge 界面，运行配置重新生成，核对 `ipv6`、`dns.ipv6`、TUN、Tailscale 直连规则与国内 HTTP 均正常。`dns.fake-ip-filter` 无论写在合并增强还是脚本增强里，此版本 Clash Verge 都不会写入运行配置，Tailscale 域名仍解析为 198.18.x.x；脚本增强已回滚，该项未生效。TUN 的 `stack: mips` 经 mihomo v1.19.33 `-t` 校验可接受，未改。`allow-lan: true` 当前没有局域网客户端，按用户是否需要再定。
+
+无线网卡（Realtek 8852BE）高级属性：`Roaming Aggressiveness` 从 `4. Medium` 调到 `2. Lowest`，`Multi-Channel Concurrent` 从 `Enabled` 调为 `Disabled`。脚本先记录旧值，重启网卡后 120 秒内网关不通会自动回滚；实际 12 秒恢复。
 
 ## 边界
 

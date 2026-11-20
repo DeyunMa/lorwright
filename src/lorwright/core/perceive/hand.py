@@ -51,6 +51,9 @@ _WHITE_MIN = 170
 #: 0 费卡的数字是**绿色**的（R/B 都很低），白字判据抠不出来，单独认一路
 _GREEN_MIN = 180
 _GREEN_MAX_RB = 120
+#: 弃牌页高亮下绿色数字混入徽章蓝光（B≈125），按绿明显高于蓝放宽蓝通道。
+_GREEN_MAX_B = 175
+_GREEN_OVER_B = 50
 #: 费用增加时数字会变红，背景蓝色徽章不能混入笔画。
 _RED_MIN = 160
 _RED_MAX_GB = 110
@@ -169,7 +172,9 @@ def read_cost_glyphs(
 
     blue, green, red = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
     lit = (patch.min(axis=2) >= _WHITE_MIN) | (
-        (green >= _GREEN_MIN) & (red <= _GREEN_MAX_RB) & (blue <= _GREEN_MAX_RB)
+        (green >= _GREEN_MIN) & (red <= _GREEN_MAX_RB)
+        & ((blue <= _GREEN_MAX_RB)
+           | ((blue <= _GREEN_MAX_B) & (green.astype(np.int16) - blue >= _GREEN_OVER_B)))
     ) | (
         (red >= _RED_MIN) & (green <= _RED_MAX_GB) & (blue <= _RED_MAX_GB)
     )

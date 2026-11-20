@@ -83,3 +83,21 @@ def test_cost_ranking_and_unreadable_costs():
     assert choose_discard(DiscardCandidates(cards, duplicate, (1, None, 9))) is None
     assert choose_discard(DiscardCandidates(cards, distinct, (1, None, 9))) is None
     assert choose_discard(DiscardCandidates(cards, duplicate, (1, 3, None))).card_index == 1
+
+
+def test_discard_reads_reduced_green_costs_under_highlight():
+    # 20261120T071319 的 discard_cost_unverified 停止原图；砰砰 1 费、打磨心志 0 费为绿色减费数字。
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-green-costs-20261120.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-green-costs-20261120.png")
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert candidates.costs == (3, 2, 1, 0)
+    action = choose_discard(candidates)
+    assert action is not None and action.card_index == 0
+

@@ -79,21 +79,21 @@ def test_unknown_and_stale_frames_do_not_count_as_reconnection(scene, monkeypatc
     unknown = Frame(np.zeros_like(image))
     device.screencap.return_value = unknown
     assert capture() is unknown and now[0] == 0
-    monkeypatch.setattr(reconnect.time, "time", lambda: 1000)
+    now[0] = 1000
     stale = Frame(image, ts=1)
     device.screencap.return_value = stale
-    assert capture() is stale and now[0] == 0
+    assert capture() is stale and now[0] == 1000
     device.restart_app.assert_not_called()
 
 
 def test_stale_frame_ends_continuous_episode(scene, monkeypatch):
     settings, device, now, image, _ = scene
-    monkeypatch.setattr(reconnect.time, "time", lambda: 1000)
+    now[0] = 1000
     stale = Frame(image, ts=1)
     device.screencap.side_effect = [Frame(image), stale]
     capture = reconnect._ReconnectCapture(settings, device)
     assert capture() is stale
-    assert now[0] == 2
+    assert now[0] == 1002
     device.restart_app.assert_not_called()
 
 
@@ -150,15 +150,17 @@ def test_restart_requires_fresh_known_game_scene(scene, monkeypatch, ready_scene
     monkeypatch.setattr(reconnect, "find_home_adventure_entry",
                         lambda image: object() if ready_scene == "home" else None)
     monkeypatch.setattr(reconnect, "is_map", lambda image: ready_scene == "map")
+    if ready_scene == "stale":
+        now[0] = 1000
     device.screencap.return_value = Frame(
         image if ready_scene == "reconnecting" else np.zeros_like(image),
         ts=1 if ready_scene == "stale" else 0,
     )
-    monkeypatch.setattr(reconnect.time, "time", lambda: 1000)
     reason = reconnect._wait_after_restart(settings, device, capture, auto_login=False)
     assert reason == (None if ready_scene in {"home", "map", "battle"}
                       else "reconnect_restart_unverified")
-    assert now[0] == (0 if reason is None else 120)
+    start_now = 1000 if ready_scene == "stale" else 0
+    assert now[0] == start_now + (0 if reason is None else 120)
     device.tap.assert_not_called()
     device.text_secret.assert_not_called()
 

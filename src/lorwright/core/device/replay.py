@@ -41,7 +41,7 @@ class ReplayDevice:
         img = cv2.imread(str(path), cv2.IMREAD_COLOR)
         if img is None:
             raise RuntimeError(f"截图读不出来：{path}")
-        return Frame(image=img, ts=time.time())
+        return Frame(image=img, ts=time.monotonic())
 
     def tap(self, x: int, y: int) -> None:
         self.actions.append(("tap", int(x), int(y)))

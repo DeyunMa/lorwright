@@ -54,7 +54,7 @@ def test_riot_login_selection_is_once_and_stops_at_form(setup):
         to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
     )
     settings.loop = SimpleNamespace(max_frame_age_s=2)
-    device.screencap.return_value.ts = time.time()
+    device.screencap.return_value.ts = time.monotonic()
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.FORM]
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     device.tap.assert_called_once_with(720, 835)
@@ -88,9 +88,9 @@ def test_riot_login_unverified_transition_does_not_start_adventure(setup, monkey
         to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
     )
     settings.loop = SimpleNamespace(max_frame_age_s=2)
-    device.screencap.return_value.ts = time.time()
+    device.screencap.return_value.ts = 10.0
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.NONE]
-    moments = iter([0, 0, 11])
+    moments = iter([10.0, 10.0, 10.0, 21.0])
     monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments))
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     assert result.stop_reason == "login_transition_unverified"

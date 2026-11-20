@@ -101,7 +101,7 @@ def test_stale_frame_is_not_acted_on() -> None:
     settings.loop.tick_ms = 0
     settings.loop.max_frame_age_s = 1.0
 
-    dev = FakeDevice(ts=time.time() - 10)
+    dev = FakeDevice(ts=time.monotonic() - 10)
     engine = Engine(
         settings, _Router(), dev, layout=Layout(end_turn=Rect(10, 10, 20, 20))
     )

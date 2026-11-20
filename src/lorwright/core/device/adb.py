@@ -145,16 +145,17 @@ class AdbDevice:
     # ---- Device 接口 ----
 
     def screencap(self) -> Frame:
-        t0 = time.time()
+        t0 = time.monotonic()
         raw = self._run("exec-out", "screencap", "-p", binary=True)
         arr = np.frombuffer(raw, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise RuntimeError("截图解码失败（可能是 adb 输出被污染）")
-        ms = int((time.time() - t0) * 1000)
+        now = time.monotonic()
+        ms = int((now - t0) * 1000)
         # 截图耗时是循环节奏的真正上限，先量再谈优化（docs/maa/04-screencap.md）
         logger.debug("screencap: {}x{} {}ms", img.shape[1], img.shape[0], ms)
-        return Frame(image=img, ts=time.time(), capture_ms=ms)
+        return Frame(image=img, ts=now, capture_ms=ms)
 
     # ---- 输入 ----
 

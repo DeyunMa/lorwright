@@ -546,3 +546,66 @@ def test_status_wait_returns_on_terminal_before_deadline(monkeypatch):
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["status"] == "stopped"
     assert clock[0] == 0.2
+
+
+def _win_sharing_error() -> OSError:
+    exc = PermissionError("sharing violation")
+    exc.winerror = 32  # type: ignore[attr-defined]
+    return exc
+
+
+def test_non_terminal_event_skips_windows_sharing_conflict_but_finish_does_not(tmp_path, monkeypatch):
+    monkeypatch.setattr(session.time, "sleep", lambda _: None)
+    with RunSession(tmp_path, mode="battle", champion="jinx", device="fake", heartbeat_s=100) as run:
+        def fail_replace(src, dst):
+            raise _win_sharing_error()
+
+        monkeypatch.setattr(session.os, "replace", fail_replace)
+        run.report("recognize", progress=True)
+        # events.jsonl 已写入，游戏主循环未被共享冲突打崩。
+        events = [json.loads(line) for line in (run.path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+        assert any(e["type"] == "phase" and e["payload"]["phase"] == "recognize" for e in events)
+        # 终态 finish 严禁跳过共享冲突。
+        with pytest.raises(PermissionError):
+            run.finish("stopped", "done")
+        monkeypatch.undo()
+        run.finish("stopped", "done")
+
+
+def test_read_status_retries_short_sharing_conflict(tmp_path, monkeypatch):
+    monkeypatch.setattr(session.time, "sleep", lambda _: None)
+    with RunSession(tmp_path, mode="battle", champion="jinx", device="fake", heartbeat_s=100) as run:
+        run.finish("completed", "done")
+        real_read_text = Path.read_text
+        attempts = [0]
+
+        def flaky_read_text(self, *args, **kwargs):
+            if self.name == "status.json" and attempts[0] < 2:
+                attempts[0] += 1
+                raise _win_sharing_error()
+            return real_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", flaky_read_text)
+        status = read_status(tmp_path, run.run_id)
+        assert status["status"] == "completed"
+        assert attempts[0] == 2
+
+
+def test_heartbeat_thread_survives_non_sharing_oserror(tmp_path, monkeypatch):
+    calls = [0]
+    with RunSession(tmp_path, mode="battle", champion="jinx", device="fake", heartbeat_s=0.02) as run:
+        real_persist = run._persist
+
+        def flaky_persist(*args, **kwargs):
+            calls[0] += 1
+            if calls[0] == 1:
+                raise OSError("transient disk error")
+            return real_persist(*args, **kwargs)
+
+        monkeypatch.setattr(run, "_persist", flaky_persist)
+        deadline = session.time.monotonic() + 2.0
+        while session.time.monotonic() < deadline and calls[0] < 2:
+            session.time.sleep(0.02)
+        assert calls[0] >= 2
+        assert run._thread is not None and run._thread.is_alive()
+        run.finish("completed", "done")

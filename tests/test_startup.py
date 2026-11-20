@@ -99,3 +99,20 @@ def test_device_trace_mode_uses_shared_workflow(monkeypatch):
     device = AdbDevice(serial="127.0.0.1:5555", launch_mode="pie64_trace")
     device.launch(PACKAGE)
     assert calls == [(device._adb, PACKAGE)]
+
+
+def test_launch_pie64_uses_injected_wait_and_propagates_stop():
+    runner = Runner()
+    waits: list[tuple[float, str]] = []
+
+    def cancel_on_verify(seconds: float, reason: str) -> None:
+        waits.append((seconds, reason))
+        if reason == "pie64_startup_verify":
+            raise KeyboardInterrupt("stop requested")
+
+    with pytest.raises(KeyboardInterrupt):
+        launch_pie64(runner, PACKAGE, wait=cancel_on_verify)
+
+    assert waits == [(8, "pie64_trace_capture"), (22, "pie64_startup_verify")]
+    assert ("shell", "am", "profile", "stop", PACKAGE) in runner.calls
+    assert not any(call[:2] == ("shell", "rm") for call in runner.calls)

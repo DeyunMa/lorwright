@@ -92,12 +92,13 @@ class AdbDevice:
 
     def __init__(
         self, serial: str | None = None, adb: str = "adb", timeout: float = 15.0,
-        launch_mode: str = "standard",
+        launch_mode: str = "standard", wait=None,
     ) -> None:
         self.serial = serial
         self.adb = adb
         self.timeout = timeout
         self.launch_mode = launch_mode
+        self._wait = wait
         self._size: tuple[int, int] | None = None
         self._adb = AdbRunner(adb=adb, serial=serial, timeout=timeout)
         self._surface: TouchSurface | None = None
@@ -225,7 +226,10 @@ class AdbDevice:
         if self.launch_mode == "pie64_trace":
             from lorwright.core.device.startup import launch_pie64
 
-            launch_pie64(self._adb, package)
+            if self._wait is not None:
+                launch_pie64(self._adb, package, wait=self._wait)
+            else:
+                launch_pie64(self._adb, package)
             return
         self._run(
             "shell", "monkey", "-p", package,

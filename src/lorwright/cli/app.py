@@ -33,6 +33,19 @@ def _init(ctx: typer.Context) -> None:
         setup_logger(settings.logging.dir, settings.logging.level, settings.logging.by_date)
 
 
+def _session_wait(seconds: float, reason: str) -> None:
+    from lorwright.core.runtime.session import checkpoint, report
+
+    deadline = time.monotonic() + seconds
+    report("waiting", reason, wait_s=seconds)
+    while True:
+        checkpoint()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(0.5, remaining))
+
+
 def _make_device(kind: str):
     from lorwright.core.device import AdbDevice, DesktopDevice
 
@@ -43,6 +56,7 @@ def _make_device(kind: str):
         serial=settings.adb.serial or None,
         adb=settings.adb.adb_path,
         launch_mode=settings.adb.launch_mode,
+        wait=_session_wait,
     )
 
 

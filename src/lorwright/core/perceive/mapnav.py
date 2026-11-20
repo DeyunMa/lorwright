@@ -12,6 +12,7 @@ next_node 保留随机选择接口，用于已有诊断调用。
 
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 from dataclasses import dataclass
@@ -84,6 +85,7 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
     angles = np.deg2rad(np.arange(0, 360, 5))
     cosines, sines = np.cos(angles), np.sin(angles)
     outer_angles = (angles < np.deg2rad(55)) | (angles > np.deg2rad(125))
+    outer_cosines, outer_sines = cosines[outer_angles], sines[outer_angles]
     found = []
     for source, threshold in ((gray, 22), (gold_mask, 18)):
         circles = cv2.HoughCircles(
@@ -110,6 +112,36 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
             coverage = gold[yy, xx].reshape(-1, 4, 18).mean(axis=2)
             scores = coverage.mean(axis=1)
             eligible = np.flatnonzero((scores >= 0.75) & (coverage.min(axis=1) >= 0.30))
+            if eligible.size == 0:
+                continue
+            # 先向量化过滤环内亮度对比与外环金色约束，再对极少数幸存候选做精确几何核对。
+            ex, ey, er = xs[eligible], ys[eligible], radii[eligible]
+            exx, eyy = xx[eligible], yy[eligible]
+            inner_x = (ex[:, None] + (0.8 * er)[:, None] * cosines).astype(int)
+            inner_y = (ey[:, None] + (0.8 * er)[:, None] * sines).astype(int)
+            keep = (gray[eyy, exx].mean(axis=1) - gray[inner_y, inner_x].mean(axis=1)) >= 8.0 - 1e-9
+            if not keep.any():
+                continue
+            eligible, ex, ey, er = eligible[keep], ex[keep], ey[keep], er[keep]
+            exx, eyy = exx[keep], eyy[keep]
+            escores = scores[eligible]
+            outer_x = (ex[:, None] + (1.24 * er)[:, None] * outer_cosines).astype(int)
+            outer_y = (ey[:, None] + (1.24 * er)[:, None] * outer_sines).astype(int)
+            outer_gold = gold[outer_y, outer_x].mean(axis=1)
+            need_bright = (outer_gold > 0.50) | (escores - outer_gold < 0.25)
+            keep = ~need_bright
+            if need_bright.any():
+                nb = np.flatnonzero(need_bright)
+                b_ring = bright_gold[eyy[nb], exx[nb]].mean(axis=1)
+                b_outer = bright_gold[outer_y[nb], outer_x[nb]].mean(axis=1)
+                keep[nb] = (
+                    (b_ring >= 0.90 - 1e-9)
+                    & (b_outer <= 0.50 + 1e-9)
+                    & (b_ring - b_outer >= 0.25 - 1e-9)
+                )
+            if not keep.any():
+                continue
+            eligible = eligible[keep]
             for index in eligible[np.argsort(-scores[eligible], kind="stable")]:
                 token = HeroToken(int(xs[index]), int(ys[index]), int(radii[index]))
                 score = float(scores[index])
@@ -495,8 +527,19 @@ class _NavigationNode:
     connection: MapNode | None = None
 
 
+_NAV_CANDIDATES_CACHE: tuple[tuple[int, ...], bytes, tuple[_NavigationNode, ...]] | None = None
+
+
 def _navigation_candidates(image: np.ndarray) -> list[_NavigationNode]:
     """形状检测只提供位置，不按节点业务类型选择路线。"""
+    global _NAV_CANDIDATES_CACHE
+    digest = hashlib.blake2b(np.ascontiguousarray(image).data, digest_size=16).digest()
+    if (
+        _NAV_CANDIDATES_CACHE is not None
+        and _NAV_CANDIDATES_CACHE[0] == image.shape
+        and _NAV_CANDIDATES_CACHE[1] == digest
+    ):
+        return list(_NAV_CANDIDATES_CACHE[2])
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     circles = cv2.HoughCircles(
         cv2.GaussianBlur(gray, (9, 9), 2), cv2.HOUGH_GRADIENT,
@@ -540,6 +583,7 @@ def _navigation_candidates(image: np.ndarray) -> list[_NavigationNode]:
         if (_unlocked_unfinished_center(image, port)
                 and int((cv2.Canny(icon[34:62, 34:62], 70, 140) > 0).sum()) <= 45):
             result.append(_NavigationNode(node, candidate.shape, port))
+    _NAV_CANDIDATES_CACHE = (image.shape, digest, tuple(result))
     return result
 
 

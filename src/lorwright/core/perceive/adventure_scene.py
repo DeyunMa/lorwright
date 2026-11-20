@@ -51,6 +51,16 @@ def reward_timeout_continue(image: np.ndarray) -> Rect | None:
     return None
 
 
+def is_globe_loading(image: np.ndarray) -> bool:
+    """主页进入英雄之路时的星空地球载入画面：上部近黑，中部地平线呈连续青色光带。"""
+    if image.shape != (1080, 1920, 3):
+        return False
+    if float(image[0:400].mean()) > 40:
+        return False
+    band = cv2.cvtColor(image[700:780, 800:1120], cv2.COLOR_BGR2HSV)
+    return np.count_nonzero(cv2.inRange(band, (80, 80, 180), (105, 255, 255))) / band[..., 0].size >= 0.6
+
+
 def service_error_confirm(image: np.ndarray) -> Rect | None:
     """识别「服務錯誤」弹窗及其「確定」按钮；只匹配固定标题与按钮，不读错误代码。"""
     if image.shape != (1080, 1920, 3):

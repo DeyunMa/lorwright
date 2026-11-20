@@ -18,7 +18,11 @@ from lorwright.core.device.base import Frame
 from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import Rect, UIState
-from lorwright.core.perceive.adventure_scene import find_home_adventure_entry, service_error_confirm
+from lorwright.core.perceive.adventure_scene import (
+    find_home_adventure_entry,
+    is_globe_loading,
+    service_error_confirm,
+)
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
@@ -197,6 +201,73 @@ def test_home_transition_accepts_observed_slow_world_load(adventure, monkeypatch
     assert clock[0] > 15
     assert device.taps == [find_home_adventure_entry(home).center]
     assert saved == []
+
+
+GLOBE_LOADING_SAMPLES = ("f1-globe-loading-20261119.png", "f1-globe-loading-20261120.png")
+
+
+def _globe(name=GLOBE_LOADING_SAMPLES[1]):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    if image is None:
+        pytest.skip(f"missing fixture {name}")
+    return image
+
+
+@pytest.mark.parametrize("name", GLOBE_LOADING_SAMPLES)
+def test_globe_loading_screen_is_recognized(name):
+    assert is_globe_loading(_globe(name))
+
+
+@pytest.mark.parametrize("path", [
+    "reward_timeout/f1-after-home.png",
+    "screens/f1-adventure-resume-20261114.png",
+    "screens/1080p_home_service_error.png",
+    "continue/f1-silver-relic-chest.png",
+    "screens/1080p_hand_expanded.png",
+])
+def test_globe_loading_rejects_other_screens(path):
+    image = cv2.imread(str(FIXTURES.parent / path))
+    if image is None:
+        pytest.skip(f"missing fixture {path}")
+    assert not is_globe_loading(image)
+    assert not is_globe_loading(_blank())
+
+
+def _clocked(loop, device, monkeypatch, per_capture):
+    clock = [0.0]
+    monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr(loop, "_wait", lambda seconds, **kwargs: clock.__setitem__(0, clock[0] + seconds))
+
+    def capture_frame():
+        clock[0] += per_capture
+        return device.screencap()
+
+    monkeypatch.setattr(loop, "capture_frame", capture_frame)
+    return clock
+
+
+def test_home_transition_extends_while_globe_loading_persists(adventure, monkeypatch):
+    # 20261120T044919 的载入画面在 30 秒窗口末仍在，随后实时画面为继续冒险页；时序为合成。
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    globe = _globe()
+    loop, device, _, saved, _ = adventure([home] + [globe] * 20 + [resume], [UIState.UNKNOWN])
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    assert loop.run(max_nodes=1) == LoopResult("stopped", "iteration_limit")
+    assert clock[0] > 30
+    assert device.taps == [find_home_adventure_entry(home).center]
+    assert saved == []
+
+
+def test_home_transition_globe_loading_extension_is_bounded(adventure, monkeypatch):
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
+    globe = _globe()
+    loop, device, _, saved, _ = adventure([home] + [globe] * 200, [UIState.UNKNOWN])
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    assert loop.run(max_nodes=2) == LoopResult("stopped", "home_entry_after")
+    assert 30 + AdventureLoop.HOME_LOADING_EXTENSION_S - 5 <= clock[0] <= 30 + AdventureLoop.HOME_LOADING_EXTENSION_S + 5
+    assert device.taps == [find_home_adventure_entry(home).center]
+    assert saved == ["home_entry_after"]
 
 
 def test_home_transition_leaves_time_for_the_last_capture(adventure, monkeypatch):

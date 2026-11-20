@@ -41,7 +41,7 @@ from lorwright.core.perceive.adventure_scene import (
     gold_chest_collect_button,
     is_battle_detail,
     is_completed_panel,
-    is_globe_loading,
+    is_loading_screen,
     is_map,
     is_weekly_list,
     item_chest_leave_button,
@@ -135,7 +135,7 @@ class _AdventureInputExpired(Exception):
 
 class AdventureLoop:
     SERVICE_ERROR_LIMIT = 3
-    HOME_LOADING_EXTENSION_S = 90
+    LOADING_EXTENSION_S = 90
     SETTLEMENT_STAGES = (
         "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
     )
@@ -686,7 +686,7 @@ class AdventureLoop:
                 after_design is not None and find_revive_button(after_design[0]) is not None
             )
 
-        next_image = self._await_transition(
+        next_image = self._await_loading_transition(
             "resume_transition",
             _accepted,
             initial_image=image,
@@ -715,25 +715,39 @@ class AdventureLoop:
     def _handle_home_entry(self, image, scale, entry):
         self._tap(*scale.to_device(*entry.center))
         # 实机载入英雄之路需 10–16 秒，冷启动更久；窗口仍有界。
-        after = image
-        for after in self._transition_frames(
-            "home_entry_transition", wait_s=30, attempts=14, initial=image,
-        ):
-            if self._recognized_after_home(after):
-                report("verified", "home_entry_transition", progress=True, **self._details)
-                return after
-        assert self._latest_frame is not None
-        if not is_globe_loading(self._latest_frame.image):
-            self._snapshot(after, tag="home_entry_after")
-            return None
-        # 网络慢时星空载入画面可持续超过 30 秒；只在仍是载入画面时延长，总窗口有界。
-        return self._await_transition(
-            "home_entry_loading",
+        return self._await_loading_transition(
+            "home_entry_transition",
             self._recognized_after_home,
-            initial_image=self._latest_frame.image,
+            initial_image=image,
             unverified_tag="home_entry_after",
             verified_reason="home_entry_transition",
-            wait_s=self.HOME_LOADING_EXTENSION_S,
+            wait_s=30,
+            attempts=14,
+        )
+
+    def _await_loading_transition(self, reason, accept, *, initial_image, unverified_tag,
+                                  verified_reason=None, wait_s=12, attempts=6):
+        """先按原窗口等待；窗口末仍是已知载入画面时再有界延长，期间只观察不输入。"""
+        after = initial_image
+        for after in self._transition_frames(
+            reason, wait_s=wait_s, attempts=attempts, initial=initial_image,
+        ):
+            if accept(after):
+                if verified_reason is not None:
+                    report("verified", verified_reason, progress=True, **self._details)
+                return after
+        assert self._latest_frame is not None
+        if not is_loading_screen(self._latest_frame.image):
+            self._snapshot(after, tag=unverified_tag)
+            return None
+        # 网络慢时载入画面可持续超过原窗口；只在仍是载入画面时延长，总窗口有界。
+        return self._await_transition(
+            f"{reason}_loading",
+            accept,
+            initial_image=self._latest_frame.image,
+            unverified_tag=unverified_tag,
+            verified_reason=verified_reason,
+            wait_s=self.LOADING_EXTENSION_S,
             attempts=45,
         )
 

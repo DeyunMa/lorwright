@@ -21,6 +21,8 @@ from lorwright.core.models import Rect, UIState
 from lorwright.core.perceive.adventure_scene import (
     find_home_adventure_entry,
     is_globe_loading,
+    is_loading_screen,
+    is_portal_loading,
     service_error_confirm,
 )
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
@@ -265,7 +267,7 @@ def test_home_transition_globe_loading_extension_is_bounded(adventure, monkeypat
     loop, device, _, saved, _ = adventure([home] + [globe] * 200, [UIState.UNKNOWN])
     clock = _clocked(loop, device, monkeypatch, 0.5)
     assert loop.run(max_nodes=2) == LoopResult("stopped", "home_entry_after")
-    assert 30 + AdventureLoop.HOME_LOADING_EXTENSION_S - 5 <= clock[0] <= 30 + AdventureLoop.HOME_LOADING_EXTENSION_S + 5
+    assert 30 + AdventureLoop.LOADING_EXTENSION_S - 5 <= clock[0] <= 30 + AdventureLoop.LOADING_EXTENSION_S + 5
     assert device.taps == [find_home_adventure_entry(home).center]
     assert saved == ["home_entry_after"]
 
@@ -1225,6 +1227,50 @@ def test_resume_adventure_does_not_repeat_on_unchanged_page(adventure):
     loop, device, _, saved, _ = adventure([image] * 7, [UIState.UNKNOWN])
     loop.pack = load("jinx")
     loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == ["resume_transition_unverified"]
+
+
+def test_portal_loading_screen_is_recognized():
+    portal = cv2.imread(str(FIXTURES.parent / "screens/f1-portal-loading-20261120.png"))
+    if portal is None:
+        pytest.skip("missing fixture f1-portal-loading-20261120.png")
+    assert is_portal_loading(portal)
+    assert is_loading_screen(portal)
+    for path in ("screens/f1-adventure-resume-20261114.png", "continue/f1-task-completed-20261116.png",
+                 "screens/weekly-start-animation-20261115.png"):
+        other = cv2.imread(str(FIXTURES.parent / path))
+        if other is not None:
+            assert not is_portal_loading(other)
+    assert not is_portal_loading(_blank())
+
+
+def test_resume_adventure_waits_through_slow_portal_loading(adventure, monkeypatch):
+    # 20261120T045638 的传送门载入画面在 12 秒窗口末仍在；载入持续与后继地图为合成时序。
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    portal = cv2.imread(str(FIXTURES.parent / "screens/f1-portal-loading-20261120.png"))
+    if portal is None:
+        pytest.skip("missing fixture f1-portal-loading-20261120.png")
+    map_image = _img("f1-weekly-after-hero-reward-20261116.png")
+    loop, device, _, saved, _ = adventure([resume] + [portal] * 12 + [map_image], [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    loop.run(max_nodes=1)
+    assert clock[0] > 12
+    assert len(device.taps) == 1
+    assert saved == []
+
+
+def test_resume_adventure_portal_loading_extension_is_bounded(adventure, monkeypatch):
+    resume = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
+    portal = cv2.imread(str(FIXTURES.parent / "screens/f1-portal-loading-20261120.png"))
+    if portal is None:
+        pytest.skip("missing fixture f1-portal-loading-20261120.png")
+    loop, device, _, saved, _ = adventure([resume] + [portal] * 200, [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    loop.run(max_nodes=1)
+    assert clock[0] <= 12 + AdventureLoop.LOADING_EXTENSION_S + 5
     assert len(device.taps) == 1
     assert saved == ["resume_transition_unverified"]
 

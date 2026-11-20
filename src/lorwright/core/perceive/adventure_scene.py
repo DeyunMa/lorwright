@@ -61,6 +61,25 @@ def is_globe_loading(image: np.ndarray) -> bool:
     return np.count_nonzero(cv2.inRange(band, (80, 80, 180), (105, 255, 255))) / band[..., 0].size >= 0.6
 
 
+def is_portal_loading(image: np.ndarray) -> bool:
+    """继续冒险后的菱形传送门载入画面：四角都是平滑的深蓝星云，没有界面控件。"""
+    if image.shape != (1080, 1920, 3):
+        return False
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    for y1, y2, x1, x2 in ((0, 150, 0, 250), (0, 150, 1670, 1920),
+                           (930, 1080, 0, 250), (930, 1080, 1670, 1920)):
+        corner = hsv[y1:y2, x1:x2]
+        blue = cv2.inRange(corner, (100, 60, 40), (125, 255, 200))
+        if np.count_nonzero(blue) / blue.size < 0.9:
+            return False
+    return True
+
+
+def is_loading_screen(image: np.ndarray) -> bool:
+    """已采样的冒险载入画面；只用于延长有界观察，不授权输入。"""
+    return is_globe_loading(image) or is_portal_loading(image)
+
+
 def service_error_confirm(image: np.ndarray) -> Rect | None:
     """识别「服務錯誤」弹窗及其「確定」按钮；只匹配固定标题与按钮，不读错误代码。"""
     if image.shape != (1080, 1920, 3):

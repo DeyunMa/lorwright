@@ -268,6 +268,7 @@ class RunSession:
         self._reported_health = None
         self._wait_key = None
         self._wait_deadline = None
+        self._terminal_unpersisted = False
 
     @property
     def finished(self) -> bool:
@@ -319,6 +320,13 @@ class RunSession:
             self._stop.set()
             if self._thread:
                 self._thread.join()
+            if self._terminal_unpersisted:
+                try:
+                    with self._mutex:
+                        self._persist()
+                        self._terminal_unpersisted = False
+                except OSError as exc:
+                    print(f"run-session: 退出时终态落盘仍失败: {exc}", file=sys.stderr, flush=True)
             if self._token is not None:
                 _active.reset(self._token)
             self._lock.release()
@@ -401,8 +409,14 @@ class RunSession:
             self._append("session_finished", dict(status=status, reason=reason,
                                                   **(details | {"message": message})))
             # 终态写入不可跳过，否则外部会误判 process_exited_without_terminal。
-            self._persist()
-            self._stop.set()
+            try:
+                self._persist()
+                self._terminal_unpersisted = False
+            except OSError:
+                self._terminal_unpersisted = True
+                raise
+            finally:
+                self._stop.set()
 
     def _heartbeat(self):
         failed = False

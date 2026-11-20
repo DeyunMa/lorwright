@@ -565,11 +565,14 @@ def test_non_terminal_event_skips_windows_sharing_conflict_but_finish_does_not(t
         # events.jsonl 已写入，游戏主循环未被共享冲突打崩。
         events = [json.loads(line) for line in (run.path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
         assert any(e["type"] == "phase" and e["payload"]["phase"] == "recognize" for e in events)
-        # 终态 finish 严禁跳过共享冲突。
+        # 终态 finish 严禁跳过共享冲突，且 __exit__ 在锁恢复后仍会补写终态到磁盘。
         with pytest.raises(PermissionError):
             run.finish("stopped", "done")
+        assert run._terminal_unpersisted is True
         monkeypatch.undo()
-        run.finish("stopped", "done")
+    saved = read_status(tmp_path, run.run_id)
+    assert saved["status"] == "stopped"
+    assert saved["reason"] == "done"
 
 
 def test_read_status_retries_short_sharing_conflict(tmp_path, monkeypatch):

@@ -60,7 +60,11 @@ def launch_pie64(
         )
         if "Error:" in result or "Exception" in result:
             raise RuntimeError("Android 拒绝带轨迹的启动")
-        _wait(8, "pie64_trace_capture")
+        try:
+            _wait(8, "pie64_trace_capture")
+        except BaseException:
+            logger.warning("启动轨迹等待被中断，临时轨迹保留在：{}", trace)
+            raise
         started_pid = pid()
         if not started_pid:
             raise RuntimeError(f"LoR 启动后退出，诊断轨迹保留在 {trace}")

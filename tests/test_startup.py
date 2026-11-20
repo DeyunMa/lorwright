@@ -95,24 +95,30 @@ def test_standard_device_launch_remains_standard(monkeypatch):
 
 def test_device_trace_mode_uses_shared_workflow(monkeypatch):
     calls = []
-    monkeypatch.setattr("lorwright.core.device.startup.launch_pie64", lambda *args: calls.append(args))
+    monkeypatch.setattr("lorwright.core.device.startup.launch_pie64", lambda *args, **kw: calls.append((args, kw)))
     device = AdbDevice(serial="127.0.0.1:5555", launch_mode="pie64_trace")
     device.launch(PACKAGE)
-    assert calls == [(device._adb, PACKAGE)]
+    assert calls == [((device._adb, PACKAGE), {"wait": None})]
 
 
-def test_launch_pie64_uses_injected_wait_and_propagates_stop():
+@pytest.mark.parametrize("cancel_phase", ["pie64_trace_capture", "pie64_startup_verify"])
+def test_launch_pie64_uses_injected_wait_and_propagates_stop(cancel_phase):
     runner = Runner()
     waits: list[tuple[float, str]] = []
 
-    def cancel_on_verify(seconds: float, reason: str) -> None:
+    def cancel_on_phase(seconds: float, reason: str) -> None:
         waits.append((seconds, reason))
-        if reason == "pie64_startup_verify":
+        if reason == cancel_phase:
             raise KeyboardInterrupt("stop requested")
 
     with pytest.raises(KeyboardInterrupt):
-        launch_pie64(runner, PACKAGE, wait=cancel_on_verify)
+        launch_pie64(runner, PACKAGE, wait=cancel_on_phase)
 
-    assert waits == [(8, "pie64_trace_capture"), (22, "pie64_startup_verify")]
+    expected_waits = (
+        [(8, "pie64_trace_capture")]
+        if cancel_phase == "pie64_trace_capture"
+        else [(8, "pie64_trace_capture"), (22, "pie64_startup_verify")]
+    )
+    assert waits == expected_waits
     assert ("shell", "am", "profile", "stop", PACKAGE) in runner.calls
     assert not any(call[:2] == ("shell", "rm") for call in runner.calls)

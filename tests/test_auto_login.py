@@ -106,6 +106,8 @@ def test_stop_before_input(monkeypatch):
 def test_login_timeout_does_not_retry(monkeypatch, after_submit):
     settings, frame, device, detector, normalizer = setup_login()
     frame.ts = 10.0
+    post_frame = Frame(image=frame.image, ts=40.5, capture_ms=0)
+    device.screencap.side_effect = [frame, frame, frame, post_frame]
     detector.detect.side_effect = [LoginScreen.FORM] * 3 + [after_submit]
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)
     ticks = iter([10.0, 10.0, 10.0, 10.0, 10.0, 41.0, 41.0])

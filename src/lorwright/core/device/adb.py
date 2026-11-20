@@ -226,10 +226,7 @@ class AdbDevice:
         if self.launch_mode == "pie64_trace":
             from lorwright.core.device.startup import launch_pie64
 
-            if self._wait is not None:
-                launch_pie64(self._adb, package, wait=self._wait)
-            else:
-                launch_pie64(self._adb, package)
+            launch_pie64(self._adb, package, wait=self._wait)
             return
         self._run(
             "shell", "monkey", "-p", package,

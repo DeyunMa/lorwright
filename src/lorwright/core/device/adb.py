@@ -79,10 +79,14 @@ class AdbRunner:
         except FileNotFoundError as e:
             raise RuntimeError(f"找不到 adb：{self.adb}") from e
         except subprocess.TimeoutExpired as e:
+            self._connected = False
             # 仅记录 args，不记录 stdin，避免 text_secret 凭据泄漏。
             raise AdbTimeout(f"adb 超时（{self.timeout}s）：{' '.join(args)}") from e
         if p.returncode != 0:
             err = p.stderr.decode("utf-8", "ignore").strip()
+            err_lower = err.lower()
+            if any(marker in err_lower for marker in ("not found", "offline", "closed")):
+                self._connected = False
             raise RuntimeError(f"adb 失败（{p.returncode}）：{' '.join(args)} → {err}")
         return p.stdout if binary else p.stdout.decode("utf-8", "ignore")
 

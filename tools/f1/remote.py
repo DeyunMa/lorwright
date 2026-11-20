@@ -60,7 +60,14 @@ def adb_prelude() -> str:
     return f"$adb = '{ADB}'\n& $adb connect {SERIAL} 2>&1 | Out-Null\n"
 
 
+def _validate_run_id(run_id: str) -> str:
+    if not run_id or any(not (c.isalnum() or c in "._-") for c in run_id):
+        raise ValueError(f"非法 run_id：{run_id!r}")
+    return run_id
+
+
 def status_body(run_id: str, wait_s: int = 0) -> str:
+    _validate_run_id(run_id)
     wait = f" --wait {wait_s}" if wait_s else ""
     return f"Set-Location '{REPO}'\n& '{LORWRIGHT}' sessions status {run_id}{wait} --json"
 
@@ -114,7 +121,10 @@ def summary(status: dict) -> str:
                                      status.get("reason"), details.get("scene"), status.get("seq")))
 
 
-def wait(host: str, run_id: str, max_s: float, *, clock=time.monotonic) -> int:
+def wait(
+    host: str, run_id: str, max_s: float, *, clock=time.monotonic, sleeper=time.sleep,
+) -> int:
+    _validate_run_id(run_id)
     deadline = clock() + max_s
     while clock() < deadline:
         try:
@@ -125,6 +135,9 @@ def wait(host: str, run_id: str, max_s: float, *, clock=time.monotonic) -> int:
         stamp = datetime.now().strftime("%H:%M:%S")
         if status is None:
             print(f"{stamp} ERR ssh/status unavailable", flush=True)
+            remaining = deadline - clock()
+            if remaining > 0:
+                sleeper(min(5.0, remaining))
             continue
         print(f"{stamp} {summary(status)}", flush=True)
         if status.get("status") in TERMINAL:

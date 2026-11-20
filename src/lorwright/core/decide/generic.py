@@ -243,7 +243,7 @@ def plan_blocks(my_units, attackers):
     # 攻/血任一未识别就退回贪心：穷举评分里的“阵亡价值/残留威胁”
     # 会把 -1 当成真实数值，算出负损失或零威胁。
     if any(u.attack < 0 or u.health < 0 for u in attackers) or any(
-        u.health < 0 for u in my_units
+        u.attack < 0 or u.health < 0 for u in my_units
     ):
         return _greedy_blocks(my_units, attackers)
 
@@ -363,7 +363,10 @@ class AttackWhenTokenPolicy(Policy):
             return Action(type=ActionType.CONFIRM)
         if not state.has_attack_token:
             return None
-        attackers = tuple(i for i, unit in enumerate(state.my_units) if unit.can_attack)
+        attackers = tuple(
+            i for i, unit in enumerate(state.my_units)
+            if unit.can_attack and not unit.stunned
+        )
         if not attackers:
             return None
         return Action(type=ActionType.ATTACK, raw={"attackers": attackers})

@@ -181,7 +181,7 @@ def test_restart_reuses_login_permission_then_verifies_game(scene, monkeypatch, 
     monkeypatch.setattr(reconnect, "prepare_login", prepare)
     reason = reconnect._wait_after_restart(settings, device, capture, auto_login=auto_login)
     assert reason == (None if auto_login else "login_required")
-    prepare.assert_called_once_with(settings, device, auto_login=auto_login)
+    prepare.assert_called_once_with(settings, device, auto_login=auto_login, allow_restart=False)
 
 
 @pytest.mark.parametrize("context", ["battle", "adventure", "reward"])

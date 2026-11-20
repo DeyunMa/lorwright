@@ -21,7 +21,7 @@
 | 牌数 | **18 张**（9 种 × 2） |
 | 类型 | PvE 英雄之路（Path of Champions） |
 | 游戏版本 | `live_7-10-13`（实测） |
-| 账号 | Riot ID `mdy114514`，区域 jpn/apac |
+| 账号 | 个人测试账号（凭据见本地 `.env`），区域 jpn/apac |
 | 包名 | `com.riotgames.legendsofruneterra` |
 
 ---

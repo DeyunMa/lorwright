@@ -108,7 +108,11 @@ def pick_card_reward(
     highest = max(QUALITY_RANK[c.card.quality] for c in candidates)
     best = [c for c in candidates if QUALITY_RANK[c.card.quality] == highest]
     # 只有最高品质并列时费用才影响选择。附带道具可能改变费用。
-    if len(best) > 1 and any(c.card.cost is None or not c.cost_certain for c in best):
+    if len(best) > 1 and any(
+        c.card.cost is None
+        or not (c.cost_certain or (not c.item_name and c.preview_cost_verified))
+        for c in best
+    ):
         return None
     chosen = min(best, key=lambda c: (c.card.cost if c.card.cost is not None else 1_000,
                                       c.card.name))

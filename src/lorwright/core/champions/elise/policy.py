@@ -265,7 +265,7 @@ class SpiderAggroPolicy(Policy):
         #
         # 快攻要的是持续施压和触发次数，不是每回合算一次最优交换。所以这里
         # 跳过求解：能攻击的全部参战。攻击力还没识别（-1）时也一样。
-        attackers = [i for i, u in enumerate(state.my_units) if u.can_attack]
+        attackers = [i for i, u in enumerate(state.my_units) if u.can_attack and not u.stunned]
         if not attackers:
             return None
         return Action(

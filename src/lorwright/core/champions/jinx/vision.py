@@ -215,17 +215,17 @@ def _hero_template():
     orb = cv2.ORB_create(nfeatures=_HERO_NFEATURES)
     template = cv2.imread(str(_HERO_TEMPLATE))
     if template is None:
-        return None, None, None
+        return None, None, None, None
     keypoints, descriptors = orb.detectAndCompute(
         cv2.cvtColor(template, cv2.COLOR_BGR2GRAY), None
     )
-    return orb, keypoints, descriptors
+    return orb, keypoints, descriptors, template.shape[:2]
 
 
 def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     """地图上的 Jinx 头像：ORB 匹配模板，返回头像中心。"""
-    orb, template_keypoints, template_descriptors = _hero_template()
-    if template_descriptors is None:
+    orb, template_keypoints, template_descriptors, template_shape = _hero_template()
+    if template_descriptors is None or template_shape is None:
         return None
     # 左下固定状态栏也有 Jinx 头像；只搜索地图区域，不能把它当当前位置。
     x0, y0 = 240, 0
@@ -235,11 +235,14 @@ def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
     keypoints, descriptors = orb.detectAndCompute(
         cv2.cvtColor(map_area, cv2.COLOR_BGR2GRAY), None
     )
-    if descriptors is None:
+    if descriptors is None or len(descriptors) < 2:
         return None
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
     pairs = matcher.knnMatch(template_descriptors, descriptors, k=2)
-    good = [first for first, second in pairs if first.distance < _RATIO * second.distance]
+    good = [
+        pair[0] for pair in pairs
+        if len(pair) == 2 and pair[0].distance < _RATIO * pair[1].distance
+    ]
     if len(good) < 12:
         return None
     # 模板左上角 = 匹配点平移的中位数；中心再加模板半宽/半高。
@@ -247,10 +250,7 @@ def recognize_hero(image: np.ndarray) -> tuple[int, int] | None:
                     for g in good])
     dy = np.median([keypoints[g.trainIdx].pt[1] - template_keypoints[g.queryIdx].pt[1]
                     for g in good])
-    template = cv2.imread(str(_HERO_TEMPLATE))
-    if template is None:
-        return None
-    height, width = template.shape[:2]
+    height, width = template_shape
     return (int(round(x0 + dx + width / 2)), int(round(y0 + dy + height / 2)))
 
 

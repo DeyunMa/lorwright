@@ -252,6 +252,7 @@ class AdventureLoop:
                 pending_image = self._handle_revive(image, normalized, revive)
                 if pending_image is None:
                     return
+                self._awaiting_battle_reward = False
                 continue
             if self._is_card_reward(image):
                 self._scene("card_reward")
@@ -269,7 +270,12 @@ class AdventureLoop:
                     if design is not None and adventure_settlement(design[0]) is not None:
                         self._complete_adventure(image)
                         return
-                    if design is not None and is_task_reward(design[0]):
+                    if design is not None and (
+                        is_task_reward(design[0])
+                        or service_error_confirm(design[0]) is not None
+                        or reward_timeout_continue(design[0]) is not None
+                        or find_revive_button(design[0]) is not None
+                    ):
                         pending_image = image
                         break
                     post_battle_ui = self.engine.parser.ui.detect(
@@ -277,7 +283,9 @@ class AdventureLoop:
                     )
                     if post_battle_ui is UIState.BATTLE_END:
                         break
-                    if self._is_hero_item_reward(image):
+                    if (self._is_hero_item_reward(image)
+                            or is_power_screen(image)
+                            or self._is_support(image)):
                         break
                     if self._is_card_reward(image):
                         pending_image = image
@@ -315,6 +323,7 @@ class AdventureLoop:
                 self._scene("support")
                 if not self._handle_support(image):
                     return
+                self._awaiting_battle_reward = False
                 continue
             if self._is_hero_item_reward(image):
                 self._scene("hero_item_reward")
@@ -400,6 +409,7 @@ class AdventureLoop:
                 pending_image = self._handle_power(image)
                 if pending_image is None:
                     return
+                self._awaiting_battle_reward = False
                 continue
             if is_battle_detail(image):
                 if not self._handle_node_panel(image):
@@ -826,26 +836,19 @@ class AdventureLoop:
         if button is None:
             self._snapshot(image, tag="adventure_victory_continue_missing")
             return
-        deadline = time.monotonic() + 12
         fresh = self._frame()
         normalized = self._reward_design(fresh)
         fresh_button = find_continue_button(fresh)
         if (normalized is None or adventure_settlement(normalized[0]) != stage
                 or fresh_button is None
-                or any(abs(a - b) > 12 for a, b in zip(button.center, fresh_button.center, strict=True))
-                or time.monotonic() >= deadline):
+                or any(abs(a - b) > 12 for a, b in zip(button.center, fresh_button.center, strict=True))):
             self._snapshot(fresh, tag="adventure_victory_continue_unverified")
             return
         self._tap(*fresh_button.center)
         after = fresh
-        for _ in range(6):
-            if time.monotonic() >= deadline:
-                break
-            self._wait(min(2, deadline - time.monotonic()),
-                       reason="adventure_victory_transition", wait_s=12)
-            after = self._frame()
+        for after in self._transition_frames("adventure_victory_transition"):
             normalized = self._reward_design(after)
-            if normalized is None or time.monotonic() >= deadline:
+            if normalized is None:
                 continue
             design = normalized[0]
             next_stage = adventure_settlement(design)
@@ -1435,9 +1438,19 @@ class AdventureLoop:
             return self._handle_healer(image)
         if self._is_support(image):
             return self._handle_support(image)
+        if self._is_hero_item_reward(image):
+            return self._handle_hero_item_reward(image) is not None
         if self._is_card_reward(image):
             return self._handle_card_reward(image) is not None
-        ui = self.engine.parser.ui.detect(image)
+        design = self._reward_design(image)
+        if design is not None and (
+            service_error_confirm(design[0]) is not None
+            or reward_timeout_continue(design[0]) is not None
+            or is_task_reward(design[0])
+            or adventure_settlement(design[0]) is not None
+        ):
+            return True
+        ui = self.engine.parser.ui.detect(design[0] if design is not None else image)
         if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
             return True  # 有些节点直接进战斗
         if is_power_screen(image):
@@ -1487,9 +1500,19 @@ class AdventureLoop:
                     return self._handle_healer(image)
                 if self._is_support(image):
                     return self._handle_support(image)
+                if self._is_hero_item_reward(image):
+                    return self._handle_hero_item_reward(image) is not None
                 if self._is_card_reward(image):
                     return self._handle_card_reward(image) is not None
-                ui = self.engine.parser.ui.detect(image)
+                design = self._reward_design(image)
+                if design is not None and (
+                    service_error_confirm(design[0]) is not None
+                    or reward_timeout_continue(design[0]) is not None
+                    or is_task_reward(design[0])
+                    or adventure_settlement(design[0]) is not None
+                ):
+                    return True
+                ui = self.engine.parser.ui.detect(design[0] if design is not None else image)
                 if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
                     return True
                 if is_power_screen(image):

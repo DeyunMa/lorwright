@@ -63,7 +63,16 @@ def find_one(
 
 
 def exists(frame: np.ndarray, template: np.ndarray, threshold: float = 0.85) -> bool:
-    return find_one(frame, template, threshold) is not None
+    if float(template.std()) < 1e-6:
+        return False
+    fh, fw = frame.shape[:2]
+    th, tw = template.shape[:2]
+    if th > fh or tw > fw:
+        return False
+    res = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
+    np.nan_to_num(res, copy=False, nan=-1.0, posinf=-1.0, neginf=-1.0)
+    _, max_val, _, _ = cv2.minMaxLoc(res)
+    return float(max_val) >= threshold
 
 
 def _iou(a: Rect, b: Rect) -> float:

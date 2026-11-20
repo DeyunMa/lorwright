@@ -152,6 +152,29 @@ def process_alive(pid: int | None) -> bool:
         return True
 
 
+def _compute_health(status: dict, now: float, *, alive: bool) -> tuple[str, float, float]:
+    age = max(0.0, now - status["heartbeat_at"])
+    progress_age = max(0.0, now - status["last_progress_at"])
+    deadline = status.get("wait_deadline")
+    if status["status"] in TERMINAL:
+        health = status["status"]
+    elif status["status"] == "starting" and status.get("pid") is None and age <= 5.0:
+        health = "starting"
+    elif not alive:
+        health = "unresponsive"
+    elif age > max(5.0, status["heartbeat_s"] * 3):
+        health = "unresponsive"
+    elif status["status"] == "starting":
+        health = "starting"
+    elif deadline is not None and now < deadline:
+        health = "waiting"
+    elif deadline is not None or progress_age >= status["stall_timeout_s"]:
+        health = "stalled"
+    else:
+        health = "running"
+    return health, age, progress_age
+
+
 def read_status(root: str | Path | None, run_id: str | None = None) -> dict:
     base = runs_root(root)
     if run_id is None:
@@ -167,28 +190,17 @@ def read_status(root: str | Path | None, run_id: str | None = None) -> dict:
     if status.get("pid") is None and process_path.exists():
         status["pid"] = _read_json_retry(process_path)["pid"]
     now = time.time()
-    age = max(0.0, now - status["heartbeat_at"])
-    progress_age = max(0.0, now - status["last_progress_at"])
-    deadline = status.get("wait_deadline")
+    alive = True
+    if status["status"] not in TERMINAL and not (
+        status["status"] == "starting" and status.get("pid") is None
+        and max(0.0, now - status["heartbeat_at"]) <= 5.0
+    ):
+        alive = process_alive(status.get("pid"))
+    health, age, progress_age = _compute_health(status, now, alive=alive)
     status.update(heartbeat_age_s=age, last_progress_age_s=progress_age)
-    if status["status"] in TERMINAL:
-        health = status["status"]
-    elif status["status"] == "starting" and status.get("pid") is None and age <= 5.0:
-        health = "starting"
-    elif not process_alive(status.get("pid")):
-        health = "unresponsive"
+    if not alive and status["status"] not in TERMINAL:
         status.update(status="failed", reason="process_exited_without_terminal",
                       message="工作进程已退出且没有写入终态，请查看启动日志和事件")
-    elif age > max(5.0, status["heartbeat_s"] * 3):
-        health = "unresponsive"
-    elif status["status"] == "starting":
-        health = "starting"
-    elif deadline is not None and now < deadline:
-        health = "waiting"
-    elif deadline is not None or progress_age >= status["stall_timeout_s"]:
-        health = "stalled"
-    else:
-        health = "running"
     status["health"] = health
     return status
 
@@ -375,6 +387,8 @@ class RunSession:
             if progress:
                 self._status["last_progress_at"] = now
                 self._wait_key = self._wait_deadline = None
+                for stale_key in ("missing_readings", "recognition_diagnostic", "error", "error_type"):
+                    self._status["details"].pop(stale_key, None)
             if wait_s is not None and self._wait_key != (phase, reason):
                 self._wait_key = (phase, reason)
                 self._wait_deadline = now + wait_s
@@ -426,13 +440,14 @@ class RunSession:
                     return
                 previous = self._status["heartbeat_at"]
                 try:
-                    self._status["heartbeat_at"] = time.time()
+                    now = time.time()
+                    self._status["heartbeat_at"] = now
                     try:
                         self._persist()
                     except OSError:
                         self._status["heartbeat_at"] = previous
                         raise
-                    health = read_status(self.root, self.run_id)["health"]
+                    health, _, _ = _compute_health(self._status, now, alive=True)
                     if health != self._reported_health:
                         self.event("health", health=health)
                         self._reported_health = health

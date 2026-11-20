@@ -7,7 +7,11 @@ import time
 from lorwright.core.loop.bootstrap import prepare_login
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import UIState
-from lorwright.core.perceive.adventure_scene import find_home_adventure_entry, is_map
+from lorwright.core.perceive.adventure_scene import (
+    find_home_adventure_entry,
+    find_resume_adventure_button,
+    is_map,
+)
 from lorwright.core.perceive.login import LoginDetector, LoginScreen
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.reconnect import ReconnectDetector
@@ -38,7 +42,7 @@ class _ReconnectCapture:
     def __init__(self, settings, device):
         self.settings = settings
         self.device = device
-        self.normalizer = Normalizer((1920, 1080))
+        self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self.detector = ReconnectDetector()
         self.detector.load()
 
@@ -97,7 +101,9 @@ def _wait_after_restart(settings, device, capture, *, auto_login):
                 if login_attempted:
                     return "login_required"
                 login_attempted = True
-                result = prepare_login(settings, device, auto_login=auto_login)
+                result = prepare_login(
+                    settings, device, auto_login=auto_login, allow_restart=False,
+                )
                 if result.stop_reason:
                     return result.stop_reason
                 # 表单消失只表示开始转场，继续用新帧核验已知游戏场景。
@@ -106,7 +112,9 @@ def _wait_after_restart(settings, device, capture, *, auto_login):
             battle_ready = (battle_ui is not UIState.UNKNOWN
                             and (battle_ui is not UIState.MY_TURN_IDLE
                                  or ui.action_prompt(image) is not None))
-            if (find_home_adventure_entry(image) is not None or is_map(image) or battle_ready):
+            if (find_home_adventure_entry(image) is not None
+                    or find_resume_adventure_button(image) is not None
+                    or is_map(image) or battle_ready):
                 report("verified", "reconnect_restart_verified", progress=True)
                 record_event("client_restart_verified")
                 return None

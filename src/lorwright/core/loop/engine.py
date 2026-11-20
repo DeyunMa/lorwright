@@ -254,7 +254,7 @@ class Engine:
                     emit(
                         tick=ticks, ui=state.ui_state.value, layer="stale",
                         action="no_op", clicks=0, stuck=False,
-                        ms=round((time.time() - t0) * 1000),
+                        ms=round((time.monotonic() - t0) * 1000),
                     )
                     if result_transition_deadline is not None:
                         if time.monotonic() >= result_transition_deadline:
@@ -659,7 +659,7 @@ class Engine:
             return [] if state.ui_state is UIState.OPTIONAL_CHOICE else ["optional_choice"]
         if action.type is ActionType.ATTACK:
             if (state.ui_state is not UIState.MY_TURN_IDLE or not state.has_attack_token
-                    or not any(unit.can_attack for unit in state.my_units)):
+                    or not any(unit.can_attack and not unit.stunned for unit in state.my_units)):
                 return ["attack_priority"]
         if action.type in (ActionType.END_TURN, ActionType.PASS):
             if state.ui_state is not UIState.MY_TURN_IDLE:
@@ -684,10 +684,12 @@ class Engine:
             return ["spell_mana"]
         if not state.has_fresh_readings("mana"):
             return ["mana"]
-        available = state.mana + (
-            state.spell_mana if state.has_fresh_readings("spell_mana")
-            and state.spell_mana is not None else 0
+        spell_available = (
+            0 if action.raw.get("unit_card")
+            else (state.spell_mana if state.has_fresh_readings("spell_mana")
+                  and state.spell_mana is not None else 0)
         )
+        available = state.mana + spell_available
         return [] if card.cost <= available else ["affordable_cost"]
 
     def _report_wait(self, reason: str, wait_s: float, **details) -> float:

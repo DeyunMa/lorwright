@@ -303,6 +303,9 @@ def login(
                 for field, value in ((layout.login_username, user), (layout.login_password, pwd)):
                     dev.tap(*field.center)
                     time.sleep(0.6)
+                    if hasattr(dev, "clear_text"):
+                        dev.clear_text()
+                        time.sleep(0.2)
                     input_credential(value)
                     time.sleep(0.4)
             except Exception:

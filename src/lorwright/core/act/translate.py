@@ -72,7 +72,7 @@ class ActionTranslator:
                 return None
             return ClickPlan(points=[tuple(p) for p in points], wait_ms=self.tap_wait_ms)
 
-        if action.type is ActionType.END_TURN:
+        if action.type in (ActionType.END_TURN, ActionType.PASS):
             if not self.layout.end_turn:
                 return None
             return ClickPlan(
@@ -144,7 +144,7 @@ class ActionTranslator:
             if wanted:
                 attackers = [state.my_units[i] for i in wanted if i < len(state.my_units)]
             else:
-                attackers = [u for u in state.my_units if u.can_attack][:1]
+                attackers = [u for u in state.my_units if u.can_attack and not u.stunned][:1]
             if not attackers:
                 return None
             drags = tuple((u.rect.center, target.center) for u in attackers)

@@ -203,7 +203,8 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False,
             _save_frame(settings, frame, "login_transition_unverified")
     if auto_login and screen is LoginScreen.FORM and not transition_unverified:
         result = _auto_login(settings, device, frame, normalizer, detector)
-        report("bootstrap", result.stop_reason or "screen_ready", progress=True,
+        report("bootstrap", result.stop_reason or "screen_ready",
+               progress=result.stop_reason is None,
                login_screen=result.login_screen.value)
         return result
     result = BootstrapResult(frame=frame, login_screen=screen,

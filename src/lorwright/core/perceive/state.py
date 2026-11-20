@@ -56,8 +56,13 @@ class StateParser:
 
     def parse(self, image: np.ndarray) -> GameState:
         lay = self.layout
-        state = GameState(ui_state=self.ui.detect(image),
-                          continue_button=find_continue_button(image))
+        ui_state = self.ui.detect(image)
+        continue_button = (
+            find_continue_button(image)
+            if ui_state in (UIState.BATTLE_END, UIState.UNKNOWN)
+            else None
+        )
+        state = GameState(ui_state=ui_state, continue_button=continue_button)
         if state.ui_state is UIState.COMBAT_RESOLVING:
             state.action_prompt = self.ui.action_prompt(image)
         if state.ui_state is UIState.TARGETING and self.targeted_spell_recognizer is not None:
@@ -172,24 +177,23 @@ class StateParser:
         return state
 
     def _observe(self, name, image, rect, readable: bool, state: GameState) -> int | None:
+        target_image, target_rect = image, rect
         if readable and name == "mana" and rect is not None:
             # 普通法力是白字；令牌橙色特效不能作为同一行的额外数字。
             patch = image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w]
             if patch.ndim == 3:
                 spread = patch.max(axis=2).astype(np.int16) - patch.min(axis=2)
-                image = image.copy()
-                image[rect.y:rect.y + rect.h, rect.x:rect.x + rect.w] = np.where(
-                    (spread <= 70)[:, :, None], patch, 0,
-                )
-        if readable and name == "mana" and rect is not None and rect.h == 45:
+                target_image = np.where((spread <= 70)[:, :, None], patch, 0)
+                target_rect = Rect(0, 0, rect.w, rect.h)
+        if readable and name == "mana" and target_rect is not None and target_rect.h == 45:
             # The calibrated 1080p mana glyph is 30–31 pixels high.
             # Check the unscaled glyph before resizing can turn a fragment into a 0.
-            glyphs = segment_glyphs(image, rect)
+            glyphs = segment_glyphs(target_image, target_rect)
             hit = (self.digits.classify_sequence([glyph.image for glyph in glyphs])
                    if all(glyph.rect.h >= 25 for glyph in glyphs) else None)
             value = hit[0] if hit is not None else None
         else:
-            value = self._read(image, rect) if readable else None
+            value = self._read(target_image, target_rect) if readable else None
         previous = self._readings.get(name, Reading())
         reading = (Reading(value, 0) if value is not None else Reading(
             previous.value,

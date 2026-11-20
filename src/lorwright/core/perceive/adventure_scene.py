@@ -214,7 +214,7 @@ def _resume_nameplate_visible(gray: np.ndarray) -> bool:
     ink = plate >= 205
     columns = np.flatnonzero(ink.sum(axis=0) >= 2)
     groups = np.split(columns, np.flatnonzero(np.diff(columns) > 3) + 1)
-    if not 3 <= len(groups) <= 4:
+    if not 1 <= len(groups) <= 4:
         return False
     for group in groups:
         if not group.size or not 20 <= group[-1] - group[0] + 1 <= 34:

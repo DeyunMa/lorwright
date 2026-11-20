@@ -218,6 +218,8 @@ def build_ssh_command(host: str) -> list[str]:
         "ssh",
         "-o", "BatchMode=yes",
         "-o", "ConnectTimeout=10",
+        "-o", "ServerAliveInterval=10",
+        "-o", "ServerAliveCountMax=3",
         host,
         "powershell.exe",
         "-NoProfile",

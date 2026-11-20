@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -72,11 +73,21 @@ EMPTY_HAND_TEMPLATES = (Path("assets/ui/empty_hand_karma.png"),
 EMPTY_HAND_REGION = Rect(1420, 855, 500, 225)
 
 
+@lru_cache(maxsize=4)
+def _load_empty_hand_templates(paths: tuple[str, ...]) -> tuple[np.ndarray | None, ...]:
+    return tuple(cv2.imread(path) for path in paths)
+
+
+@lru_cache(maxsize=8)
+def _load_gray_template(path: str) -> np.ndarray | None:
+    return cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+
+
 def is_confirmed_empty(image: np.ndarray, region: Rect) -> bool:
     """匹配已知空手背景；未知棋盘或明显遮挡均保守返回 False。"""
     if image.shape[:2] != (1080, 1920) or region != EMPTY_HAND_REGION:
         return False
-    templates = [cv2.imread(str(path)) for path in EMPTY_HAND_TEMPLATES]
+    templates = _load_empty_hand_templates(tuple(str(path) for path in EMPTY_HAND_TEMPLATES))
     sample = image[region.y:region.y + region.h, region.x:region.x + region.w]
     if any(template is None or template.shape != sample.shape for template in templates):
         return False
@@ -99,6 +110,7 @@ class Badge:
     score: float
 
 
+@lru_cache(maxsize=8)
 def _ring_mask(size: int) -> np.ndarray:
     """只保留圆环的掩膜。圆环位置对得上就得分高，环内图案（数字）不参与。"""
     yy, xx = np.mgrid[0:size, 0:size]
@@ -113,7 +125,7 @@ def find_badges(
     threshold: float = BADGE_MIN_SCORE,
 ) -> list[Badge]:
     """在手牌区域里找费用徽章，按从左到右排序（= 手牌序号）。"""
-    tpl = cv2.imread(str(template), cv2.IMREAD_GRAYSCALE)
+    tpl = _load_gray_template(str(template))
     if tpl is None:
         return []
 
@@ -237,7 +249,7 @@ def find_badges_expanded(
     展开态必须单独一套模板：卡片放大后徽章 56px，收起态的 48px 模板完全
     匹配不上（实测最高 0.90，全是误报）。
     """
-    tpl = cv2.imread(str(template), cv2.IMREAD_GRAYSCALE)
+    tpl = _load_gray_template(str(template))
     if tpl is None:
         return []
 

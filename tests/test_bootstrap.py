@@ -91,10 +91,17 @@ def test_riot_login_unverified_transition_does_not_start_adventure(setup, monkey
     device.screencap.return_value.ts = time.time()
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.NONE]
     moments = iter([0, 0, bootstrap.LOGIN_FORM_WAIT_S + 1])
-    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments))
+    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments, bootstrap.LOGIN_FORM_WAIT_S + 1))
+    events, saved = [], []
+    monkeypatch.setattr(bootstrap, "record_event", lambda name, **payload: events.append((name, payload)))
+    monkeypatch.setattr(bootstrap.snapshot, "save_snapshot", lambda image, out_dir, tag: saved.append(tag))
+    settings.perception = SimpleNamespace(snapshot_dir="/tmp/unused")
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     assert result.stop_reason == "login_transition_unverified"
     device.tap.assert_called_once()
+    assert [name for name, _ in events] == ["login_form_wait"]
+    assert [screen for screen, _ in events[0][1]["screens"]] == ["none"]
+    assert saved == ["login_transition_first", "login_transition_unverified"]
 
 
 def test_riot_login_waits_for_slow_form(setup, monkeypatch):
@@ -106,8 +113,8 @@ def test_riot_login_waits_for_slow_form(setup, monkeypatch):
     settings.loop = SimpleNamespace(max_frame_age_s=2)
     device.screencap.return_value.ts = time.time()
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.NONE, LoginScreen.FORM]
-    moments = iter([0, 0, 15, 20])
-    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments))
+    moments = iter([0, 0, 0, 15, 15, 20])
+    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments, 20))
     monkeypatch.setattr(bootstrap.time, "sleep", lambda _: None)
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     assert result.stop_reason == "login_required"

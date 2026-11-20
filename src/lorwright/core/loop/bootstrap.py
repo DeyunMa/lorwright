@@ -19,7 +19,8 @@ from lorwright.core.perceive.adventure_scene import (
 from lorwright.core.perceive.login import LoginDetector, LoginScreen
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.ui_state import UIStateDetector
-from lorwright.core.runtime.session import StopRequested, checkpoint, report
+from lorwright.core.runtime.session import StopRequested, checkpoint, record_event, report
+from lorwright.core.util import snapshot
 
 LOGIN_FORM_WAIT_S = 30
 
@@ -161,13 +162,19 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
         report("bootstrap", "opening_riot_login")
         device.tap(*scale.to_device(*button.center))
         # Riot 登录网页在网络慢时会转圈十几秒；只等待，按钮不重复点击。
-        deadline = time.monotonic() + LOGIN_FORM_WAIT_S
+        started = time.monotonic()
+        deadline = started + LOGIN_FORM_WAIT_S
         report("bootstrap", "waiting_login_form", wait_s=LOGIN_FORM_WAIT_S)
+        seen = []
+        first = None
         while True:
             checkpoint()
             frame = device.screencap()
+            first = first or frame
             image, _ = normalizer.fit(frame.image)
             screen = detector.detect(image)
+            if not seen or seen[-1][0] != screen.value:
+                seen.append((screen.value, round(time.monotonic() - started, 1)))
             if screen is LoginScreen.FORM:
                 break
             remaining = deadline - time.monotonic()
@@ -175,6 +182,11 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
                 transition_unverified = True
                 break
             time.sleep(min(0.5, remaining))
+        record_event("login_form_wait", screens=seen)
+        if transition_unverified:
+            # 只读诊断：点击后的首帧与末帧，便于区分点击未生效、网页失败返回等情况。
+            _save_frame(settings, first, "login_transition_first")
+            _save_frame(settings, frame, "login_transition_unverified")
     if auto_login and screen is LoginScreen.FORM and not transition_unverified:
         result = _auto_login(settings, device, frame, normalizer, detector)
         report("bootstrap", result.stop_reason or "screen_ready", progress=True,
@@ -185,6 +197,12 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
     report("bootstrap", result.stop_reason or "screen_ready", progress=not transition_unverified,
            login_screen=screen.value)
     return result
+
+
+def _save_frame(settings, frame, tag):
+    perception = getattr(settings, "perception", None)
+    if frame is not None and perception is not None:
+        snapshot.save_snapshot(frame.image, perception.snapshot_dir, tag=tag)
 
 
 def _auto_login(settings, device, frame, normalizer, detector) -> BootstrapResult:

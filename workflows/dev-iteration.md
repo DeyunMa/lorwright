@@ -40,7 +40,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 实现者需要的事实散在现有文档里，这里只给入口：
 - 连 f1：`ssh f1`（Mac 的 `~/.ssh/config` 已配置），工作区 `C:\Code\lorwright`，程序 `C:\Code\lorwright\.venv\Scripts\lorwright.exe`。每条 ssh 命令结束后 adb daemon 会被回收，见 `docs/environment.md` §5。
 - 会话命令、状态字段、停止原因：`docs/cli.md`。
-- 看停止截图：从 f1 的 `logs/runs/<run_id>/snapshots/` 用 `scp` 拷到 Mac 再读图。
+- 看停止截图：从 f1 的 `logs/runs/<run_id>/snapshots/` 用 `scp` 拷到 Mac 再读图（已实测 Windows OpenSSH 路径写法：`scp -r 'f1:C:/Code/lorwright/logs/runs/<run_id>/snapshots' logs/f1-pulls/<run_id>/`）。
 - 把停止截图做成回归素材：按 `docs/offline-validation.md` 和 `docs/layout.md` 放入库外测试数据并标注。
 - f1 同步与运维边界：`tools/f1/README.md`。
 

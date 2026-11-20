@@ -1289,20 +1289,21 @@ def test_current_diamond_reentry_requires_glow():
     assert current_unfinished_node(dimmed, hero) is None
 
 
-def _boss_crest_full_map() -> np.ndarray:
-    # 20261120T091043 治疗后 map_no_next 停止实拍；不在 491dc94 基线内，缺图时跳过。
-    image = cv2.imread(str(FIXTURES / "f1-boss-crest-map-20261120.png"))
+def _boss_crest_full_map(name="f1-boss-crest-map-20261120.png") -> np.ndarray:
+    # 20261120T091043 / 093328 治疗后 map_no_next 停止实拍；不在 491dc94 基线内，缺图时跳过。
+    image = cv2.imread(str(FIXTURES / name))
     if image is None:
-        pytest.skip("缺少 f1-boss-crest-map-20261120.png")
+        pytest.skip(f"缺少 {name}")
     return image
 
 
-def test_full_boss_crest_is_not_a_second_hero_and_is_reachable():
-    image = _boss_crest_full_map()
+@pytest.mark.parametrize("name", ["f1-boss-crest-map-20261120.png", "f1-boss-crest-dim-glow-20261120.png"])
+def test_full_boss_crest_is_not_a_second_hero_and_is_reachable(name):
+    image = _boss_crest_full_map(name)
     hero = locate_map_hero(image)
     assert hero is not None and math.dist(hero.center, (1250, 453)) <= 8
     nodes = reachable_nodes(image, hero=hero)
-    assert len(nodes) == 1 and math.dist(nodes[0].center, (1266, 189)) <= 8
+    assert len(nodes) == 1 and math.dist(nodes[0].center, (1266, 188)) <= 8
 
 
 def test_full_boss_crest_requires_the_lit_route():

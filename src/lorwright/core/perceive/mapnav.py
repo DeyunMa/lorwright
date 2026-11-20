@@ -1050,9 +1050,14 @@ def _lit_unfinished_ring(
     annulus = (distance >= inner_radius ** 2) & (distance <= extent ** 2)
     blue, green, red = (region[:, :, i].astype(np.int16) for i in range(3))
     cyan = (blue > 165) & (green > 145) & (blue - red > 35) & (green - red > 20)
+    # 首领翼章外的电光会脉动，实拍相邻两帧覆盖率 0.151/0.125；只需确认仍在发光。
+    if boss_crest:
+        min_cyan, min_quadrant = min(min_cyan, 0.08), 0.02
+    else:
+        min_quadrant = 0.05
     if not annulus.any() or float(cyan[annulus].mean()) < min_cyan:
         return False
-    if any(not (annulus & quadrant).any() or float(cyan[annulus & quadrant].mean()) < 0.05
+    if any(not (annulus & quadrant).any() or float(cyan[annulus & quadrant].mean()) < min_quadrant
            for quadrant in (
                (xx < 0) & (yy < 0), (xx >= 0) & (yy < 0),
                (xx < 0) & (yy >= 0), (xx >= 0) & (yy >= 0),

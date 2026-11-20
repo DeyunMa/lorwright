@@ -20,6 +20,7 @@ from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import Rect, UIState
 from lorwright.core.perceive.adventure_scene import (
     find_home_adventure_entry,
+    is_battle_loading,
     is_globe_loading,
     is_loading_screen,
     is_portal_loading,
@@ -1786,6 +1787,38 @@ def test_node_transitions_wait_for_recognized_scenes_without_repeated_taps(adven
     loop.run(max_nodes=2)
     assert device.taps == [(982, 334), (817, 485), (1581, 1010)]
     assert engine.run_calls == [400]
+    assert saved == []
+
+
+@pytest.mark.parametrize("name", ["1080p_battle_loading_20261114.png", "f1-battle-loading-20261120.png"])
+def test_battle_loading_screen_is_recognized(name):
+    image = cv2.imread(str(FIXTURES.parent / "screens" / name))
+    if image is None:
+        pytest.skip(f"missing fixture {name}")
+    assert is_battle_loading(image) and is_loading_screen(image)
+    covered = image.copy()
+    covered[40:100, 40:180] = 0
+    assert not is_battle_loading(covered)
+
+
+def test_node_transition_waits_through_slow_battle_loading(adventure, monkeypatch):
+    # 20261120T055622 的 VS 载入页在 24 秒窗口末仍在；载入持续与换牌后继为合成时序。
+    loading = cv2.imread(str(FIXTURES.parent / "screens" / "f1-battle-loading-20261120.png"))
+    mulligan = cv2.imread(str(FIXTURES.parent / "screens" / "1080p_jinx_mulligan_20261114.png"))
+    if loading is None or mulligan is None:
+        pytest.skip("missing battle loading fixtures")
+    loop, device, engine, saved, _ = adventure(
+        [_img("1080p_battle_detail.png"), *([loading] * 40), mulligan, mulligan], [],
+    )
+    engine.parser.ui = UIStateDetector(
+        threshold=loop.settings.perception.match_threshold,
+        action_button=loop.settings.layout.to_layout().end_turn,
+    )
+    engine.parser.ui.load()
+    clock = _clocked(loop, device, monkeypatch, 0.5)
+    assert loop._handle_node_panel()
+    assert clock[0] > 24
+    assert device.taps == [(1581, 1010)]
     assert saved == []
 
 

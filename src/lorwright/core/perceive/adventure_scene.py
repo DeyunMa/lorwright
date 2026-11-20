@@ -76,9 +76,29 @@ def is_portal_loading(image: np.ndarray) -> bool:
     return float(np.percentile(hsv[880:1080, 500:1420, 2], 99.5)) < 180
 
 
+@cache
+def _battle_loading_label() -> np.ndarray | None:
+    template = cv2.imread(str(_ASSETS / "battle_loading_label.png"), cv2.IMREAD_GRAYSCALE)
+    return None if template is None else _high_pass(template)
+
+
+def _high_pass(gray: np.ndarray) -> np.ndarray:
+    gray = gray.astype(np.float32)
+    return gray - cv2.GaussianBlur(gray, (0, 0), 3)
+
+
+def is_battle_loading(image: np.ndarray) -> bool:
+    """战斗前 VS 载入页：左上角固定「載入中」文字；背景插画随对手变化，不参与判断。"""
+    template = _battle_loading_label()
+    if template is None or image.shape != (1080, 1920, 3):
+        return False
+    region = _high_pass(cv2.cvtColor(image[20:120, 20:220], cv2.COLOR_BGR2GRAY))
+    return float(cv2.matchTemplate(region, template, cv2.TM_CCOEFF_NORMED).max()) >= 0.8
+
+
 def is_loading_screen(image: np.ndarray) -> bool:
     """已采样的冒险载入画面；只用于延长有界观察，不授权输入。"""
-    return is_globe_loading(image) or is_portal_loading(image)
+    return is_globe_loading(image) or is_portal_loading(image) or is_battle_loading(image)
 
 
 def service_error_confirm(image: np.ndarray) -> Rect | None:

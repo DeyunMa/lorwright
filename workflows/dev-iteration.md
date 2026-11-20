@@ -32,7 +32,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 
 ## 结束
 
-- 目标中所有冒险都已验收：写 brief，更新 `docs/status.md` 并提交，用 `update_goal` 标记完成。
+- 目标中所有冒险都达到目标写明的完成级别（默认「打完」，见「已定」）：写 brief，改变验收结论时更新 `docs/status.md` 并提交，用 `update_goal` 标记完成。
 - 命中停止条件：写 brief，用 `update_goal` 标记受阻。
 
 ## 环境入口
@@ -87,7 +87,7 @@ herdr pane run "$W" "python3 tools/goal/watch.py $HERDR_PANE_ID"
 
 2026-11-19 实测：一个 55 轮的测试 goal 在第 50 轮暂停后，看守自动 resume 一次，goal 跑到 `Goal complete` 后看守自行退出。2026-11-20 goal-jinx 实跑中，旧版看守因 67 列窄 pane 截断底栏误退出一次，另有两次所在 pane 被外部关闭而静默消失，于是有了下面两条规则。
 
-**看守存活检查**：goal 每轮开始时用 `ps -p "$(cat logs/goals/watch-${HERDR_PANE_ID//:/-}.lock)"` 检查锁文件里的 PID 是否还活着；不在就按上面的命令重启（单实例锁保证不会起两个），并把新 PID 记进账本。
+**看守存活检查**：goal 每轮开始时用 `ps -p "$(cat logs/goals/watch-${HERDR_PANE_ID//:/-}.lock)"` 检查锁文件里的 PID 是否还活着；不在就按上面的命令重启（单实例锁保证不会起两个），并把新 PID 记进账本。**例外**：存在 `logs/goals/watch-<pane>.off` 时表示用户有意停用，不重启。用户要停看守时就创建这个文件，看守在一个读取周期内自行退出；删掉文件即恢复。
 
 **看守归属**：看守 pane 由启动它的 goal 负责。其他 agent 结束自己的监测时不得关闭看守 pane；第五层 `improve` 发现看守消失时可以重启它，但不关闭它。
 
@@ -100,82 +100,17 @@ goal 运行期间独占 Mac 主检出目录的 `main` 和 f1 设备锁。启动�
 运行期间，除第四层自己外，任何 agent 都不向 `main` 合入或推送：要合入的改动放在分支或独立 worktree，等第四层结束、受阻或用户暂停它之后再合。2026-11-20 运行期间外部合入了运行时代码和规格改动，结果账本把别人的合入记成了 goal 的修复，规格改动 goal 也没有读到。
 用户会在启动时把 Mac 和 f1 都交给 goal。
 
-## 可选第五层：外层记录与收口优化（`improve`）
+## 可选第五层与模型
 
-默认情况下，用户直接启动 Devin `/goal` 只运行第四层循环，没有第五层。
-
-第五层（`improve`）由用户人工按需触发（例如通过外层 Agent 同时拉起第四层 `main` 与第五层 `improve`），采用两阶段分工，不破坏第四层的单写者独占前提：
-
-- **第四层运行期（只读记录者）**：`improve` 只读观察第四层运行与账本，记录暴露出的规格漏洞、工具缺陷、重复脚手架和架构债；不修改仓库文件、不打断第四层推进（仅在看守进程意外退出等 1 级阻塞时做最小外部兜底）。
-- **第四层结束或受阻后（收口优化回合）**：第四层释放工作区后，`improve` 接管 `main` 集中做一轮收口优化（修复记录项、跑回归、提交推送），让下一轮 `/goal` 站在更稳的底座上起跑。
-
-**启动第五层**：新开一个**干净的** Devin 会话做 `improve`，不要复用长上下文的旧会话：唤醒器每 30 分钟就让它完整跑一轮，长上下文会让每一轮都很贵。`improve` 第一轮先确认第四层 goal 所在的 pane（`herdr agent list`），再用 herdr 在自己下方开一个 pane 运行唤醒器 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
-
-```bash
-P=$(herdr pane split --current --direction down --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
-herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HERDR_PANE_ID"
-```
-
-唤醒器每 60 秒读一次 goal 的画面，经 `herdr agent prompt` 给 `improve` 发两类消息，每条都会让 `improve` 完整跑一轮：
-- `[improve-tick]`：默认每 1800 秒（30 分钟，`--tick-interval` 可调）一次。`improve` 按运行期规则只读检查，把观察追加到 `logs/improve/notes.md`；
-- `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，也不是 50 轮暂停），或 goal 的 agent 消失时发一次，送达后唤醒器退出。`improve` 按收口规则核对 goal 已结束、本机工作区干净、f1 无非终态会话，再按 `logs/improve/notes.md` 收口。
-
-细节：
-- 只在 `improve` 的 Herdr 状态为 `idle` / `done` 时发消息，不往正在进行的对话或回合里插话：定时消息遇忙跳过本次，结束消息每次读取后重试直到送达。用户正在 `improve` 输入框打字而 agent 仍为 `idle` 时，消息会和已输入的文字一起提交。
-- 判断 goal 是否在回合内看输入框占位文字和转圈行，不看底栏的 `Goal running`（窄 pane 会截断底栏）。
-- 日志和单实例锁：`logs/improve/notify-<goal pane>.log|.lock`；重复启动的第二个唤醒器读到锁即退出。
-- 唤醒器在送达 `[improve-notify]` 后退出。用户之后 `/goal resume` 让第四层继续时，`improve` 要按上面的命令重新启动唤醒器。
-- 收口改动在第四层释放工作区之后才合入 `main` 并推送。第四层运行期间若要预先开发，放在独立 worktree 的分支里，不从 worktree 推送 `origin/main`，否则第四层下一次 push 会被拒、`tools/f1/sync.py` 的目标比对也会失败。
-- **收口量化指标（元改进闭环）**：`improve` 每次收口结束前，从刚结束的第四层账本与 `git log` 提取一行记录追加到 `logs/improve/metrics.md`（git 忽略，永久保留），用于跨轮对比不同模型与第五层改动是否真的降低了摩擦：
-  - 字段：`日期 / 目标 / 主力模型`、`结果与耗时（验收/受阻）`、`实机会话数 / 代码修复 commit 数 / 环境重跑数`、`单卡点平均修复轮数`、`工具与环境阻塞占比`、`上轮收口项验证与本轮新增收口项`。
-
-## 日志与截图保留上限
-
-为防止长周期运行下 1080p 截图无限膨胀，同时保留第四、五层复盘所需的文本记录，按「覆盖约 3 场冒险的调试体量」设以下保留上限，由 `tools/logs_cleanup.py`（默认 dry-run，加 `--apply` 才实际清理，测试在 `tests/test_logs_cleanup.py`）执行：
-
-| 目录 / 文件 | 保留策略 | 估算上限 | 清理时机与边界 |
-|---|---|---|---|
-| `logs/goals/*.md`、`logs/improve/notes.md`、`logs/improve/metrics.md` | **永久保留** | 极小（纯文本） | 不自动删除，用于复盘第四、五层效率与元改进趋势 |
-| `logs/goals/watch-*.log`、`logs/improve/notify-*.log` | 单文件超 **5 MB** 时截断保留末尾 1 MB | ≤ 5 MB / 文件 | 第五层收口时可执行 `python3 tools/logs_cleanup.py --apply` |
-| Mac `logs/f1-pulls/<run_id>/` | 保留最近 **50 个 run**（约 3 场重调试冒险；保留 `live.png`） | ~80–150 MB | 第五层收口时执行 `python3 tools/logs_cleanup.py --apply`（有价值失败帧已按 `docs/offline-validation.md` 登记进库外测试集） |
-| Mac `logs/` 根目录散落截图与 `f1-material-*` / `lorwright-sync-*` | 默认不动；显式加 `--include-legacy` 清理 7 天前历史文件 | 按需 | 手动确认后执行 |
-| f1 `C:\Code\lorwright\logs\runs\` | 保留最近 **100 个终态 run**（跳过非终态会话） | ~200–300 MB | 属于「删除或归档 f1 数据」，仅在用户明确授权后执行 `python3 tools/logs_cleanup.py --f1 --apply` |
-
-## 模型策略与实测
-
-按「机械执行 vs 高判断」占比为不同角色分配模型，平衡额度消耗与修复质量：
-
-| 角色 | 推荐模型 | 适用理由 | 回退 / 切换方式 |
-|---|---|---|---|
-| 第四层 `/goal` | **均衡主力：`Fusion`（Opus 5.5 Lead + SWE-2 Sidekick）**<br>**零额度方案：`SWE-2 High`（免费）** | ~70% 机械闭环（SSH 等待、拉图、跑测试、同步、提交）可由 `SWE-2` 承担；复杂战斗截图与架构不变量由 Opus 兜底 | 均可在会话内 `/model` 实时切换（`SWE-2` ↔ `Fusion` ↔ `Opus 5.5`），不中断 goal |
-| 第五层 `improve` 与专项审核 | **`Opus 5.5`** | 以只读巡检、边界挑刺与 diff 审查为主，调用频次低但判断权重高，可为 `SWE-2` 兜底 | 保持单模型 `Opus 5.5` |
-| 外层协调 / 辅助（`agy`） | 日常编码 **`Orchestrator (Neon)`**（Neon 规划/复核 + Hydrogen 执行） | 多文件修改、补测试和重构性价比高 | 纯架构讨论或复杂排障时按需切单 `Neon` |
-
-### 视觉盲测记录（2026-11-20）
-
-用 5 张真实 1080p 停机截图（去文件名提示，覆盖大地图节点、能力三选一、战斗弃牌弹窗、复杂战斗卡顿、治疗节点飘字）对 `Claude Opus 5.5 Medium` 与 `SWE-2 High` 做纯视觉盲测（未读仓库代码）：
-
-- **用量**：`Opus 5.5 Medium` 消耗 `46k / 1.0M` tokens；`SWE-2 High` 消耗 `31k / 262k` tokens（Free，省 33% 图像上下文，但总窗口为 262k，长 goal 压缩更频繁）。
-- **识别效果**：`SWE-2 High` 繁体 OCR 几乎零失误，4/5 场景（地图、选能力、弃牌模态、治疗飘字）准确命中根因并给出可用感知规则；仅在最复杂战斗帧（`action_timeout`）将火焰攻击令牌、地标倒数误判为结算火焰与单位战力，以及地图漏看一条画外分支。`Opus 5.5 Medium` 5/5 全部准确并主动估算 1080p 坐标。
-- **结论（可用）**：结合真实 `/goal` 可读代码、日志与全量回归的条件，**`SWE-2 High`（免费）可用于跑第四层 `/goal`**；但需搭配两道安全阀：
-  1. 第五层 `improve` 保持 `Opus 5.5`（30 分钟巡检防硬编码/改歪）；
-  2. 同一卡点（尤其复杂战斗帧）连修 2 次未过时，会话内 `/model` 临时切 `Fusion` 或 `Opus 5.5` 解决，解完可切回 `SWE-2`。
-
-### `Fusion` / `SWE-2` 实跑观察项（手动选定冒险时）
-
-后续手动挑一场冒险用 `Fusion` 或 `SWE-2 High` 跑完整 `/goal` 时，在账本里重点记录：
-1. **截图诊断质量**：停机截图的根因判断是否与实际画面一致（重点看复杂战斗帧是否误判）；
-2. **修复泛化度**：是否先写失败测试并按 `docs/architecture.md` 做跨冒险泛化，而非硬编码阈值/单英雄特判；
-3. **收敛效率与消耗**：同一卡点的平均修复轮数、压缩后接续是否稳定，以及与此前单模型 `Opus` 场次的额度消耗对比。
-
-若观察到诊断明显变浅或反复返工，直接在会话内用 `/model` 切到 `Fusion` 或 `Opus 5.5`，保留进度继续推进，并把实跑结论回写本节。
+- 第五层 `improve`（运行期只读记录、结束后收口、唤醒器、日志保留上限）见 [improve.md](improve.md)。默认只跑第四层，不需要读它。
+- 各角色的模型选择与实测见 [models.md](models.md)。
 
 ## 启动
 
 用户步骤：在外层对话确认目标 → 新开 Devin 会话并切到 Bypass → 粘贴：
 
 ```
-/goal 按 workflows/dev-iteration.md 执行第四层循环。本轮目标：<一句话，例如「用 Elise 完成一轮每周冒险」>。完成标准、授权、停止条件和续接方式均以该文件为准；先读该文件和 AGENTS.md，再创建或读取账本。
+/goal 按 workflows/dev-iteration.md 执行第四层循环。本轮目标：<一句话，例如「用 Elise 打完一轮每周冒险」>。完成级别：<打完 / 验收>。完成标准、授权、停止条件和续接方式均以该文件为准；先读该文件和 AGENTS.md，再创建或读取账本。
 ```
 
 goal 第一轮：检查并发前置条件 → 创建或读取账本 → 启动看守 → 进入循环。开头一段时间用户会在旁边看。
@@ -187,13 +122,13 @@ goal 第一轮：检查并发前置条件 → 创建或读取账本 → 启动�
 | 委派对象 | 开发迭代闭环（第四层），三层运行循环是它改进的对象 |
 | 产出约束 | 先用文档约束：本规格 + `NOTES.md` |
 | 目标来源 | 启动前用户在外层对话与 Agent 确认本轮目标，再用 `/goal` 启动，`/goal` 文本指向本规格和目标 |
-| 完成标准 | 两级。**推进**：中途停过、改过代码、接续后打完。**验收**：同一 commit 一次会话从启动跑到 `adventure_victory` 且 `settlement_closed=true`，中途不改代码、无人介入。goal 只认验收 |
+| 完成标准 | 两级，由目标写明，**默认「打完」**。**打完（推进）**：可以中途停过、改过代码、接续后打完，到结算退出即达成。**验收**：同一 commit 一次会话从冒险开始前跑到 `adventure_victory` 且 `settlement_closed=true`，中途不改代码、无人介入；只有目标明确写「验收」时才要求。2026-11-20 goal-jinx 的目标文本写了验收，于是在打完后又开了一局，超出了用户「打完这一场」的本意 |
 | 初态 | 不另设。Agent 用 `--bootstrap-f1 --auto-login` 启动，从 f1 当时的实际画面开始（模拟器关闭、主页、地图都可）；周常已完成时加 `--weekly-replay-slot` |
-| 目标写法 | 用户在外层对话用一句话给出，例如「用 Elise 完成一轮每周冒险」；Agent 展开成逐个冒险，按顺序推进，一个验收通过再开始下一个 |
-| 验收起点 | 验收会话必须在冒险开始之前启动（周常列表、世界地图、主页或模拟器关闭）。f1 停在冒险中途时，先按推进跑完这一局，再开新一局做验收 |
+| 目标写法 | 用户在外层对话用一句话给出冒险和完成级别，例如「用 Elise 打完一轮每周冒险」或「用 Jinx 验收每周 1 号位」；Agent 展开成逐个冒险，按顺序推进，一个达标再开始下一个 |
+| 验收起点 | 仅在目标要求验收时适用。验收会话必须在冒险开始之前启动（周常列表、世界地图、主页或模拟器关闭）。f1 停在冒险中途时，先按推进跑完这一局，再开新一局做验收 |
 | 权限模式 | goal 会话用 Bypass（`devin --permission-mode bypass` 或 `/bypass`）。复核用前台 `subagent_general` |
-| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部维护「当前状态」：目标、各冒险阶段、f1 run_id、看守 pane 和 PID、最近 commit、同一卡点修复次数，下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
-| 模型 | 按上文「模型策略与实测」执行：第四层 `/goal` 可选 `Fusion`（Opus 5.5 Lead + SWE-2 Sidekick）或零额度 `SWE-2 High`（配 `improve` Opus 巡检兜底），第五层 `improve` 保持 `Opus 5.5`；卡点反复返工时用 `/model` 切到 `Fusion` 或 `Opus 5.5`，goal 不受影响 |
+| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部「当前状态」只放查不到的内容：目标与完成级别、各冒险阶段、同一卡点修复次数、看守 PID；会话 ID 和 commit 从最后一条轮次记录与 `git log` 读，不在顶部重复（实测两次运行顶部的 commit 和 pane 都没人更新）。下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
+| 模型 | 按 [models.md](models.md) 执行：第四层 `/goal` 可选 `Fusion`（Opus 5.5 Lead + SWE-2 Sidekick）或零额度 `SWE-2 High`（配 `improve` Opus 巡检兜底），第五层 `improve` 保持 `Opus 5.5`；卡点反复返工时用 `/model` 切到 `Fusion` 或 `Opus 5.5`，goal 不受影响 |
 | 每周刷新 | 不处理。用户安排运行时间避开刷新，单次 goal 也不会跑到一周 |
 | 每月挑战 | 本阶段不涉及，不进入目标 |
 | 新能力 | 目标可以要求新功能（例如跨冒险任务层），按 issue #17 拆票推进，ADR、文档、issue 按需更新 |

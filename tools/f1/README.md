@@ -120,7 +120,18 @@ f1 的 Clash Verge 开着 TUN，默认路由经 Meta 网卡。2026-11-19 的日�
 
 改完后经计划任务以交互身份重启 Clash Verge 界面，运行配置重新生成，核对 `ipv6`、`dns.ipv6`、TUN、Tailscale 直连规则与国内 HTTP 均正常。`dns.fake-ip-filter` 无论写在合并增强还是脚本增强里，此版本 Clash Verge 都不会写入运行配置，Tailscale 域名仍解析为 198.18.x.x；脚本增强已回滚，该项未生效。TUN 的 `stack: mips` 经 mihomo v1.19.33 `-t` 校验可接受，未改。`allow-lan: true` 当前没有局域网客户端，按用户是否需要再定。
 
-无线网卡（Realtek 8852BE）高级属性：`Roaming Aggressiveness` 从 `4. Medium` 调到 `2. Lowest`，`Multi-Channel Concurrent` 从 `Enabled` 调为 `Disabled`。脚本先记录旧值，重启网卡后 120 秒内网关不通会自动回滚；实际 12 秒恢复。
+无线网卡（Realtek 8852BE，驱动 `6001.15.159.0`）第一轮高级属性调整：`Roaming Aggressiveness` 从 `4. Medium` 调到 `2. Lowest`，`Multi-Channel Concurrent` 从 `Enabled` 调为 `Disabled`。脚本先记录旧值，重启网卡后 120 秒内网关不通会自动回滚；实际 12 秒恢复。
+
+2026-11-20 16:42（+08）第二轮网卡与电源调整（针对 `CU_1001_5G` 上持续出现的 Event `11006`「动态密钥交换未能在配置的时间范围内成功」；现场核对加密已是 `WPA2-个人 / CCMP`、无线电 `802.11ac`，但 PCIe ASPM 交流电为最大节能 `0x2`）：
+
+| 项 | 位置 | 原值 | 新值 |
+|---|---|---|---|
+| PCIe 链接状态电源管理（ASPM，交流） | 电源方案 `SCHEME_CURRENT` / `SUB_PCIEXPRESS` | `0x2`（最大电源节省量） | `0x0`（关闭） |
+| 网卡设备省电开关 `PnPCapabilities` | 8852BE 注册表类键 | 未设置（默认允许关闭设备） | `24`（`0x18`，禁用省电休眠） |
+| `WifiProtocol_5g`（5G 无线模式） | 8852BE 高级属性 | `IEEE 802.11a/n/ac/ax` | `IEEE 802.11a/n/ac` |
+| `RegRoamLevel`（漫游灵敏度） | 8852BE 高级属性 | `2. Lowest` | `1. Disable` |
+
+通过一次性 SYSTEM 计划任务执行 `C:\Windows\Temp\tune-wifi-20261120.ps1`（带 120 秒网关 `192.168.1.1` 可达自动回滚），重启网卡后 **4.9 秒**恢复连通，验证日志在 `C:\Windows\Temp\tune-wifi-20261120.log`，临时任务 `F1TuneWifiOnce` 已删除。后续观察 `netwatchdog.log` 是否能连续 30 分钟以上无 `kind=link` 故障，再决定是否 `/goal resume` 或考虑更换驱动/外置 USB 网卡。
 
 ## 边界
 

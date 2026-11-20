@@ -23,6 +23,7 @@ from lorwright.core.runtime.session import StopRequested, checkpoint, record_eve
 from lorwright.core.util import snapshot
 
 LOGIN_FORM_WAIT_S = 30
+LOGIN_RESTART_WAIT_S = 60
 
 
 @dataclass(frozen=True)
@@ -139,7 +140,8 @@ def prepare_f1(
     return prepare_login(settings, device, open_riot_login=open_riot_login, auto_login=auto_login)
 
 
-def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) -> BootstrapResult:
+def prepare_login(settings, device, *, open_riot_login=False, auto_login=False,
+                  allow_restart=True) -> BootstrapResult:
     """识别当前登录页，复用已授权的单次登录；不启动模拟器或游戏。"""
     checkpoint()
     frame = device.screencap()
@@ -183,6 +185,18 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
                 break
             time.sleep(min(0.5, remaining))
         record_event("login_form_wait", screens=seen)
+        if (transition_unverified and allow_restart
+                and all(value == LoginScreen.SPLASH.value for value, _ in seen)):
+            # 点击后始终停在登录方式页：上一会话中断的 Riot 网页登录会让按钮不再响应。
+            # 重启 LoR 一次清掉挂起的登录流程，等登录方式页重新出现后再点一次。
+            _save_frame(settings, frame, "login_tap_ignored")
+            report("bootstrap", "login_restart", wait_s=LOGIN_RESTART_WAIT_S)
+            record_event("client_restart_requested", reason="login_tap_ignored", attempt=1)
+            device.restart_app(settings.adb.package)
+            if _wait_for_splash(device, normalizer, detector):
+                return prepare_login(settings, device, open_riot_login=open_riot_login,
+                                     auto_login=auto_login, allow_restart=False)
+            frame = device.screencap()
         if transition_unverified:
             # 只读诊断：点击后的首帧与末帧，便于区分点击未生效、网页失败返回等情况。
             _save_frame(settings, first, "login_transition_first")
@@ -197,6 +211,17 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
     report("bootstrap", result.stop_reason or "screen_ready", progress=not transition_unverified,
            login_screen=screen.value)
     return result
+
+
+def _wait_for_splash(device, normalizer, detector) -> bool:
+    deadline = time.monotonic() + LOGIN_RESTART_WAIT_S
+    while time.monotonic() < deadline:
+        checkpoint()
+        time.sleep(1)
+        image, _ = normalizer.fit(device.screencap().image)
+        if detector.detect(image) is LoginScreen.SPLASH:
+            return True
+    return False
 
 
 def _save_frame(settings, frame, tag):

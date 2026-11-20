@@ -123,6 +123,45 @@ def test_riot_login_waits_for_slow_form(setup, monkeypatch):
     device.tap.assert_called_once()
 
 
+def _splash_login(setup, monkeypatch, screens):
+    settings, device, detector, _ = setup
+    settings.layout = SimpleNamespace(
+        to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
+    )
+    settings.loop = SimpleNamespace(max_frame_age_s=2)
+    device.screencap.return_value.ts = time.time()
+    detector.detect.side_effect = screens
+    clock = [0.0]
+
+    def sleep(seconds):
+        clock[0] += max(seconds, 0.5)
+        device.screencap.return_value.ts = time.time()
+
+    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(bootstrap.time, "sleep", sleep)
+    return settings, device
+
+
+def test_ignored_riot_tap_restarts_lor_once_and_retries(setup, monkeypatch):
+    # 20261120T065911：点击后 30 秒内一直是登录方式页（首末帧均为 splash）。重启后的表单为合成。
+    waits = int(bootstrap.LOGIN_FORM_WAIT_S / 0.5) + 2
+    screens = [LoginScreen.SPLASH] * (1 + waits) + [LoginScreen.SPLASH, LoginScreen.SPLASH,
+                                                     LoginScreen.FORM]
+    settings, device = _splash_login(setup, monkeypatch, screens)
+    result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
+    device.restart_app.assert_called_once_with(settings.adb.package)
+    assert device.tap.call_count == 2
+    assert result.stop_reason == "login_required"
+
+
+def test_ignored_riot_tap_after_restart_stops_without_second_restart(setup, monkeypatch):
+    settings, device = _splash_login(setup, monkeypatch, lambda image: LoginScreen.SPLASH)
+    result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
+    device.restart_app.assert_called_once()
+    assert device.tap.call_count == 2
+    assert result.stop_reason == "login_transition_unverified"
+
+
 def test_riot_login_missing_button_is_not_clicked(setup):
     settings, device, detector, _ = setup
     settings.layout = SimpleNamespace(

@@ -36,4 +36,5 @@ def main():
         keyword_icons=18,keyword_weight_records=34,full_ai_algorithm_included=False),ensure_ascii=False))
 
 
-if __name__=='__main__':main()
+if __name__ == '__main__':
+    main()

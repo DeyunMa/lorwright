@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-TERMINAL_STATUSES = frozenset({"completed", "stopped", "failed"})
+TERMINAL_STATUSES = frozenset({"completed", "stopped", "failed", "cancelled"})
 DEFAULT_KEEP_PULLS = 50  # ~3 adventures of Mac logs/f1-pulls/<run_id>
 DEFAULT_KEEP_F1_RUNS = 100  # ~6 adventures of terminal f1 logs/runs/<run_id>
 DEFAULT_MAX_LOG_MB = 5.0
@@ -203,7 +203,7 @@ def run_f1_cleanup(
         $bytes = ((Get-ChildItem -Path $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum)
         if ($null -eq $bytes) {{ $bytes = 0 }}
         $entry = [PSCustomObject]@{{ name = $dir.Name; path = $dir.FullName; status = $status; mtime = $dir.LastWriteTimeUtc.Ticks; bytes = [int64]$bytes }}
-        if ($status -in @('completed', 'stopped', 'failed')) {{
+        if ($status -in @('completed', 'stopped', 'failed', 'cancelled')) {{
             $terminal += $entry
         }} else {{
             $skipped += $entry

@@ -112,3 +112,10 @@ def test_select_f1_runs_to_prune_skips_non_terminal() -> None:
     assert [r["name"] for r in kept] == ["r3", "r2"]
     assert [r["name"] for r in to_prune] == ["r1"]
     assert sorted(r["name"] for r in skipped) == ["r4", "r5"]
+
+
+def test_cancelled_f1_runs_count_as_terminal() -> None:
+    runs = [{"run_id": "a", "status": "cancelled", "mtime": 2.0}, {"run_id": "b", "status": "running", "mtime": 1.0}]
+    prune, kept, skipped = lc.select_f1_runs_to_prune(runs, keep_runs=0)
+    assert [r["run_id"] for r in prune] == ["a"]
+    assert [r["run_id"] for r in skipped] == ["b"]

@@ -215,6 +215,10 @@ class AdbDevice:
         """往当前焦点输入框打字（`input text`，只支持 ASCII，空格要用 %s）。"""
         self._run("shell", "input", "text", value.replace(" ", "%s"))
 
+    def clear_text(self, max_chars: int = 64) -> None:
+        """清空当前焦点输入框：移到末尾后一次性发送多个退格，不读取或回显原内容。"""
+        self._run("shell", "input", "keyevent", "123", *["67"] * max_chars)
+
     def text_secret(self, value: str) -> None:
         """通过标准输入向 Android shell 传递有限字符，避免宿主机命令参数含凭据。"""
         if not secret_text_supported(value):

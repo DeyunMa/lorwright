@@ -271,6 +271,9 @@ def _auto_login_impl(settings, device, frame, normalizer, detector) -> Bootstrap
             device.tap(*scale.to_device(*rect.center))
             time.sleep(0.4)
             checkpoint()
+            # 上次失败的登录会把内容留在表单里，先清空再输入，避免拼接出错误凭据。
+            device.clear_text()
+            checkpoint()
             device.text_secret(value)
             time.sleep(0.4)
         scale = verified_form()

@@ -52,6 +52,9 @@ class ReplayDevice:
     def text(self, value: str) -> None:
         self.actions.append(("text", value))
 
+    def clear_text(self, max_chars: int = 64) -> None:
+        self.actions.append(("clear_text", max_chars))
+
     def size(self) -> tuple[int, int]:
         return self._size
 

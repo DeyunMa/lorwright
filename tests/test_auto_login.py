@@ -52,6 +52,9 @@ def test_single_submission_waits_through_loading_until_home(monkeypatch):
     assert result.frame is ready
     assert [c.args[0] for c in device.text_secret.call_args_list] == ["fake-user", "fake-pass"]
     assert device.tap.call_count == 3
+    # 20261120T073940 失败后表单仍保留账号和密码；每个输入框先清空再输入。
+    calls = [c[0] for c in device.method_calls if c[0] in ("tap", "clear_text", "text_secret")]
+    assert calls == ["tap", "clear_text", "text_secret", "tap", "clear_text", "text_secret", "tap"]
 
 
 def test_missing_or_unsupported_credentials_stop_without_input():
@@ -73,6 +76,13 @@ def test_secret_text_is_sent_via_stdin_not_host_arguments():
     with pytest.raises(ValueError):
         device.text_secret("unsupported%fake")
     assert device._adb.run.call_count == 2
+
+
+def test_clear_text_moves_to_end_then_deletes_in_one_call():
+    device = AdbDevice(serial="test", adb="adb")
+    device._adb = Mock()
+    device.clear_text(3)
+    device._adb.run.assert_called_once_with("shell", "input", "keyevent", "123", "67", "67", "67", binary=False)
 
 
 def test_form_change_prevents_password_input():

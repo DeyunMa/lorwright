@@ -46,7 +46,7 @@ $StateFile = 'C:\Windows\Temp\netwatchdog.json'
 $VergeYaml = 'C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\verge.yaml'
 $TsExe     = 'C:\Program Files\Tailscale\tailscale.exe'
 $ClashLog  = 'C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\logs\latest.log'
-$WifiProfile = 'CU_1001_5G' # 已保存的 WLAN 配置名称，不是网络位置名称
+$WifiProfile = 'CU_1001' # 已保存的 WLAN 配置名称，不是网络位置名称
 $runTimer = [Diagnostics.Stopwatch]::StartNew()
 
 # ---- 阈值（改这里就能调灵敏度）----

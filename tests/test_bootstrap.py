@@ -90,10 +90,28 @@ def test_riot_login_unverified_transition_does_not_start_adventure(setup, monkey
     settings.loop = SimpleNamespace(max_frame_age_s=2)
     device.screencap.return_value.ts = time.time()
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.NONE]
-    moments = iter([0, 0, 11])
+    moments = iter([0, 0, bootstrap.LOGIN_FORM_WAIT_S + 1])
     monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments))
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     assert result.stop_reason == "login_transition_unverified"
+    device.tap.assert_called_once()
+
+
+def test_riot_login_waits_for_slow_form(setup, monkeypatch):
+    # 20261120T063459：重启后点 Riot 登录，网页转圈 11 秒仍未出表单；时序为合成。
+    settings, device, detector, _ = setup
+    settings.layout = SimpleNamespace(
+        to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
+    )
+    settings.loop = SimpleNamespace(max_frame_age_s=2)
+    device.screencap.return_value.ts = time.time()
+    detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.NONE, LoginScreen.FORM]
+    moments = iter([0, 0, 15, 20])
+    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: next(moments))
+    monkeypatch.setattr(bootstrap.time, "sleep", lambda _: None)
+    result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
+    assert result.stop_reason == "login_required"
+    assert result.login_screen is LoginScreen.FORM
     device.tap.assert_called_once()
 
 

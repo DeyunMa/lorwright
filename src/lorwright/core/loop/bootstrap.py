@@ -21,6 +21,8 @@ from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.ui_state import UIStateDetector
 from lorwright.core.runtime.session import StopRequested, checkpoint, report
 
+LOGIN_FORM_WAIT_S = 30
+
 
 @dataclass(frozen=True)
 class BootstrapResult:
@@ -158,8 +160,9 @@ def prepare_login(settings, device, *, open_riot_login=False, auto_login=False) 
             raise RuntimeError("登录方式画面已过期，未点击")
         report("bootstrap", "opening_riot_login")
         device.tap(*scale.to_device(*button.center))
-        deadline = time.monotonic() + 10
-        report("bootstrap", "waiting_login_form", wait_s=10)
+        # Riot 登录网页在网络慢时会转圈十几秒；只等待，按钮不重复点击。
+        deadline = time.monotonic() + LOGIN_FORM_WAIT_S
+        report("bootstrap", "waiting_login_form", wait_s=LOGIN_FORM_WAIT_S)
         while True:
             checkpoint()
             frame = device.screencap()

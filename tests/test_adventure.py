@@ -372,6 +372,20 @@ def test_task_reward_unknown_or_unchanged_successor_does_not_repeat(adventure, u
     assert saved == ["task_reward_transition_unverified"]
 
 
+def test_task_reward_waits_for_continue_after_item_animation(adventure, monkeypatch):
+    # 20261120T100029：结算中的任务插页仍在播放物品动画；就绪页用另一场实拍代替，后继主页为合成序列。
+    animation = cv2.imread(str(FIXTURES.parent / "continue/f1-task-reward-animation-20261120.png"))
+    ready = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    if animation is None:
+        pytest.skip("missing f1-task-reward-animation-20261120.png")
+    loop, device, _, saved, _ = adventure([animation] * 5 + [ready, home], [])
+    _clocked(loop, device, monkeypatch, 0.5)
+    assert loop._handle_task_reward(animation) is home
+    assert len(device.taps) == 1
+    assert saved == []
+
+
 def test_task_reward_without_button_does_not_tap(adventure):
     task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
     assert task is not None

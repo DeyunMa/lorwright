@@ -729,6 +729,17 @@ class AdventureLoop:
     def _handle_task_reward(self, image):
         button = find_continue_button(image)
         if button is None:
+            # 奖励物品飞入动画播完才出现「繼續」（20261120T100029）；期间只观察不输入。
+            deadline = time.monotonic() + self.SETTLEMENT_ANIMATION_S
+            while button is None and (remaining := deadline - time.monotonic()) > 0:
+                self._wait(min(2, remaining), reason="task_reward_animation",
+                           wait_s=self.SETTLEMENT_ANIMATION_S)
+                frame = self._frame()
+                normalized = self._reward_design(frame)
+                if normalized is None or not is_task_reward(normalized[0]):
+                    continue
+                image, button = frame, find_continue_button(frame)
+        if button is None:
             self._snapshot(image, tag="task_reward_continue_missing")
             return None
         self._tap(*button.center)

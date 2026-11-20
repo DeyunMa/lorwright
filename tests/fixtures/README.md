@@ -19,6 +19,8 @@
 
 `screens/f1-portal-loading-20261120.png` 来自会话 `20261120T045638-3875b3d10cfa` 的 `resume_transition_unverified` 停止原始 PNG，完整 1920×1080，无界面与账号。点击「繼續冒險」12.5 秒后仍为菱形传送门载入画面。四角 250×150 区域蓝色占比均为 1.0；其余 1080p 测试图四角最低值最高 0.35。载入持续与后继地图为合成时序。
 
+`continue/f1-task-reward-animation-20261120.png` 来自会话 `20261120T100029-90bb016e915b` 的 `task_reward_continue_missing` 停止 PNG，完整 1920×1080，无账号信息。最终结算中途出现「你完成了一項任務！ 冒險之喚」，奖励「傳奇點數 ×1000」的物品飞入动画仍在播放，尚无「繼續」。
+
 `continue/f1-rewards-hero-xp-only-20261120.png` 来自会话 `20261120T095325-260f25676e51` 的 `adventure_victory_transition_unverified` 停止 PNG，完整 1920×1080，账号名已涂黑。胜利页「繼續」后的奖励汇总只有「英雄經驗值 ×985」一项，标签居中约 (970,646)，超出旧取样区 x≤920；取样区放宽到 `(450,600,1470,700)`，其余测试图均不命中。
 
 `continue/f1-victory-animation-20261120.png` 与 `continue/f1-victory-ready-20261120.png` 分别来自会话 `20261120T094049-13c27e1e1f59` 的 `adventure_victory_continue_missing` 停止 PNG 和约 2 分钟后的实时截图（`remote.py shot`），完整 1920×1080，账号名 `[150:185,205:400]` 已涂黑。前者是胜利页经验条动画中、尚无「繼續」；后者是动画结束后的胜利页，「繼續」约 (953,939)。两图不是连续录像。

@@ -1287,3 +1287,27 @@ def test_current_diamond_reentry_requires_glow():
     ring = (distance >= 36) & (distance <= 62)
     dimmed[ring] = (dimmed[ring] * 0.6).astype(np.uint8)
     assert current_unfinished_node(dimmed, hero) is None
+
+
+def _boss_crest_full_map() -> np.ndarray:
+    # 20261120T091043 治疗后 map_no_next 停止实拍；不在 491dc94 基线内，缺图时跳过。
+    image = cv2.imread(str(FIXTURES / "f1-boss-crest-map-20261120.png"))
+    if image is None:
+        pytest.skip("缺少 f1-boss-crest-map-20261120.png")
+    return image
+
+
+def test_full_boss_crest_is_not_a_second_hero_and_is_reachable():
+    image = _boss_crest_full_map()
+    hero = locate_map_hero(image)
+    assert hero is not None and math.dist(hero.center, (1250, 453)) <= 8
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1 and math.dist(nodes[0].center, (1266, 189)) <= 8
+
+
+def test_full_boss_crest_requires_the_lit_route():
+    image = _boss_crest_full_map()
+    image[300:360, 1220:1310] = image[300:360, 1420:1510]
+    hero = locate_map_hero(image)
+    assert hero is not None
+    assert reachable_nodes(image, hero=hero) == []

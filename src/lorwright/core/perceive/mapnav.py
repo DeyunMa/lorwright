@@ -151,6 +151,7 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
                     found.append((score, token))
                     break
     verified = []
+    strong = []
     navigation_candidates = None
     for score, token in sorted(found, reverse=True):
         x, y, r = token
@@ -164,6 +165,7 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
                 or _current_diamond_visible(image, token.center) is not None
                 or _node_halo_score(image, foot) >= 0.10):
             verified.append(token)
+            strong.append(token)
         elif score >= 0.90:
             # 单独的亮线也常出现在地形附近。弱脚下证据仅用于外环几乎完整的候选。
             if navigation_candidates is None:
@@ -175,6 +177,9 @@ def locate_map_hero(image: np.ndarray) -> HeroToken | None:
                 continue
             if origin is not None or any(stats[1:, cv2.CC_STAT_AREA] >= 220):
                 verified.append(token)
+    # 首领翼章的金框下方常接亮线，只够弱证据；有脚下节点证据的候选优先。
+    if len(strong) == 1:
+        return strong[0]
     if len(verified) != 1:
         return None
     return verified[0]
@@ -998,7 +1003,7 @@ def _component_touches_node(
 def _boss_crest_visible(image: np.ndarray, x: int, y: int, radius: int) -> bool:
     """识别金色翼章包裹的首领圆节点，避免将其与普通金块或塔墙混淆。"""
     visible_radius = int(radius * 0.9)
-    if (radius < 45 or x < visible_radius or y < visible_radius
+    if (radius < 34 or x < visible_radius or y < visible_radius
             or x + visible_radius >= image.shape[1] or y + visible_radius >= image.shape[0]):
         return False
     extent = 72
@@ -1011,11 +1016,14 @@ def _boss_crest_visible(image: np.ndarray, x: int, y: int, radius: int) -> bool:
     hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
     gold = (hsv[:, :, 0] >= 12) & (hsv[:, :, 0] <= 38) & (hsv[:, :, 1] >= 70) & (hsv[:, :, 2] >= 110)
     inner_gray = cv2.cvtColor(image[max(0, y - 22):y + 23, x - 22:x + 23], cv2.COLOR_BGR2GRAY)
-    return bool(
-        float(inner_gray.mean()) <= 110
-        and gold_ring.any()
-        and float(gold[gold_ring].mean()) >= 0.45
-    )
+    if float(inner_gray.mean()) > 110 or not gold_ring.any():
+        return False
+    if radius >= 45 and float(gold[gold_ring].mean()) >= 0.45:
+        return True
+    # 完整可见的翼章（20261120T091043）：头像圆较小，内圈金框连续、外圈只有两翼。
+    frame = (distance >= 42 ** 2) & (distance <= 55 ** 2)
+    wings = (distance > 55 ** 2) & (distance <= 72 ** 2)
+    return bool(float(gold[frame].mean()) >= 0.6 and float(gold[wings].mean()) >= 0.2)
 
 
 def _lit_unfinished_ring(

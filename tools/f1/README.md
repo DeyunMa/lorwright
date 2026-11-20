@@ -131,7 +131,9 @@ f1 的 Clash Verge 开着 TUN，默认路由经 Meta 网卡。2026-11-19 的日�
 | `WifiProtocol_5g`（5G 无线模式） | 8852BE 高级属性 | `IEEE 802.11a/n/ac/ax` | `IEEE 802.11a/n/ac` |
 | `RegRoamLevel`（漫游灵敏度） | 8852BE 高级属性 | `2. Lowest` | `1. Disable` |
 
-通过一次性 SYSTEM 计划任务执行 `C:\Windows\Temp\tune-wifi-20261120.ps1`（带 120 秒网关 `192.168.1.1` 可达自动回滚），重启网卡后 **4.9 秒**恢复连通，验证日志在 `C:\Windows\Temp\tune-wifi-20261120.log`，临时任务 `F1TuneWifiOnce` 已删除。后续观察 `netwatchdog.log` 是否能连续 30 分钟以上无 `kind=link` 故障，再决定是否 `/goal resume` 或考虑更换驱动/外置 USB 网卡。
+通过一次性 SYSTEM 计划任务执行 `C:\Windows\Temp\tune-wifi-20261120.ps1`（带 120 秒网关 `192.168.1.1` 可达自动回滚），重启网卡后 **4.9 秒**恢复连通，验证日志在 `C:\Windows\Temp\tune-wifi-20261120.log`，临时任务 `F1TuneWifiOnce` 已删除。实测约 3 分钟后在 `CU_1001_5G` 上仍触发了一次掉线。
+
+2026-11-20 16:52（+08）切换到同路由器 2.4G WiFi `CU_1001`（BSSID `a0:09:2e:c9:5a:c8`，信道 9，`802.11n`，WPA2-个人 / CCMP，信号 87%，RSSI -52，144.4 Mbps）：通过一次性任务在本地复制 `CU_1001_5G` 凭据创建 `CU_1001` 配置（临时 XML 立即删除），**3.3 秒**连上并通过网关 `192.168.1.1` + 外网 `223.5.5.5:53` 校验，随后将 `CU_1001_5G` 设为 `connectionmode=manual`，临时任务与脚本已清理（结果日志 `C:\Windows\Temp\switch-wifi-24g.log`）。注意：`tools/f1/netwatchdog.ps1` 及远端副本中 `$WifiProfile` 目前仍为 `CU_1001_5G`，待观察 `CU_1001` 连续 30 分钟无 `kind=link` 故障并获授权后再同步改写。
 
 ## 边界
 

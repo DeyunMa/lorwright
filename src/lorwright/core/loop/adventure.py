@@ -727,18 +727,10 @@ class AdventureLoop:
         )
 
     def _handle_task_reward(self, image):
-        button = find_continue_button(image)
-        if button is None:
-            # 奖励物品飞入动画播完才出现「繼續」（20261120T100029）；期间只观察不输入。
-            deadline = time.monotonic() + self.SETTLEMENT_ANIMATION_S
-            while button is None and (remaining := deadline - time.monotonic()) > 0:
-                self._wait(min(2, remaining), reason="task_reward_animation",
-                           wait_s=self.SETTLEMENT_ANIMATION_S)
-                frame = self._frame()
-                normalized = self._reward_design(frame)
-                if normalized is None or not is_task_reward(normalized[0]):
-                    continue
-                image, button = frame, find_continue_button(frame)
+        # 奖励物品飞入动画播完才出现「繼續」（20261120T100029）；期间只观察不输入。
+        image, button = self._await_continue_button(
+            image, lambda design: is_task_reward(design), reason="task_reward_animation",
+        )
         if button is None:
             self._snapshot(image, tag="task_reward_continue_missing")
             return None
@@ -808,22 +800,29 @@ class AdventureLoop:
         return (find_home_adventure_entry(design) is not None
                 or find_weekly_entry(design) is not None or is_weekly_list(design))
 
+    def _await_continue_button(self, image, still_on_page, *, reason):
+        """「繼續」在页面动画播完后才出现：在固定窗口内只观察，不输入。
+
+        返回 ``(最后一帧, 按钮)``；只采信 ``still_on_page`` 认可的帧，到期仍无按钮时按钮为 ``None``。
+        """
+        button = find_continue_button(image)
+        deadline = time.monotonic() + self.SETTLEMENT_ANIMATION_S
+        while button is None and (remaining := deadline - time.monotonic()) > 0:
+            self._wait(min(2, remaining), reason=reason, wait_s=self.SETTLEMENT_ANIMATION_S)
+            frame = self._frame()
+            normalized = self._reward_design(frame)
+            if normalized is None or not still_on_page(normalized[0]):
+                continue
+            image, button = frame, find_continue_button(frame)
+        return image, button
+
     def _continue_final_page(self, image, *, stage: str):
         stages = self.SETTLEMENT_STAGES
-        button = find_continue_button(image)
-        if button is None:
-            # 胜利页的经验条和各奖励页都有动画，「繼續」播完才出现；期间只观察不输入。
-            animation_deadline = time.monotonic() + self.SETTLEMENT_ANIMATION_S
-            while (remaining := animation_deadline - time.monotonic()) > 0:
-                self._wait(min(2, remaining), reason="adventure_reward_animation",
-                           wait_s=self.SETTLEMENT_ANIMATION_S)
-                image = self._frame()
-                normalized = self._reward_design(image)
-                if normalized is None or adventure_settlement(normalized[0]) != stage:
-                    continue
-                button = find_continue_button(image)
-                if button is not None:
-                    break
+        # 胜利页的经验条和各奖励页都有动画，「繼續」播完才出现；期间只观察不输入。
+        image, button = self._await_continue_button(
+            image, lambda design: adventure_settlement(design) == stage,
+            reason="adventure_reward_animation",
+        )
         if button is None:
             self._snapshot(image, tag="adventure_victory_continue_missing")
             return

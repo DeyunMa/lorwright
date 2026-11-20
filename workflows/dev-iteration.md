@@ -20,7 +20,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 一轮：
 1. 读终态的 `reason`、事件和停止截图，定位卡点。
 2. 用停止素材复现：写失败测试，修复后让它通过，按[开发闭环](../docs/architecture.md#开发闭环)复验相关场次。
-3. 在 Mac 上先跑相关专项测试，再跑完整回归。完整回归不过就不 push，在本轮内继续修。通过后提交，推送 `origin/main`，再把 f1 同步到同一提交（规则见 `AGENTS.md`）。测试只在 Mac 做，f1 同步后只核对提交、工作区和会话状态，不再跑测试。
+3. 在 Mac 上先跑相关专项测试，再跑完整回归。完整回归不过就不 push，在本轮内继续修。通过后提交，推送 `origin/main`，再把 f1 同步到同一提交（规则见 `AGENTS.md`）。优先用 `python3 tools/f1/sync.py --apply` 同步：脚本会先核对 f1 工作区干净、无非终态会话、可快进，再执行 `ff-only`；若 `pyproject.toml` 有变更，会在 f1 的 `.venv` 中重新安装依赖。测试只在 Mac 做，f1 同步后只核对提交、工作区和会话状态，不再跑测试。
 4. 从 f1 的当前实时画面重新启动会话，不放弃当前这局冒险。
 5. 回到触发，等下一个卡点或终态。
 
@@ -79,9 +79,10 @@ W=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | pytho
 herdr pane run "$W" "python3 tools/goal/watch.py $HERDR_PANE_ID"
 ```
 
-脚本每 60 秒读一次该 pane 的画面，日志在 `logs/goals/watch-<pane>.log`：
+脚本每 60 秒用 `recent-unwrapped --lines 40` 读一次该 pane（避免窄 pane 折行截断暂停提示），日志在 `logs/goals/watch-<pane>.log`，并通过单实例锁 `logs/goals/watch-<pane>.lock` 防止续接或上下文压缩后重复起看守：
 - 只有底栏没有 `Goal running`，且画面上最近一条 goal 提示是 `Goal paused after 50 turns` 原文时，才发送 `/goal resume`，并写一行日志；
 - 底栏没有 `Goal running`，且最近一条提示不是这句原文（完成、受阻、被用户中断或清除），就退出，不 resume；
+- 读画面失败时，用 `herdr agent list` 区分瞬时读错与 agent 消失：agent 仍在则记日志重试，不退出；确认消失才按连续确认次数退出；`herdr` 连续不可达达上限时退出并记日志；
 - 最多 resume 10 次，到上限后退出，并在日志里说明原因。
 
 2026-11-19 实测：一个 55 轮的测试 goal 在第 50 轮暂停后，看守自动 resume 一次，goal 跑到 `Goal complete` 后看守自行退出。
@@ -116,7 +117,7 @@ goal 第一轮：检查并发前置条件 → 创建或读取账本 → 启动�
 | 目标写法 | 用户在外层对话用一句话给出，例如「用 Elise 完成一轮每周冒险」；Agent 展开成逐个冒险，按顺序推进，一个验收通过再开始下一个 |
 | 验收起点 | 验收会话必须在冒险开始之前启动（周常列表、世界地图、主页或模拟器关闭）。f1 停在冒险中途时，先按推进跑完这一局，再开新一局做验收 |
 | 权限模式 | goal 会话用 Bypass（`devin --permission-mode bypass` 或 `/bypass`）。复核用前台 `subagent_general` |
-| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部维护「当前状态」：目标、各冒险阶段、f1 run_id、最近 commit、同一卡点修复次数，下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
+| 账本与 brief | 账本 `logs/goals/<日期>-<目标简称>.md`（git 忽略），顶部维护「当前状态」：目标、各冒险阶段、f1 run_id、看守 pane、最近 commit、同一卡点修复次数，下面逐轮追加：会话 ID、卡点、修复 commit、结果。goal 结束时 brief 追加在账本末尾并原样输出：每个冒险一行（验收/推进/未开始、会话 ID、commit），停在哪、为什么、需要用户决定什么（没有写「无」），账本与截图路径。改变验收结论的内容按现有规则写进 `docs/status.md` 并提交 |
 | 模型 | Fusion，Opus 5.5 做 lead，sidekick 用官方推荐。用户在开头观察时检查截图诊断和修复方案是否由 lead 把关、质量够不够；sidekick 的修复反复被打回或诊断明显变浅时，用 `/model` 切回 Opus 5.5 单模型，goal 不受影响 |
 | 每周刷新 | 不处理。用户安排运行时间避开刷新，单次 goal 也不会跑到一周 |
 | 每月挑战 | 本阶段不涉及，不进入目标 |

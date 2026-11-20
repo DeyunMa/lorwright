@@ -7,7 +7,7 @@ grilling 会话的原始笔记。已核实的事实注明来源；待用户确�
 - LoRwright：用截图 + 规则 + ADB 输入自动推进《符文之地传奇》英雄之路（Path of Champions）。纯脚本决策，运行时无 AI（ADR-0004）。
 - 开发机：Mac，主检出目录 `main` 分支，默认提交并推送 `origin/main`。
 - 运行机：**f1**，Windows，Pie64 模拟器，正式工作区 `C:\Code\lorwright`，`git pull --ff-only` 同步。SSH 经 Tailscale。另有 SYSTEM 看门狗（网络、游戏进程）。
-- 同步 f1、操作实机须先获授权（AGENTS.md）。
+- f1 同步默认执行，无需逐次授权（f1 有未提交改动、非终态会话或无法快进时停止并报告）；操作实机须先获授权（AGENTS.md）。
 - 会话接口：`lorwright sessions start/status/events/stop`，产物在 `logs/runs/<run_id>/`（status.json、events.jsonl、snapshots/）。终态 `completed / stopped / failed / cancelled`，带 `reason`。
 - 离线回归：完整 Python 回归约 2285 项；库外测试数据 `../lorwright-test-data`，`python tools/test_data.py` 准备。
 - 进度/验收记录：`docs/status.md`；接手入口：`docs/handoff.md`。

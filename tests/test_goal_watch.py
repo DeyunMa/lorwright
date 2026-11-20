@@ -1,4 +1,4 @@
-"""/goal 看守的画面判定测试。画面文字取自 2026-11-19 Devin CLI v3000.14.30821 实测。"""
+"""/goal 看守的画面判定与鲁棒性测试。画面文字取自 2026-11-19 Devin CLI v3000.14.30821 实测。"""
 
 from __future__ import annotations
 
@@ -75,6 +75,19 @@ def test_screen_without_goal_status_ends_the_watch() -> None:
     assert _load_watch().classify(PROMPT_BOX) == "ended"
 
 
+def test_quoted_goal_running_or_tool_line_in_body_does_not_mask_pause() -> None:
+    screen = """
+ ✱ Continuing goal (turn 50)
+
+ ✓ rg "Goal running" workflows/dev-iteration.md
+
+ 文档中提到底栏会显示 Goal running 直到第 50 轮。
+
+ ✱ Goal paused after 50 turns. Use /goal resume to continue.
+""" + PROMPT_BOX + "Claude Opus 5.5 High · bypass        ctrl+v to paste image\n"
+    assert _load_watch().classify(screen) == "resume"
+
+
 def test_resume_limit_leaves_goal_paused(monkeypatch, tmp_path) -> None:
     mod = _load_watch()
     sent: list[str] = []
@@ -87,9 +100,53 @@ def test_resume_limit_leaves_goal_paused(monkeypatch, tmp_path) -> None:
     assert "resume limit 2 reached" in log.read_text(encoding="utf-8")
 
 
-def test_unreadable_agent_exits_after_confirmation(monkeypatch, tmp_path) -> None:
+def test_missing_agent_exits_after_confirmation(monkeypatch, tmp_path) -> None:
     mod = _load_watch()
     monkeypatch.setattr(mod, "read_screen", lambda target: None)
+    monkeypatch.setattr(mod, "agent_exists", lambda target: False)
     monkeypatch.setattr(mod, "send_resume", lambda target: (_ for _ in ()).throw(AssertionError))
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
-    assert mod.watch("w1:p1", 0, 10, 2, tmp_path / "watch.log") == 0
+    log = tmp_path / "watch.log"
+    assert mod.watch("w1:p1", 0, 10, 2, log) == 0
+    assert "agent not found" in log.read_text(encoding="utf-8")
+
+
+def test_transient_read_failure_does_not_exit_while_agent_alive(monkeypatch, tmp_path) -> None:
+    mod = _load_watch()
+    screens = iter([None, None, None, COMPLETE, COMPLETE])
+    monkeypatch.setattr(mod, "read_screen", lambda target: next(screens))
+    monkeypatch.setattr(mod, "agent_exists", lambda target: True)
+    monkeypatch.setattr(mod, "send_resume", lambda target: (_ for _ in ()).throw(AssertionError))
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    log = tmp_path / "watch.log"
+    assert mod.watch("w1:p1", 0, 10, 2, log) == 0
+    text = log.read_text(encoding="utf-8")
+    assert "read failed (3/10)" in text
+    assert "goal no longer active" in text
+
+
+def test_herdr_unreachable_exits_after_max_read_errors(monkeypatch, tmp_path) -> None:
+    mod = _load_watch()
+    monkeypatch.setattr(mod, "read_screen", lambda target: None)
+    monkeypatch.setattr(mod, "agent_exists", lambda target: None)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    log = tmp_path / "watch.log"
+    assert mod.watch("w1:p1", 0, 10, 2, log, max_read_errors=3) == 1
+    assert "herdr unreachable for 3 reads" in log.read_text(encoding="utf-8")
+
+
+def test_single_instance_lock_prevents_duplicate_watcher(monkeypatch, tmp_path) -> None:
+    mod = _load_watch()
+    lock = tmp_path / "watch.lock"
+    log = tmp_path / "watch.log"
+    holder = mod.acquire_lock(lock)
+    assert holder is not None
+    try:
+        monkeypatch.setattr(mod, "read_screen", lambda target: (_ for _ in ()).throw(AssertionError))
+        assert mod.watch("w1:p1", 0, 10, 2, log, lock_path=lock) == 0
+        assert "already holds lock" in log.read_text(encoding="utf-8")
+    finally:
+        holder.close()
+    reacquired = mod.acquire_lock(lock)
+    assert reacquired is not None
+    reacquired.close()

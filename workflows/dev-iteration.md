@@ -104,6 +104,19 @@ goal 运行期间独占 Mac 主检出目录的 `main` 和 f1 设备锁。启动�
 - **第四层运行期（只读记录者）**：`improve` 只读观察第四层运行与账本，记录暴露出的规格漏洞、工具缺陷、重复脚手架和架构债；不修改仓库文件、不打断第四层推进（仅在看守进程意外退出等 1 级阻塞时做最小外部兜底）。
 - **第四层结束或受阻后（收口优化回合）**：第四层释放工作区后，`improve` 接管 `main` 集中做一轮收口优化（修复记录项、跑回归、提交推送），让下一轮 `/goal` 站在更稳的底座上起跑。
 
+**唤醒器**：agent 只在收到消息时才工作，所以 `improve` 启动后第一件事是用 herdr 在自己下方开一个 pane，运行 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
+
+```bash
+P=$(herdr pane split --current --direction down --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
+herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HERDR_PANE_ID"
+```
+
+它经 `herdr agent prompt` 给 `improve` 发两类消息，每条都会让 `improve` 完整跑一轮：
+- `[improve-tick]`：默认每 20 分钟一次，`improve` 按运行期规则只读检查并记录；
+- `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，也不是 50 轮暂停）或 goal 的 agent 消失时发一次，然后退出；`improve` 按收口规则核对后接手。
+
+是否在回合内看输入框占位文字和转圈行，不看底栏的 `Goal running`（窄 pane 会截断底栏）。日志和单实例锁在 `logs/goals/notify-<goal pane>.log|.lock`。消息以粘贴加回车送进 `improve` 的输入框，用户正在该输入框打字时会被一起提交。
+
 ## 启动
 
 用户步骤：在外层对话确认目标 → 新开 Devin 会话并切到 Bypass → 粘贴：

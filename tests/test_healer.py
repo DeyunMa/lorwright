@@ -14,6 +14,7 @@ FIXTURES = fixtures_root()
 @pytest.fixture(params=[
     "healer/f1-full-health.png", "screens/f1-field-cook-20261116.png",
     "screens/f1-weekly-healer-20261116.png", "healer/f1-remaining-panel-20261118.png",
+    "healer/f1-abbey-heal-event-20261121.png",
 ])
 def healer_image(request) -> np.ndarray:
     image = cv2.imread(str(FIXTURES / request.param))
@@ -33,7 +34,6 @@ def test_healer_free_heal_is_recognized(healer_image):
 
 
 @pytest.mark.parametrize("bounds", [
-    (550, 335, 805, 435),  # 治疗师或战地厨师标题
     (932, 754, 979, 814),  # 免费治疗的选中标记
     (1204, 35, 1492, 75),  # 免费治疗说明
     (1397, 981, 1486, 1027),  # 治疗按钮文字
@@ -53,7 +53,41 @@ def test_solid_gold_cover_does_not_count_as_healer_title():
     image = cv2.imread(str(FIXTURES / "healer/f1-full-health.png"))
     assert image is not None and healer_heal_button(image) is not None
     image[335:435, 540:805] = (32, 146, 230)
+    # 标题不再必要：说明与按钮仍在时事件面板同样是治疗页。
+    assert is_healer_screen(image)
+    image[20:95, 1190:1510] = 0
     assert not is_healer_screen(image)
+    assert healer_heal_button(image) is None
+
+
+def test_abbey_event_heal_panel_is_recognized_without_healer_title():
+    """「希安那修道院」事件：无治疗师标题，但免费治疗布局相同。"""
+    image = cv2.imread(str(FIXTURES / "healer/f1-abbey-heal-event-20261121.png"))
+    assert image is not None
+    assert is_healer_screen(image)
+    button = healer_heal_button(image)
+    assert button is not None
+    assert button.center == (1441, 1004)
+
+
+@pytest.mark.parametrize("bounds", [
+    (1204, 35, 1492, 75),  # 免费治疗说明
+    (1397, 981, 1486, 1027),  # 治疗按钮文字
+])
+def test_abbey_event_without_heal_content_is_not_healer(bounds):
+    image = cv2.imread(str(FIXTURES / "healer/f1-abbey-heal-event-20261121.png"))
+    assert image is not None
+    x1, y1, x2, y2 = bounds
+    image[y1:y2, x1:x2] = 0
+    assert not is_healer_screen(image)
+    assert healer_heal_button(image) is None
+
+
+def test_abbey_event_without_selected_marker_does_not_authorize_click():
+    image = cv2.imread(str(FIXTURES / "healer/f1-abbey-heal-event-20261121.png"))
+    assert image is not None
+    image[754:814, 932:979] = 0
+    assert is_healer_screen(image)
     assert healer_heal_button(image) is None
 
 

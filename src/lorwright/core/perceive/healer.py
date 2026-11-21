@@ -34,7 +34,11 @@ def is_healer_screen(image: np.ndarray) -> bool:
     """识别治疗师页面；选项不清楚时仍由调用方保存快照停下。"""
     return (any(_gold_title_visible(image, name, (540, 335, 760, 435))
                 for name in ("healer_title", "healer_title_bright"))
-            or _visible(image, "field_cook_title", (550, 345, 805, 430)) is not None)
+            or _visible(image, "field_cook_title", (550, 345, 805, 430)) is not None
+            # 事件面板也能提供同样的免费 25% 治疗（如「希安那修道院」的
+            # 「避難」）：标题各不相同，治疗描述与按钮的布局一致。
+            or (_visible(image, "healer_heal_description", (1190, 20, 1510, 95)) is not None
+                and _visible(image, "healer_heal_button", (1380, 965, 1510, 1045)) is not None))
 
 
 def healer_heal_button(image: np.ndarray) -> Rect | None:

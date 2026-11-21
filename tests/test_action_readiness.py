@@ -136,7 +136,7 @@ def test_flash_requires_two_frames_after_return():
 
 
 @pytest.mark.parametrize("change", [
-    {"name": "other"}, {"cost": 3}, {"drag_point_valid": False},
+    {"cost": 3}, {"drag_point_valid": False},
     {"rect": Rect(150, 800, 100, 150)}, {"drag_point": (900, 900)},
     {"rect": Rect(100, 800, 0, 150)},
 ])
@@ -145,6 +145,16 @@ def test_play_checks_selected_card(change):
     after = deepcopy(before)
     after.hand[0] = replace(after.hand[0], **change)
     assert not observed(before, after).ready(PLAY)
+
+
+@pytest.mark.parametrize("name", ["", "other", "尖嘯蜘蛛"])
+def test_play_name_ocr_flicker_does_not_block(name):
+    # 实机 20261121T140226：卡名识别在已知↔未知间抖动但牌位未动，
+    # 拖拽证据不含名字，仍须两帧稳定后放行。
+    before = state()
+    after = deepcopy(before)
+    after.hand[0] = replace(after.hand[0], name=name)
+    assert observed(before, after).ready(PLAY)
 
 
 @pytest.mark.parametrize("distance,expected", [(12, True), (13, False)])
@@ -555,7 +565,7 @@ def test_reusing_mutable_state_preserves_previous_observation():
     current = state()
     gate = ActionReadiness()
     gate.observe(current)
-    current.hand[0] = replace(current.hand[0], name="changed")
+    current.hand[0] = replace(current.hand[0], rect=Rect(200, 800, 100, 150))
     gate.observe(current)
     assert not gate.ready(PLAY)
     gate.observe(current)

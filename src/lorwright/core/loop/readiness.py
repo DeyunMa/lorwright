@@ -259,8 +259,15 @@ def _card(card: CardInHand, *, drag: bool = False) -> tuple | None:
     point = card.drag_point or card.rect.center
     if drag and (not card.drag_point_valid or len(point) != 2):
         return None
-    return (card.index, card.name, card.cost, card.rect, card.visible_playable_unit,
-            Rect(*point, 1, 1) if drag else None)
+    # 拖拽只依赖起点物理位置稳定：卡名 OCR 在已知↔未知间抖动不会改变
+    # 牌位，纳入证据会让就绪永远不过两帧（实机 20261121T140226 尖嘯蜘蛛
+    # index 2 卡名抖动停 action_readiness_unverified）。rect/cost 变化
+    # 仍按原判据阻断。
+    if drag:
+        return (card.index, card.cost, card.rect, card.visible_playable_unit,
+                Rect(*point, 1, 1))
+    return (card.index, card.name, card.cost, card.rect,
+            card.visible_playable_unit, None)
 
 
 def _unit(unit: Unit) -> tuple | None:

@@ -3665,3 +3665,25 @@ def test_service_scene_prefers_support_over_event(adventure, monkeypatch, entry)
     else:
         assert loop._handle_node_panel()
     assert calls == ["_handle_support"]
+
+
+def test_task_reward_successor_world_map_with_occluded_weekly_label(adventure):
+    """20261121T125821：结算任务插页后回到世界地图，云完全遮住「每週冒險」。
+
+    入口与列表判定都不成立，仅世界控件在且非节点地图；
+    victory → task_reward → 世界地图应核验 settlement_closed。
+    """
+    victory = cv2.imread(str(FIXTURES.parent / "continue/f1-adventure-victory-20261116.png"))
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
+    world = cv2.imread(str(
+        FIXTURES.parent / "screens/f1-world-cloud-occludes-weekly-20261121.png"))
+    assert victory is not None and task is not None and world is not None
+    from lorwright.core.perceive.adventure_scene import is_world_map
+    assert is_world_map(world)
+    loop, device, engine, saved, _ = adventure([victory, victory, task, world], [])
+    result = loop.run(max_nodes=1)
+    assert result == LoopResult("completed", "adventure_victory")
+    assert loop._details["settlement_closed"] is True
+    assert len(device.taps) == 2
+    assert engine.run_calls == []
+    assert saved == ["adventure_victory"]

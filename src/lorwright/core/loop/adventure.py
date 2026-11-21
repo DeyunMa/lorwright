@@ -44,6 +44,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_loading_screen,
     is_map,
     is_weekly_list,
+    is_world_map,
     item_chest_leave_button,
     partial_weekly_view,
     recognize_weekly_adventures,
@@ -814,7 +815,7 @@ class AdventureLoop:
                             unchanged = 0
                     continue
             elif not (self._recognized_after_home(after)
-                      or find_home_adventure_entry(normalized[0]) is not None
+                      or self._settlement_destination(normalized[0])
                       or self.engine.parser.ui.detect(normalized[0]) is UIState.BATTLE_END):
                 continue
             report("verified", "task_reward_transition", progress=True, **self._details)
@@ -872,7 +873,8 @@ class AdventureLoop:
     @staticmethod
     def _settlement_destination(design) -> bool:
         return (find_home_adventure_entry(design) is not None
-                or find_weekly_entry(design) is not None or is_weekly_list(design))
+                or find_weekly_entry(design) is not None or is_weekly_list(design)
+                or is_world_map(design))
 
     def _await_continue_button(self, image, still_on_page, *, reason):
         """「繼續」在页面动画播完后才出现：在固定窗口内只观察，不输入。

@@ -453,3 +453,36 @@ def test_weekly_does_not_authorize_other_scenes(name):
     assert find_weekly_entry(image) is None
     assert recognize_weekly_adventures(image) is None
     assert find_weekly_start(image) is None
+
+
+@pytest.mark.parametrize("name", [
+    "f1-world-cloud-occludes-weekly-20261121.png",
+    "world-weekly-20261115.png",
+])
+def test_world_map_with_or_without_occluded_weekly_label(name):
+    # 云遮与清晰可见「每週冒險」的世界地图都算世界视野。
+    from lorwright.core.perceive.adventure_scene import is_world_map
+
+    assert is_world_map(_image(f"screens/{name}"))
+
+
+@pytest.mark.parametrize("name", [
+    "mapnav/1080p_map.png",
+    "mapnav/1080p_zoommax.png",
+    "mapnav/1080p_jinx_map.png",
+    "mapnav/f1-resumed-map-20261114.png",
+    "mapnav/f1-boss-crest-map-20261120.png",
+])
+def test_adventure_maps_are_not_world_map(name):
+    from lorwright.core.perceive.adventure_scene import is_world_map
+
+    assert not is_world_map(_image(name))
+
+
+def test_720p_adventure_map_is_not_world_map():
+    from lorwright.core.perceive.adventure_scene import is_world_map
+    from lorwright.core.perceive.normalize import Normalizer
+
+    design = Normalizer((1920, 1080)).fit(_image("screens/720p_map.png"))[0]
+    assert is_map(design)
+    assert not is_world_map(design)

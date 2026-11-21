@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`screens/f1-world-cloud-occludes-weekly-20261121.png` 来自会话 `20261121T125821-85e6535d61c9`（champion elise）的 `task_reward_transition_unverified` 停止原始 PNG，完整 1920×1080，仅英雄名「伊莉絲」。胜利结算任务插页后回到英雄之路世界地图，云遮住「每週冒險」文字：`find_weekly_entry`（含 0.92 放宽）/`is_weekly_list`/`find_home_adventure_entry` 均不成立，但 `_world_controls` 为真、`is_map` 为假。新增 `is_world_map`（世界控件在且非冒险节点地图）并入 `_settlement_destination`；`f1-world-cloud-over-weekly-20261120.png` 是标签尚可放宽识别的相邻变体。
+
 `screens/f1-hero-item-mixed-champions-20261121.png` 来自会话 `20261121T120805-2328dbfb57d6`（champion elise）的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。英雄道具奖励首次出现**三英雄候选**布局（赫克林 6+闇影圖騰、魔甘娜 6+藍BUFF、伊莉絲 2+吸血鬼權杖，均 rare，附金幣+200 与重抽按钮）：旧两槽 `hero_item_main_index`/`hero_selection` 均返回 None。新增 `hero_item_triple_layout`（副标题+重抽+三槽）与 `hero_item_champion_index`（ORB 匹配英雄包插画；elise 472 good 对 ≤31）；策略优先自身英雄槽，否则回退道具品质规则。新增 `assets/adventure/hero_item_reroll.png`。
 
 `continue/f1-adventure-victory-summary-continue-20261121.png` 来自会话 `20261121T125120-15f917a5a040`（champion elise）的 `adventure_victory_transition_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。胜利结算第二页：同一「勝利」标题但无统计/经验标签，仅剩「繼續」按钮（960,955）。新增 `is_adventure_victory_summary` 与 `adventure_settlement → "victory_summary"`（置于 victory 与 rewards 之间）；旧转移接受逻辑只对 `settlement_destination` 放行，把本页当成终态导致未核验。

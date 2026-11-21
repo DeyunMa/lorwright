@@ -433,6 +433,16 @@ def _world_controls(image: np.ndarray) -> bool:
             and _map_zoom_visible(image))
 
 
+def is_world_map(image: np.ndarray) -> bool:
+    """世界控件在但非冒险节点地图的世界视野（如云遮住「每週冒險」标签）。
+
+    20261121T125821 停止帧 task_reward_transition_unverified_20261121_205856_163519：
+    云覆盖每周入口文字，find_weekly_entry/is_weekly_list/
+    find_home_adventure_entry 均不成立，但它是结算任务插页后的合法目的地。
+    """
+    return _world_controls(image) and not is_map(image)
+
+
 def find_weekly_entry(image: np.ndarray) -> Rect | None:
     """世界地图上同时看见每周文字和紫色图标才授权入口。"""
     if not _world_controls(image):

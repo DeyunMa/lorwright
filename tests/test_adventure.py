@@ -717,6 +717,29 @@ def test_final_rewards_page_with_only_hero_xp_is_recognised(adventure):
     assert loop._details["settlement_closed"] is True
 
 
+def test_victory_summary_second_page_completes_settlement(adventure):
+    # 20261121T125120：结算首屏「繼續」后进入第二页总结（无统计，仅繼續）。
+    first = _img("../continue/f1-adventure-victory-20261116.png")
+    summary = _img("../continue/f1-adventure-victory-summary-continue-20261121.png")
+    home = _img("../reward_timeout/f1-after-home.png")
+    loop, device, _, saved, _ = adventure(
+        [first, first, summary, summary, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 2
+    assert loop._details["settlement_closed"] is True
+    assert saved == ["adventure_victory"]
+
+
+def test_top_level_run_starts_on_victory_summary(adventure):
+    # 会话直接开在总结续页：顶层分派也走同一结算链。
+    summary = _img("../continue/f1-adventure-victory-summary-continue-20261121.png")
+    home = _img("../reward_timeout/f1-after-home.png")
+    loop, device, _, _, _ = adventure([summary, summary, home], [])
+    assert loop.run(max_nodes=1) == LoopResult("completed", "adventure_victory")
+    assert len(device.taps) == 1
+    assert loop._details["settlement_closed"] is True
+
+
 def test_final_victory_animation_wait_is_bounded(adventure, monkeypatch):
     animation = cv2.imread(str(FIXTURES.parent / "continue/f1-victory-animation-20261120.png"))
     if animation is None:

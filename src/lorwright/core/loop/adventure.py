@@ -148,7 +148,8 @@ class AdventureLoop:
     #: 结算链中任务插页总数上限；超过视为异常页面序列。
     TASK_REWARD_MAX_PAGES = 5
     SETTLEMENT_STAGES = (
-        "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
+        "victory", "victory_summary", "rewards", "silver_vault",
+        "silver_vault_reward", "relic_chest", "relic_reward",
     )
     BATTLE_STATES = {
         UIState.MULLIGAN,
@@ -862,7 +863,7 @@ class AdventureLoop:
         )
         normalized = self._reward_design(image)
         stage = adventure_settlement(normalized[0]) if normalized is not None else None
-        victory = stage in {"victory", "rewards"}
+        victory = stage in {"victory", "victory_summary", "rewards"}
         self._details.update(snapshot=str(path) if path is not None else None,
                              outcome="victory" if victory else "unverified", settlement_closed=False)
         stages = self.SETTLEMENT_STAGES

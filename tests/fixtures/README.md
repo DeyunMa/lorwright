@@ -19,6 +19,8 @@
 
 `screens/f1-hero-item-mixed-champions-20261121.png` 来自会话 `20261121T120805-2328dbfb57d6`（champion elise）的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。英雄道具奖励首次出现**三英雄候选**布局（赫克林 6+闇影圖騰、魔甘娜 6+藍BUFF、伊莉絲 2+吸血鬼權杖，均 rare，附金幣+200 与重抽按钮）：旧两槽 `hero_item_main_index`/`hero_selection` 均返回 None。新增 `hero_item_triple_layout`（副标题+重抽+三槽）与 `hero_item_champion_index`（ORB 匹配英雄包插画；elise 472 good 对 ≤31）；策略优先自身英雄槽，否则回退道具品质规则。新增 `assets/adventure/hero_item_reroll.png`。
 
+`continue/f1-adventure-victory-summary-continue-20261121.png` 来自会话 `20261121T125120-15f917a5a040`（champion elise）的 `adventure_victory_transition_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。胜利结算第二页：同一「勝利」标题但无统计/经验标签，仅剩「繼續」按钮（960,955）。新增 `is_adventure_victory_summary` 与 `adventure_settlement → "victory_summary"`（置于 victory 与 rewards 之间）；旧转移接受逻辑只对 `settlement_destination` 放行，把本页当成终态导致未核验。
+
 `card_rewards/f1-card-reward-tied-ones-20261121.png` 来自会话 `20261121T124224-ca2dbf38f70a`（champion elise）的 `card_reward_undecided` 停止原始 PNG，完整 1920×1080，已查看无账号。三张 1 费单位（小蜘蛛/寶貝毒蛛/螢影騙徒，均配 rare 道具）：左右两槽徽记区域无完整品质徽记 → `quality="unknown"`，旧规则对未知品质弃权。改为按最低档（低于 unranked）参与排序，本帧选已核验 common 的中槽。
 
 `screens/f1-optional-target-skip-20261121.png` 来自会话 `20261121T122700-4f3e5fb8c303`（champion elise）的 `action_readiness_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。蜘術士打出后的**可选目标提示**：中央为所打单位，左侧效果文字「擊暈或對遭到擊暈的敵軍單位造成2點傷害」，敌方 1|1 单位在场，动作按钮读「跳過」（蓝）。新增 `assets/buttons/action_skip.png` 识别该按钮文字并归入 `UIState.TARGETING`（`action_prompt=="action_skip"` 区分必选目标）；通用层在 `action_prompt=="action_skip"` 且有敌方单位时 `SELECT_TARGET(enemy,0)`，否则 `END_TURN` 按跳過。「跳過」模板与可选选牌的 skip 控件共存时先判可选选牌，仅 `optional_choice_state` 部分证据时升级。

@@ -126,6 +126,17 @@ def test_relic_settlement_requires_header_icon_and_content(name, stage, bounds):
     assert not is_adventure_victory(image)
 
 
+def test_adventure_victory_summary_page():
+    image = _load("f1-adventure-victory-summary-continue-20261121.png")
+    assert adventure_settlement(image) == "victory_summary"
+    # 同一胜利标题但统计页不误判为续页；胜利页也不是续页。
+    assert adventure_settlement(_load("f1-adventure-victory-20261116.png")) == "victory"
+    assert adventure_settlement(_load("f1-victory-ready-20261120.png")) == "victory"
+    obscured = image.copy()
+    obscured[96:146, 205:288] = 0
+    assert adventure_settlement(obscured) is None
+
+
 def test_adventure_rewards_require_victory_and_hero_experience_labels():
     image = _load("f1-adventure-victory-20261116.png")
     image[250:] = 0

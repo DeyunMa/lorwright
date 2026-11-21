@@ -66,12 +66,35 @@ def is_adventure_rewards(image: np.ndarray) -> bool:
             and _visible(image, "adventure_hero_xp", (450, 600, 1470, 700), text_min=100))
 
 
+def is_adventure_victory_summary(image: np.ndarray) -> bool:
+    """胜利后的续页：同一胜利标题但无统计/经验标签，仅剩「繼續」。
+
+    实机：结算首屏点「繼續」后可能进入第二页总结（20261121T125120）。
+    繼續按钮是页面本身的一部分，作为证据防止胜利页统计动画中间帧误判。
+    """
+    if image.shape != (1080, 1920, 3):
+        return False
+    from lorwright.core.perceive.buttons import find_continue_button
+    return (
+        _visible(image, "adventure_victory_label", (205, 96, 288, 146))
+        and not _visible(image, "adventure_completion_time",
+                         (182, 266, 321, 315), text_min=100)
+        and not _visible(image, "adventure_best_time",
+                         (182, 389, 321, 438), text_min=100)
+        and not _visible(image, "adventure_hero_xp",
+                         (450, 600, 1470, 700), text_min=100)
+        and find_continue_button(image) is not None
+    )
+
+
 def adventure_settlement(image: np.ndarray) -> str | None:
     """已采样的最终结算阶段；圣物箱本身不证明冒险获胜。"""
     if is_adventure_victory(image):
         return "victory"
     if is_adventure_rewards(image):
         return "rewards"
+    if is_adventure_victory_summary(image):
+        return "victory_summary"
     if image.shape == (1080, 1920, 3) and (
         _visible(image, "silver_vault_title", (185, 100, 565, 195), score_min=0.94)
         and _visible(image, "silver_relic_icon", (65, 90, 190, 215))

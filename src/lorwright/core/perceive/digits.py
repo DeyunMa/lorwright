@@ -167,6 +167,19 @@ class DigitReader:
             return None
         return best
 
+    def rank(
+        self, image: np.ndarray, rotations: tuple[int, ...] = (0,)
+    ) -> list[tuple[int, float]]:
+        """各数字在所有原型与角度上的最高分，按分数降序；无模板时为空。"""
+        best: dict[int, float] = {}
+        for angle in rotations:
+            rotated = image if angle == 0 else rotate_glyph(image, angle)
+            for tpl in self._templates:
+                score = _similarity(rotated, tpl.image)
+                if score > best.get(tpl.digit, -1.0):
+                    best[tpl.digit] = score
+        return sorted(best.items(), key=lambda item: -item[1])
+
     def classify_sequence(
         self, glyphs: list[np.ndarray], rotations: tuple[int, ...] = (0,),
     ) -> tuple[int, float] | None:

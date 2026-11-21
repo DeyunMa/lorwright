@@ -7,6 +7,10 @@ from lorwright.core.models import DiscardCandidates, Rect
 from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.hand import read_cost_glyphs
 
+#: 费用单字的最低分与对第二名数字的最低领先幅度，见 `_read_cost`。
+_COST_MIN_SCORE = 0.80
+_COST_MIN_MARGIN = 0.15
+
 
 def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandidates | None:
     if frame.shape != (1080, 1920, 3):
@@ -42,16 +46,33 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
             continue
         cards.append(Rect(x + 80, y + 65, 50, 50))
         artwork.append(cv2.resize(art, (80, 80)))
-        hit = digits.classify_sequence(
-            glyphs, rotations=(-15, -10, -5, 0, 5, 10, 15),
-        )
-        costs.append(hit[0] if hit is not None and hit[1] >= 0.85 else None)
+        costs.append(_read_cost(digits, glyphs))
     if not 1 <= len(cards) <= 5:
         return None
     matches = [[_artwork_match(a, b) for b in artwork] for a in artwork]
     scores = tuple(tuple(min(matches[i][j], matches[j][i]) for j in range(len(artwork)))
                    for i in range(len(artwork)))
     return DiscardCandidates(tuple(cards), scores, tuple(costs))
+
+
+def _read_cost(digits: DigitReader, glyphs: list[np.ndarray]) -> int | None:
+    """每位须明确是某个数字：分数过下限，且领先其他数字足够多。
+
+    弃牌徽章比手牌大（字高约 30px 对 20px），现有原型多采自手牌字号，
+    清晰字形的绝对分随数字与倾斜在 0.84~1.0 间浮动（如 2 在 0.842/0.864
+    间跳），单一 0.85 绝对阈让同一画面时读时不读。真实字形领先第二名
+    均 ≥0.19，被遮挡的残字领先 <0.1，故按领先幅度判定，并保留下限。
+    """
+    value = ""
+    for glyph in glyphs:
+        ranked = digits.rank(glyph, rotations=(-15, -10, -5, 0, 5, 10, 15))
+        if not ranked or not 0 <= ranked[0][0] <= 9:
+            return None
+        runner_up = ranked[1][1] if len(ranked) > 1 else -1.0
+        if ranked[0][1] < _COST_MIN_SCORE or ranked[0][1] - runner_up < _COST_MIN_MARGIN:
+            return None
+        value += str(ranked[0][0])
+    return int(value) if value else None
 
 
 def _artwork_match(source: np.ndarray, target: np.ndarray) -> float:

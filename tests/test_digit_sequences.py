@@ -112,15 +112,19 @@ def test_discard_ten_keeps_both_digits_in_public_candidates():
     assert candidates is not None and candidates.costs[0] == 10
 
 
-def test_discard_requires_original_threshold_for_every_digit(monkeypatch):
+@pytest.mark.parametrize("weak", [
+    [(1, 0.79), (7, 0.40)],  # 低于下限
+    [(1, 0.95), (7, 0.81)],  # 领先第二名不足
+], ids=["below-floor", "ambiguous"])
+def test_discard_requires_confident_reading_for_every_digit(monkeypatch, weak):
     reader = _reader()
-    classify = reader.classify
+    rank = reader.rank
 
     def weak_one(glyph, rotations):
-        hit = classify(glyph, rotations=rotations)
-        return (1, 0.84) if hit is not None and hit[0] == 1 else hit
+        ranked = rank(glyph, rotations=rotations)
+        return weak if ranked and ranked[0][0] == 1 else ranked
 
-    monkeypatch.setattr(reader, "classify", weak_one)
+    monkeypatch.setattr(reader, "rank", weak_one)
     image = cv2.imread(str(fixtures_root() / "screens/f1-discard-candidates-20261117.png"))
     cv2.circle(image, (152, 680), 23, (120, 60, 20), -1)
     _put_ten(image, (152, 680))

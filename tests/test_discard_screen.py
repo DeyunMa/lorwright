@@ -193,3 +193,27 @@ def test_discard_reads_reduced_green_costs_under_highlight():
     action = choose_discard(candidates)
     assert action is not None and action.card_index == 0
 
+
+
+def test_discard_reads_clear_cost_below_absolute_threshold_without_duplicates():
+    """20261121T013024 停止帧：无重复牌，最右爆破幫菜鳥的清晰「2」对手牌字号
+    原型只得 0.842，旧 0.85 绝对阈判未知致整组拒绝。按领先第二名幅度判定后
+    五张全读，选最高费的行走望遠鏡，点击落在该卡卡身内。"""
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-no-duplicate-20261121.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-no-duplicate-20261121.png")
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert candidates.costs == (1, 3, 1, 1, 2)
+    action = choose_discard(candidates)
+    assert action is not None
+    assert action.card_index == 1
+    assert not action.raw["duplicate"] and action.raw["cost"] == 3
+    # 行走望遠鏡卡身约 x 480~860、y 540~1000。
+    x, y = candidates.cards[1].center
+    assert 480 <= x <= 860 and 560 <= y <= 980

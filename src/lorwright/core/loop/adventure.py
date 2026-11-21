@@ -1516,7 +1516,11 @@ class AdventureLoop:
         self._tap(*selected[1].to_device(*button.center))
         previous_scene = None
         next_image, next_design = selected_image, selected
-        for next_image in self._transition_frames("card_reward_transition"):
+        # 复制牌奖励的「添加複製牌」结算动画 + 地图淡入明显长于普通
+        # 三选一（实机 20261121T151728 淡入中途帧在 12s 截止到达，
+        # 无第二帧可核验 -> card_reward_after_unknown），窗口放宽到
+        # 18s；确认未生效的奖励页仍走 confirm_unchanged 分支。
+        for next_image in self._transition_frames("card_reward_transition", wait_s=18):
             next_design = self._reward_design(next_image)
             next_scene = None
             if next_design is not None and not is_card_reward_screen(next_design[0]):

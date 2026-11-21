@@ -82,6 +82,14 @@ def test_zoomed_live_map_controls_are_recognized(jpeg):
     assert is_map(image)
 
 
+def test_fading_weekly_map_controls_are_not_authorized():
+    # 会话 20261121T151728：奖励页淡出、地图淡入中途的帧与商店
+    # 淡出帧同类（plus p10=121、minus=89），不能当作已稳定地图；
+    # 转场核验另由等帧窗口兜底（adventure_transition 超时扩展）。
+    image = _image("mapnav/f1-weekly-red-map-20261121.png")
+    assert not is_map(image)
+
+
 @pytest.mark.parametrize("damage", ["plus", "minus", "back", "dimmed"])
 def test_zoomed_live_map_requires_visible_controls(damage):
     image = _image("mapnav/f1-after-gold-zoomed-map-20261117.png")

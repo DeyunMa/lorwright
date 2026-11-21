@@ -679,6 +679,37 @@ def test_blocking_confirm_abstains_when_attacker_unstable():
     assert not observed(before, after).ready(Action(ActionType.CONFIRM))
 
 
+def test_repeatedly_swallowed_block_falls_through_to_confirm():
+    # 会话 20261121T155018：攻击者被不可见格挡者覆盖时每次拖拽
+    # 都是无效落点，同一计划连吞三次后确认收尾而非无限重拖。
+    policy = BlockingPolicy()
+    attacker = _u(10, 8, 500, 300)
+    blocker = _u(10, 3, 400)  # 攻击≥敌方生命，能互换，必有计划
+    state = _blocking([blocker], [attacker])
+    for _ in range(3):
+        action = policy.decide(state)
+        assert action.type is ActionType.BLOCK
+        # 拖拽被吞：后态与先态一致，无单位上移。
+        policy.on_action_outcome(action, state, state)
+    assert policy.decide(state).type is ActionType.CONFIRM
+
+
+def test_swallowed_count_resets_when_block_lands():
+    # 落位一次即清零：前两次被吞、第三次落位后仍回到 BLOCK→CONFIRM 常态。
+    policy = BlockingPolicy()
+    attacker = _u(10, 8, 500, 300)
+    blocker = _u(10, 3, 400)
+    lane = _u(10, 3, 400, 650)   # 格挡行位（中心 y=700 < 后排 950-120）
+    state = _blocking([blocker], [attacker])
+    landed = _blocking([lane], [attacker])
+    for _ in range(2):
+        action = policy.decide(state)
+        policy.on_action_outcome(action, state, state)
+    action = policy.decide(state)
+    policy.on_action_outcome(action, state, landed)
+    assert policy.decide(state).type is ActionType.CONFIRM  # _declared 已置位
+
+
 def test_blocking_policy_plans_only_over_stable_units():
     stable_blocker = _u(2, 3, 400)
     attacker = _u(4, 1, 500, 300)

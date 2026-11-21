@@ -256,11 +256,13 @@ class BlockingPolicy(Policy):
     def __init__(self) -> None:
         self._declared = False
         self._unstable_wait = 0
+        self._swallowed = 0
 
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is not UIState.BLOCKING:
             self._declared = False
             self._unstable_wait = 0
+            self._swallowed = 0
             return None
         if self._declared:
             return Action(type=ActionType.CONFIRM)
@@ -298,14 +300,22 @@ class BlockingPolicy(Policy):
                 return Action(type=ActionType.NO_OP)
         else:
             self._unstable_wait = 0
-        if not pairs:
+        # 实机 20261121T155018：同一计划连续被吞——攻击者多半已被
+        # 不可见格挡者覆盖（大敌卡完全遮住行内单位，my_units 计数
+        # 仍在但像素不可见），每次拖拽都是无效落点；有界后确认，
+        # 完成已锁定指派或接受脸伤，都比无限重拖强。
+        if not pairs or self._swallowed >= 3:
             return Action(type=ActionType.CONFIRM)
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
 
     def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
-        """声明落地后才确认；被吞的拖拽不留标记，重路由时重新规划。"""
+        """声明落地后才确认；被吞的拖拽不留标记，重路由时重新规划。
+
+        每次未落地的 block 结算计一次 _swallowed；落地即清零。
+        """
         if after.ui_state is not UIState.BLOCKING:
             self._declared = False
+            self._swallowed = 0
         elif action.type is ActionType.BLOCK and before.ui_state is UIState.BLOCKING:
             # 实机 20261121T143406：拖拽被吞时单位全停备战行，此时确认
             # 会点「略過格擋」放弃格挡。与 outcome 同判据：有单位净上移
@@ -318,6 +328,7 @@ class BlockingPolicy(Policy):
             self._declared = (
                 sum(u.rect.center[1] < cutoff for u in after.my_units)
                 > sum(u.rect.center[1] < cutoff for u in before.my_units))
+            self._swallowed = 0 if self._declared else self._swallowed + 1
 
 
 # 1 点水晶伤害折算的单位价值权重（水晶血不可再生，单位可以）

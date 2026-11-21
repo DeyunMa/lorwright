@@ -23,7 +23,8 @@ herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HER
   2. 有没有放宽识别门槛或改判定方式；有就记下，收口时用 `tools/audit_corpus.py --compare` 对比本轮开始前后的全量语料；
   3. 新策略或新识别里的隐含假设：写死的坐标、"读不出就当作某个值"、"能识别名字就是英雄"这类推断；
   4. 同一类卡点的累计修复次数，和账本顶部的计数是否一致。
-- `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，也不是 50 轮暂停），或 goal 的 agent 消失时发一次，送达后唤醒器退出。`improve` 按收口规则核对 goal 已结束、本机工作区干净、f1 无非终态会话，再按 `logs/improve/notes.md` 收口。
+- `[improve-attention]`：goal 停在提问对话框（`↑↓ select · ↵ confirm`）等用户时，每个问题发一次，唤醒器继续运行。`improve` 看清问题后转告用户，或按 `AGENTS.md`「自主决策」代为回答；
+- `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，不是 50 轮暂停，也不是在等提问），或 goal 的 agent 消失时发一次，送达后唤醒器退出。`improve` 按收口规则核对 goal 已结束、本机工作区干净、f1 无非终态会话，再按 `logs/improve/notes.md` 收口。
 
 细节：
 - 只在 `improve` 的 Herdr 状态为 `idle` / `done` 时发消息，不往正在进行的对话或回合里插话：定时消息遇忙跳过本次，结束消息每次读取后重试直到送达。用户正在 `improve` 输入框打字而 agent 仍为 `idle` 时，消息会和已输入的文字一起提交。

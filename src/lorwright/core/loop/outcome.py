@@ -125,6 +125,8 @@ class ActionOutcome:
                     # 只支持重新决策，不通知出牌成功或推进英雄阶段。
                     return Outcome(OutcomeStatus.NEEDS_INPUT,
                                    "play_result_obscured_by_resource_refill")
+                elif self._unit_landed(before, after):
+                    reason = "unit_landed_on_board"
             elif kind is ActionType.DISCARD_CARD:
                 if (before.ui_state is UIState.DISCARD and after.ui_state in {
                     UIState.MY_TURN_IDLE, UIState.ENEMY_TURN, UIState.COMBAT_RESOLVING,
@@ -215,3 +217,23 @@ class ActionOutcome:
         if reason:
             return Outcome(OutcomeStatus.SUCCEEDED, reason)
         return Outcome(OutcomeStatus.WAITING, "awaiting_visible_result")
+
+    def _unit_landed(self, before: GameState, after: GameState) -> bool:
+        """打出单位的落地核验：收起的展开态不能比牌数、零费也没有支付，
+        但己方场面单位数在已知界面下净增，且所打之牌本身是已确认单位，
+        或同名单位新上桌（如吉茵珂絲），即可证明落地而非无变化。
+        """
+        if after.ui_state not in {UIState.MY_TURN_IDLE, UIState.ENEMY_TURN,
+                                  UIState.BLOCKING}:
+            return False
+        if len(after.my_units) <= len(before.my_units):
+            return False
+        card = next((c for c in before.hand
+                     if c.index == self.action.card_index), None)
+        if card is None:
+            return False
+        if card.visible_playable_unit or self.action.raw.get("unit_card") is True:
+            return True
+        return bool(card.name) and (
+            any(unit.name == card.name for unit in after.my_units)
+            and not any(unit.name == card.name for unit in before.my_units))

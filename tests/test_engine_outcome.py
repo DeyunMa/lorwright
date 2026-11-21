@@ -11,6 +11,7 @@ from lorwright.core.config import Settings
 from lorwright.core.decide.router import RouteResult
 from lorwright.core.device.base import Frame
 from lorwright.core.loop.engine import Engine
+from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.core.models import (
     Action,
     ActionType,
@@ -396,6 +397,43 @@ def test_visible_unit_play_has_fixed_settlement_window(monkeypatch, result_time,
     assert len(device.drags) == 1
     assert router.calls == (2 if succeeded else 1)
     assert snapshots == ([] if succeeded else [{"tag": "action_timeout"}])
+
+
+def test_landed_unit_verifies_collapsed_play_without_hand_delta():
+    """实机 20261121T061713 形状：零费读数、收起后手牌反增，但单位已上桌。"""
+    card = CardInHand(0, "", 0, Rect(850, 810, 8, 8), visible_playable_unit=True)
+    other = CardInHand(1, "", 6, Rect(1100, 810, 8, 8))
+    before = ready(hand=[card, other], hand_expanded=True)
+    after = ready(hand=[card, other],
+                  my_units=[Unit("", 2, 3, Rect(1055, 928, 8, 8))])
+    outcome = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20)
+    observed = outcome.observe(after, 12)
+    assert observed.status is OutcomeStatus.SUCCEEDED
+    assert observed.reason == "unit_landed_on_board"
+
+
+@pytest.mark.parametrize("ui_state", [UIState.UNKNOWN, UIState.COMBAT_RESOLVING])
+def test_unit_landed_requires_known_stable_ui(ui_state):
+    card = CardInHand(0, "", 0, Rect(850, 810, 8, 8), visible_playable_unit=True)
+    before = ready(hand=[card, CardInHand(1, "", 6, Rect(1100, 810, 8, 8))],
+                   hand_expanded=True)
+    after = replace(ready(my_units=[Unit("", 2, 3, Rect(1055, 928, 8, 8))]),
+                    ui_state=ui_state)
+    outcome = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20)
+    assert outcome.observe(after, 12).status is not OutcomeStatus.SUCCEEDED
+
+
+def test_unconfirmed_card_board_growth_does_not_verify_play():
+    """未确认单位、且无同名新单位上桌的牌：场面净增不归因本次出牌。"""
+    card = CardInHand(0, "砰砰", 1, Rect(850, 810, 8, 8))
+    other = CardInHand(1, "", 6, Rect(1100, 810, 8, 8))
+    before = ready(hand=[card, other], hand_expanded=True)
+    after = ready(hand=[card, other],
+                  my_units=[Unit("其他", 2, 3, Rect(1055, 928, 8, 8))])
+    outcome = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20)
+    assert outcome.observe(after, 12).status is OutcomeStatus.WAITING
+    # 无变化更不接受。
+    assert outcome.observe(before, 12).status is OutcomeStatus.WAITING
 
 
 @pytest.mark.parametrize("expanded,visible_unit", [(False, True), (True, False)])

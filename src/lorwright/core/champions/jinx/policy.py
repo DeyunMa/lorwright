@@ -230,11 +230,17 @@ class JinxOpeningPolicy:
                     and before.mana - after.mana >= card.cost)
             if not after.hand_expanded:
                 # 跨视图牌数不比较。支付须再有明确 Jinx 卡面或新鲜伤害，
-                # 对手回血可能抵消伤害；零费不能走此分支。
+                # 对手回血可能抵消伤害。
                 damaged = (before.has_fresh_readings("enemy_nexus_hp")
                            and after.has_fresh_readings("enemy_nexus_hp")
                            and after.enemy_nexus_hp < before.enemy_nexus_hp)
                 visible_jinx = any(unit.name == "吉茵珂絲" for unit in after.my_units)
+                if card.cost <= 0:
+                    # 零费落地没有支付证据；同名单位新上场即落地，
+                    # 仅凭伤害不够（实机 20261121T061713 费用读作 0 而 Jinx 已上桌）。
+                    new_named = visible_jinx and not any(
+                        unit.name == "吉茵珂絲" for unit in before.my_units)
+                    return after.ui_state is UIState.MY_TURN_IDLE and new_named
                 return after.ui_state is UIState.MY_TURN_IDLE and paid and (damaged or visible_jinx)
             generated = (sum(c.name in ROCKET_NAMES for c in after.hand) == 2
                          and all(c.name in ROCKET_NAMES | POW_POW_NAMES for c in after.hand))

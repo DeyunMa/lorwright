@@ -115,7 +115,34 @@ def test_collapsed_jinx_with_healed_enemy_requires_visible_jinx_and_payment():
     stale_before = replace(before, readings={"mana": Reading(3, 1)})
     assert not JinxOpeningPolicy().play_expectation(action, stale_before).verify(after)
     _, zero_before, _ = summon_states(cost=0)
-    assert not JinxOpeningPolicy().play_expectation(action, zero_before).verify(after)
+    # 零费落地改由同名单位新上桌核验（实机 20261121T061713）。
+    assert JinxOpeningPolicy().play_expectation(action, zero_before).verify(after)
+
+
+def test_zero_cost_collapsed_jinx_verified_by_named_unit_landing():
+    """实机 20261121T061713：费用读作 0、手牌 5→6 收起，Jinx 9|10 上桌，
+    敌核 29→24——支付证据不可得，同名单位落地即核验。"""
+    action, before, after = summon_states(cost=0)
+    before = replace(before, mana=3, enemy_nexus_hp=29,
+                     hand=before.hand[:5],
+                     readings={"mana": Reading(3, 0),
+                               "enemy_nexus_hp": Reading(29, 0)})
+    after = replace(after, hand_expanded=False,
+                    hand=after.hand[:6], enemy_nexus_hp=24,
+                    my_units=[Unit("吉茵珂絲", 9, 10, Rect(700, 850, 100, 150)),
+                              Unit("", 3, 2, Rect(500, 850, 100, 150)),
+                              Unit("", 1, 1, Rect(300, 850, 100, 150))],
+                    readings={"mana": Reading(3, 0),
+                              "enemy_nexus_hp": Reading(24, 0)})
+    expectation = JinxOpeningPolicy().play_expectation(action, before)
+    assert expectation.verify(after)
+    outcome = ActionOutcome(action, before, 20, play_expectation=expectation)
+    assert outcome.observe(after, 12).status is OutcomeStatus.SUCCEEDED
+    # 同名单位未新上桌（伤害或数量不足以单独成证）仍不接受。
+    assert not expectation.verify(replace(
+        after, my_units=[replace(u, name="") for u in after.my_units]))
+    assert not expectation.verify(replace(after, ui_state=UIState.ENEMY_TURN))
+    assert not expectation.verify(before)
 
 
 def test_zero_cost_collapsed_jinx_cannot_use_damage_without_payment():

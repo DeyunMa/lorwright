@@ -33,6 +33,7 @@ from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.adventure_scene import (
     button_is,
     can_resume_adventure,
+    event_leave_option,
     find_home_adventure_entry,
     find_resume_adventure_button,
     find_weekly_entry,
@@ -42,7 +43,6 @@ from lorwright.core.perceive.adventure_scene import (
     is_completed_panel,
     is_loading_screen,
     is_map,
-    event_leave_option,
     is_weekly_list,
     item_chest_leave_button,
     partial_weekly_view,
@@ -90,6 +90,7 @@ from lorwright.core.perceive.result_screen import (
 )
 from lorwright.core.perceive.revive_screen import find_revive_button
 from lorwright.core.perceive.reward_screen import (
+    HERO_ITEM_BOX_TAPS,
     card_reward_confirm_button,
     card_reward_diagnostics,
     card_reward_selection,
@@ -1153,7 +1154,7 @@ class AdventureLoop:
             item_index = items.index(pick.candidate)
             report("decided", "hero_item_choice", selection=item_index, item=pick.candidate.name,
                    selection_reason=pick.reason)
-            self._tap(*scale.to_device((615, 960, 1300)[item_index], 750))
+            self._tap(*scale.to_device(*HERO_ITEM_BOX_TAPS[item_index]))
             self._wait(2, reason="hero_item_selection", wait_s=2)
             image = self._frame()
             normalized = observe_selection()
@@ -1200,7 +1201,7 @@ class AdventureLoop:
         report("decided", "hero_item_choice", selection=index,
                selection_reason=reason, **self._details)
         # 实机证据：点卡面只高亮卡片，可选目标是下方道具盒。
-        self._tap(*scale.to_device((615, 960, 1300)[index], 750))
+        self._tap(*scale.to_device(*HERO_ITEM_BOX_TAPS[index]))
         after = image
         for after in self._transition_frames("hero_item_select_transition",
                                              wait_s=8, attempts=4):

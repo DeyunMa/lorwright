@@ -224,3 +224,20 @@ def test_same_hero_cards_rejects_changes_in_either_slot(damage):
         after[275:455, 680:870] = image[275:455, 1020:1210]
         after[275:455, 1020:1210] = image[275:455, 680:870]
     assert not same_hero_item_cards(image, after)
+
+
+def test_item_box_taps_stay_inside_box_and_triple_card_span():
+    """每个点击点落在道具盒 [edge, edge+290]×[690,816] 与三候选卡面跨距内。"""
+    from lorwright.core.perceive import reward_screen
+
+    assert len(reward_screen.HERO_ITEM_BOX_TAPS) == len(
+        reward_screen._HERO_ITEM_BOX_EDGES) == len(
+        reward_screen._HERO_ITEM_TRIPLE_SLOTS)
+    for tap, edge, slot in zip(
+            reward_screen.HERO_ITEM_BOX_TAPS,
+            reward_screen._HERO_ITEM_BOX_EDGES,
+            reward_screen._HERO_ITEM_TRIPLE_SLOTS, strict=True):
+        x, y = tap
+        assert edge <= x <= edge + 290
+        assert 690 <= y <= 816
+        assert slot <= x <= slot + 270

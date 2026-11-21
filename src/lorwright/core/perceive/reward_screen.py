@@ -267,13 +267,19 @@ def hero_item_choose_enabled(image: np.ndarray) -> bool:
     return float(gold.mean()) > 0.08
 
 
+#: 道具盒行 y 690–816 的各盒左缘。
+_HERO_ITEM_BOX_EDGES = (471, 815, 1157)
+#: 点击取盒中心，两英雄与三英雄页共用（三英雄页点卡面插画只高亮，须点下方道具盒）。
+HERO_ITEM_BOX_TAPS = ((615, 750), (960, 750), (1300, 750))
+
+
 def hero_item_item_selection(image: np.ndarray) -> int | None:
     """返回唯一高亮槽，-1 为均未选；遮挡或歧义返回 None。"""
     if not is_hero_item_reward_screen(image):
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     states = []
-    for x in (471, 815, 1157):
+    for x in _HERO_ITEM_BOX_EDGES:
         edge = gray[690:816, x:x + 4]
         bright, mean = float((edge > 180).mean()), float(edge.mean())
         if bright > 0.6 and mean > 180:
@@ -321,38 +327,52 @@ def _hero_item_art_features(path: Path):
     return points, descriptors, np.array([w * 0.5, h * 0.4, 1.0])
 
 
-def _hero_item_art_matches(artwork: tuple[np.ndarray, np.ndarray], references: dict[str, Path | None]):
-    orb = cv2.ORB_create(nfeatures=4000)
+def _art_keypoints(art: np.ndarray):
+    """卡面 ORB 特征；特征点不足时返回 None。"""
+    points, descriptors = cv2.ORB_create(nfeatures=4000).detectAndCompute(art, None)
+    if descriptors is None or len(points) < 30:
+        return None
+    return points, descriptors
+
+
+def _template_fits(points, descriptors, template, anchor_offset=None) -> bool:
+    """knn 匹配 + 仿射核验插画是否来自同一模板；给定锚点时核对投影位置。"""
+    ref_points, ref_descriptors, anchor = template
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    pairs = matcher.knnMatch(descriptors, ref_descriptors, k=2)
+    good = [a for a, b in pairs if a.distance < 0.75 * b.distance]
+    if len(good) < 60:
+        return False
+    source = np.float32([ref_points[m.trainIdx].pt for m in good])
+    target = np.float32([points[m.queryIdx].pt for m in good])
+    transform, inliers = cv2.estimateAffinePartial2D(source, target, ransacReprojThreshold=3)
+    if transform is None or inliers is None or not np.isfinite(transform).all():
+        return False
+    support = target[inliers.ravel() != 0]
+    if len(support) < max(30, 0.6 * len(good)) or (np.ptp(support, axis=0) < 70).any():
+        return False
+    if not (0.95 <= np.linalg.norm(transform[:, 0]) <= 1.22
+            and abs(transform[1, 0]) <= 0.10):
+        return False
+    return (anchor_offset is None
+            or np.linalg.norm(transform @ anchor - anchor_offset) <= 14)
+
+
+def _hero_item_art_matches(artwork: tuple[np.ndarray, np.ndarray], references: dict[str, Path | None]):
     templates = {name: _hero_item_art_features(path) for name, path in references.items()
                  if path is not None}
+    # 任一槽特征点不足即整页不可判定，与逐槽跳过不同。
+    keypoints = [_art_keypoints(art) for art in artwork]
+    if any(features is None for features in keypoints):
+        return None
     matches: list[set[str]] = []
-    for art, (x1, _, anchor_x) in zip(artwork, _HERO_ITEM_ART_SLOTS, strict=True):
-        matched: set[str] = set()
+    for (points, descriptors), (x1, _, anchor_x) in zip(
+            keypoints, _HERO_ITEM_ART_SLOTS, strict=True):
+        matched = {name for name, template in templates.items()
+                   if template is not None
+                   and _template_fits(points, descriptors, template,
+                                      anchor_offset=(anchor_x - x1, 127))}
         matches.append(matched)
-        points, descriptors = orb.detectAndCompute(art, None)
-        if descriptors is None or len(points) < 30:
-            return None
-        for name, template in templates.items():
-            if template is None:
-                continue
-            ref_points, ref_descriptors, anchor = template
-            pairs = matcher.knnMatch(descriptors, ref_descriptors, k=2)
-            good = [a for a, b in pairs if a.distance < 0.75 * b.distance]
-            if len(good) < 60:
-                continue
-            source = np.float32([ref_points[m.trainIdx].pt for m in good])
-            target = np.float32([points[m.queryIdx].pt for m in good])
-            transform, inliers = cv2.estimateAffinePartial2D(source, target, ransacReprojThreshold=3)
-            if transform is None or inliers is None or not np.isfinite(transform).all():
-                continue
-            support = target[inliers.ravel() != 0]
-            if len(support) < max(30, 0.6 * len(good)) or (np.ptp(support, axis=0) < 70).any():
-                continue
-            if (0.95 <= np.linalg.norm(transform[:, 0]) <= 1.22
-                    and abs(transform[1, 0]) <= 0.10
-                    and np.linalg.norm(transform @ anchor - (anchor_x - x1, 127)) <= 14):
-                matched.add(name)
     return matches[0], matches[1]
 
 
@@ -397,30 +417,13 @@ def hero_item_champion_index(image: np.ndarray, hero_item_art: Path | None) -> i
     template = _hero_item_art_features(hero_item_art)
     if template is None:
         return None
-    ref_points, ref_descriptors, anchor = template
-    orb = cv2.ORB_create(nfeatures=4000)
-    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     hits = []
     for x in _HERO_ITEM_TRIPLE_SLOTS:
         art = gray[150:560, x + 20:x + 270]
-        points, descriptors = orb.detectAndCompute(art, None)
-        matched = False
-        if descriptors is not None and len(points) >= 30:
-            pairs = matcher.knnMatch(descriptors, ref_descriptors, k=2)
-            good = [a for a, b in pairs if a.distance < 0.75 * b.distance]
-            if len(good) >= 60:
-                source = np.float32([ref_points[m.trainIdx].pt for m in good])
-                target = np.float32([points[m.queryIdx].pt for m in good])
-                transform, inliers = cv2.estimateAffinePartial2D(
-                    source, target, ransacReprojThreshold=3)
-                if transform is not None and inliers is not None and np.isfinite(transform).all():
-                    support = target[inliers.ravel() != 0]
-                    matched = (len(support) >= max(30, 0.6 * len(good))
-                               and (np.ptp(support, axis=0) >= 70).all()
-                               and 0.95 <= np.linalg.norm(transform[:, 0]) <= 1.22
-                               and abs(transform[1, 0]) <= 0.10)
-        hits.append(matched)
+        features = _art_keypoints(art)
+        hits.append(features is not None
+                    and _template_fits(*features, template))
     slots = [i for i, hit in enumerate(hits) if hit]
     return slots[0] if len(slots) == 1 else None
 

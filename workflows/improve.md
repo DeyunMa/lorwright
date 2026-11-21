@@ -18,6 +18,11 @@ herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HER
 
 唤醒器每 60 秒读一次 goal 的画面，经 `herdr agent prompt` 给 `improve` 发两类消息，每条都会让 `improve` 完整跑一轮：
 - `[improve-tick]`：默认每 1800 秒（30 分钟，`--tick-interval` 可调）一次。`improve` 按运行期规则只读检查，把观察追加到 `logs/improve/notes.md`；
+  每次检查除了看进展、账本和看守，还要对上次检查以来的每个新提交过一遍审查清单（看 `git show` 的说明和 diff）：
+  1. 提交说明写了完整回归的通过数；只写专项测试的记下来；
+  2. 有没有放宽识别门槛或改判定方式；有就记下，收口时用 `tools/audit_corpus.py --compare` 对比本轮开始前后的全量语料；
+  3. 新策略或新识别里的隐含假设：写死的坐标、"读不出就当作某个值"、"能识别名字就是英雄"这类推断；
+  4. 同一类卡点的累计修复次数，和账本顶部的计数是否一致。
 - `[improve-notify]`：goal 连续 3 次读到已停止（不在回合内，也不是 50 轮暂停），或 goal 的 agent 消失时发一次，送达后唤醒器退出。`improve` 按收口规则核对 goal 已结束、本机工作区干净、f1 无非终态会话，再按 `logs/improve/notes.md` 收口。
 
 细节：

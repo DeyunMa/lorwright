@@ -285,7 +285,7 @@ def test_known_result_transition_observes_without_replaying_or_renewing_action(
 
     monkeypatch.setattr(device, "screencap", capture)
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: times[min(device.frames - 1, 3)])
+                        lambda: times[min(max(0, device.frames - 1), 3)])
     result = engine.run(max_ticks=4)
     assert result.reason == expected
     assert device.taps == [(804, 404)]
@@ -635,6 +635,7 @@ def engine_for(monkeypatch, states, actions, timeout=8, *, check_readiness=False
     monkeypatch.setattr(engine.parser, "load", lambda: None)
     monkeypatch.setattr(engine, "_build_state", lambda image: next(sequence))
     events, snapshots = [], []
+    monkeypatch.setattr("lorwright.core.loop.engine.time.sleep", lambda _: None)
     monkeypatch.setattr("lorwright.core.loop.engine.emit", lambda **event: events.append(event))
     monkeypatch.setattr("lorwright.core.loop.engine.save_snapshot", lambda *args, **kw: snapshots.append(kw))
     return engine, device, router, events, snapshots
@@ -712,7 +713,7 @@ def test_generic_play_resource_refill_reroutes_without_success_callback(monkeypa
     monkeypatch.setattr(policy, "on_action_outcome", lambda *args: callbacks.append(args))
     clock = [0, 0, 1, 2, 3, 4, 5, 7.6, 8.2]
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: clock[device.frames - 1])
+                        lambda: clock[max(0, device.frames - 1)])
     result = engine.run(max_ticks=9)
     outcomes = [event for event in events if event.get("event") == "action_outcome"]
     assert outcomes[-1]["status"] == "needs_input"
@@ -785,7 +786,7 @@ def test_result_phase_can_interrupt_readiness_without_sending_candidate(monkeypa
 
     monkeypatch.setattr(device, "screencap", capture)
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: (0, 2, 12, 30)[device.frames - 1])
+                        lambda: (0, 2, 12, 30)[max(0, device.frames - 1)])
     assert engine.run(max_ticks=4).reason == "battle_end"
     assert device.taps == [] and device.drags == []
 
@@ -884,7 +885,7 @@ def test_readiness_deadline_survives_ui_and_candidate_changes(monkeypatch):
         [Action(ActionType.END_TURN), Action(ActionType.SKIP_CHOICE)], check_readiness=True,
     )
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: (0, 2, 5, 9)[device.frames - 1])
+                        lambda: (0, 2, 5, 9)[max(0, device.frames - 1)])
     result = engine.run(max_ticks=4)
     assert result.reason == "action_readiness_unverified"
     assert snapshots[-1]["tag"] == result.reason
@@ -940,7 +941,7 @@ def test_real_readiness_and_result_phase_preserve_original_action_deadline(
     monkeypatch.setattr(device, "screencap", capture)
     monkeypatch.setattr(Frame, "age_s", lambda _: 99 if stale and device.frames == 4 else 0)
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: (0, 0, transition_time, 12, 30)[device.frames - 1])
+                        lambda: (0, 0, transition_time, 12, 30)[max(0, device.frames - 1)])
     result = engine.run(max_ticks=5)
     assert result.reason == expected
     assert device.taps == [(804, 404)]
@@ -1756,7 +1757,7 @@ def test_core_stops_unresolved_waits_without_an_external_observer(monkeypatch, u
     actions = [] if ui is UIState.UNKNOWN else [Action(ActionType.NO_OP)] * 2
     engine, device, _, _, snapshots = engine_for(monkeypatch, [state] * 2, actions)
     monkeypatch.setattr(
-        "lorwright.core.loop.engine.time.monotonic", lambda: float((device.frames - 1) * budget),
+        "lorwright.core.loop.engine.time.monotonic", lambda: float(max(0, device.frames - 1) * budget),
     )
     result = engine.run(max_ticks=5)
     assert (result.status, result.reason) == ("stopped", reason)
@@ -1772,7 +1773,7 @@ def test_missing_payment_evidence_is_bounded_and_saves_the_reason(monkeypatch):
         monkeypatch, [state] * 2, [Action(ActionType.PLAY_CARD, 0)] * 2,
     )
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic",
-                        lambda: float((device.frames - 1) * 8))
+                        lambda: float(max(0, device.frames - 1) * 8))
     result = engine.run(max_ticks=5)
     assert result.reason == "action_preconditions_unverified"
     assert engine._stop_details["missing_readings"] == ["mana"]

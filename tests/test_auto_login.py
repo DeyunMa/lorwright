@@ -1,4 +1,3 @@
-import time
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -18,6 +17,11 @@ from lorwright.core.runtime.session import StopRequested
 from tools.test_data import fixtures_root
 
 
+@pytest.fixture(autouse=True)
+def _fixed_bootstrap_monotonic(monkeypatch):
+    monkeypatch.setattr("lorwright.core.loop.bootstrap.time.monotonic", lambda: 100.0)
+
+
 def setup_login():
     def rect(x):
         return SimpleNamespace(center=(x, 100))
@@ -29,7 +33,7 @@ def setup_login():
                                loop=SimpleNamespace(max_frame_age_s=5),
                                perception=defaults.perception, logging=defaults.logging)
     frame = Frame(image=np.zeros((1080, 1920, 3), dtype=np.uint8),
-                  ts=time.monotonic(), capture_ms=0)
+                  ts=100.0, capture_ms=0)
     device = Mock()
     device.screencap.return_value = frame
     detector = Mock()
@@ -41,8 +45,8 @@ def test_single_submission_waits_through_loading_until_home(monkeypatch):
     settings, frame, device, detector, normalizer = setup_login()
     home = cv2.imread(str(fixtures_root() / "screens/1080p_home_adventure_entry.png"))
     assert home is not None
-    loading = Frame(np.full_like(frame.image, 247), time.monotonic(), 0)
-    ready = Frame(home, time.monotonic(), 0)
+    loading = Frame(np.full_like(frame.image, 247), 100.0, 0)
+    ready = Frame(home, 100.0, 0)
     device.screencap.side_effect = [frame] * 3 + [loading, ready]
     detector.detect.side_effect = [LoginScreen.FORM] * 3 + [LoginScreen.NONE] * 2
     monkeypatch.setattr("lorwright.core.loop.bootstrap.time.sleep", lambda _: None)

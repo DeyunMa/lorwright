@@ -10,6 +10,7 @@ fixtures 分两代：
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -37,20 +38,36 @@ LEGACY_720P = Layout(
 )
 
 
+@lru_cache(maxsize=4)
+def _ui_detector(threshold: float, button: tuple[int, int, int, int] | None) -> UIStateDetector:
+    action_button = Rect(*button) if button is not None else None
+    detector = UIStateDetector(threshold=threshold, action_button=action_button)
+    detector.load()
+    return detector
+
+
+@lru_cache(maxsize=1)
+def _digit_reader() -> DigitReader:
+    reader = DigitReader()
+    reader.load()
+    return reader
+
+
 def _parser(layout: Layout | None = None) -> StateParser:
     settings = load_settings()
     layout = layout or settings.layout.to_layout()
-    parser = StateParser(
-        layout=layout,
-        ui=UIStateDetector(
-            threshold=settings.perception.match_threshold,
-            action_button=layout.end_turn,
-        ),
-        digits=DigitReader(),
-        threshold=settings.perception.match_threshold,
+    button = (
+        (layout.end_turn.x, layout.end_turn.y, layout.end_turn.w, layout.end_turn.h)
+        if layout.end_turn is not None
+        else None
     )
-    parser.load()
-    return parser
+    threshold = settings.perception.match_threshold
+    return StateParser(
+        layout=layout,
+        ui=_ui_detector(threshold, button),
+        digits=_digit_reader(),
+        threshold=threshold,
+    )
 
 
 def _load(name: str):

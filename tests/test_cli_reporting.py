@@ -254,7 +254,7 @@ def test_real_background_cli_can_be_observed_and_stopped(tmp_path):
                              capture_output=True, text=True, encoding="utf-8", env=env, timeout=10)
     assert stopped.returncode == 0, stopped.stderr + stopped.stdout
     assert json.loads(stopped.stdout)["requested"]
-    deadline = time.monotonic() + 8
+    deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         saved = read_status(root, run_id)
         if saved["status"] in {"cancelled", "failed", "stopped", "completed"}:

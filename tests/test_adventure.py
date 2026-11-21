@@ -6,12 +6,16 @@
 rest_first_option），第一次进商店/休息面板就会 AttributeError。
 """
 
+import hashlib
+import sys
+from collections import OrderedDict
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
+import lorwright.core.loop.adventure as adventure_loop_module
 from lorwright.core.champions import load
 from lorwright.core.config import load_settings
 from lorwright.core.device.base import Frame
@@ -33,6 +37,202 @@ from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
 
 FIXTURES = fixtures_root() / "mapnav"
+_CACHE_LIMIT = 64
+_PERCEIVE_CACHE: OrderedDict[tuple, object] = OrderedDict()
+_PERCEIVE_CACHE_LIMIT = 8192
+_FRAME_DIGESTS: dict[int, tuple[np.ndarray, tuple]] | None = None
+
+
+def _image_digest(image: np.ndarray) -> tuple:
+    active = _FRAME_DIGESTS
+    if active is not None:
+        entry = active.get(id(image))
+        if entry is not None and entry[0] is image:
+            return entry[1]
+    digest = (
+        image.shape,
+        image.dtype.str,
+        hashlib.sha256(memoryview(np.ascontiguousarray(image))).digest(),
+    )
+    if active is not None:
+        active[id(image)] = (image, digest)
+    return digest
+
+
+def _hero_key(hero):
+    return None if hero is None else tuple(hero)
+
+
+def _perceive_memoize(key: tuple, compute, *, copy_list: bool = False):
+    if key in _PERCEIVE_CACHE:
+        _PERCEIVE_CACHE.move_to_end(key)
+        cached = _PERCEIVE_CACHE[key]
+    else:
+        raw = compute()
+        cached = tuple(raw) if (copy_list and raw is not None) else raw
+        _PERCEIVE_CACHE[key] = cached
+        if len(_PERCEIVE_CACHE) > _PERCEIVE_CACHE_LIMIT:
+            _PERCEIVE_CACHE.popitem(last=False)
+    return list(cached) if (copy_list and cached is not None) else cached
+
+
+_PURE_SINGLE_IMAGE_FUNCS = (
+    "action_button",
+    "adventure_settlement",
+    "astrologer_buy_button",
+    "astrologer_gold",
+    "astrologer_leave_button",
+    "astrologer_map_gold",
+    "astrologer_selection",
+    "card_reward_confirm_button",
+    "card_reward_selection",
+    "completed_weekly_targets",
+    "empty_point",
+    "find_continue_button",
+    "find_home_adventure_entry",
+    "find_resume_adventure_button",
+    "find_revive_button",
+    "find_weekly_entry",
+    "gold_chest_collect_button",
+    "healer_heal_button",
+    "hero_item_choose_disabled",
+    "hero_item_choose_enabled",
+    "hero_item_hero_selection",
+    "hero_item_item_selection",
+    "is_battle_detail",
+    "is_card_reward_screen",
+    "is_completed_panel",
+    "is_healer_screen",
+    "is_hero_item_reward_screen",
+    "is_loading_screen",
+    "is_map",
+    "is_power_screen",
+    "is_power_vendor",
+    "is_support_screen",
+    "is_task_reward",
+    "is_weekly_list",
+    "item_chest_leave_button",
+    "locate_map_hero",
+    "panel_open",
+    "power_choose_enabled",
+    "power_selection",
+    "power_unselected",
+    "recognize_hero_item_cards",
+    "recognize_weekly_adventures",
+    "result_screen",
+    "reward_timeout_continue",
+    "service_error_confirm",
+    "shop_leave_button",
+    "support_confirm_button",
+    "support_selection",
+    "weekly_detail_stars",
+)
+
+_PURE_LIST_IMAGE_FUNCS = (
+    "astrologer_offers",
+    "recognize_card_rewards",
+    "recognize_hero_items",
+    "recognize_powers",
+    "recognize_support_choices",
+)
+
+
+def _build_adventure_perceive_wrappers() -> dict[str, object]:
+    wrappers: dict[str, object] = {}
+    for name in _PURE_SINGLE_IMAGE_FUNCS:
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image)), lambda: _orig(image)
+        )
+    for name in _PURE_LIST_IMAGE_FUNCS:
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image)), lambda: _orig(image), copy_list=True
+        )
+
+    orig_reachable = adventure_loop_module.reachable_nodes
+    wrappers["reachable_nodes"] = lambda image, *, hero=None, rng=None: _perceive_memoize(
+        ("reachable_nodes", _image_digest(image), _hero_key(hero)),
+        lambda: orig_reachable(image, hero=hero, rng=rng),
+        copy_list=True,
+    )
+    for name in (
+        "current_unfinished_node",
+        "occluded_route_zoom_button",
+        "_current_completed_node_visible",
+    ):
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, hero, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image), _hero_key(hero)), lambda: _orig(image, hero)
+        )
+
+    orig_node_kind = adventure_loop_module.node_kind
+    wrappers["node_kind"] = lambda image, node: _perceive_memoize(
+        ("node_kind", _image_digest(image), node), lambda: orig_node_kind(image, node)
+    )
+
+    orig_weekly_start = adventure_loop_module.find_weekly_start
+    wrappers["find_weekly_start"] = lambda image, *, replay=False: _perceive_memoize(
+        ("find_weekly_start", _image_digest(image), bool(replay)),
+        lambda: orig_weekly_start(image, replay=replay),
+    )
+
+    orig_button_is = adventure_loop_module.button_is
+    wrappers["button_is"] = lambda image, button, name: _perceive_memoize(
+        ("button_is", _image_digest(image), button, name),
+        lambda: orig_button_is(image, button, name),
+    )
+
+    orig_card_target = adventure_loop_module.card_reward_target
+    wrappers["card_reward_target"] = lambda image, index, name: _perceive_memoize(
+        ("card_reward_target", _image_digest(image), index, name),
+        lambda: orig_card_target(image, index, name),
+    )
+    return wrappers
+
+
+_ADVENTURE_PERCEIVE_WRAPPERS = _build_adventure_perceive_wrappers()
+
+
+def _cached_locate_map_hero(image: np.ndarray):
+    return _ADVENTURE_PERCEIVE_WRAPPERS["locate_map_hero"](image)
+
+
+def _cached_reachable_nodes(image: np.ndarray, *, hero=None, rng=None):
+    return _ADVENTURE_PERCEIVE_WRAPPERS["reachable_nodes"](image, hero=hero, rng=rng)
+
+
+_UI_DETECT_CACHE: OrderedDict[tuple, UIState] = OrderedDict()
+_SHARED_UI: UIStateDetector | None = None
+
+
+def _cached_ui_detector(settings):
+    global _SHARED_UI
+    if _SHARED_UI is None:
+        detector = UIStateDetector(
+            threshold=settings.perception.match_threshold,
+            action_button=settings.layout.to_layout().end_turn,
+        )
+        detector.load()
+        _SHARED_UI = detector
+    detector = _SHARED_UI
+
+    class _CachedUI:
+        def load(self) -> None:
+            pass
+
+        def detect(self, image: np.ndarray) -> UIState:
+            key = _image_digest(image)
+            if key in _UI_DETECT_CACHE:
+                _UI_DETECT_CACHE.move_to_end(key)
+                return _UI_DETECT_CACHE[key]
+            state = detector.detect(image)
+            _UI_DETECT_CACHE[key] = state
+            if len(_UI_DETECT_CACHE) > _CACHE_LIMIT:
+                _UI_DETECT_CACHE.popitem(last=False)
+            return state
+
+    return _CachedUI()
 
 
 def _img(name: str) -> np.ndarray:
@@ -48,11 +248,14 @@ def _blank() -> np.ndarray:
 class FakeDevice:
     """按帧序返回截图，记录所有点击。"""
 
-    def __init__(self, frames: list[np.ndarray]) -> None:
+    def __init__(self, frames: list[np.ndarray], *, on_capture=None) -> None:
         self._frames = list(frames)
+        self._on_capture = on_capture
         self.taps: list[tuple[int, int]] = []
 
     def screencap(self):
+        if self._on_capture is not None:
+            self._on_capture()
         img = self._frames.pop(0) if self._frames else self._frames[-1] if self._frames else _blank()
         return Frame(image=img)
 
@@ -90,17 +293,31 @@ class FakeEngine:
 
 @pytest.fixture
 def adventure(monkeypatch):
-    """构造 AdventureLoop，sleep 打桩、save_snapshot 记录。"""
+    """构造 AdventureLoop，虚拟时钟推进、save_snapshot 记录。"""
     settings = load_settings()
 
     def make(frames, ui_script):
-        device = FakeDevice(frames)
+        clock = [100.0]
+        frame_digests: dict[int, tuple[np.ndarray, tuple]] = {}
+
+        def advance_sleep(seconds: float) -> None:
+            clock[0] += max(0.0, float(seconds))
+
+        def advance_capture() -> None:
+            frame_digests.clear()
+            clock[0] += 0.1
+
+        device = FakeDevice(frames, on_capture=advance_capture)
         engine = FakeEngine(ui_script)
         loop = AdventureLoop(settings, engine, device, pack=load(settings.champion))
         # 直接调用私有节点处理器的用例从假设备已提供首帧的边界开始。
         loop._latest_frame = Frame(image=frames[0] if frames else _blank())
         coords = settings.adventure.to_coords()
-        monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", lambda _: None)
+        monkeypatch.setattr(sys.modules[__name__], "_FRAME_DIGESTS", frame_digests)
+        monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
+        monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", advance_sleep)
+        for attr, wrapper in _ADVENTURE_PERCEIVE_WRAPPERS.items():
+            monkeypatch.setattr(adventure_loop_module, attr, wrapper)
         saved = []
         monkeypatch.setattr(
             "lorwright.core.util.snapshot.save_snapshot",
@@ -117,7 +334,7 @@ def _record_map_localizations(monkeypatch):
 
     def locate(image):
         frames.append(id(image))
-        return locate_map_hero(image)
+        return _cached_locate_map_hero(image)
 
     monkeypatch.setattr("lorwright.core.loop.adventure.locate_map_hero", locate)
     return frames
@@ -722,9 +939,10 @@ def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, 
     loop, _, _, _, _ = adventure([image], [])
     loop.pack = load("jinx")
     expected = (910, 233) if swapped else (689, 151)
+    hero = _cached_locate_map_hero(image)
     for seed in range(6):
         loop.rng.seed(seed)
-        node = loop._find_next(image, locate_map_hero(image))
+        node = loop._find_next(image, hero)
         assert node is not None
         assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
 
@@ -1063,11 +1281,7 @@ def test_home_entry_reaches_tap_with_real_ui_detector(adventure, name):
     image = cv2.imread(str(FIXTURES.parent / "screens" / name))
     assert image is not None
     loop, device, engine, saved, _ = adventure([image, image], [])
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=1)
     assert len(device.taps) == 1
     assert saved == ["home_entry_after"]
@@ -1244,11 +1458,7 @@ def test_resume_adventure_clicks_once_and_accepts_map(adventure):
     assert image is not None
     loop, device, engine, saved, _ = adventure([image, _img("1080p_map.png")], [])
     loop.pack = load("jinx")
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=1)
     assert len(device.taps) == 1
     assert 1500 < device.taps[0][0] < 1650 and 950 < device.taps[0][1] < 1010
@@ -1908,11 +2118,7 @@ def test_node_transitions_wait_for_recognized_scenes_without_repeated_taps(adven
          loading, _img("1080p_battle_detail.png"), loading, mulligan, mulligan], [],
     )
     loop.pack = load("jinx")
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=2)
     assert device.taps == [(982, 334), (817, 485), (1581, 1010)]
     assert engine.run_calls == [400]
@@ -1937,13 +2143,9 @@ def test_node_transition_waits_through_slow_battle_loading(adventure, monkeypatc
     if loading is None or mulligan is None:
         pytest.skip("missing battle loading fixtures")
     loop, device, engine, saved, _ = adventure(
-        [_img("1080p_battle_detail.png"), *([loading] * 40), mulligan, mulligan], [],
+        [_img("1080p_battle_detail.png"), *([loading] * 14), mulligan, mulligan], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     clock = _clocked(loop, device, monkeypatch, 0.5)
     assert loop._handle_node_panel()
     assert clock[0] > 24
@@ -1959,11 +2161,7 @@ def test_node_transition_timeout_stops_without_repeating_battle(adventure):
     loop, device, engine, saved, _ = adventure(
         [_img("1080p_battle_detail.png"), *([loading] * 11)], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     assert not loop._handle_node_panel()
     assert device.taps == [(1581, 1010)]
     assert engine.run_calls == []
@@ -2437,11 +2635,7 @@ def test_card_reward_continues_to_map_after_verified_transition(adventure, recov
         "item_preferences": (),
         "recognize_map_hero": staticmethod(load("jinx").recognize_map_hero),
     })()
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=2)
     if recovery == "persistent":
         assert device.taps == [(555, 393), (960, 1003)]
@@ -2818,11 +3012,7 @@ def test_home_world_weekly_lowest_detail_start_and_map(adventure):
     loop, device, engine, saved, _ = adventure(
         [home, _blank(), world, world, listing, listing, detail, detail, animation, after], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     result = loop.run(max_nodes=4)
     assert device.taps[0] == find_home_adventure_entry(home).center
     assert device.taps[1] == (1380, 464)

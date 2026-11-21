@@ -1,6 +1,7 @@
 """实拍可选选牌识别，以及合成后继的动作安全边界。"""
 
 from dataclasses import replace
+from functools import lru_cache
 
 import cv2
 import pytest
@@ -14,6 +15,7 @@ from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.engine import Engine
 from lorwright.core.loop.outcome import ActionOutcome, OutcomeStatus
 from lorwright.core.models import Action, ActionType, GameState, UIState
+from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.state import StateParser
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
@@ -25,6 +27,7 @@ def _image():
     return image
 
 
+@lru_cache(maxsize=1)
 def _detector():
     layout = load_settings().layout.to_layout()
     detector = UIStateDetector(action_button=layout.end_turn)
@@ -32,11 +35,24 @@ def _detector():
     return detector
 
 
+@lru_cache(maxsize=1)
+def _digits():
+    digits = DigitReader()
+    digits.load()
+    return digits
+
+
 def _parse(image):
     layout = load_settings().layout.to_layout()
-    parser = StateParser(layout, UIStateDetector(action_button=layout.end_turn))
-    parser.load()
+    parser = StateParser(layout, _detector(), digits=_digits())
     return parser.parse(image)
+
+
+@lru_cache(maxsize=8)
+def _baseline_ui_state(name: str) -> UIState:
+    image = cv2.imread(str(fixtures_root() / f"screens/{name}"))
+    assert image is not None
+    return _parse(image).ui_state
 
 
 @pytest.mark.parametrize("missing_column", [490, 810, 1130])
@@ -58,9 +74,9 @@ def test_two_choice_cost_frames_block_idle_when_other_controls_are_missing(missi
     ("1080p_mulligan.png", UIState.MULLIGAN),
 ])
 def test_one_cost_frame_does_not_override_normal_battle_state(column, name, expected):
+    assert _baseline_ui_state(name) is expected
     image = cv2.imread(str(fixtures_root() / f"screens/{name}"))
     assert image is not None
-    assert _parse(image).ui_state is expected
     source = _image()
     image[325:405, column:column + 70] = source[325:405, column:column + 70]
     assert _parse(image).ui_state is expected

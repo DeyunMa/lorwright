@@ -90,21 +90,23 @@ def test_engine_scales_coordinates_to_device_resolution(monkeypatch) -> None:
     assert dev.taps == [(10, 10)]
 
 
-def test_stale_frame_is_not_acted_on() -> None:
+def test_stale_frame_is_not_acted_on(monkeypatch) -> None:
     """帧太旧就不动：截图+决策耗时过长时，点会落在已经变了的画面上。"""
-    import time
-
     from lorwright.core.config import Settings
-    from lorwright.core.models import Layout, Rect
+    from lorwright.core.models import GameState, Layout, Rect, UIState
 
     settings = Settings()
     settings.loop.tick_ms = 0
     settings.loop.max_frame_age_s = 1.0
 
-    dev = FakeDevice(ts=time.monotonic() - 10)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: 100.0)
+    dev = FakeDevice(ts=90.0)
     engine = Engine(
         settings, _Router(), dev, layout=Layout(end_turn=Rect(10, 10, 20, 20))
     )
+    monkeypatch.setattr(engine.parser, "parse", lambda image: GameState(
+        ui_state=UIState.MULLIGAN, mulligan_selected=(False, False, False, False),
+    ))
     engine.run(max_ticks=3)
 
     assert dev.taps == []

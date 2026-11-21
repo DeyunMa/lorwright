@@ -65,8 +65,11 @@ class StateParser:
         state = GameState(ui_state=ui_state, continue_button=continue_button)
         if state.ui_state is UIState.COMBAT_RESOLVING:
             state.action_prompt = self.ui.action_prompt(image)
-        if state.ui_state is UIState.TARGETING and self.targeted_spell_recognizer is not None:
-            state.targeted_spell = self.targeted_spell_recognizer(image)
+        if state.ui_state is UIState.TARGETING:
+            from lorwright.core.perceive.replace_prompt import replace_unit_prompt
+            state.replace_prompt = replace_unit_prompt(image)
+            if self.targeted_spell_recognizer is not None:
+                state.targeted_spell = self.targeted_spell_recognizer(image)
         if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:
             state.mulligan_cards = self.mulligan_recognizer(image)
         if state.ui_state is UIState.MULLIGAN:

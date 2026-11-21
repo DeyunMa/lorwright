@@ -137,6 +137,34 @@ class UnknownCardPolicy(Policy):
         return None
 
 
+class ReplacePromptPolicy(Policy):
+    """满场打出单位要求替换友军：选攻击+生命最低者（含并列取最左）。
+
+    不读单位身份；名字能被识别的是英雄（如升级后的吉茵珂丝），
+    不参与替换。数值未读出的单位按最大处理，避免误换未知大件。
+    """
+
+    name = "replace_prompt"
+    version = "1.0.0"
+
+    def decide(self, state: GameState) -> Action | None:
+        if (state.ui_state is not UIState.TARGETING or not state.replace_prompt
+                or not state.my_units):
+            return None
+        eligible = [i for i, unit in enumerate(state.my_units) if not unit.name]
+        if not eligible:
+            eligible = list(range(len(state.my_units)))
+
+        def value(index: int) -> int:
+            unit = state.my_units[index]
+            if unit.attack < 0 or unit.health < 0:
+                return 1 << 20
+            return unit.attack + unit.health
+
+        index = min(eligible, key=lambda i: (value(i), i))
+        return Action(type=ActionType.SELECT_TARGET, raw={"enemy": False, "index": index})
+
+
 class TargetingPolicy(Policy):
     """目标类型未识别时等待，由有依据的专属策略处理。"""
 

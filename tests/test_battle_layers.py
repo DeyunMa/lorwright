@@ -25,6 +25,7 @@ def test_battle_layers_include_blocking_policy():
     assert names == [
         "optional_choice",
         "required_choice",
+        "replace_prompt",
         "elise_spider_aggro",
         "expand_hand",
         "hero_first",
@@ -39,7 +40,7 @@ def test_battle_layers_include_blocking_policy():
 
 def test_jinx_layers_include_play_unit():
     names = [layer.name for layer in _battle_layers(load("jinx"))]
-    assert names[:6] == ["optional_choice", "required_choice", "jinx_opening", "expand_hand", "hero_first", "play_unit"]
+    assert names[:7] == ["optional_choice", "required_choice", "replace_prompt", "jinx_opening", "expand_hand", "hero_first", "play_unit"]
 
 
 def test_hero_first_preempts_cheaper_regular_unit_when_opening_abstains():
@@ -220,7 +221,7 @@ def test_jinx_pending_summon_still_stops_router_before_fallback():
     hero_policy.on_action_outcome(chosen.action, before, after)
     waiting = router.decide(after)
     assert waiting.action.type is ActionType.NO_OP
-    assert waiting.candidates == ["optional_choice", "required_choice", "jinx_opening"]
+    assert waiting.candidates == ["optional_choice", "required_choice", "replace_prompt", "jinx_opening"]
     assert "等待交互结果" in waiting.reason
 
 
@@ -228,7 +229,7 @@ def test_unknown_target_stops_router_with_readable_reason():
     router = Router(_battle_layers(load("jinx")))
     result = router.decide(GameState(ui_state=UIState.TARGETING))
     assert result.action.type is ActionType.NO_OP
-    assert result.candidates == ["optional_choice", "required_choice", "jinx_opening"]
+    assert result.candidates == ["optional_choice", "required_choice", "replace_prompt", "jinx_opening"]
     assert "目标类型尚未明确" in result.reason
 
 

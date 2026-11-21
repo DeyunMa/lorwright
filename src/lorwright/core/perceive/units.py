@@ -166,12 +166,33 @@ def _paired_stat_badges(
     digits = ((patch.min(axis=2) >= 170)
               | ((green >= 180) & (red <= 120) & (blue <= 120)))
     _, _, stats, _ = cv2.connectedComponentsWithStats(digits.astype(np.uint8))
+    boxes = [
+        (int(x), int(y), int(w), int(h))
+        for x, y, w, h, area in stats[1:]
+        if area >= 12 and 18 <= h <= 38 and w <= h * 1.6
+    ]
+    # 多位数（如升级英雄的绿色「10」）会拆成多个连通域；把同一行内横向
+    # 相邻的字形先合成一个数值，否则逐字形定中心会把徽章框错开读不出来。
+    # 合并上限取单个徽章的数值宽度：相邻两个徽章的字形也可能只差几像素，
+    # 但合到一起会横跨 80px 以上，远超一个 56px 框能容纳的字串（实测 ≤37px）。
+    boxes.sort(key=lambda b: b[0])
+    groups: list[list[tuple[int, int, int, int]]] = []
+    for box in boxes:
+        x, y, w, h = box
+        if groups:
+            group = groups[-1]
+            lx, ly, lw, lh = group[-1]
+            if (abs((y + h / 2) - (ly + lh / 2)) <= 12 and x - (lx + lw) <= 12
+                    and x + w - group[0][0] <= 50):
+                group.append(box)
+                continue
+        groups.append([box])
     found = []
-    for x, y, w, h, area in stats[1:]:
-        if area < 12 or not (18 <= h <= 38) or w > h * 1.6:
-            continue
+    for group in groups:
+        cx = x0 + group[0][0] + (group[-1][0] + group[-1][2] - group[0][0]) // 2
+        cy = y0 + int(sum(b[1] + b[3] / 2 for b in group) / len(group))
         # 原生 1080p 徽章内框约 56×48，数值中心略偏左；两框中心相距 64px。
-        attack = Rect(x0 + int(x + w // 2) - 24, y0 + int(y + h // 2) - 24, 56, 48)
+        attack = Rect(cx - 24, cy - 24, 56, 48)
         health = Rect(attack.x + 64, attack.y, 56, 48)
         if (attack.x < 0 or attack.y < 0 or health.x + health.w > image.shape[1]
                 or health.y + health.h > image.shape[0]):

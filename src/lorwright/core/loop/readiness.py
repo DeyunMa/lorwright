@@ -107,10 +107,14 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         detail = (candidates.cards[index], candidates.costs[index])
     elif kind is ActionType.SELECT_TARGET:
         spell = _spell(state)
-        if spell is None:
+        # 替换提示选友军时没有待选法术图标；提示条本身就是身份证据。
+        replace = (state.replace_prompt and not raw.get("enemy")
+                   and not raw.get("hand") and not raw.get("nexus"))
+        if spell is None and not replace:
             return None
+        key = spell if spell is not None else ("replace_prompt",)
         if raw.get("nexus") and not raw.get("hand"):
-            detail = (spell, "nexus")  # 固定 layout 坐标由 translator 校验。
+            detail = (key, "nexus")  # 固定 layout 坐标由 translator 校验。
         else:
             items = (state.hand if raw.get("hand") else
                      state.enemy_units if raw.get("enemy") else state.my_units)
@@ -118,7 +122,7 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
             if not _index(index, len(items)):
                 return None
             selected = (_card(items[index]) if raw.get("hand") else _unit(items[index]))
-            detail = (spell, selected) if selected is not None else None
+            detail = (key, selected) if selected is not None else None
     elif kind is ActionType.ATTACK:
         wanted = raw.get("attackers")
         if wanted:

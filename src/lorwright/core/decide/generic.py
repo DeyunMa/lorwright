@@ -294,11 +294,21 @@ class BlockingPolicy(Policy):
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
 
     def on_action_outcome(self, action: Action, before: GameState, after: GameState) -> None:
-        """成功声明后才确认；成功结果已离开格挡时清除本轮声明。"""
+        """声明落地后才确认；被吞的拖拽不留标记，重路由时重新规划。"""
         if after.ui_state is not UIState.BLOCKING:
             self._declared = False
         elif action.type is ActionType.BLOCK and before.ui_state is UIState.BLOCKING:
-            self._declared = True
+            # 实机 20261121T143406：拖拽被吞时单位全停备战行，此时确认
+            # 会点「略過格擋」放弃格挡。与 outcome 同判据：有单位净上移
+            # 超过格挡行阈值才算落地；单单位全在行内也能判。
+            selected = [before.my_units[i] for i, _ in action.raw.get("pairs", [])
+                        if 0 <= i < len(before.my_units)]
+            if not selected:
+                return
+            cutoff = min(u.rect.center[1] for u in selected) - 80
+            self._declared = (
+                sum(u.rect.center[1] < cutoff for u in after.my_units)
+                > sum(u.rect.center[1] < cutoff for u in before.my_units))
 
 
 # 1 点水晶伤害折算的单位价值权重（水晶血不可再生，单位可以）

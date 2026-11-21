@@ -336,7 +336,9 @@ def test_blocking_confirmation_from_existing_consumer_uses_board_geometry(has_bl
     first = policy.decide(before)
     assert first.type is (ActionType.BLOCK if has_blocker else ActionType.CONFIRM)
     if has_blocker:
-        policy.on_action_outcome(first, before, before)
+        landed = replace(before, my_units=[
+            replace(before.my_units[0], rect=Rect(400, 600, 90, 100))])
+        policy.on_action_outcome(first, before, landed)
     action = policy.decide(before)
     assert action == Action(ActionType.CONFIRM)
     assert observed(before).ready(action)

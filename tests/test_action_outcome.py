@@ -417,6 +417,27 @@ def test_combat_confirm_unacknowledged_reroutes_before_deadline():
     assert outcome2.reason == "confirmation_prompt_changed"
 
 
+def test_block_drag_unacknowledged_reroutes_before_deadline():
+    # 会话 20261121T143406：格挡拖拽被吞，单位 8s 停在备战行。
+    before = state(ui_state=UIState.BLOCKING,
+                   my_units=[Unit("b", 2, 2, Rect(400, 850, 90, 100))],
+                   enemy_units=[Unit("a", 3, 1, Rect(400, 300, 90, 100))])
+    action = Action(ActionType.BLOCK, raw={"pairs": [(0, 0)]})
+    pending = ActionOutcome(action, before, 15, unacknowledged_deadline=6)
+    after = replace(before, my_units=[
+        Unit("b", 2, 2, Rect(400, 850, 90, 100))])
+    assert pending.observe(after, 5).status is OutcomeStatus.WAITING
+    outcome = pending.observe(after, 7)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "block_unacknowledged"
+    # 已入格挡行的指派按既有成功判据结案，不误判被吞。
+    landed = replace(before, my_units=[
+        Unit("b", 2, 2, Rect(400, 550, 90, 100))])
+    landed_outcome = pending.observe(landed, 7)
+    assert landed_outcome.status is OutcomeStatus.SUCCEEDED
+    assert landed_outcome.reason == "selected_units_moved_to_combat_row"
+
+
 def test_play_drag_unacknowledged_reroutes_before_deadline():
     # 会话 20261121T135644：尖嘯蜘蛛拖拽后画面 20s 像素级不变、卡仍在手。
     before = state()

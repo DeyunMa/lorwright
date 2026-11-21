@@ -585,6 +585,13 @@ class Engine:
                             # action_confirm 21 秒）。正常几秒就变 commit
                             # 或转场；6s 不变重路由重发（幂等单按钮）。
                             unacknowledged = time.monotonic() + 6.0
+                        if (result.action.type is ActionType.BLOCK
+                                and state.ui_state is UIState.BLOCKING):
+                            # 格挡拖拽同样会被吞（实机 20261121T143406 单位
+                            # 停备战行）。8s 窗口留给重拖核验的余量太小，
+                            # 给 15s；6s 行内仍无指派就重路由重规划。
+                            timeout = max(timeout, 15.0)
+                            unacknowledged = time.monotonic() + 6.0
                         elif (result.action.type is ActionType.PLAY_CARD
                               and timeout >= 20.0):
                             # 出牌拖拽同样会被吞（实机 20261121T135644

@@ -186,6 +186,18 @@ class ActionOutcome:
                         reason = "selected_units_moved_to_combat_row"
                 if not reason and known and after.ui_state is UIState.COMBAT_RESOLVING and before.ui_state is not after.ui_state:
                     reason = "combat_ui_transition"
+                if (kind is ActionType.BLOCK and not reason
+                        and self._unacknowledged_deadline is not None
+                        and now >= self._unacknowledged_deadline
+                        and before.ui_state is after.ui_state is UIState.BLOCKING
+                        and selected):
+                    # 格挡拖拽被吞：没有任何我方单位进入格挡行（实机
+                    # 20261121T143406 单位停在备战行 8s）。重路由让策略
+                    # 按当前位置重算指派重拖；已落地的指派不走到这里。
+                    cutoff = min(u.rect.center[1] for u in selected) - self.combat_row_min_move_px
+                    if not any(u.rect.center[1] < cutoff for u in after.my_units):
+                        return Outcome(OutcomeStatus.NEEDS_INPUT,
+                                       "block_unacknowledged")
             elif kind in (ActionType.SELECT_TARGET, ActionType.CANCEL):
                 if before.ui_state is UIState.TARGETING and after.ui_state is not UIState.TARGETING:
                     reason = "targeting_closed"

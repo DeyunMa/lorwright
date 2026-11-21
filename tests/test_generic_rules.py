@@ -343,10 +343,31 @@ def test_blocking_confirms_once_declared():
     )
     first = policy.decide(s)
     assert first.type is ActionType.BLOCK
-    policy.on_action_outcome(first, s, s)
-    assert policy.decide(s) == Action(type=ActionType.CONFIRM)
+    # 声明落地（格挡者上移到格挡行）→ 置位，下一决策确认。
+    landed = replace(s, my_units=[unit_at(0, 550, 2, 2)])
+    policy.on_action_outcome(first, s, landed)
+    assert policy.decide(landed) == Action(type=ActionType.CONFIRM)
     policy.decide(state())
     assert policy.decide(s).type is ActionType.BLOCK
+
+
+def test_blocking_replans_when_declaration_never_landed():
+    """实机 20261121T143406：格挡拖拽被吞单位停备战行；
+    声明未落地时直接 CONFIRM 会点「略過格擋」，必须重规划。"""
+    policy = BlockingPolicy()
+    blockers = [unit_at(0, 900, 2, 2)]
+    attackers = [unit_at(0, 350, 3, 1)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=blockers,
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+    )
+    first = policy.decide(s)
+    assert first.type is ActionType.BLOCK
+    # 后态单位仍在备战行 → 不置位，重路由时重新规划重拖。
+    policy.on_action_outcome(first, s, s)
+    assert policy.decide(s) == first
 
 
 def test_blocking_starts_new_declaration_after_confirmed_round_through_router():
@@ -361,8 +382,10 @@ def test_blocking_starts_new_declaration_after_confirmed_round_through_router():
     )
     first = router.decide(blocking).action
     assert first.type is ActionType.BLOCK
-    policy.on_action_outcome(first, blocking, blocking)
-    confirm = router.decide(blocking).action
+    # 声明落地的后态才置位；未落地时重决策仍重规划。
+    landed = replace(blocking, my_units=[unit_at(0, 550, 2, 2)])
+    policy.on_action_outcome(first, blocking, landed)
+    confirm = router.decide(landed).action
     assert confirm.type is ActionType.CONFIRM
     # 后继状态均被英雄层接管，Blocking.decide 没有机会观察离开格挡。
     enemy_turn = state(ui_state=UIState.ENEMY_TURN)

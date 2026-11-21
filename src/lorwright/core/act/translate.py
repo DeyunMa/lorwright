@@ -10,6 +10,9 @@ from lorwright.core.models import Action, ActionType, ClickPlan, GameState, Layo
 
 __all__ = ["ActionTranslator", "ClickPlan", "Layout"]
 
+#: 强制三选一候选卡中心（1920×1080 实拍标定：三列与费用框 x=490/810/1130 对齐）
+REQUIRED_CHOICE_CENTERS = ((640, 535), (960, 535), (1280, 535))
+
 
 class ActionTranslator:
     def __init__(
@@ -47,6 +50,15 @@ class ActionTranslator:
             if state.ui_state is not UIState.OPTIONAL_CHOICE or not self.layout.end_turn:
                 return None
             return ClickPlan(points=[self.layout.end_turn.center], wait_ms=self.tap_wait_ms)
+
+        if action.type is ActionType.PICK_CHOICE:
+            index = action.card_index
+            if (state.ui_state is not UIState.REQUIRED_CHOICE
+                    or not isinstance(index, int) or isinstance(index, bool)
+                    or not 0 <= index < len(REQUIRED_CHOICE_CENTERS)):
+                return None
+            return ClickPlan(points=[REQUIRED_CHOICE_CENTERS[index]],
+                             wait_ms=self.tap_wait_ms)
 
         if action.type is ActionType.EXPAND_HAND:
             if (state.ui_state is not UIState.MY_TURN_IDLE or state.hand_expanded

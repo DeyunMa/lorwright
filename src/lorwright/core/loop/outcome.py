@@ -90,6 +90,8 @@ class ActionOutcome:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "discard_selection_required")
                 if after.ui_state is UIState.OPTIONAL_CHOICE:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "optional_choice_required")
+                if after.ui_state is UIState.REQUIRED_CHOICE:
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "required_choice_required")
                 if after.ui_state is UIState.TARGETING:
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "target_selection_required")
                 if (not self._confirmation_completed
@@ -135,6 +137,12 @@ class ActionOutcome:
                     UIState.BLOCKING, UIState.TARGETING, UIState.BATTLE_END,
                 }):
                     reason = "optional_choice_closed"
+            elif kind is ActionType.PICK_CHOICE:
+                if (before.ui_state is UIState.REQUIRED_CHOICE and after.ui_state in {
+                    UIState.MY_TURN_IDLE, UIState.ENEMY_TURN, UIState.COMBAT_RESOLVING,
+                    UIState.BLOCKING, UIState.TARGETING, UIState.BATTLE_END,
+                }):
+                    reason = "required_choice_closed"
             elif kind is ActionType.COLLAPSE_HAND:
                 if (before.ui_state is UIState.MY_TURN_IDLE and before.hand_expanded
                         and after.ui_state is UIState.MY_TURN_IDLE and not after.hand_expanded):

@@ -30,8 +30,8 @@ def _visible(gray: np.ndarray, name: str, area: tuple[int, int, int, int],
     return score >= threshold and float(matched[bright].mean()) >= 180
 
 
-def optional_choice_state(image: np.ndarray) -> UIState | None:
-    """控件不完整时阻止蓝色按钮兜底；仅覆盖已标定的三列布局。"""
+def _controls(image: np.ndarray) -> tuple[bool, bool, list[bool]] | None:
+    """三项控件证据：跳过文字、收起控件、三列候选费用框。"""
     if image.shape[:2] != (1080, 1920):
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -39,6 +39,28 @@ def optional_choice_state(image: np.ndarray) -> UIState | None:
     collapse = _visible(gray, "collapse", (195, 245, 95, 100))
     costs = [_visible(gray, "cost_edge", (x, 325, 70, 80), 0.85)
              for x in (490, 810, 1130)]
+    return skip, collapse, costs
+
+
+def required_choice_layout(image: np.ndarray) -> bool:
+    """收起控件与三列费用框齐全且没有跳过文字：可能是强制选牌。
+
+    单凭控件区分不了「可选但跳过文字暂未认出」，由调用方结合动作
+    按钮文字「選擇目標」确认；部分证据只保证不是普通战斗画面。
+    """
+    controls = _controls(image)
+    if controls is None:
+        return False
+    skip, collapse, costs = controls
+    return collapse and all(costs) and not skip
+
+
+def optional_choice_state(image: np.ndarray) -> UIState | None:
+    """控件不完整时阻止蓝色按钮兜底；仅覆盖已标定的三列布局。"""
+    controls = _controls(image)
+    if controls is None:
+        return None
+    skip, collapse, costs = controls
     if skip and collapse and all(costs):
         return UIState.OPTIONAL_CHOICE
     # 两列已构成部分选择布局；单个费用框也可能出现在普通战斗中。

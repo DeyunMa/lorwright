@@ -146,6 +146,7 @@ class AdventureLoop:
         UIState.BLOCKING,
         UIState.TARGETING,
         UIState.OPTIONAL_CHOICE,
+        UIState.REQUIRED_CHOICE,
         UIState.DISCARD,
         UIState.COMBAT_RESOLVING,
         UIState.ENEMY_TURN,

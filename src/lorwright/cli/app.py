@@ -399,6 +399,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
         HeroFirstPolicy,
         OptionalChoicePolicy,
         PlayUnitPolicy,
+        RequiredChoicePolicy,
         TargetingPolicy,
         UnknownCardPolicy,
     )
@@ -409,6 +410,7 @@ def _battle_layers(pack, *, policy_kwargs: dict | None = None) -> list:
     policy = pack.make_policy(**(policy_kwargs or {})) if policy_kwargs else pack.make_policy()
     layers = [
         OptionalChoicePolicy(),
+        RequiredChoicePolicy(),
         policy,
         ExpandHandPolicy(),
         HeroFirstPolicy(champion_names),

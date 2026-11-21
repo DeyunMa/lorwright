@@ -30,6 +30,7 @@ class UIState(StrEnum):
     TARGETING = "targeting"            # 已选牌，等待选目标
     DISCARD = "discard"                # 等待弃牌选择
     OPTIONAL_CHOICE = "optional_choice"  # 有明确跳过按钮的可选选牌
+    REQUIRED_CHOICE = "required_choice"  # 无跳过按钮、必须选一张的强制选牌
     ENEMY_TURN = "enemy_turn"          # 对手行动中
     COMBAT_RESOLVING = "combat_resolving"
     BATTLE_END = "battle_end"
@@ -59,6 +60,7 @@ class ActionType(StrEnum):
     NO_OP = "no_op"          # 状态不明 → 什么都不做（安全默认）
     PASS = "pass"
     SKIP_CHOICE = "skip_choice"  # 跳过已识别的可选选牌
+    PICK_CHOICE = "pick_choice"  # 在强制选牌界面点选候选序号
 
 
 @dataclass(frozen=True)

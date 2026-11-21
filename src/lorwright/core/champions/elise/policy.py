@@ -191,7 +191,8 @@ class SpiderAggroPolicy(Policy):
 
     def decide(self, state: GameState) -> Action | None:
         # 格挡、可选选牌、弃牌交由通用层或引擎专用流程处理，必须弃权返回 None。
-        if state.ui_state in (UIState.BLOCKING, UIState.OPTIONAL_CHOICE, UIState.DISCARD):
+        if state.ui_state in (UIState.BLOCKING, UIState.OPTIONAL_CHOICE,
+                              UIState.REQUIRED_CHOICE, UIState.DISCARD):
             return None
 
         # 起手换牌是新对局边界：清空上一场战斗残留的失败/选目标记忆，直接确定保留低费起手。

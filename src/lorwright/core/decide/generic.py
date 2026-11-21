@@ -51,6 +51,18 @@ class OptionalChoicePolicy(Policy):
         return None
 
 
+class RequiredChoicePolicy(Policy):
+    """强制三选一没有跳过：候选收益未知时选最左一张。"""
+
+    name = "required_choice"
+    version = "1.0.0"
+
+    def decide(self, state: GameState) -> Action | None:
+        if state.ui_state is UIState.REQUIRED_CHOICE:
+            return Action(type=ActionType.PICK_CHOICE, card_index=0)
+        return None
+
+
 class CombatConfirmPolicy(Policy):
     """战斗结算/提交声明：按钮是「結算」，答案唯一，点确认。"""
 

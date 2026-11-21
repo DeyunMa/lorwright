@@ -138,7 +138,10 @@ class UIStateDetector:
         return self.ACTION_TEXTS[prompt] if prompt is not None else None
 
     def detect(self, frame: np.ndarray) -> UIState:
-        from lorwright.core.perceive.optional_choice import optional_choice_state
+        from lorwright.core.perceive.optional_choice import (
+            optional_choice_state,
+            required_choice_layout,
+        )
         from lorwright.core.perceive.result_screen import result_screen
 
         # 1. 起手换牌。它的「確定」按钮和动作按钮**同位置同颜色**
@@ -165,6 +168,12 @@ class UIStateDetector:
 
         choice = optional_choice_state(frame)
         if choice is not None:
+            # 强制选牌：同样的三列布局但没有「略過」，动作按钮读作
+            # 「選擇目標」。跳过文字缺失也可能是识别失败，必须同时
+            # 读到目标提示才升级；其余部分证据保持 UNKNOWN。
+            if (choice is UIState.UNKNOWN and required_choice_layout(frame)
+                    and self.action_prompt(frame) == "action_target"):
+                return UIState.REQUIRED_CHOICE
             return choice
 
         # 3. 动作按钮：**先读文字，再看颜色**。

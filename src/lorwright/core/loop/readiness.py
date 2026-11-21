@@ -204,6 +204,8 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         detail = (True,) if state.ui_state is UIState.MY_TURN_IDLE and state.hand_expanded else None
     elif kind is ActionType.SKIP_CHOICE:
         detail = (True,) if state.ui_state is UIState.OPTIONAL_CHOICE else None
+    elif kind is ActionType.PICK_CHOICE:
+        detail = (True,) if state.ui_state is UIState.REQUIRED_CHOICE else None
     else:
         return None
     if detail is None or (isinstance(detail, tuple) and any(x is None for x in detail)):

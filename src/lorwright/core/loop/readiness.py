@@ -7,6 +7,7 @@ from copy import deepcopy
 from lorwright.core.decide.generic import (
     ATTACK_ROW_MAX_Y,
     _committed_blocks,
+    _rect_close,
     same_unit,
     same_unit_identity,
     weakest_replace_index,
@@ -205,6 +206,18 @@ def _attack_ready(action: Action, before: GameState, after: GameState) -> bool:
     return all(_matched(unit, before.my_units) for unit in units)
 
 
+def _same_spot(unit: Unit, pool: list[Unit]) -> bool:
+    """同位置证据：格挡阶段攻击者与行内格挡者已锁定，位置即身份。
+
+    紫色格挡辉光下名字/数值会抖（实机 20261121T154222 維克特
+    攻击者数值在辉光下读不稳），按矩形容差匹配而非完整身份。
+    """
+    rect = _rect(unit.rect)
+    return rect is not None and any(
+        _rect(seen.rect) is not None and _rect_close(rect, seen.rect)
+        for seen in pool)
+
+
 def _confirm_block_ready(before: GameState, after: GameState) -> bool:
     """BLOCKING 下的 CONFIRM：确认的是当前可见指派。
 
@@ -214,10 +227,10 @@ def _confirm_block_ready(before: GameState, after: GameState) -> bool:
     """
     enemies = after.enemy_attackers or after.enemy_units
     seen_enemies = before.enemy_attackers or before.enemy_units
-    if not enemies or any(not _matched(unit, seen_enemies) for unit in enemies):
+    if not enemies or any(not _same_spot(unit, seen_enemies) for unit in enemies):
         return False
     lane = _committed_blocks(after.my_units, enemies)
-    if any(not _matched(after.my_units[blocker], before.my_units)
+    if any(not _same_spot(after.my_units[blocker], before.my_units)
            for _, blocker in lane):
         return False
     # 帧抖只会少读/多读，不会让同一单位换位置：前后帧都未匹配

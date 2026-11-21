@@ -656,6 +656,22 @@ def test_blocking_confirm_abstains_when_unit_moved():
     assert not observed(before, after).ready(Action(ActionType.CONFIRM))
 
 
+def test_blocking_confirm_ready_when_attacker_stats_flicker():
+    # 会话 20261121T154222：紫色格挡辉光下維克特数值读不稳，
+    # 攻击者已锁定行内，位置即身份，数值抖动不应阻断确认。
+    lane = _u(4, 3, 500, 650)
+    before = _blocking([lane, _u(1, 1, 700)], [_u(10, 8, 520, 300)])
+    after = _blocking([lane, _u(1, 1, 700)], [_u(0, 0, 520, 300)])
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+def test_blocking_confirm_ready_when_committed_blocker_stats_flicker():
+    # 行内格挡者同理：数值在辉光下抖动不改已锁定指派。
+    before = _blocking([_u(4, 3, 500, 650), _u(1, 1, 700)], [_u(4, 1, 520, 300)])
+    after = _blocking([_u(0, 0, 500, 650), _u(1, 1, 700)], [_u(4, 1, 520, 300)])
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
 def test_blocking_confirm_abstains_when_attacker_unstable():
     lane = _u(4, 3, 500, 650)
     before = _blocking([lane, _u(1, 1, 700)], [_u(4, 1, 520, 300)])

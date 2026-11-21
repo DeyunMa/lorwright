@@ -13,6 +13,7 @@ from lorwright.core.perceive.adventure_scene import (
     completed_weekly_targets,
     find_resume_adventure_button,
     find_weekly_entry,
+    event_leave_option,
     find_weekly_start,
     is_map,
     is_weekly_list,
@@ -233,6 +234,25 @@ def test_weekly_detail_replay_button_after_clock_slot_selection():
 def test_world_back_button_finds_return_button(name):
     back = world_back_button(_image(f"screens/{name}"))
     assert back is not None and back.center[0] < 150 and back.center[1] < 120
+
+
+def test_event_leave_option_finds_row_on_card_removal_event():
+    # f1 实机停帧：卡剔除事件「獨身修女」，下方选项行「離開」。
+    option = event_leave_option(
+        _image("screens/f1-event-card-removal-20261121.png"))
+    assert option is not None and option.center == (690, 949)
+
+
+@pytest.mark.parametrize("name", [
+    "healer/f1-abbey-heal-event-20261121.png",
+    "mapnav/f1-shop-20261114.png",
+    "mapnav/f1-spell-chest-panel-20261121.png",
+    "screens/world-weekly-20261115.png",
+    "screens/weekly-detail-20261115.png",
+])
+def test_event_leave_option_rejects_other_panels(name):
+    # 商店/宝箱的同款离开行由其标题面板优先核验，不计为事件选项。
+    assert event_leave_option(_image(name)) is None
 
 
 def test_partial_weekly_view_recognizes_panned_list():

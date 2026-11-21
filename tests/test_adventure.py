@@ -23,6 +23,7 @@ from lorwright.core.loop.adventure import AdventureLoop
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import Rect, UIState
 from lorwright.core.perceive.adventure_scene import (
+    event_leave_option,
     find_home_adventure_entry,
     find_weekly_entry,
     is_battle_loading,
@@ -122,6 +123,7 @@ _PURE_SINGLE_IMAGE_FUNCS = (
     "recognize_weekly_adventures",
     "result_screen",
     "reward_timeout_continue",
+    "event_leave_option",
     "service_error_confirm",
     "shop_leave_button",
     "support_confirm_button",
@@ -1844,6 +1846,27 @@ def test_item_chest_identity_does_not_match_other_nodes():
     assert item_chest_leave_button(_img("f1-shop-20261114.png")) is None
     assert item_chest_leave_button(_img("1080p_jinx_map.png")) is None
     assert item_chest_leave_button(_item_chest_panel()[:540, :960]) is None
+
+
+def _event_frame():
+    return _img("../screens/f1-event-card-removal-20261121.png")
+
+
+def test_event_leave_taps_once_and_verifies_map(adventure):
+    event = _event_frame()
+    stable = _img("1080p_jinx_map.png")
+    loop, device, _, saved, _ = adventure([event, stable], [])
+    assert loop._handle_node_panel(event)
+    assert device.taps == [event_leave_option(event).center]
+    assert saved == []
+
+
+def test_event_leave_stops_when_view_unchanged(adventure):
+    event = _event_frame()
+    loop, device, _, saved, _ = adventure([event] * 6, [])
+    assert not loop._leave_event(event)
+    assert len(device.taps) == 1
+    assert saved == ["event_leave_unverified"]
 
 
 def test_spell_chest_panel_leaves_and_verifies_map(adventure):

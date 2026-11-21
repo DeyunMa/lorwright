@@ -42,6 +42,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_completed_panel,
     is_loading_screen,
     is_map,
+    event_leave_option,
     is_weekly_list,
     item_chest_leave_button,
     partial_weekly_view,
@@ -1321,6 +1322,25 @@ class AdventureLoop:
         self._snapshot(after, tag="shop_leave_unverified")
         return False
 
+    def _leave_event(self, image) -> bool:
+        """事件面板选「離開」跳过（当前策略：卡剔除等事件不处理），核验回图。"""
+        button = event_leave_option(image)
+        if button is None:
+            self._snapshot(image, tag="event_leave_missing")
+            return False
+        self._scene("event")
+        record_event("decided", strategy="event_leave",
+                     reason="card_removal_event_skipped")
+        self._tap(*button.center)
+        after = image
+        for after in self._transition_frames("event_leave_transition"):
+            if is_map(after) and not panel_open(after):
+                report("verified", "event_map_transition", progress=True,
+                       event_skipped=True)
+                return True
+        self._snapshot(after, tag="event_leave_unverified")
+        return False
+
     def _handle_healer(self, image) -> bool:
         """点一次免费治疗，确认回到地图且节点完成后继续冒险。"""
         normalized = self._reward_design(image)
@@ -1526,6 +1546,8 @@ class AdventureLoop:
             return self._handle_healer(image)
         if self._is_support(image):
             return self._handle_support(image)
+        if event_leave_option(image) is not None:
+            return self._leave_event(image)
         if self._is_hero_item_reward(image):
             return self._handle_hero_item_reward(image) is not None
         if self._is_card_reward(image):
@@ -1588,6 +1610,8 @@ class AdventureLoop:
                     return self._handle_healer(image)
                 if self._is_support(image):
                     return self._handle_support(image)
+                if event_leave_option(image) is not None:
+                    return self._leave_event(image)
                 if self._is_hero_item_reward(image):
                     return self._handle_hero_item_reward(image) is not None
                 if self._is_card_reward(image):

@@ -384,6 +384,14 @@ def item_chest_leave_button(image: np.ndarray) -> Rect | None:
     return _visible_patch(image, "shop_leave", (630, 920, 760, 990))
 
 
+def event_leave_option(image: np.ndarray) -> Rect | None:
+    """事件选项面板的「離開」行；商店与宝箱的同款行由各自标题面板优先核验。"""
+    if (shop_leave_button(image) is not None
+            or item_chest_leave_button(image) is not None):
+        return None
+    return _visible_patch(image, "event_leave", (560, 890, 980, 1020))
+
+
 @dataclass(frozen=True)
 class WeeklyAdventure:
     target: Rect

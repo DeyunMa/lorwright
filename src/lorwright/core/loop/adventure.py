@@ -342,6 +342,12 @@ class AdventureLoop:
                     return
                 self._awaiting_battle_reward = False
                 continue
+            if event_leave_option(image) is not None:
+                self._scene("event")
+                if not self._leave_event(image):
+                    return
+                self._awaiting_battle_reward = False
+                continue
             normalized = self._reward_design(image)
             design = normalized[0] if normalized is not None else image
             ui = post_battle_ui if post_battle_ui is not None else self.engine.parser.ui.detect(design)

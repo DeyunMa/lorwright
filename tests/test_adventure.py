@@ -1861,6 +1861,16 @@ def test_event_leave_taps_once_and_verifies_map(adventure):
     assert saved == []
 
 
+def test_top_level_run_recovers_session_started_on_event(adventure):
+    # 会话在事件页面上启动：顶层循环直接路由到事件处理。
+    event = _event_frame()
+    stable = _img("1080p_jinx_map.png")
+    loop, device, _, saved, _ = adventure([event] + [stable] * 6, [])
+    assert loop.run(max_nodes=1).reason == "iteration_limit"
+    assert device.taps == [event_leave_option(event).center]
+    assert saved == []
+
+
 def test_event_leave_stops_when_view_unchanged(adventure):
     event = _event_frame()
     loop, device, _, saved, _ = adventure([event] * 6, [])

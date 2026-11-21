@@ -66,6 +66,8 @@ class StateParser:
         if state.ui_state is UIState.COMBAT_RESOLVING:
             state.action_prompt = self.ui.action_prompt(image)
         if state.ui_state is UIState.TARGETING:
+            if hasattr(self.ui, "action_prompt"):
+                state.action_prompt = self.ui.action_prompt(image)
             from lorwright.core.perceive.replace_prompt import replace_unit_prompt
             state.replace_prompt = replace_unit_prompt(image)
             if self.targeted_spell_recognizer is not None:

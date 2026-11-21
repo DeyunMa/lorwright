@@ -19,6 +19,8 @@
 
 `screens/f1-hero-item-mixed-champions-20261121.png` 来自会话 `20261121T120805-2328dbfb57d6`（champion elise）的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。英雄道具奖励首次出现**三英雄候选**布局（赫克林 6+闇影圖騰、魔甘娜 6+藍BUFF、伊莉絲 2+吸血鬼權杖，均 rare，附金幣+200 与重抽按钮）：旧两槽 `hero_item_main_index`/`hero_selection` 均返回 None。新增 `hero_item_triple_layout`（副标题+重抽+三槽）与 `hero_item_champion_index`（ORB 匹配英雄包插画；elise 472 good 对 ≤31）；策略优先自身英雄槽，否则回退道具品质规则。新增 `assets/adventure/hero_item_reroll.png`。
 
+`screens/f1-optional-target-skip-20261121.png` 来自会话 `20261121T122700-4f3e5fb8c303`（champion elise）的 `action_readiness_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。蜘術士打出后的**可选目标提示**：中央为所打单位，左侧效果文字「擊暈或對遭到擊暈的敵軍單位造成2點傷害」，敌方 1|1 单位在场，动作按钮读「跳過」（蓝）。新增 `assets/buttons/action_skip.png` 识别该按钮文字并归入 `UIState.TARGETING`（`action_prompt=="action_skip"` 区分必选目标）；通用层在 `action_prompt=="action_skip"` 且有敌方单位时 `SELECT_TARGET(enemy,0)`，否则 `END_TURN` 按跳過。「跳過」模板与可选选牌的 skip 控件共存时先判可选选牌，仅 `optional_choice_state` 部分证据时升级。
+
 `screens/f1-hero-item-triple-card-highlighted-20261121.png` 来自会话 `20261121T122153-701e8a559342` 的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。三英雄候选页点**卡面**仅高亮卡片（伊莉絲框亮），可选目标是下方道具盒；选择改点道具盒中心 `(615,960,1300)[index],750`（与两槽 handler 同一行高）。此帧 `hero_item_triple_layout` 仍为 True、`hero_item_champion_index` 仍返回 2。
 
 `card_rewards/f1-card-reward-ten-cost-20261121.png` 来自会话 `20261121T120239-1b293819bf99`（champion elise）的 `card_reward_unknown` 停止原始 PNG，完整 1920×1080，已查看无账号。左槽框角为暗色背景变体（原模板族最高 0.723<0.75，新增 `card_reward_frame_corner_storm.png` 取该帧 `[232:250,354:374]`）；右槽费用为两位数 10，「1」字形与既有原型差异大（0.755<0.80，新增 `reward_digits/1-ten-cost-20261121.png`）。三槽均未收录卡名：驚滔駭浪 3 费法术、暗影之刃·忍 4 费史诗单位、鑿魂怪 10 费稀有单位；默认规则选史诗。

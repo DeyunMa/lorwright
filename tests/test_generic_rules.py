@@ -120,6 +120,23 @@ def test_targeting_does_not_guess_from_visible_objects():
         assert policy.decide(state(ui_state=UIState.TARGETING, **changes)).type is ActionType.NO_OP
 
 
+def test_optional_skip_target_selects_enemy_or_skips():
+    policy = TargetingPolicy()
+    enemy = unit_at(0, 350, 1, 1)
+    pick = policy.decide(state(ui_state=UIState.TARGETING,
+                               action_prompt="action_skip",
+                               enemy_units=[enemy]))
+    assert pick is not None and pick.type is ActionType.SELECT_TARGET
+    assert pick.raw == {"enemy": True, "index": 0}
+    skip = policy.decide(state(ui_state=UIState.TARGETING,
+                               action_prompt="action_skip"))
+    assert skip is not None and skip.type is ActionType.END_TURN
+    # 必选目标提示保持弃权。
+    assert policy.decide(state(ui_state=UIState.TARGETING,
+                               action_prompt="action_target",
+                               enemy_units=[enemy])).type is ActionType.NO_OP
+
+
 def unit_at(x, y, attack, health):
     return Unit("", attack, health, Rect(x, y, 10, 10))
 

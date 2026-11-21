@@ -210,6 +210,12 @@ class TargetingPolicy(Policy):
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is not UIState.TARGETING:
             return None
+        # 「跳過」= 可选目标提示：能认出敌方目标就选，否则按跳过放弃该效果。
+        if state.action_prompt == "action_skip":
+            if state.enemy_units:
+                return Action(type=ActionType.SELECT_TARGET,
+                              raw={"enemy": True, "index": 0})
+            return Action(type=ActionType.END_TURN)
         return Action(type=ActionType.NO_OP)
 
 

@@ -25,6 +25,31 @@ def _image():
     return image
 
 
+def _skip_image():
+    image = cv2.imread(
+        str(fixtures_root() / "screens/f1-optional-target-skip-20261121.png"))
+    assert image is not None
+    return image
+
+
+def test_optional_target_skip_reads_action_skip_and_parses_targeting():
+    # 可选目标提示：动作按钮读「跳過」，识别为 TARGETING 并带一个敌方目标。
+    image = _skip_image()
+    assert _detector().action_prompt(image) == "action_skip"
+    assert _detector().detect(image) is UIState.TARGETING
+    state = _parse(image)
+    assert state.ui_state is UIState.TARGETING
+    assert state.action_prompt == "action_skip"
+    assert len(state.enemy_units) == 1
+
+
+def test_optional_target_skip_requires_readable_prompt():
+    # 按钮文字涂黑后不得升级为目标提示（skip 控件单独不足为证）。
+    image = _skip_image()
+    _mask_action_prompt(image)
+    assert _detector().detect(image) is UIState.UNKNOWN
+
+
 def _spells_image():
     image = cv2.imread(
         str(fixtures_root() / "screens/f1-required-choice-spells-20261121.png"))

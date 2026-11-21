@@ -77,6 +77,8 @@ class UIStateDetector:
         "action_pass": UIState.MY_TURN_IDLE,
         # 「替換」：满场打出单位后的替换确认，与「結算」同走确认路径。
         "action_replace": UIState.COMBAT_RESOLVING,
+        # 「跳過」：打出效果的可选目标提示，可按跳过也可选目标。
+        "action_skip": UIState.TARGETING,
         "action_target": UIState.TARGETING,
     }
 
@@ -176,6 +178,15 @@ class UIStateDetector:
             if (choice is UIState.UNKNOWN and required_choice_layout(frame)
                     and self.action_prompt(frame) == "action_target"):
                 return UIState.REQUIRED_CHOICE
+            # 「跳過」按钮与可选选牌的跳过控件同位置。可选目标提示
+            # 无费用列证据时（最多一列误配）读到跳過文字才升级；部分
+            # 费用列仍在按可选选牌的不完整证据保持 UNKNOWN。
+            if (choice is UIState.UNKNOWN
+                    and self.action_prompt(frame) == "action_skip"):
+                from lorwright.core.perceive.optional_choice import _controls
+                _, _, costs = _controls(frame)
+                if sum(costs) <= 1:
+                    return UIState.TARGETING
             return choice
 
         # 3. 动作按钮：**先读文字，再看颜色**。

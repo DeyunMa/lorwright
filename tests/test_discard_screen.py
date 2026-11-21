@@ -27,7 +27,8 @@ def test_discard_candidates_include_visible_edge_cards():
 
 @pytest.mark.parametrize("bounds", [(87, 640, 122, 785), (467, 570, 502, 715),
                                     (126, 654, 178, 706)])
-def test_obscured_discard_border_or_selected_cost_blocks_input(bounds):
+def test_obscured_discard_candidate_is_dropped_not_clicked(bounds):
+    """证据不足的锚点被丢弃；剩余候选不足或全丢时返回 None，且不点被遮挡位置。"""
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
@@ -37,7 +38,13 @@ def test_obscured_discard_border_or_selected_cost_blocks_input(bounds):
     digits = DigitReader("assets/digits")
     digits.load()
     candidates = discard_candidates(image, digits)
-    assert candidates is None or choose_discard(candidates) is None
+    if candidates is None:
+        return
+    action = choose_discard(candidates)
+    if action is None:
+        return
+    center = candidates.cards[action.card_index].center
+    assert not (x1 <= center[0] <= x2 and y1 <= center[1] <= y2)
 
 
 @pytest.mark.parametrize(("index", "bounds"), [
@@ -72,6 +79,48 @@ def test_discard_ignores_isolated_highlight_at_badge_perimeter():
     candidates = discard_candidates(image, digits)
     assert candidates is not None
     assert candidates.costs == (1, 1, 1, 6)
+
+
+def test_discard_drops_spurious_hough_anchor_on_card_emblem():
+    """20261121T003005 停止帧：砰砰关键字徽记产生伪圆，蓝色边框核验不通过；
+    边缘裁掉的卡费用圆在搜索区外。保留三个可见砰砰，费用均为 1。"""
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-spurious-anchor-20261121.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-spurious-anchor-20261121.png")
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert len(candidates.cards) == 3
+    assert candidates.costs == (1, 1, 1)
+    # 三张砰砰插画互为重复。
+    for i, row in enumerate(candidates.similarities):
+        for j, score in enumerate(row):
+            if i != j:
+                assert score >= 0.55
+    action = choose_discard(candidates)
+    assert action is not None and action.raw["duplicate"]
+    center = candidates.cards[action.card_index].center
+    assert 0 <= center[0] < 1920 and 500 <= center[1] <= 900
+
+
+def test_discard_returns_none_when_no_anchor_passes_evidence():
+    """所有锚点都缺蓝色边框（全部涂黑）时仍返回 None。"""
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-spurious-anchor-20261121.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-spurious-anchor-20261121.png")
+    # 涂黑每个锚点左侧的蓝色边框，Hough 圆仍在但全部不过证据。
+    for x, y in ((378, 634), (734, 592), (1010, 710), (1096, 588)):
+        image[y - 35:y + 105, x - 65:x - 30] = 0
+    digits = DigitReader("assets/digits")
+    digits.load()
+    assert discard_candidates(image, digits) is None
 
 
 def test_cost_ranking_and_unreadable_costs():

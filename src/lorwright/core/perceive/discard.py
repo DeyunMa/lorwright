@@ -19,21 +19,21 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
         return None
     anchors = sorted((int(round(x + 70)), int(round(y + 500)))
                      for x, y, _ in circles[0])
-    if not 1 <= len(anchors) <= 5:
-        return None
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     blue = cv2.inRange(hsv, (90, 140, 160), (115, 255, 255))
     cards, artwork, costs = [], [], []
     for x, y in anchors:
-        # 费用圆标左侧需有可选卡牌的蓝色边框；图像和点击点均在牌内。
+        # 证据不足的锚点直接丢弃：Hough 会把卡面装饰（如砰砰的关键字徽记）
+        # 当成圆；被屏幕边缘裁掉的卡牌费用圆也可能只露出半边。丢弃只收窄
+        # 可选范围，点击始终落在已验证的完整候选上，不会点到错误的牌。
         if x < 65 or x + 215 >= frame.shape[1] or y + 190 >= 1050:
-            return None
+            continue
         border = blue[y - 35:y + 105, x - 65:x - 30]
         if cv2.countNonZero(border) < 100:
-            return None
+            continue
         art = frame[y + 15:y + 165, x + 42:x + 207]
         if art.shape != (150, 165, 3):
-            return None
+            continue
         cards.append(Rect(x + 80, y + 65, 50, 50))
         artwork.append(cv2.resize(art, (80, 80)))
         glyphs = read_cost_glyphs(frame, (x, y), rad=26, ignore_perimeter_highlights=True)
@@ -41,6 +41,8 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
             glyphs, rotations=(-15, -10, -5, 0, 5, 10, 15),
         ) if glyphs is not None else None
         costs.append(hit[0] if hit is not None and hit[1] >= 0.85 else None)
+    if not 1 <= len(cards) <= 5:
+        return None
     matches = [[_artwork_match(a, b) for b in artwork] for a in artwork]
     scores = tuple(tuple(min(matches[i][j], matches[j][i]) for j in range(len(artwork)))
                    for i in range(len(artwork)))

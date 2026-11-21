@@ -10,6 +10,7 @@ from lorwright.core.decide.card import CardKind
 from lorwright.core.decide.rewards import CardRewardCandidate, RewardCandidate, pick_card_reward
 from lorwright.core.perceive.reward_screen import (
     _card_cost,
+    _card_kind,
     card_reward_confirm_button,
     card_reward_selection,
     card_reward_target,
@@ -732,3 +733,33 @@ def test_cost_eight_reward_rejects_damaged_eight(damage):
     assert _card_cost(image, 769) is None
     assert recognize_card_rewards(image) is None
     assert card_reward_target(image, 1, "") is None
+
+
+def test_lowered_unit_title_across_keywordless_and_split_glyphs():
+    """20261121T043240 停止帧（附赠 金幣+100）：槽3 佐恩小乞丐无关键字行，
+    卡名下移至 553-572，固定窗只得 107 < 120；「小」撇捺断成两段，
+    逐窗方字核验也串不成链。费用 2/1/1、卡种侍从×3、品质普通×3。"""
+    image = _bonus_reward("f1-lowered-title-reward-20261121.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [2, 1, 1]
+    assert [c.card.quality for c in candidates] == ["common", "common", "common"]
+    assert all(c.kind is CardKind.UNIT for c in candidates)
+    pick = pick_jinx_card_reward(candidates)
+    assert pick is not None and pick.candidate is candidates[1]
+
+
+@pytest.mark.parametrize("damage", ["title", "rules_keep_title"])
+def test_lowered_unit_title_still_requires_centered_square_glyphs(damage):
+    image = _bonus_reward("f1-lowered-title-reward-20261121.png")
+    if damage == "title":
+        # 抹掉下移卡名后，下方小一号规则文字不能顶替。
+        image[550:578, 1236:1355] = 0
+    else:
+        image[583:598, 1236:1355] = 0
+        assert recognize_card_rewards(image) is not None
+        return
+    assert _card_kind(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 1184) is None
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 2, "") is None

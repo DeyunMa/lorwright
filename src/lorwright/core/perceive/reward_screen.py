@@ -630,10 +630,43 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
                for offset in (6, 375))
 
 
-def _champion_title_visible(gray: np.ndarray, x: int,
-                            y1: int = 385, y2: int = 490) -> bool:
+def _title_line_visible(title: np.ndarray) -> bool:
+    """一行相邻方字整体居中：缺字、小一号的规则文字或图标碎片都不算。"""
+    mask = title > 170
+    rows = np.flatnonzero(mask.sum(axis=1) >= 15)
+    for group in np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1):
+        # 卡名行高 19-21px，规则说明行只有 12-15px，靠行高先分。
+        if not group.size or not 17 <= group[-1] - group[0] + 1 <= 26:
+            continue
+        line = mask[group[0]:group[-1] + 1]
+        columns = np.flatnonzero(line.any(axis=0))
+        groups = []
+        for col_group in np.split(columns, np.flatnonzero(np.diff(columns) > 2) + 1):
+            left, right = int(col_group[0]), int(col_group[-1]) + 1
+            glyph = line[:, left:right]
+            grows = np.flatnonzero(glyph.any(axis=1))
+            full = (8 <= right - left <= 26 and grows.size
+                    and 15 <= grows[-1] - grows[0] + 1 <= 26
+                    and int(glyph.sum()) >= 40 and float(glyph.mean()) <= 0.85)
+            groups.append((left, right, full))
+        # 一个方字可能断成宽窄两段（如「小」的撇捺），按相邻间距串链，
+        # 链内至少两个完整方字；整条文字的中心须对准卡面中心。
+        chain, valid = [], 0
+        for left, right, full in groups:
+            if chain and not 2 <= left - chain[-1][1] <= 8:
+                chain, valid = [], 0
+            chain.append((left, right))
+            valid += full
+            # 卡面中心 x+191 对应此文字区域的第 116 列；缺一字后不能偏到一侧。
+            if (valid >= 2
+                    and abs((chain[0][0] + chain[-1][1]) / 2 - 116) <= 8):
+                return True
+    return False
+
+
+def _champion_title_visible(gray: np.ndarray, x: int) -> bool:
     """固定 1080p 奖励布局内，核验居中同排的繁体中文方字，不识别英雄身份。"""
-    title = gray[y1:y2, x + 75:x + 315]
+    title = gray[385:490, x + 75:x + 315]
     # 规则排版改变标题高度；按一行方字的尺寸找文字，不能累计插画亮点。
     for y in range(title.shape[0] - 26 + 1):
         mask = title[y:y + 26] > 170
@@ -681,11 +714,11 @@ def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
     if kind is CardKind.CHAMPION:
         title_visible = _champion_title_visible(gray, x)
     elif kind is CardKind.UNIT:
-        # 无关键字行的单位卡名下移约一行；下移位置用方字结构核验，
-        # 关键字行的亮像素不能顶名下缺字。
+        # 无关键字行的卡名下移一至两行；下移或较暗的卡名按行定位方字，
+        # 小一号的规则文字和关键字行不能顶名下缺字。
         title_visible = (
             int((gray[533:554, x + 75:x + 315] > 170).sum()) >= 120
-            or _champion_title_visible(gray, x, 530, 600)
+            or _title_line_visible(gray[545:600, x + 75:x + 315])
         )
     else:
         title = gray[487:514, x + 120:x + 300]

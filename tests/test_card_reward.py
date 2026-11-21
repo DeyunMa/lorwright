@@ -683,3 +683,52 @@ def test_bonus_reward_foil_badge_cost_reads_by_margin():
     assert [c.card.cost for c in candidates] == [3, 5, 6]
     assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.UNIT, CardKind.SPELL]
     assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+
+
+def test_weekly_slot3_reward_frame_corner_on_dark_and_statue_art():
+    """20261121T040821 停止帧（周常第三槽，附赠 金幣+100）：中、右槽外框角
+    叠在深色与石像地图画上，五种角模板最高 0.489/0.518 < 0.75，
+    selection 弃权致 recognize 停止。"""
+    image = _bonus_reward("f1-weekly-slot3-reward-20261121.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [2, 1, 3]
+    assert [c.card.quality for c in candidates] == ["common", "rare", "unknown"]
+    assert [c.card.name for c in candidates] == ["", "", ""]
+    assert all(c.kind is CardKind.UNIT for c in candidates)
+    assert all(c.preview_cost_verified for c in candidates)
+    pick = pick_jinx_card_reward(candidates)
+    assert pick is not None and pick.candidate is candidates[1]
+    # 遮住中槽外框角后所有角模板都不匹配，仍不能当作未选中。
+    masked = image.copy()
+    masked[228:255, 766:799] = 0
+    assert card_reward_selection(masked) is None
+
+
+def test_cost_eight_reward_reads_epic_badge_digit():
+    """20261121T031753 停止帧（附赠 +14生命值）：中槽史詩徽记上的清晰「8」
+    完整切出，但奖励字库没有 8 原型，最佳分 0.554，整页弃权。"""
+    image = _bonus_reward("f1-cost-eight-reward-20261121.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [6, 8, 2]
+    assert [c.card.quality for c in candidates] == ["common", "epic", "common"]
+    assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.UNIT, CardKind.SPELL]
+    assert all(c.card.name == "" for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]
+
+
+@pytest.mark.parametrize("damage", ["missing", "dimmed", "partial"])
+def test_cost_eight_reward_rejects_damaged_eight(damage):
+    image = _bonus_reward("f1-cost-eight-reward-20261121.png")
+    if damage == "missing":
+        image[276:309, 843:879] = 0
+    elif damage == "dimmed":
+        image[276:309, 843:879] //= 3
+    else:
+        image[278:304, 848:866] = 0
+    assert _card_cost(image, 769) is None
+    assert recognize_card_rewards(image) is None
+    assert card_reward_target(image, 1, "") is None

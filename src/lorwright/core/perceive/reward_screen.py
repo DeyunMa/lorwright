@@ -623,15 +623,17 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
     if max(_visible_match(gray, name, (x - 3, 228, x + 30, 255)) for name in (
         "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
         "card_reward_frame_corner_cloud", "card_reward_frame_corner_bonus",
+        "card_reward_frame_corner_dark", "card_reward_frame_corner_tower",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01
                for offset in (6, 375))
 
 
-def _champion_title_visible(gray: np.ndarray, x: int) -> bool:
+def _champion_title_visible(gray: np.ndarray, x: int,
+                            y1: int = 385, y2: int = 490) -> bool:
     """固定 1080p 奖励布局内，核验居中同排的繁体中文方字，不识别英雄身份。"""
-    title = gray[385:490, x + 75:x + 315]
+    title = gray[y1:y2, x + 75:x + 315]
     # 规则排版改变标题高度；按一行方字的尺寸找文字，不能累计插画亮点。
     for y in range(title.shape[0] - 26 + 1):
         mask = title[y:y + 26] > 170
@@ -678,9 +680,15 @@ def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
     kind = matches[0]
     if kind is CardKind.CHAMPION:
         title_visible = _champion_title_visible(gray, x)
+    elif kind is CardKind.UNIT:
+        # 无关键字行的单位卡名下移约一行；下移位置用方字结构核验，
+        # 关键字行的亮像素不能顶名下缺字。
+        title_visible = (
+            int((gray[533:554, x + 75:x + 315] > 170).sum()) >= 120
+            or _champion_title_visible(gray, x, 530, 600)
+        )
     else:
-        title = (gray[533:554, x + 75:x + 315] if kind is CardKind.UNIT
-                 else gray[487:514, x + 120:x + 300])
+        title = gray[487:514, x + 120:x + 300]
         title_visible = int((title > 170).sum()) >= 120
     art = gray[337:450, x + 130:x + 270]
     if title_visible and float((art < 8).mean()) < 0.05 and float(art.std()) > 10:

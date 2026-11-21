@@ -45,6 +45,16 @@ class ReconnectDetector:
             and exists(button, self._button, max(0.92, self.threshold))
         ) for template in self._titles)
 
+    def detect_overlay(self, image: np.ndarray) -> bool:
+        """对局内重连浮层：模糊卡死的棋盘上加盖「重新連線中」，没有退出按钮，
+        标题证据完整即可（实测标题 0.98、按钮模板仅 0.05）。"""
+        if image.shape != (1080, 1920, 3) or image.dtype != np.uint8:
+            return False
+        if not self._titles:
+            return False
+        title = _detail(image[500:580, 750:1060])
+        return any(exists(title, template, self.threshold) for template in self._titles)
+
 
 def _detail(image: np.ndarray) -> np.ndarray:
     # 去掉模糊背景的低频明暗，保留静态字形与按钮纹理。

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import time
 
+import cv2
+import numpy as np
+
 from lorwright.core.loop.bootstrap import prepare_login
 from lorwright.core.loop.outcome import LoopResult
 from lorwright.core.models import UIState
@@ -12,10 +15,11 @@ from lorwright.core.perceive.adventure_scene import (
     find_resume_adventure_button,
     is_map,
 )
+from lorwright.core.perceive.digits import DigitReader
 from lorwright.core.perceive.login import LoginDetector, LoginScreen
 from lorwright.core.perceive.normalize import Normalizer
 from lorwright.core.perceive.reconnect import ReconnectDetector
-from lorwright.core.perceive.ui_state import UIStateDetector
+from lorwright.core.perceive.ui_state import UIStateDetector, _is_isolated_blue_button
 from lorwright.core.runtime.session import StopRequested, checkpoint, record_event, report
 from lorwright.core.util.snapshot import save_snapshot
 
@@ -26,6 +30,15 @@ class ReconnectTimeout(Exception):
     def __init__(self, frame):
         super().__init__("reconnect_timeout")
         self.frame = frame
+
+
+#: 连续卡死对战证据达到三分钟才重启客户端；对手正常回合不会静止这么久。
+BATTLE_FROZEN_TIMEOUT_S = 180
+#: 192×108 缩略帧与首个卡死帧的均差上限。实测同屏 1.6–4.5，
+#: 重连浮层切换 11–22；取中间值，超出即视为画面已变化、重新计时。
+BATTLE_FROZEN_STATIC_MAX_DIFF = 8.0
+#: 对手优先权时动作按钮中心是暗色圆盘（实测均值 67）；亮于阈值不算卡死。
+FROZEN_BUTTON_MAX_MEAN = 90
 
 
 def _wait(seconds):
@@ -45,6 +58,12 @@ class _ReconnectCapture:
         self.normalizer = Normalizer((settings.screen.width, settings.screen.height))
         self.detector = ReconnectDetector()
         self.detector.load()
+        self._layout = settings.layout.to_layout()
+        self._ui = UIStateDetector(threshold=settings.perception.match_threshold,
+                                   action_button=self._layout.end_turn)
+        self._ui.load()
+        self._digits = DigitReader()
+        self._digits.load()
 
     def fresh_design(self, frame):
         if frame.age_s() > self.settings.loop.max_frame_age_s:
@@ -58,7 +77,13 @@ class _ReconnectCapture:
         checkpoint()
         frame = self.device.screencap()
         image = self.fresh_design(frame)
-        if image is None or not self.detector.detect(image):
+        if image is None:
+            return frame
+        if self.detector.detect(image):
+            pass  # 完整重连页走下方既有 300s 等待
+        elif self._frozen_kind(image) is not None:
+            return self._wait_battle_frozen(frame, image)
+        else:
             return frame
         started = time.monotonic()
         record_event("reconnect_detected", timeout_s=300)
@@ -76,6 +101,67 @@ class _ReconnectCapture:
             if image is None or not self.detector.detect(image):
                 report("recognized", "reconnect_cleared", progress=image is not None)
                 return frame
+
+    def _frozen_kind(self, image) -> str | None:
+        """客户端卡死的对战证据："overlay"（对局内重连浮层）或
+        "board"（UNKNOWN 的棋盘：双方水晶血量可读、动作按钮中心变暗
+        且没有任何按钮文字/孤立蓝钮）。其余帧不参与卡死计时。"""
+        if self.detector.detect_overlay(image):
+            return "overlay"
+        lay = self._layout
+        if lay.end_turn is None or lay.enemy_hp is None or lay.my_hp is None:
+            return None
+        if self._ui.detect(image) is not UIState.UNKNOWN:
+            return None
+        if self._ui.action_prompt(image) is not None:
+            return None
+        if _is_isolated_blue_button(image, lay.end_turn):
+            return None
+        if (self._digits.read(image, lay.enemy_hp) is None
+                or self._digits.read(image, lay.my_hp) is None):
+            return None
+        b = lay.end_turn
+        patch = cv2.cvtColor(image[b.y:b.y + b.h, b.x:b.x + b.w], cv2.COLOR_BGR2GRAY)
+        yy, xx = np.ogrid[:b.h, :b.w]
+        centre = patch[(yy - b.h / 2) ** 2 + (xx - b.w / 2) ** 2 <= 40 ** 2]
+        if centre.size == 0 or centre.mean() >= FROZEN_BUTTON_MAX_MEAN:
+            return None
+        return "board"
+
+    def _wait_battle_frozen(self, frame, image):
+        """卡死对战持续 180 秒（画面基本静止）则复用单次重启路径。"""
+        started = time.monotonic()
+        kind = self._frozen_kind(image)
+        baseline = (_frozen_small(image) if kind == "board" else None)
+        record_event("battle_frozen_detected", timeout_s=BATTLE_FROZEN_TIMEOUT_S)
+        while True:
+            checkpoint()
+            elapsed = time.monotonic() - started
+            if elapsed >= BATTLE_FROZEN_TIMEOUT_S:
+                raise ReconnectTimeout(frame)
+            report("waiting", "battle_frozen", wait_s=BATTLE_FROZEN_TIMEOUT_S - elapsed,
+                   battle_frozen_elapsed_s=round(elapsed, 1))
+            _wait(min(2, BATTLE_FROZEN_TIMEOUT_S - elapsed))
+            frame = self.device.screencap()
+            image = self.fresh_design(frame)
+            if image is None:
+                report("recognized", "battle_frozen_cleared", progress=False)
+                return frame
+            kind = self._frozen_kind(image)
+            if kind is None:
+                report("recognized", "battle_frozen_cleared", progress=True)
+                return frame
+            if kind == "board":
+                small = _frozen_small(image)
+                if baseline is None:
+                    baseline = small
+                elif float(np.abs(small - baseline).mean()) >= BATTLE_FROZEN_STATIC_MAX_DIFF:
+                    report("recognized", "battle_frozen_cleared", progress=True)
+                    return frame
+
+
+def _frozen_small(image):
+    return cv2.resize(image, (192, 108)).astype(np.int16)
 
 
 def _wait_after_restart(settings, device, capture, *, auto_login):

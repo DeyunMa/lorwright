@@ -12,7 +12,10 @@ from tools.test_data import fixtures_root
 ASSETS = Path("assets/ui")
 SCREENS = sorted(
     path for path in (fixtures_root() / "screens").iterdir()
+    # f1-battle-reconnect-overlay 本身就是重连浮层实拍（标题已在画面内），
+    # 再叠加按钮会变成完整证据，不属于「非重连实拍」。
     if path.suffix.lower() in {".png", ".jpg"}
+    and path.name != "f1-battle-reconnect-overlay-20261121.png"
 )
 CROPS = (
     ("reconnect_title.png", 768, 514),

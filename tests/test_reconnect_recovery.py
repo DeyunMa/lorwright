@@ -25,6 +25,7 @@ def scene(monkeypatch):
     monkeypatch.setattr(reconnect, "_wait", lambda seconds: now.__setitem__(0, now[0] + seconds))
     detector = Mock()
     detector.detect.side_effect = lambda image: bool(image[0, 0, 0])
+    detector.detect_overlay.return_value = False
     monkeypatch.setattr(reconnect, "ReconnectDetector", lambda: detector)
     image = np.ones((1080, 1920, 3), np.uint8)
     device = Mock()
@@ -228,3 +229,108 @@ def test_pending_action_is_not_verified_or_replayed_across_restart(scene, monkey
     assert engine._pending is not None
     assert not [event for event in events if event.get("status") == "succeeded"]
     assert engine.device.taps == [(20, 20)]
+
+
+def _frozen_layout_settings():
+    settings = Settings()
+    settings.layout.end_turn = [1680, 470, 132, 132]
+    settings.layout.enemy_hp = [215, 390, 56, 40]
+    settings.layout.my_hp = [216, 646, 56, 40]
+    return settings
+
+
+def test_frozen_battle_evidence_matches_real_frames():
+    """20261121T021125 unknown_scene 停止帧：暗钮、无按钮文字、双水晶血量可读。
+    对局内重连浮层只有标题证据；已知战斗/地图帧不计入卡死。"""
+    import cv2
+
+    from tools.test_data import fixtures_root
+
+    capture = reconnect._ReconnectCapture(_frozen_layout_settings(), Mock())
+    root = fixtures_root() / "screens"
+    assert capture._frozen_kind(cv2.imread(str(root / "f1-battle-frozen-20261121.png"))) == "board"
+    assert capture._frozen_kind(cv2.imread(str(root / "f1-battle-reconnect-overlay-20261121.png"))) == "overlay"
+    for name in ("1080p_commit_phase.png", "1080p_targeting.png",
+                 "f1-discard-cost-20261121.png"):
+        assert capture._frozen_kind(cv2.imread(str(root / name))) is None
+    assert capture._frozen_kind(
+        cv2.imread(str(fixtures_root() / "mapnav/1080p_jinx_map.png"))) is None
+
+
+def _frozen_board_image():
+    # scene 里 detector.detect 以 [0,0,0] 判真；卡死帧标记放在右下角。
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[900:, 900:] = 1
+    return image
+
+
+def test_frozen_battle_raises_timeout_after_three_minutes(scene):
+    settings, device, now, _, _ = scene
+    device.screencap.return_value = Frame(_frozen_board_image())
+    capture = reconnect._ReconnectCapture(settings, device)
+    capture._frozen_kind = lambda img: "board"
+    with pytest.raises(reconnect.ReconnectTimeout):
+        capture()
+    assert now[0] >= reconnect.BATTLE_FROZEN_TIMEOUT_S
+    device.restart_app.assert_not_called()
+
+
+def test_cleared_frame_restarts_frozen_episode_timer(scene):
+    settings, device, now, _, _ = scene
+    board = _frozen_board_image()
+    calls = [0]
+
+    def screen():
+        calls[0] += 1
+        if calls[0] == 51:  # ~100 秒后给一个非卡死帧
+            return Frame(np.zeros_like(board))
+        return Frame(board)
+
+    device.screencap.side_effect = screen
+    capture = reconnect._ReconnectCapture(settings, device)
+    capture._frozen_kind = lambda img: "board" if img[900, 900, 0] else None
+    first = capture()
+    assert not first.image.any() and now[0] == 100
+    with pytest.raises(reconnect.ReconnectTimeout):
+        capture()
+    assert now[0] == 280  # 第二段从 100 秒重新计满 180 秒，不借用前段时间
+
+
+def test_changed_board_clears_frozen_episode(scene):
+    settings, device, now, _, _ = scene
+    board = _frozen_board_image()
+    calls = [0]
+
+    changed = board.copy()
+    changed[540:] = 80  # 下半屏变化：与首个卡死帧 192×108 均差约 40
+
+    def screen():
+        calls[0] += 1
+        return Frame(changed if calls[0] == 2 else board)
+
+    device.screencap.side_effect = screen
+    capture = reconnect._ReconnectCapture(settings, device)
+    capture._frozen_kind = lambda img: "board"
+    returned = capture()
+    assert returned.image is changed and now[0] == 2
+    device.restart_app.assert_not_called()
+
+
+def test_overlay_frames_keep_timer_without_static_check(scene):
+    """浮层帧（模糊背景）与棋盘帧差异大，但它是卡死证据而非画面恢复。"""
+    settings, device, now, _, _ = scene
+    board = _frozen_board_image()
+    overlay = np.zeros_like(board)
+    overlay[200:800] = 60
+    calls = [0]
+
+    def screen():
+        calls[0] += 1
+        return Frame(overlay if calls[0] in (2, 3) else board)
+
+    device.screencap.side_effect = screen
+    capture = reconnect._ReconnectCapture(settings, device)
+    capture._frozen_kind = lambda img: "overlay" if img[400, 0, 0] == 60 else "board"
+    with pytest.raises(reconnect.ReconnectTimeout):
+        capture()
+    assert now[0] >= reconnect.BATTLE_FROZEN_TIMEOUT_S

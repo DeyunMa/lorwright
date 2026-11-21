@@ -34,6 +34,7 @@ def test_adb_cli_restarts_once_rebuilds_policy_and_closes_device(tmp_path, monke
     monkeypatch.setattr(cli, "_make_device", lambda name: device)
     detector = Mock()
     detector.detect.side_effect = lambda image: bool(image[0, 0, 0])
+    detector.detect_overlay.return_value = False
     monkeypatch.setattr(reconnect, "ReconnectDetector", lambda: detector)
     now = [0.0]
     monkeypatch.setattr(reconnect.time, "monotonic", lambda: now[0])

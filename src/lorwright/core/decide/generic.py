@@ -209,7 +209,16 @@ class BlockingPolicy(Policy):
         if self._declared:
             return Action(type=ActionType.CONFIRM)
         attackers = state.enemy_attackers or state.enemy_units
-        pairs = plan_blocks(state.my_units, attackers)
+        committed = _committed_blocks(state.my_units, attackers)
+        committed_attackers = {a for a, _ in committed}
+        committed_blockers = {b for _, b in committed}
+        free_attackers = [i for i in range(len(attackers))
+                          if i not in committed_attackers]
+        bench = [i for i in range(len(state.my_units))
+                 if i not in committed_blockers]
+        sub = plan_blocks([state.my_units[i] for i in bench],
+                          [attackers[i] for i in free_attackers])
+        pairs = [(bench[b], free_attackers[a]) for b, a in sub]
         if not pairs:
             return Action(type=ActionType.CONFIRM)
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
@@ -269,6 +278,38 @@ def _can_block(blocker, attacker) -> bool:
         if blocker.health >= 0 and blocker.health < BRASH_THRESHOLD:
             return False
     return True
+
+
+#: 格挡行判定的最小行距：单位中心比后排最低单位高这么多视为已在行内。
+_BLOCK_LANE_MIN_SEPARATION = 120
+#: 格挡行单位归属于正上方攻击者的横向容差。
+_BLOCK_LANE_ALIGN_PX = 150
+
+
+def _committed_blocks(my_units, attackers):
+    """已在格挡行的单位及其正对的攻击者 (attacker_idx, blocker_idx)。
+
+    挑战者等拉拽会把格挡者直接放进格挡行；该指派由对局锁定——既不能
+    改派这个单位，也不能换别的单位去挡同一个攻击者（实机
+    20261121T071021：对锁定指派重发拖拽无任何可见结果）。
+    行位按相对高度判定：显著高于后排最低单位的视为已在行内；
+    行内单位一律退出待指派集合，横向对正的攻击者视为已被覆盖。
+    """
+    if not attackers or not my_units:
+        return []
+    back_y = max(u.rect.center[1] for u in my_units)
+    committed = []
+    for mi, unit in enumerate(my_units):
+        if unit.rect.center[1] > back_y - _BLOCK_LANE_MIN_SEPARATION:
+            continue
+        nearest = min(
+            range(len(attackers)),
+            key=lambda ai: abs(attackers[ai].rect.center[0]
+                               - unit.rect.center[0]))
+        if (abs(attackers[nearest].rect.center[0] - unit.rect.center[0])
+                <= _BLOCK_LANE_ALIGN_PX):
+            committed.append((nearest, mi))
+    return committed
 
 
 def plan_blocks(my_units, attackers):

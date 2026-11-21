@@ -193,6 +193,75 @@ def test_overwhelm_greedy_fallback_accounts_for_damage_to_nexus(monkeypatch):
     assert plan_blocks(blockers, [replace(attacker, keywords=frozenset())]) == [(0, 0)]
 
 
+def test_challenger_pulled_blocker_is_already_committed():
+    """实机 20261121T071021：挑战者把 4|3 拉进格挡行锁定指派；
+    再穷举会让 10|11 去挡同一攻击者，重发拖拽被对局忽略 → action_timeout。"""
+    policy = BlockingPolicy()
+    my_units = [
+        unit_at(700, 928, 1, 1), unit_at(880, 928, 2, 2),
+        unit_at(960, 718, 4, 3),   # 格挡行（拉拽锁定）
+        unit_at(1060, 928, 10, 11), unit_at(1220, 928, 2, 1),
+    ]
+    attackers = [unit_at(928, 414, 4, 1)]
+    s = state(ui_state=UIState.BLOCKING, my_units=my_units,
+              enemy_units=attackers, enemy_attackers=attackers)
+    assert policy.decide(s).type is ActionType.CONFIRM
+
+
+def test_committed_lane_blocker_frees_only_its_attacker():
+    """行内锁定指派只覆盖正对的攻击者，其余攻击者仍正常穷举。"""
+    policy = BlockingPolicy()
+    my_units = [
+        unit_at(700, 928, 3, 3),
+        unit_at(960, 718, 4, 3),   # 格挡行（锁定去挡攻击者 0）
+        unit_at(1060, 928, 10, 11), unit_at(1300, 928, 2, 2),
+    ]
+    attackers = [unit_at(928, 414, 4, 1), unit_at(1400, 420, 3, 2)]
+    s = state(ui_state=UIState.BLOCKING, my_units=my_units,
+              enemy_units=attackers, enemy_attackers=attackers)
+    action = policy.decide(s)
+    assert action.type is ActionType.BLOCK
+    assert action.raw["pairs"] == [(2, 1)]   # 10|11 无死换第二个攻击者
+
+
+def test_lane_unit_without_aligned_attacker_stays_uncommitted():
+    """行内单位找不到正对攻击者（识别缺口）不锁定，仍可参与规划。"""
+    policy = BlockingPolicy()
+    my_units = [unit_at(960, 718, 4, 3), unit_at(1300, 928, 2, 2)]
+    attackers = [unit_at(400, 414, 4, 1)]   # 正对不到行内单位
+    s = state(ui_state=UIState.BLOCKING, my_units=my_units,
+              enemy_units=attackers, enemy_attackers=attackers)
+    assert policy.decide(s).type is ActionType.BLOCK
+
+
+def test_challenger_pull_real_frame_confirms():
+    """实机停止帧：行内 4|3 已锁定，策略直接确认而不是重发拖拽。"""
+    import cv2
+
+    from lorwright.core.config import load_settings
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.state import StateParser
+    from lorwright.core.perceive.ui_state import UIStateDetector
+    from tools.test_data import fixtures_root
+
+    settings = load_settings()
+    layout = settings.layout.to_layout()
+    parser = StateParser(
+        layout,
+        UIStateDetector(threshold=settings.perception.match_threshold,
+                        action_button=layout.end_turn),
+        DigitReader(), threshold=settings.perception.match_threshold,
+    )
+    parser.load()
+    image = cv2.imread(str(fixtures_root()
+                           / "screens/f1-blocking-challenger-pull-20261121.png"))
+    assert image is not None
+    parsed = parser.parse(image)
+    assert parsed.ui_state is UIState.BLOCKING
+    assert parsed.my_units[2].rect.center[1] < 850   # 行内单位实检
+    assert BlockingPolicy().decide(parsed).type is ActionType.CONFIRM
+
+
 def test_blocking_candidate_does_not_advance_before_success():
     policy = BlockingPolicy()
     attackers = [unit_at(0, 350, 3, 1)]

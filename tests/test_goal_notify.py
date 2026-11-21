@@ -194,3 +194,25 @@ def test_off_file_stops_the_notifier(monkeypatch, tmp_path) -> None:
     assert mod.notify("w5:pJ", "w5:p5", tick_s=60, interval=0, confirm=3,
                       log_path=tmp_path / "n.log", lock_path=tmp_path / "n.lock") == 0
     assert "disabled by" in (tmp_path / "n.log").read_text(encoding="utf-8")
+
+
+QUESTION = """
+ ── 牌型证据 ─────────────────────────────
+  要不要再加一个牌型证据来源？
+  ❭ 1 加卡框/法术标记
+    2 先展开单张看角标
+      Other
+──────────────────────────────────────────
+↑↓ select · ↵ confirm · ? help me out · esc cancel
+"""
+
+
+def test_question_dialog_is_asking_not_stopped() -> None:
+    assert _load_notify().goal_state(QUESTION) == "asking"
+
+
+def test_question_alerts_once_and_does_not_hand_over(monkeypatch, tmp_path) -> None:
+    mod = _load_notify()
+    code, sent = _run(mod, monkeypatch, tmp_path, [QUESTION] * 5 + [COMPLETE] * 3)
+    assert code == 0
+    assert [text[:19] for text in sent] == ["[improve-attention]", "[improve-notify] 第四"[:19]]

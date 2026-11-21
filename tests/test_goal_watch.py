@@ -242,3 +242,13 @@ def test_off_file_stops_the_watcher_without_resuming(monkeypatch, tmp_path) -> N
     assert mod.watch("w1:p1", 0, 10, 2, log, lock_path=tmp_path / "watch.lock") == 0
     assert sent == ["w1:p1"]
     assert "disabled by" in log.read_text(encoding="utf-8")
+
+
+def test_question_dialog_keeps_watching() -> None:
+    screen = """
+ ✱ Continuing goal (turn 3)
+  要不要再加一个牌型证据来源？
+  ❭ 1 加卡框/法术标记
+↑↓ select · ↵ confirm · ? help me out · esc cancel
+"""
+    assert _load_watch().classify(screen) == "idle"

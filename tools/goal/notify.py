@@ -11,8 +11,10 @@ a full agent turn there:
 
 - tick: every `--tick-interval` seconds, a read-only check-in on the goal;
 - event: once the goal has stopped for `--confirm` consecutive reads (not inside a
-  turn and not at the 50-turn pause, which `watch.py` handles) or its agent is
-  gone, it sends the hand-over prompt and exits.
+  turn, not at the 50-turn pause, which `watch.py` handles, and not waiting on a
+  question dialog) or its agent is gone, it sends the hand-over prompt and exits;
+- attention: when the goal waits on a question dialog («↑↓ select · ↵ confirm»),
+  one `[improve-attention]` prompt per question; the notifier keeps running.
 
 Prompts are only sent while the improve agent is `idle` or `done` in Herdr, so a
 conversation or turn already running there is never interrupted: a tick that
@@ -46,11 +48,14 @@ from watch import (  # noqa: E402
     read_screen,
 )
 
-WORKING, PAUSED, STOPPED = "working", "paused", "stopped"
+WORKING, PAUSED, STOPPED, ASKING = "working", "paused", "stopped", "asking"
+QUESTION_MARKERS = ("↑↓ select", "↵ confirm")
 READY_STATES = ("idle", "done")
 
 TICK_TEXT = ("[improve-tick] 定时只读检查第四层 goal（pane {goal}，当前 {state}）。"
              "按 workflows/improve.md「运行期」规则把观察记到 logs/improve/notes.md，不改仓库文件，不打断 goal。")
+ASK_TEXT = ("[improve-attention] 第四层 goal（pane {goal}）停在提问对话框等用户回答。"
+            "goal 没有结束；请看它的问题，按 AGENTS.md「自主决策」原则转告用户或代为回答。")
 EVENT_TEXT = ("[improve-notify] 第四层 goal（pane {goal}）{what}，已连续 {count} 次确认。"
               "按 workflows/improve.md「收口优化」规则先核对 goal 已结束、本机工作区干净、"
               "f1 无非终态会话，再按 logs/improve/notes.md 的记录接手收口。")
@@ -60,6 +65,8 @@ def goal_state(screen: str) -> str:
     lines = [line.strip() for line in screen.splitlines() if line.strip()]
     if in_turn(lines):
         return WORKING
+    if any(marker in line for line in lines[-6:] for marker in QUESTION_MARKERS):
+        return ASKING
     statuses = [line for line in lines if line.startswith(GOAL_STATUS_PREFIXES)]
     if statuses and statuses[-1].startswith(PAUSE_PREFIX):
         return PAUSED
@@ -108,6 +115,7 @@ def notify(
         return 0
     try:
         stopped = read_errors = 0
+        asked = False
         next_tick = time.monotonic() + tick_s
         log(log_path, f"notifying {improve} about {goal} tick={tick_s:.0f}s interval={interval}s confirm={confirm}")
         off_path = log_path.with_suffix(".off")
@@ -131,6 +139,12 @@ def notify(
                 read_errors = 0
                 state = goal_state(screen)
             stopped = stopped + 1 if state in (STOPPED, "gone") else 0
+            if state == ASKING:
+                if not asked and agent_status(improve) in READY_STATES:
+                    asked = send_prompt(improve, ASK_TEXT.format(goal=goal))
+                    log(log_path, f"question alert sent={asked}")
+            else:
+                asked = False
             if stopped >= confirm:
                 improve_state = agent_status(improve)
                 what = "的 agent 已消失" if state == "gone" else "已停止（不在回合内，也不是 50 轮暂停）"

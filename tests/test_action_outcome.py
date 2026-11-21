@@ -395,6 +395,28 @@ def test_select_target_context_unchanged_or_closed(after_ui, after_prompt):
         assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
 
 
+def test_combat_confirm_unacknowledged_reroutes_before_deadline():
+    # 会话 20261121T143042：攻击确认点击被吞，action_confirm 停 21s。
+    before = state(ui_state=UIState.COMBAT_RESOLVING,
+                   action_prompt="action_confirm")
+    after = state(ui_state=UIState.COMBAT_RESOLVING,
+                  action_prompt="action_confirm")
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                            unacknowledged_deadline=6)
+    assert pending.observe(after, 5).status is OutcomeStatus.WAITING
+    outcome = pending.observe(after, 7)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "confirm_unacknowledged"
+    # 提示变了说明在结算/新阶段，不误判被吞。
+    progressed = state(ui_state=UIState.COMBAT_RESOLVING,
+                       action_prompt="action_commit")
+    pending2 = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                             unacknowledged_deadline=6)
+    outcome2 = pending2.observe(progressed, 7)
+    assert outcome2.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome2.reason == "confirmation_prompt_changed"
+
+
 def test_play_drag_unacknowledged_reroutes_before_deadline():
     # 会话 20261121T135644：尖嘯蜘蛛拖拽后画面 20s 像素级不变、卡仍在手。
     before = state()

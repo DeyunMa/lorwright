@@ -578,6 +578,13 @@ class Engine:
                             # 画面停 21 秒）。正常转场约 4 秒离开 MULLIGAN，
                             # 6 秒画面不变且按钮仍可读就重路由重发一次。
                             unacknowledged = time.monotonic() + 6.0
+                        elif (result.action.type is ActionType.CONFIRM
+                              and state.ui_state is UIState.COMBAT_RESOLVING
+                              and state.action_prompt == "action_confirm"):
+                            # 攻击确认也会被吞（实机 20261121T143042 提示停
+                            # action_confirm 21 秒）。正常几秒就变 commit
+                            # 或转场；6s 不变重路由重发（幂等单按钮）。
+                            unacknowledged = time.monotonic() + 6.0
                         elif (result.action.type is ActionType.PLAY_CARD
                               and timeout >= 20.0):
                             # 出牌拖拽同样会被吞（实机 20261121T135644

@@ -218,6 +218,16 @@ class ActionOutcome:
                                    "mulligan_confirm_unacknowledged")
                 if (kind is ActionType.CONFIRM
                         and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
+                        and before.action_prompt == after.action_prompt == "action_confirm"
+                        and self._unacknowledged_deadline is not None
+                        and now >= self._unacknowledged_deadline):
+                    # 「確認」被吞：提示未变（实机 20261121T143042 攻击确认
+                    # 点击后 action_confirm 停 21 秒）。单按钮幂等，重路由
+                    # 重发；提示变了说明在结算/新阶段，走上面的既有分支。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT,
+                                   "confirm_unacknowledged")
+                if (kind is ActionType.CONFIRM
+                        and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
                         and {before.action_prompt, after.action_prompt}
                         == {"action_confirm", "action_commit"}):
                     # 攻击声明与堆栈结算共用状态；新提示需要重新路由，

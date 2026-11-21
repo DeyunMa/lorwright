@@ -42,7 +42,8 @@ def test_finds_my_units(image: np.ndarray) -> None:
 
 
 def test_finds_enemy_units(image: np.ndarray) -> None:
-    assert len(find_unit_badges(image, ENEMY_BOARD, enemy=True)) == 5
+    # 第 6 个单位 (845,203) 8|7 的徽章被紫色特效覆盖，暗紫色放宽后才能稳定读到
+    assert len(find_unit_badges(image, ENEMY_BOARD, enemy=True)) == 6
 
 
 def _handoff_image(name):
@@ -164,6 +165,27 @@ def test_purple_highlight_requires_both_badges_and_readable_numbers(name, left, 
     units = to_units(find_unit_badges(image, MY_BOARD), image=image)
     assert len(units) == 3
     assert all(abs(unit.rect.center[0] - (left + 68)) > 40 for unit in units)
+
+
+def _dim_purple_glow(image: np.ndarray, scale: float) -> np.ndarray:
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.int16)
+    purple = ((hsv[:, :, 0] >= 110) & (hsv[:, :, 0] <= 175)
+              & (hsv[:, :, 1] >= 25) & (hsv[:, :, 2] >= 80))
+    hsv[:, :, 1] = np.where(purple, (hsv[:, :, 1] * scale).astype(np.int16), hsv[:, :, 1])
+    hsv[:, :, 2] = np.where(purple, (hsv[:, :, 2] * scale).astype(np.int16), hsv[:, :, 2])
+    return cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR)
+
+
+@pytest.mark.parametrize("scale", [1.0, 0.85, 0.7, 0.55, 0.45])
+def test_replace_glow_pulse_keeps_all_six_friendly_units(scale):
+    # f1-replace-glow-board-20261121.png：替換选择紫色辉光脉冲期间
+    # my_units 实机 6↔4 抖动，select_target 就绪证据永不稳定而超时。
+    # 缩放紫色像素的饱和度/亮度模拟暗期，单位检出必须保持稳定。
+    image = cv2.imread(str(SCREENS / "f1-replace-glow-board-20261121.png"))
+    badges = find_unit_badges(_dim_purple_glow(image, scale), MY_BOARD)
+    assert len(badges) == 6
+    units = to_units(badges, image=image)
+    assert all(unit.attack is not None and unit.health is not None for unit in units)
 
 
 @pytest.mark.parametrize("color,expected", [((100, 100, 200), 3),

@@ -691,8 +691,15 @@ def _diamond_target_visible(image: np.ndarray, node: MapNode) -> bool:
             and _unlocked_unfinished_center(image, node))
 
 
-def _unlocked_unfinished_center(image: np.ndarray, node: MapNode) -> bool:
-    """原视角与实拍放大 1.3 倍的锁都须拒绝，完成勾沿用独立检查。"""
+def _unlocked_unfinished_center(
+    image: np.ndarray, node: MapNode, *, check_score: float = 0.45,
+) -> bool:
+    """原视角与实拍放大 1.3 倍的锁都须拒绝，完成勾沿用独立检查。
+
+    check_score 收紧完成勾证据：首领翼章的绿色面部与完成勾模板
+    弱匹配（实机 20261121T072549 得分 0.53、重合 191，按完成拒绝而
+    map_no_next），真勾在缩放首领帧上得分 0.76；翼章取 0.65 分隔。
+    """
     x, y = node.center
     lock = _map_lock_template()
     extent = max(30, node.radius + 18)
@@ -704,7 +711,8 @@ def _unlocked_unfinished_center(image: np.ndarray, node: MapNode) -> bool:
     return (lock is not None
             and all(cv2.matchTemplate(center, reference, cv2.TM_CCOEFF_NORMED).max() < 0.8
                     for reference in (lock, cv2.resize(lock, None, fx=1.3, fy=1.3)))
-            and not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31)))
+            and not _checkmark_visible(image, (x - 35, y - 30, x + 36, y + 31),
+                                       min_score=check_score))
 
 
 def _route_origin(
@@ -805,7 +813,9 @@ def _check_color_mask(image: np.ndarray) -> np.ndarray:
     return (((green > 145) & (green - blue > 50) & (green - red > 25)) * 255).astype(np.uint8)
 
 
-def _checkmark_visible(image: np.ndarray, bounds: tuple[int, int, int, int]) -> bool:
+def _checkmark_visible(
+    image: np.ndarray, bounds: tuple[int, int, int, int], *, min_score: float = 0.45,
+) -> bool:
     template = _current_completed_template()
     if template is None:
         return False
@@ -822,7 +832,7 @@ def _checkmark_visible(image: np.ndarray, bounds: tuple[int, int, int, int]) -> 
     matched = region[y:y + height, x:x + width] > 0
     check_pixels = reference > 0
     overlap = int(np.count_nonzero(matched & check_pixels))
-    return bool(score >= 0.45 and overlap >= int(np.count_nonzero(check_pixels) * 0.8))
+    return bool(score >= min_score and overlap >= int(np.count_nonzero(check_pixels) * 0.8))
 
 
 def _current_completed_node_visible(image: np.ndarray, hero: tuple[int, int]) -> bool:
@@ -1083,7 +1093,8 @@ def _lit_unfinished_ring(
     component = labels[y0:y1, x0:x1] == label
     if int(np.count_nonzero(component & annulus & cyan)) < min_connected_cyan:
         return False
-    if not _unlocked_unfinished_center(image, MapNode(x, y, radius)):
+    if not _unlocked_unfinished_center(
+            image, MapNode(x, y, radius), check_score=0.65 if boss_crest else 0.45):
         return False
     center_gray = cv2.cvtColor(image[y - 10:y + 10, x - 10:x + 10], cv2.COLOR_BGR2GRAY)
     if (float(center_gray.mean()) >= 220 or float(center_gray.std()) < 12

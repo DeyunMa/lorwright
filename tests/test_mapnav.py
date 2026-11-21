@@ -1312,3 +1312,23 @@ def test_full_boss_crest_requires_the_lit_route():
     hero = locate_map_hero(image)
     assert hero is not None
     assert reachable_nodes(image, hero=hero) == []
+
+
+def test_boss_adjacent_selection_glow_is_reachable():
+    """实机 20261121T072549 map_no_next：相邻首领翼章带选中光环，
+    绿色面部误配完成勾模板（0.528/191）被当作已完成拒绝。"""
+    image = _load("f1-boss-glow-checkmark-20261121.png")
+    hero = locate_map_hero(image)
+    assert hero is not None and math.dist(hero.center, (961, 429)) <= 8
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1 and math.dist(nodes[0].center, (1096, 414)) <= 8
+
+
+def test_boss_glow_node_locked_still_abstains():
+    """完成勾豁免只跳过完成判定；中心有锁的首领翼章仍不可达。"""
+    image = _load("f1-boss-glow-checkmark-20261121.png").copy()
+    locked = _load("f1-zoomed-branch-map-20261117.png")
+    image[414 - 30:414 + 31, 1096 - 30:1096 + 31] = locked[312:373, 1622:1683]
+    hero = locate_map_hero(image)
+    assert hero is not None
+    assert reachable_nodes(image, hero=hero) == []

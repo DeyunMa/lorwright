@@ -47,11 +47,13 @@ def test_obscured_discard_candidate_is_dropped_not_clicked(bounds):
     assert not (x1 <= center[0] <= x2 and y1 <= center[1] <= y2)
 
 
-@pytest.mark.parametrize(("index", "bounds"), [
-    (2, (1292, 582, 1320, 594)),
-    (3, (1688, 630, 1716, 642)),
+@pytest.mark.parametrize(("index", "bounds", "expected"), [
+    # 残字仍构成字模但低于置信阈：锚点保留，费用记 None。
+    (2, (1292, 582, 1320, 594), (1, 1, None, 6)),
+    # 笔画几乎被抹掉时与徽记伪圆无法区分：锚点按无字模证据丢弃。
+    (3, (1688, 630, 1716, 642), (1, 1, 1)),
 ], ids=["partial-one", "six-without-top-stroke"])
-def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds):
+def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds, expected):
     from lorwright.core.perceive.digits import DigitReader
     from lorwright.core.perceive.discard import discard_candidates
 
@@ -63,9 +65,7 @@ def test_discard_partial_glyph_is_not_read_as_another_cost(index, bounds):
     digits.load()
     candidates = discard_candidates(image, digits)
     assert candidates is not None
-    expected = [1, 1, 1, 6]
-    expected[index] = None
-    assert candidates.costs == tuple(expected)
+    assert candidates.costs == expected
 
 
 def test_discard_ignores_isolated_highlight_at_badge_perimeter():
@@ -116,6 +116,28 @@ def test_discard_reads_green_one_with_detached_edge_fragment():
     image = cv2.imread(str(fixtures_root() / "screens/f1-discard-cost-20261121.png"))
     if image is None:
         pytest.skip("missing f1-discard-cost-20261121.png")
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert len(candidates.cards) == 5
+    assert candidates.costs == (1, 1, 3, 1, 1)
+    action = choose_discard(candidates)
+    assert action is not None
+    assert action.card_index in (0, 1)  # 重复砰砰
+    assert action.raw["duplicate"]
+
+
+def test_discard_drops_emblem_anchor_over_candidate_cap():
+    """20261121T011844 停止帧：与 f1-discard-cost-20261121 同画面的稍后动画帧，
+    Hough 把一张卡的关键字徽记 (814,718) 检成第六个候选（蓝色边框 103 过阈），
+    旧逻辑六候选超上限返回 None。真费用圆必含字模，徽记提取不出，应丢弃。"""
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-cost-late-20261121.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-cost-late-20261121.png")
     digits = DigitReader("assets/digits")
     digits.load()
     candidates = discard_candidates(image, digits)

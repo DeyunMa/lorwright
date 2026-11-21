@@ -34,12 +34,17 @@ def discard_candidates(frame: np.ndarray, digits: DigitReader) -> DiscardCandida
         art = frame[y + 15:y + 165, x + 42:x + 207]
         if art.shape != (150, 165, 3):
             continue
+        # 费用圆内必然含数字笔画；关键字徽记之类的伪圆提取不出字模，
+        # 同理丢弃。数字在但分类不到置信阈的锚点保留，交给 choose_discard
+        # 的“费用未知则不动”规则兜底。
+        glyphs = read_cost_glyphs(frame, (x, y), rad=26, ignore_perimeter_highlights=True)
+        if glyphs is None:
+            continue
         cards.append(Rect(x + 80, y + 65, 50, 50))
         artwork.append(cv2.resize(art, (80, 80)))
-        glyphs = read_cost_glyphs(frame, (x, y), rad=26, ignore_perimeter_highlights=True)
         hit = digits.classify_sequence(
             glyphs, rotations=(-15, -10, -5, 0, 5, 10, 15),
-        ) if glyphs is not None else None
+        )
         costs.append(hit[0] if hit is not None and hit[1] >= 0.85 else None)
     if not 1 <= len(cards) <= 5:
         return None

@@ -44,14 +44,15 @@ from lorwright.core.perceive.adventure_scene import (
     is_map,
     is_weekly_list,
     item_chest_leave_button,
+    partial_weekly_view,
     recognize_weekly_adventures,
     reward_timeout_continue,
     selected_world_hero_matches,
     service_error_confirm,
     shop_leave_button,
-    weekly_detail_back,
     weekly_detail_stars,
     weekly_slot_targets,
+    world_back_button,
 )
 from lorwright.core.perceive.astrologer import (
     SLOTS as ASTROLOGER_SLOTS,
@@ -209,7 +210,7 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
-        weekly_detail_recovery_used = False
+        weekly_view_resets = 0
         replay_slot = self.weekly_replay_slot
         if replay_slot is not None:
             self._details["weekly_replay_slot"] = replay_slot
@@ -504,26 +505,13 @@ class AdventureLoop:
                 if detail_stars is not None:
                     self._scene("weekly_detail")
                     if selected_weekly_stars is None:
-                        # 会话从已打开的周常详情页恢复：先返回列表再正常选择。
-                        back = (None if weekly_detail_recovery_used
-                                else weekly_detail_back(design_image))
+                        # 会话从已打开的周常详情页恢复：先返回再正常选择。
+                        back = (world_back_button(design_image)
+                                if weekly_view_resets < 2 else None)
                         if back is not None:
-                            weekly_detail_recovery_used = True
-                            self._tap(*scale.to_device(*back.center))
-
-                            def _closed(after) -> bool:
-                                after_design = self._reward_design(after)
-                                return after_design is not None and (
-                                    is_weekly_list(after_design[0])
-                                    or find_weekly_entry(after_design[0]) is not None)
-
-                            pending_image = self._await_transition(
-                                "weekly_detail_close_transition",
-                                _closed,
-                                initial_image=image,
-                                unverified_tag="weekly_detail_close_unverified",
-                                verified_reason="weekly_detail_closed",
-                            )
+                            weekly_view_resets += 1
+                            pending_image = self._weekly_view_reset(
+                                image, scale, back)
                             if pending_image is None:
                                 return
                             continue
@@ -553,6 +541,19 @@ class AdventureLoop:
                     selected_weekly_stars = None
                     replay_slot = None
                     continue
+                if partial_weekly_view(design_image):
+                    self._scene("weekly_list")
+                    back = (world_back_button(design_image)
+                            if weekly_view_resets < 2 else None)
+                    if back is not None:
+                        weekly_view_resets += 1
+                        pending_image = self._weekly_view_reset(
+                            image, scale, back)
+                        if pending_image is None:
+                            return
+                        continue
+                    self._snapshot(image, tag="weekly_view_unrecognized")
+                    return
                 entry = find_home_adventure_entry(design_image)
                 if entry is not None:
                     pending_image = self._handle_home_entry(image, scale, entry)
@@ -754,6 +755,26 @@ class AdventureLoop:
         if next_image is not None:
             logger.info("adventure: 已继续冒险，进入可处理场景")
         return next_image
+
+    def _weekly_view_reset(self, image, scale, back):
+        """点击返回键复位周常视野；接受列表、入口、仍偏移的部分视图或主页。"""
+        self._tap(*scale.to_device(*back.center))
+
+        def _accepted(after) -> bool:
+            after_design = self._reward_design(after)
+            return after_design is not None and (
+                is_weekly_list(after_design[0])
+                or find_weekly_entry(after_design[0]) is not None
+                or partial_weekly_view(after_design[0])
+                or find_home_adventure_entry(after_design[0]) is not None)
+
+        return self._await_transition(
+            "weekly_view_reset_transition",
+            _accepted,
+            initial_image=image,
+            unverified_tag="weekly_view_reset_unverified",
+            verified_reason="weekly_view_reset",
+        )
 
     def _handle_weekly_entry(self, image, scale, weekly_entry):
         self._scene("world_map")

@@ -17,7 +17,9 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
-`screens/f1-weekly-detail-open-on-resume-20261121.png` 来自 `logs/f1-pulls/live-20261121-061529.png`（会话 `20261121T110807-e79597def5fb` 停在周常详情页后的实拍帧），完整 1920×1080，仅英雄名「伊莉絲」。会话在详情页打开时启动会命中 `weekly_detail_without_selection`：页面「暗影傳送門」 2★ 带「重玩冒險」，左侧列表可见、上方槽位高亮。新增 `weekly_detail_back` 识别左上返回键，首次恢复时返回列表继续正常选择。
+`screens/f1-weekly-list-panned-after-detail-20261121.png` 来自会话 `20261121T112029-967fc705b761` 的 `weekly_detail_close_unverified`（现名 `weekly_view_reset_unverified`）停止原始 PNG，完整 1920×1080，仅英雄名「伊莉絲」。详情页点返回后相机停在左侧：周常只露出上方 (373,266) 与右下 (601,679) 两个时钟，左下槽位出屏，无入口、非列表。新增 `partial_weekly_view` 识别此种部分视图并再次点击返回复位。
+
+`screens/f1-weekly-detail-open-on-resume-20261121.png` 来自 `logs/f1-pulls/live-20261121-061529.png`（会话 `20261121T110807-e79597def5fb` 停在周常详情页后的实拍帧），完整 1920×1080，仅英雄名「伊莉絲」。会话在详情页打开时启动会命中 `weekly_detail_without_selection`：页面「暗影傳送門」 2★ 带「重玩冒險」，左侧列表可见、上方槽位高亮。新增 `world_back_button` 识别左上返回键，首次恢复时返回列表继续正常选择。
 
 `screens/f1-weekly-detail-replay-from-clock-20261121.png` 来自会话 `20261121T110807-e79597def5fb`（champion elise，`--weekly-replay-slot 1`）的 `weekly_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号（仅英雄名「伊莉絲」）。点击列表时钟槽位（completed=False）后进入的周常详情「暗影傳送門」 2★ 却显示「重玩冒險」——该槽位本周已由其他英雄完成，列表对 Elise 仍显示时钟。新语义下徽记只定位槽位，详情页出现「重玩冒險」或「開始冒險」均接受。
 

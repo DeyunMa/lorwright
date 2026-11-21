@@ -30,8 +30,8 @@ from lorwright.core.perceive.adventure_scene import (
     is_loading_screen,
     is_portal_loading,
     service_error_confirm,
-    weekly_detail_back,
     weekly_slot_targets,
+    world_back_button,
 )
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.result_screen import adventure_settlement
@@ -126,9 +126,10 @@ _PURE_SINGLE_IMAGE_FUNCS = (
     "shop_leave_button",
     "support_confirm_button",
     "support_selection",
-    "weekly_detail_back",
+    "partial_weekly_view",
     "weekly_detail_stars",
     "weekly_slot_targets",
+    "world_back_button",
 )
 
 _PURE_LIST_IMAGE_FUNCS = (
@@ -3107,35 +3108,67 @@ def test_weekly_detail_without_selection_recovers_via_back_to_list(adventure):
         [detail, listing, detail] + [after] * 6, [])
     loop.weekly_replay_slot = 1
     assert loop.run(max_nodes=3).reason == "iteration_limit"
-    assert device.taps[0] == weekly_detail_back(detail).center
+    assert device.taps[0] == world_back_button(detail).center
     assert device.taps[1] == weekly_slot_targets(listing)[0].target.center
     assert device.taps[2] == (1577, 981)
     assert saved == []
 
 
-def test_weekly_detail_without_selection_stops_after_recovery_used(adventure, monkeypatch):
+def test_weekly_detail_without_selection_stops_after_reset_budget(adventure, monkeypatch):
     detail = _weekly("f1-weekly-detail-open-on-resume-20261121.png")
+    panned = _weekly("f1-weekly-list-panned-after-detail-20261121.png")
+    world = _weekly("world-weekly-20261115.png")
     listing = _weekly("f1-weekly-list-zoomed-20261121.png")
     after = _weekly("weekly-after-start-20261115.png")
-    # 恢复一次 → 选槽 → 开始成功（选择被重置）→ 再次无选择遇到详情页时停止。
-    # 地图面板处理与本用例无关，置为成功以隔离被测路径。
+    # 详情复位落在平移视野，再复位回到入口：两次额度用尽；
+    # 之后正常选槽、开始成功（选择被重置），再遇详情页时保留原停止。
     loop, device, _, saved, _ = adventure(
-        [detail, listing, detail, after] + [detail] * 8, [])
+        [detail, panned, world, listing, detail, after] + [detail] * 8, [])
     loop.weekly_replay_slot = 1
     monkeypatch.setattr(loop, "_handle_node_panel", lambda *args: True)
-    result = loop.run(max_nodes=8)
+    result = loop.run(max_nodes=10)
     assert result.reason == "weekly_detail_without_selection"
     assert saved[-1] == "weekly_detail_without_selection"
 
 
+def test_weekly_view_reset_chains_detail_panned_entry_list(adventure):
+    # 详情 → 返回（停在平移视野）→ 再返回（回到世界地图）→ 周常入口 → 列表 → 选槽。
+    detail = _weekly("f1-weekly-detail-open-on-resume-20261121.png")
+    panned = _weekly("f1-weekly-list-panned-after-detail-20261121.png")
+    world = _weekly("world-weekly-20261115.png")
+    listing = _weekly("f1-weekly-list-zoomed-20261121.png")
+    after = _weekly("weekly-after-start-20261115.png")
+    loop, device, _, saved, _ = adventure(
+        [detail, panned, world, listing, detail] + [after] * 6, [])
+    loop.weekly_replay_slot = 1
+    assert loop.run(max_nodes=5).reason == "iteration_limit"
+    back = world_back_button(detail).center
+    assert device.taps[:2] == [back, back]
+    assert device.taps[2] == find_weekly_entry(world).center
+    assert device.taps[3] == weekly_slot_targets(listing)[0].target.center
+    assert device.taps[4] == (1577, 981)
+    assert saved == []
+
+
+def test_weekly_view_reset_budget_exhaustion_stops(adventure):
+    detail = _weekly("f1-weekly-detail-open-on-resume-20261121.png")
+    panned = _weekly("f1-weekly-list-panned-after-detail-20261121.png")
+    loop, device, _, saved, _ = adventure(
+        [detail] + [panned] * 10, [])
+    loop.weekly_replay_slot = 1
+    assert loop.run(max_nodes=5).reason == "weekly_view_unrecognized"
+    assert len(device.taps) == 2
+    assert saved == ["weekly_view_unrecognized"]
+
+
 def test_weekly_detail_back_to_unrelated_frame_stops(adventure):
     detail = _weekly("f1-weekly-detail-open-on-resume-20261121.png")
-    home = _weekly("1080p_home_adventure_entry.png")
-    loop, device, _, saved, _ = adventure([detail] + [home] * 8, [])
+    unrelated = _weekly("weekly-after-start-20261115.png")
+    loop, device, _, saved, _ = adventure([detail] + [unrelated] * 8, [])
     loop.weekly_replay_slot = 1
     loop.run(max_nodes=3)
     assert len(device.taps) == 1
-    assert saved == ["weekly_detail_close_unverified"]
+    assert saved == ["weekly_view_reset_unverified"]
 
 
 def test_weekly_replay_slot_on_incomplete_clock_rejects_detail_without_button(
@@ -3155,7 +3188,7 @@ def test_weekly_replay_slot_on_incomplete_clock_rejects_detail_without_button(
     ("world-weekly-20261115.png", "weekly_entry_unverified", 1),
     ("weekly-list-20261115.png", "weekly_selection_unverified", 1),
     # 详情页先尝试一次返回键恢复，落点仍是详情才停止。
-    ("weekly-detail-20261115.png", "weekly_detail_close_unverified", 1),
+    ("weekly-detail-20261115.png", "weekly_view_reset_unverified", 1),
 ])
 def test_weekly_repeated_polling_never_repeats_input(adventure, name, reason, taps):
     image = _weekly(name)
@@ -3174,10 +3207,16 @@ def test_weekly_unknown_evidence_never_clicks(adventure, obscure):
              "star": (900, 240, 986, 279), "clock": (930, 123, 960, 155)}
     x1, y1, x2, y2 = boxes[obscure]
     image[y1:y2, x1:x2] = 0
-    loop, device, _, saved, _ = adventure([image], [])
+    loop, device, _, saved, _ = adventure([image] * 3, [])
     loop.run(max_nodes=3)
-    assert device.taps == []
-    assert saved == ["unknown_scene" if obscure == "clock" else "weekly_stars_unknown"]
+    if obscure == "clock":
+        # 一个标记不可见时画面与平移视野无法区分，按周常复位处理（已获授权）；
+        # 落点仍是该视图计一次成功复位，两次额度用尽后停止。
+        assert device.taps == [world_back_button(image).center] * 2
+        assert saved == ["weekly_view_unrecognized"]
+    else:
+        assert device.taps == []
+        assert saved == ["weekly_stars_unknown"]
 
 
 @pytest.mark.parametrize("after_name", ["weekly-detail-20261115.png",

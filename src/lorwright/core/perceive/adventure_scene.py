@@ -588,13 +588,25 @@ def weekly_detail_stars(image: np.ndarray) -> float | None:
     return ratings[0] if len(ratings) == 1 else None
 
 
-def weekly_detail_back(image: np.ndarray) -> Rect | None:
-    """周常详情页左上返回键；页面身份仍由详情标签与难度徽章核验。"""
-    if (_visible_patch(image, "weekly_detail_label", (1385, 108, 1555, 150)) is None
-            or not any(_visible_patch(image, name, (1385, 295, 1505, 375)) is not None
-                       for name in ("weekly_detail_difficulty", "weekly_detail_difficulty_2"))):
-        return None
+def world_back_button(image: np.ndarray) -> Rect | None:
+    """世界地图系页面左上返回键；场景身份由调用方先行核验。"""
     return _visible_patch(image, "world_back", (65, 45, 140, 125))
+
+
+def partial_weekly_view(image: np.ndarray) -> bool:
+    """相机平移后只露出部分周常标记的世界视野（1–2 个时钟/完成勾）。
+
+    既非完整周常列表，也不是详情页或带周常入口的世界地图；
+    左上返回键仍可用（世界控件本身已含其核验）。
+    """
+    if not _world_controls(image):
+        return False
+    if (is_weekly_list(image) or weekly_detail_stars(image) is not None
+            or find_weekly_entry(image) is not None):
+        return False
+    markers = (len(_weekly_markers(image, "weekly_clock"))
+               + len(_weekly_markers(image, "weekly_completed")))
+    return 1 <= markers <= 2
 
 
 def _weekly_replay_label(image: np.ndarray, button: Rect) -> bool:

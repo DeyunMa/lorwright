@@ -17,10 +17,11 @@ from lorwright.core.perceive.adventure_scene import (
     is_map,
     is_weekly_list,
     recognize_weekly_adventures,
+    partial_weekly_view,
     selected_world_hero_matches,
-    weekly_detail_back,
     weekly_detail_stars,
     weekly_slot_targets,
+    world_back_button,
 )
 from tools.test_data import fixtures_root
 
@@ -227,18 +228,29 @@ def test_weekly_detail_replay_button_after_clock_slot_selection():
     "f1-weekly-detail-open-on-resume-20261121.png",
     "weekly-detail-20261115.png",
     "f1-weekly-detail-replay-from-clock-20261121.png",
+    "f1-weekly-list-panned-after-detail-20261121.png",
 ])
-def test_weekly_detail_back_finds_return_button(name):
-    back = weekly_detail_back(_image(f"screens/{name}"))
+def test_world_back_button_finds_return_button(name):
+    back = world_back_button(_image(f"screens/{name}"))
     assert back is not None and back.center[0] < 150 and back.center[1] < 120
+
+
+def test_partial_weekly_view_recognizes_panned_list():
+    # f1 实机停帧：详情返回后相机停在左侧，只剩两个时钟露出。
+    assert partial_weekly_view(
+        _image("screens/f1-weekly-list-panned-after-detail-20261121.png"))
 
 
 @pytest.mark.parametrize("name", [
     "weekly-list-20261115.png", "f1-weekly-list-zoomed-20261121.png",
-    "f1-weekly-list-incomplete-20261121.png", "world-weekly-20261115.png",
+    "f1-weekly-list-incomplete-20261121.png", "weekly-detail-20261115.png",
+    "weekly-two-detail-20261116.png",
+    "f1-weekly-detail-open-on-resume-20261121.png",
+    "f1-weekly-detail-replay-from-clock-20261121.png",
+    "world-weekly-20261115.png",
 ])
-def test_weekly_detail_back_rejects_list_and_world_map(name):
-    assert weekly_detail_back(_image(f"screens/{name}")) is None
+def test_partial_weekly_view_rejects_full_and_other_weekly_scenes(name):
+    assert not partial_weekly_view(_image(f"screens/{name}"))
 
 
 @pytest.mark.parametrize("name", [

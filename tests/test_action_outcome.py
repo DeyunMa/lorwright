@@ -165,6 +165,45 @@ def test_collapsed_play_cannot_be_verified_as_expansion_or_play(ui):
     assert pending.observe(after, 8).status is OutcomeStatus.TIMED_OUT
 
 
+def test_unacknowledged_mulligan_confirm_reroutes_before_deadline():
+    # 会话 20261121T133319：「確定」已点、按钮仍在，画面停在换牌 21 秒。
+    before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                            unacknowledged_deadline=6)
+    assert pending.observe(before, 5).status is OutcomeStatus.WAITING
+    outcome = pending.observe(before, 7)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "mulligan_confirm_unacknowledged"
+
+
+def test_mulligan_confirm_retry_requires_legible_replace_buttons():
+    before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                            unacknowledged_deadline=6)
+    blurred = replace(before, mulligan_selected=(None,) * 4)
+    # 转场/模糊帧上重发可能点到别的界面；保持等待直到原截止。
+    assert pending.observe(blurred, 7).status is OutcomeStatus.WAITING
+    assert pending.observe(blurred, 20).status is OutcomeStatus.TIMED_OUT
+
+
+def test_mulligan_confirm_without_retry_deadline_keeps_waiting():
+    before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20)
+    assert pending.observe(before, 7).status is OutcomeStatus.WAITING
+    assert pending.observe(before, 20).status is OutcomeStatus.TIMED_OUT
+
+
+def test_unacknowledged_deadline_only_applies_to_mulligan_confirm():
+    before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
+    end_turn = ActionOutcome(Action(ActionType.END_TURN), before, 20,
+                             unacknowledged_deadline=6)
+    assert end_turn.observe(before, 7).status is OutcomeStatus.WAITING
+    resolving = state(ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_commit")
+    confirm = ActionOutcome(Action(ActionType.CONFIRM), resolving, 20,
+                            unacknowledged_deadline=6)
+    assert confirm.observe(resolving, 7).status is OutcomeStatus.WAITING
+
+
 def test_mulligan_replace_waits_for_the_requested_selection_change():
     before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
     pending = ActionOutcome(

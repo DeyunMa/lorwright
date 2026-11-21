@@ -41,6 +41,7 @@ class ActionOutcome:
         self, action: Action, before: GameState, deadline: float,
         combat_row_min_move_px: int = 80,
         play_expectation: PlayExpectation | None = None,
+        unacknowledged_deadline: float | None = None,
     ) -> None:
         self.action = action
         self.before = before
@@ -48,6 +49,9 @@ class ActionOutcome:
         self.combat_row_min_move_px = combat_row_min_move_px
         self.play_expectation = play_expectation
         self._confirmation_completed = False
+        #: 输入被游戏吞掉的重路由点：画面保持原样、按钮仍可读时，
+        #: 在这个单调时钟点之前提前交回决策，不等满动作窗口。
+        self._unacknowledged_deadline = unacknowledged_deadline
 
     def resume_after_confirmation(self) -> None:
         """确认交互已结束，沿用原观察窗口等待出牌结果。"""
@@ -175,6 +179,19 @@ class ActionOutcome:
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"
             elif kind in (ActionType.CONFIRM, ActionType.END_TURN, ActionType.PASS):
+                if (kind is ActionType.CONFIRM
+                        and before.ui_state is after.ui_state is UIState.MULLIGAN
+                        and self._unacknowledged_deadline is not None
+                        and now >= self._unacknowledged_deadline
+                        and len(after.mulligan_selected) == 4
+                        and all(type(value) is bool
+                                for value in after.mulligan_selected)):
+                    # 「確定」被吞：画面未变且四个替換/取消按钮仍可读。
+                    # 换牌确认是幂等单按钮，重路由让决策层再发一次；
+                    # 重复无变化由 watchdog 的卡死升级兜底。按钮读不出
+                    # 的帧可能在转场中，重发会落到别的界面，保持等待。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT,
+                                   "mulligan_confirm_unacknowledged")
                 if (kind is ActionType.CONFIRM
                         and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
                         and {before.action_prompt, after.action_prompt}

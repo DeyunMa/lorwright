@@ -564,6 +564,7 @@ class Engine:
                     )
                     if clicks and result.action.type is not ActionType.NO_OP:
                         timeout = self.settings.loop.action_timeout_s
+                        unacknowledged = None
                         if (result.action.type is ActionType.END_TURN
                                 or (result.action.type is ActionType.CONFIRM
                                     and (self._staged_play is not None
@@ -571,7 +572,15 @@ class Engine:
                                          or state.ui_state is UIState.COMBAT_RESOLVING))):
                             # 换牌入场、回合结束、法术和战斗确认可能超过普通观察窗口。
                             timeout = max(timeout, 20.0)
-                        self._pending = self._make_outcome(result.action, state, timeout)
+                        if (result.action.type is ActionType.CONFIRM
+                                and state.ui_state is UIState.MULLIGAN):
+                            # 换牌「確定」偶被游戏吞掉（实机 20261121T133319
+                            # 画面停 21 秒）。正常转场约 4 秒离开 MULLIGAN，
+                            # 6 秒画面不变且按钮仍可读就重路由重发一次。
+                            unacknowledged = time.monotonic() + 6.0
+                        self._pending = self._make_outcome(
+                            result.action, state, timeout,
+                            unacknowledged_deadline=unacknowledged)
                         if self._staged_play is not None:
                             self._pending.deadline = min(
                                 self._pending.deadline, self._staged_play.deadline,
@@ -638,7 +647,10 @@ class Engine:
             if callback is not None:
                 callback(pending.action, pending.before, state)
 
-    def _make_outcome(self, action: Action, before: GameState, timeout: float) -> ActionOutcome:
+    def _make_outcome(
+        self, action: Action, before: GameState, timeout: float,
+        unacknowledged_deadline: float | None = None,
+    ) -> ActionOutcome:
         expectation = None
         if action.type is ActionType.PLAY_CARD and before.hand_expanded:
             card = next((card for card in before.hand if card.index == action.card_index), None)
@@ -657,6 +669,7 @@ class Engine:
             action, before, time.monotonic() + timeout,
             combat_row_min_move_px=self.settings.loop.combat_row_min_move_px,
             play_expectation=expectation,
+            unacknowledged_deadline=unacknowledged_deadline,
         )
 
     @staticmethod

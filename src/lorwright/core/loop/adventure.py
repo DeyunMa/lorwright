@@ -94,11 +94,13 @@ from lorwright.core.perceive.reward_screen import (
     card_reward_diagnostics,
     card_reward_selection,
     card_reward_target,
+    hero_item_champion_index,
     hero_item_choose_disabled,
     hero_item_choose_enabled,
     hero_item_hero_selection,
     hero_item_item_selection,
     hero_item_main_index,
+    hero_item_triple_layout,
     is_card_reward_screen,
     is_hero_item_reward_screen,
     is_power_screen,
@@ -1136,6 +1138,10 @@ class AdventureLoop:
                 return None
             return normalized
 
+        normalized = self._reward_design(image)
+        if normalized is not None and hero_item_triple_layout(normalized[0]):
+            return self._handle_hero_item_triple(image, *normalized)
+
         normalized = observe_selection()
         if normalized is None:
             self._snapshot(image, tag="hero_item_selection_unverified")
@@ -1202,6 +1208,45 @@ class AdventureLoop:
         for after in self._transition_frames("hero_item_transition"):
             if not self._is_hero_item_reward(after) and self._recognized_after_home(after):
                 report("verified", "hero_item_transition", progress=True, **self._details)
+                return after
+        self._snapshot(after, tag="hero_item_transition_unverified")
+        return None
+
+    def _handle_hero_item_triple(self, image, design, scale) -> np.ndarray | None:
+        """三英雄候选页：优先英雄包自身插画槽，否则回退道具品质规则。"""
+        index = hero_item_champion_index(
+            design, getattr(self.pack, "hero_item_art", None))
+        reason = "champion_art_match"
+        if index is None:
+            items = recognize_hero_items(design)
+            if items is None:
+                self._snapshot(image, tag="hero_item_selection_unverified")
+                return None
+            pick = pick_hero_item_reward(
+                items, getattr(self.pack, "item_preferences", ()), self.rng)
+            if pick is None:
+                self._snapshot(image, tag="hero_item_choice_unverified")
+                return None
+            index = items.index(pick.candidate)
+            reason = pick.reason
+        record_event("reward_decision", kind="hero_item", selection=index,
+                     reason=reason)
+        report("decided", "hero_item_choice", selection=index,
+               selection_reason=reason, **self._details)
+        self._tap(*scale.to_device((615, 960, 1320)[index], 400))
+        after = image
+        for after in self._transition_frames("hero_item_select_transition",
+                                             wait_s=8, attempts=4):
+            if hero_item_choose_enabled(after):
+                break
+        else:
+            self._snapshot(after, tag="hero_item_selection_unverified")
+            return None
+        self._tap(*scale.to_device(960, 1003))
+        for after in self._transition_frames("hero_item_transition"):
+            if not self._is_hero_item_reward(after) and self._recognized_after_home(after):
+                report("verified", "hero_item_transition", progress=True,
+                       **self._details)
                 return after
         self._snapshot(after, tag="hero_item_transition_unverified")
         return None

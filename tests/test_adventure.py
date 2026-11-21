@@ -1848,6 +1848,26 @@ def test_item_chest_identity_does_not_match_other_nodes():
     assert item_chest_leave_button(_item_chest_panel()[:540, :960]) is None
 
 
+def test_hero_item_triple_prefers_own_champion(adventure):
+    # f1 实机：三英雄候选（赫克林/魔甘娜/伊莉絲），伊莉絲包应选第三槽。
+    image = _img("../screens/f1-hero-item-mixed-champions-20261121.png")
+    loop, device, _, saved, _ = adventure([image], [])
+    assert loop._handle_hero_item_reward(image) is None  # 选择后继未提供，停在核验
+    assert device.taps == [(1320, 400)]
+    assert saved == ["hero_item_selection_unverified"]
+
+
+def test_hero_item_triple_jinx_falls_back_to_item_rule(adventure):
+    # 吉茵珂絲包在三英雄候选页无自身英雄，回退道具品质规则（rare 均分随机）。
+    image = _img("../screens/f1-hero-item-mixed-champions-20261121.png")
+    loop, device, _, saved, _ = adventure([image], [])
+    loop.pack = load("jinx")
+    loop._handle_hero_item_reward(image)
+    assert len(device.taps) == 1
+    assert device.taps[0][0] in (615, 960, 1320) and device.taps[0][1] == 400
+    assert saved == ["hero_item_selection_unverified"]
+
+
 def _event_frame():
     return _img("../screens/f1-event-card-removal-20261121.png")
 

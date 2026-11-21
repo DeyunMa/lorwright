@@ -368,6 +368,63 @@ def hero_item_main_index(image: np.ndarray, hero_item_art: Path | None) -> int |
     return slots[0] if len(slots) == 1 else None
 
 
+def hero_item_triple_layout(image: np.ndarray) -> bool:
+    """三英雄候选页：右下「重抽」按钮 + 两槽选中边检测不成立为布局标志。"""
+    if not is_hero_item_reward_screen(image):
+        return False
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if _visible_match(gray, "hero_item_reroll", (1150, 950, 1400, 1050)) < 0.94:
+        return False
+    # 前两槽左上均有蓝色费用徽章，区别于两槽布局。
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    for x in _HERO_ITEM_TRIPLE_SLOTS[:2]:
+        badge = hsv[250:330, x + 5:x + 75]
+        blue = ((badge[:, :, 0] > 95) & (badge[:, :, 0] < 125)
+                & (badge[:, :, 2] > 120))
+        if float(blue.mean()) < 0.08:
+            return False
+    return True
+
+
+#: 三候选页各槽卡面内区（避开外框与费用徽章）。
+_HERO_ITEM_TRIPLE_SLOTS = (480, 835, 1190)
+
+
+def hero_item_champion_index(image: np.ndarray, hero_item_art: Path | None) -> int | None:
+    """三候选页中匹配英雄包插画的槽位；多槽或零槽命中返回 None。"""
+    if hero_item_art is None or not hero_item_triple_layout(image):
+        return None
+    template = _hero_item_art_features(hero_item_art)
+    if template is None:
+        return None
+    ref_points, ref_descriptors, anchor = template
+    orb = cv2.ORB_create(nfeatures=4000)
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    hits = []
+    for x in _HERO_ITEM_TRIPLE_SLOTS:
+        art = gray[150:560, x + 20:x + 270]
+        points, descriptors = orb.detectAndCompute(art, None)
+        matched = False
+        if descriptors is not None and len(points) >= 30:
+            pairs = matcher.knnMatch(descriptors, ref_descriptors, k=2)
+            good = [a for a, b in pairs if a.distance < 0.75 * b.distance]
+            if len(good) >= 60:
+                source = np.float32([ref_points[m.trainIdx].pt for m in good])
+                target = np.float32([points[m.queryIdx].pt for m in good])
+                transform, inliers = cv2.estimateAffinePartial2D(
+                    source, target, ransacReprojThreshold=3)
+                if transform is not None and inliers is not None and np.isfinite(transform).all():
+                    support = target[inliers.ravel() != 0]
+                    matched = (len(support) >= max(30, 0.6 * len(good))
+                               and (np.ptp(support, axis=0) >= 70).all()
+                               and 0.95 <= np.linalg.norm(transform[:, 0]) <= 1.22
+                               and abs(transform[1, 0]) <= 0.10)
+        hits.append(matched)
+    slots = [i for i, hit in enumerate(hits) if hit]
+    return slots[0] if len(slots) == 1 else None
+
+
 def same_hero_item_cards(before: np.ndarray, after: np.ndarray) -> bool:
     """逐槽核对可见插画，辅助英雄即使无名称也须保持一致。"""
     first, second = _hero_item_artwork(before), _hero_item_artwork(after)

@@ -201,12 +201,15 @@ def read_cost_glyphs(
     if any(12 <= stats[i, cv2.CC_STAT_AREA] < 20 and np.count_nonzero(core == i) >= 8
            for i in range(1, count)):
         return None
-    core_labels = set(core) if ignore_perimeter_highlights else None
+    # 边缘残片若有一两个像素落入核心半径就会留在 core_labels 里逃过排除；
+    # 与上方残笔判据一致按核心像素数 <8 认定，绿色减费数字的碎笔画同样剔除。
     boxes = [
         (int(stats[i, 4]), int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]))
         for i in range(1, count)
         if stats[i, 4] >= 20 and not (
-            core_labels is not None and i not in core_labels and max(stats[i, 2:4]) <= rad / 2
+            ignore_perimeter_highlights
+            and np.count_nonzero(core == i) < 8
+            and max(stats[i, 2:4]) <= rad / 2
         )
     ]
     if not 1 <= len(boxes) <= 2:

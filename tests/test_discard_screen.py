@@ -107,6 +107,27 @@ def test_discard_drops_spurious_hough_anchor_on_card_emblem():
     assert 0 <= center[0] < 1920 and 500 <= center[1] <= 900
 
 
+def test_discard_reads_green_one_with_detached_edge_fragment():
+    """20261121T011026 停止帧：最左砰砰的绿色「1」带 7×10 碎笔画（核心 1px），
+    旧核心成员判定逃过边缘排除致双字一致性失败。修后五张全读。"""
+    from lorwright.core.perceive.digits import DigitReader
+    from lorwright.core.perceive.discard import discard_candidates
+
+    image = cv2.imread(str(fixtures_root() / "screens/f1-discard-cost-20261121.png"))
+    if image is None:
+        pytest.skip("missing f1-discard-cost-20261121.png")
+    digits = DigitReader("assets/digits")
+    digits.load()
+    candidates = discard_candidates(image, digits)
+    assert candidates is not None
+    assert len(candidates.cards) == 5
+    assert candidates.costs == (1, 1, 3, 1, 1)
+    action = choose_discard(candidates)
+    assert action is not None
+    assert action.card_index in (0, 1)  # 重复砰砰
+    assert action.raw["duplicate"]
+
+
 def test_discard_returns_none_when_no_anchor_passes_evidence():
     """所有锚点都缺蓝色边框（全部涂黑）时仍返回 None。"""
     from lorwright.core.perceive.digits import DigitReader

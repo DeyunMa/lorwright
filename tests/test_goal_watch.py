@@ -97,6 +97,20 @@ BLOCKED = """
 Claude Opus 5.5 Medium · bypass                    ctrl+o to expand edits
 """
 
+LONG_BRIEF_COMPLETE = """
+ 账本在 logs/goals/2026-11-20-jinx-weekly-r2-slot2.md（不入库），截图在 logs/f1-pulls/<run_id>/。
+
+ • 手牌展开时读不到场上单位，所以满场还会出单位，目前靠替换流程兜住。
+
+ ⏺ ~/Code/my-own/lorwright
+────────────────────────────────────────────────────── 按第四层循环用 Jinx 打完第二轮每周冒险… ─
+❭ Ask Devin to build features, fix bugs, or work on your code
+────────────────────────────────────────────────────────────────────────────────────────────────
+Fusion · Claude Opus 5.5 ◆ SWE-2 Medium · bypass · 1 subagent ↓ · ✓ Goal complete  ctrl+o to ex…
+"""
+
+LONG_BRIEF_BLOCKED = LONG_BRIEF_COMPLETE.replace("· ✓ Goal complete", "· ✗ Goal blocked")
+
 CANCELED = """
  ✱ Continuing goal (turn 2)
  ✓ R=20261120T035554-905357f970d3; mkdir -p logs/f1-pulls/$R && scp -q …
@@ -113,6 +127,14 @@ def test_truncated_footer_inside_a_turn_is_running() -> None:
 
 def test_blocked_goal_ends_the_watch() -> None:
     assert _load_watch().classify(BLOCKED) == "ended"
+
+
+def test_long_final_brief_with_footer_only_complete_is_ended() -> None:
+    assert _load_watch().classify(LONG_BRIEF_COMPLETE) == "ended"
+
+
+def test_long_final_brief_with_footer_only_blocked_is_ended() -> None:
+    assert _load_watch().classify(LONG_BRIEF_BLOCKED) == "ended"
 
 
 def test_cancelled_turn_keeps_watching_without_resume(monkeypatch, tmp_path) -> None:

@@ -33,6 +33,7 @@ Agent 不逐动作调度游戏，只改程序能力。
 ## 结束
 
 - 每打完或验收一场冒险，就在 `docs/status.md` 记一行并提交：冒险名、完成级别（打完 / 验收）、关键会话 ID、修复提交范围、遗留问题。账本不入库，这一行是仓库里唯一的完成记录。
+- 续接停在结算阶段（胜利页、奖励汇总、任务插页）的会话前，先用 `tools/f1/remote.py shot` 看实时帧：已回到世界地图就是这一场已打完，不再启动会话。带 `--weekly-replay-slot` 从世界地图启动会再开一局同位置重玩，2026-11-20 r2s2 打完后就因此多开了一局。
 - 目标中所有冒险都达到目标写明的完成级别（默认「打完」，见「已定」）：写 brief，用 `update_goal` 标记完成。
 - 命中停止条件：写 brief，用 `update_goal` 标记受阻。
 
@@ -82,7 +83,7 @@ herdr pane run "$W" "python3 tools/goal/watch.py $HERDR_PANE_ID"
 
 脚本每 60 秒用 `recent-unwrapped --lines 40` 读一次该 pane，日志在 `logs/goals/watch-<pane>.log`，单实例锁 `logs/goals/watch-<pane>.lock`（锁文件内容是看守的 PID）：
 - 只有不在回合内（输入框不是 `Guide Devin while it works`、没有转圈行，底栏也没有 `Goal running`），且最近一条 goal 提示是 `Goal paused after 50 turns` 原文时，才发送 `/goal resume`，并写一行日志；
-- 只在看到明确的结束证据时退出：最近一条 goal 提示是 `✓ Goal …` / `✗ Goal …`（如 `Goal complete`、`Goal blocked`），或 goal 的 agent 已消失。用户取消回合、两轮之间、底栏被截断等其他情况一律继续守着，用户手动 `/goal resume` 后它仍然有效；
+- 只在看到明确的结束证据时退出：最近一条 goal 提示是 `✓ Goal …` / `✗ Goal …`（如 `Goal complete`、`Goal blocked`），或底栏显示 `✓ Goal …` / `✗ Goal …`，或 goal 的 agent 已消失。brief 较长时状态行会滚出读取窗口，只剩底栏，2026-11-20 r2s2 的看守因此没有退出。用户取消回合、两轮之间、底栏被截断等其他情况一律继续守着，用户手动 `/goal resume` 后它仍然有效；
 - 读画面失败时，用 `herdr agent list` 区分瞬时读错与 agent 消失：agent 仍在则记日志重试；`herdr` 连续不可达达上限时退出并记日志；
 - 最多 resume 10 次，到上限后退出，并在日志里说明原因。
 

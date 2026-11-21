@@ -72,6 +72,8 @@ def classify(screen: str) -> str:
         return RESUME
     if statuses and statuses[-1].startswith(TERMINAL_PREFIXES):
         return ENDED
+    if any("· ✓ Goal " in line or "· ✗ Goal " in line for line in non_empty[-3:]):
+        return ENDED
     return IDLE
 
 

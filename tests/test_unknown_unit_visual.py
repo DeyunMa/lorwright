@@ -4,7 +4,10 @@ import numpy as np
 from lorwright.core.models import Rect
 from lorwright.core.perceive.hand import (
     Badge,
+    _arched_frame,
+    _blue_straight_top_frame,
     _expanded_drag_point,
+    _spell_marker,
     _visible_playable_unit,
     find_badges_expanded,
 )
@@ -77,6 +80,53 @@ def test_stat_chip_covered_by_neighbor_or_screen_abstains():
 
 def _expanded_badges(image):
     return find_badges_expanded(image, Rect(280, 680, 1640, 400))
+
+
+def _restored_crop(relative: str) -> np.ndarray:
+    crop = cv2.imread(str(fixtures_root() / relative))
+    assert crop is not None, relative
+    image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    image[:, 320:] = crop
+    return image
+
+
+def test_wide_fan_unit_without_tribe_banner_uses_blue_top_frame():
+    """宽间距展开手牌：无种族横幅且角标不可见的单位，凭蓝色直顶框确认。"""
+    image = _restored_crop("screens/f1-handoff-readiness-stop-20261117.png")
+    badges = _expanded_badges(image)
+    assert len(badges) == 6
+    got = [_visible_playable_unit(image, b, badges) for b in badges]
+    assert got == [False, False, True, True, True, True]
+    # 邻牌收窄到 <210px 时蓝线通道拒绝触发。
+    target = badges[2]
+    crowded = [target, Badge((target.center[0] + 180, target.center[1]), 1.0)]
+    assert not _visible_playable_unit(image, target, crowded)
+
+
+def test_spell_veto_overrides_blue_straight_top_frame():
+    """法术星形标记与拱形框否决均优先于宽距蓝色直顶框证据。"""
+    image = _restored_crop("screens/f1-handoff-readiness-stop-20261117.png")
+    badges = _expanded_badges(image)
+    spell, target = badges[1], badges[2]
+    assert _blue_straight_top_frame(image, target, badges)
+
+    marked = image.copy()
+    sx, sy = spell.center
+    tx, ty = target.center
+    h = min(135, 1080 - (sy + 25), 1080 - (ty + 25))
+    marked[ty + 25:ty + 25 + h, tx - 62:tx + 70] = image[sy + 25:sy + 25 + h, sx - 62:sx + 70]
+    assert _blue_straight_top_frame(marked, target, badges)
+    assert _spell_marker(marked, target)
+    assert not _visible_playable_unit(marked, target, badges)
+
+    arched = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    badge = Badge((900, 800), 1.0)
+    cv2.line(arched, (920, 795), (1120, 795), (255, 160, 0), 4)
+    cv2.rectangle(arched, (925, 810), (1115, 822), (180, 180, 180), -1)
+    cv2.rectangle(arched, (950, 750), (1030, 785), (220, 220, 220), -1)
+    assert _blue_straight_top_frame(arched, badge, [badge])
+    assert _arched_frame(arched, badge)
+    assert not _visible_playable_unit(arched, badge, [badge])
 
 
 def test_narrow_fan_card_types_on_live_frame():

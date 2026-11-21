@@ -424,18 +424,55 @@ def _stat_chip_present(image: np.ndarray, cx: int, cy: int) -> bool:
     return False
 
 
-def _visible_playable_unit(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
-    """单位类型的正向证据：数值角标对，或无负向证据时的方形框种族横幅。
+def _blue_straight_top_frame(
+    image: np.ndarray, badge: Badge, badges: list[Badge]
+) -> bool:
+    """宽间距展开牌：蓝色直线顶部提供单位直框及可用发光的联合证据。
 
-    力量/血量角标在窄扇里常被邻牌或屏幕裁切，故另认方形卡框顶部的
-    种族横幅肩角；法术的星形标记或拱形框命中即非单位；仍证据不足
-    （横幅被遮、类型未证实）一律弃权。不识别牌名或出牌效果。
+    扇形密集时相邻牌的直边会覆盖法术，故拒绝窄间距（<210px）和边缘裁切。
+    调用方须先完成法术标记与拱形框否决。
+    """
+    x, y = badge.center
+    if (y < 75 or x < 0 or x + 220 > image.shape[1]
+            or any(0 < abs(x - other.center[0]) < 210 for other in badges)):
+        return False
+    crop = image[y - 75:min(y + 45, image.shape[0]), x + 20:x + 220]
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    blue = cv2.inRange(hsv, (90, 100, 120), (125, 255, 255))
+    lines = cv2.HoughLinesP(blue[:80], 1, np.pi / 180, threshold=85,
+                            minLineLength=175, maxLineGap=5)
+    if lines is None:
+        return False
+    xs = np.arange(25, 175)
+    for x1, y1, x2, y2 in lines.reshape(-1, 4):
+        if x1 > x2:
+            x1, y1, x2, y2 = x2, y2, x1, y1
+        if x1 <= 20 and x2 >= 180 and abs(y2 - y1) <= 0.3 * (x2 - x1):
+            # 蓝光下方还要有连续明亮的低饱和卡框，不能只认背景蓝线。
+            base = np.rint(y1 + (xs - x1) * (y2 - y1) / (x2 - x1)).astype(int)
+            if np.max(base) + 24 >= crop.shape[0]:
+                continue
+            frame = crop[base[:, None] + np.array([16, 24]), xs[:, None]]
+            neutral = (frame.max(axis=2) >= 140) & (
+                frame.max(axis=2).astype(int) - frame.min(axis=2).astype(int) < 85
+            )
+            if np.all(neutral.mean(axis=0) >= 0.65):
+                return True
+    return False
+
+
+def _visible_playable_unit(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
+    """单位类型的正向证据：无负向证据时认方形框横幅、宽距蓝线直框或数值角标对。
+
+    优先检查法术星形标记与拱形框并直接否决；无负向证据时，方形卡框顶部的
+    种族横幅、宽间距（>=210px）可出牌蓝光直顶框或左下/右下数值角标对任一
+    成立即确认为单位；仍证据不足时一律弃权。不识别牌名或出牌效果。
     """
     if image.shape[:2] != (1080, 1920):
         return False
     if _spell_marker(image, badge) or _arched_frame(image, badge):
         return False
-    if _unit_tab(image, badge, badges):
+    if _unit_tab(image, badge, badges) or _blue_straight_top_frame(image, badge, badges):
         return True
     cx, cy = badge.center
     for dx, dy in _STAT_CHIP_OFFSETS:

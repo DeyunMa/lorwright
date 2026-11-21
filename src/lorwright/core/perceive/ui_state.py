@@ -75,6 +75,8 @@ class UIStateDetector:
         "action_commit": UIState.COMBAT_RESOLVING,
         "action_confirm": UIState.COMBAT_RESOLVING,
         "action_pass": UIState.MY_TURN_IDLE,
+        # 「替換」：满场打出单位后的替换确认，与「結算」同走确认路径。
+        "action_replace": UIState.COMBAT_RESOLVING,
         "action_target": UIState.TARGETING,
     }
 

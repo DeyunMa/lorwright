@@ -121,3 +121,38 @@ def test_play_card_into_replace_prompt_still_needs_input():
     outcome = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 8).observe(after, 1)
     assert outcome.status is OutcomeStatus.NEEDS_INPUT
     assert outcome.reason == "target_selection_required"
+
+
+CONFIRM_FRAME = "screens/f1-replace-confirm-20261121.png"
+
+
+def _confirm_image():
+    image = cv2.imread(str(fixtures_root() / CONFIRM_FRAME))
+    assert image is not None
+    return image
+
+
+def test_replace_confirm_button_reads_as_combat_resolving():
+    """「替換」按钮：满场替换后的确认文字，与「結算」同走确认路径。"""
+    state = _parse(_confirm_image())
+    assert state.ui_state is UIState.COMBAT_RESOLVING
+    assert state.action_prompt == "action_replace"
+
+
+def test_replace_confirm_routes_to_confirm_clicking_action_button():
+    state = _parse(_confirm_image())
+    routed = Router(_battle_layers(load("jinx"))).decide(state)
+    assert routed.action.type is ActionType.CONFIRM
+    assert routed.layer == "combat_confirm"
+    layout = load_settings().layout.to_layout()
+    plan = ActionTranslator(layout).translate(routed.action, state)
+    assert plan is not None and plan.points == [layout.end_turn.center]
+
+
+def test_confirm_succeeds_on_known_successor_after_replace():
+    before = _parse(_confirm_image())
+    action = Action(ActionType.CONFIRM)
+    after = replace(before, ui_state=UIState.MY_TURN_IDLE, action_prompt=None)
+    outcome = ActionOutcome(action, before, 8).observe(after, 1)
+    assert outcome.status is OutcomeStatus.SUCCEEDED
+    assert outcome.reason == "ui_transition"

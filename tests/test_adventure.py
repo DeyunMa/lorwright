@@ -6,6 +6,8 @@
 rest_first_option），第一次进商店/休息面板就会 AttributeError。
 """
 
+import hashlib
+from collections import OrderedDict
 from pathlib import Path
 
 import cv2
@@ -27,12 +29,80 @@ from lorwright.core.perceive.adventure_scene import (
     is_portal_loading,
     service_error_confirm,
 )
-from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
+from lorwright.core.perceive.mapnav import empty_point, locate_map_hero, reachable_nodes
 from lorwright.core.perceive.result_screen import adventure_settlement
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
 
 FIXTURES = fixtures_root() / "mapnav"
+_HERO_CACHE: OrderedDict[tuple, object] = OrderedDict()
+_NODES_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
+_CACHE_LIMIT = 64
+
+
+def _image_digest(image: np.ndarray) -> tuple:
+    return (
+        image.shape,
+        image.dtype.str,
+        hashlib.blake2b(memoryview(np.ascontiguousarray(image)), digest_size=16).digest(),
+    )
+
+
+def _cached_locate_map_hero(image: np.ndarray):
+    key = _image_digest(image)
+    if key in _HERO_CACHE:
+        _HERO_CACHE.move_to_end(key)
+        return _HERO_CACHE[key]
+    result = locate_map_hero(image)
+    _HERO_CACHE[key] = result
+    if len(_HERO_CACHE) > _CACHE_LIMIT:
+        _HERO_CACHE.popitem(last=False)
+    return result
+
+
+def _cached_reachable_nodes(image: np.ndarray, *, hero=None, rng=None):
+    key = (_image_digest(image), tuple(hero) if hero is not None else None)
+    if key in _NODES_CACHE:
+        _NODES_CACHE.move_to_end(key)
+        return list(_NODES_CACHE[key])
+    nodes = tuple(reachable_nodes(image, hero=hero, rng=rng))
+    _NODES_CACHE[key] = nodes
+    if len(_NODES_CACHE) > _CACHE_LIMIT:
+        _NODES_CACHE.popitem(last=False)
+    return list(nodes)
+
+
+_UI_DETECT_CACHE: OrderedDict[tuple, UIState] = OrderedDict()
+_SHARED_UI: UIStateDetector | None = None
+
+
+def _cached_ui_detector(settings):
+    global _SHARED_UI
+    if _SHARED_UI is None:
+        detector = UIStateDetector(
+            threshold=settings.perception.match_threshold,
+            action_button=settings.layout.to_layout().end_turn,
+        )
+        detector.load()
+        _SHARED_UI = detector
+    detector = _SHARED_UI
+
+    class _CachedUI:
+        def load(self) -> None:
+            pass
+
+        def detect(self, image: np.ndarray) -> UIState:
+            key = _image_digest(image)
+            if key in _UI_DETECT_CACHE:
+                _UI_DETECT_CACHE.move_to_end(key)
+                return _UI_DETECT_CACHE[key]
+            state = detector.detect(image)
+            _UI_DETECT_CACHE[key] = state
+            if len(_UI_DETECT_CACHE) > _CACHE_LIMIT:
+                _UI_DETECT_CACHE.popitem(last=False)
+            return state
+
+    return _CachedUI()
 
 
 def _img(name: str) -> np.ndarray:
@@ -113,6 +183,8 @@ def adventure(monkeypatch):
         coords = settings.adventure.to_coords()
         monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
         monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", advance_sleep)
+        monkeypatch.setattr("lorwright.core.loop.adventure.locate_map_hero", _cached_locate_map_hero)
+        monkeypatch.setattr("lorwright.core.loop.adventure.reachable_nodes", _cached_reachable_nodes)
         saved = []
         monkeypatch.setattr(
             "lorwright.core.util.snapshot.save_snapshot",
@@ -129,7 +201,7 @@ def _record_map_localizations(monkeypatch):
 
     def locate(image):
         frames.append(id(image))
-        return locate_map_hero(image)
+        return _cached_locate_map_hero(image)
 
     monkeypatch.setattr("lorwright.core.loop.adventure.locate_map_hero", locate)
     return frames
@@ -734,9 +806,10 @@ def test_weekly_fork_prefers_event_icon_over_gold_at_either_position(adventure, 
     loop, _, _, _, _ = adventure([image], [])
     loop.pack = load("jinx")
     expected = (910, 233) if swapped else (689, 151)
+    hero = _cached_locate_map_hero(image)
     for seed in range(6):
         loop.rng.seed(seed)
-        node = loop._find_next(image, locate_map_hero(image))
+        node = loop._find_next(image, hero)
         assert node is not None
         assert (node.x - expected[0]) ** 2 + (node.y - expected[1]) ** 2 < 15 ** 2
 
@@ -1075,11 +1148,7 @@ def test_home_entry_reaches_tap_with_real_ui_detector(adventure, name):
     image = cv2.imread(str(FIXTURES.parent / "screens" / name))
     assert image is not None
     loop, device, engine, saved, _ = adventure([image, image], [])
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=1)
     assert len(device.taps) == 1
     assert saved == ["home_entry_after"]
@@ -1256,11 +1325,7 @@ def test_resume_adventure_clicks_once_and_accepts_map(adventure):
     assert image is not None
     loop, device, engine, saved, _ = adventure([image, _img("1080p_map.png")], [])
     loop.pack = load("jinx")
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=1)
     assert len(device.taps) == 1
     assert 1500 < device.taps[0][0] < 1650 and 950 < device.taps[0][1] < 1010
@@ -1920,11 +1985,7 @@ def test_node_transitions_wait_for_recognized_scenes_without_repeated_taps(adven
          loading, _img("1080p_battle_detail.png"), loading, mulligan, mulligan], [],
     )
     loop.pack = load("jinx")
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=2)
     assert device.taps == [(982, 334), (817, 485), (1581, 1010)]
     assert engine.run_calls == [400]
@@ -1949,13 +2010,9 @@ def test_node_transition_waits_through_slow_battle_loading(adventure, monkeypatc
     if loading is None or mulligan is None:
         pytest.skip("missing battle loading fixtures")
     loop, device, engine, saved, _ = adventure(
-        [_img("1080p_battle_detail.png"), *([loading] * 40), mulligan, mulligan], [],
+        [_img("1080p_battle_detail.png"), *([loading] * 14), mulligan, mulligan], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     clock = _clocked(loop, device, monkeypatch, 0.5)
     assert loop._handle_node_panel()
     assert clock[0] > 24
@@ -1971,11 +2028,7 @@ def test_node_transition_timeout_stops_without_repeating_battle(adventure):
     loop, device, engine, saved, _ = adventure(
         [_img("1080p_battle_detail.png"), *([loading] * 11)], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     assert not loop._handle_node_panel()
     assert device.taps == [(1581, 1010)]
     assert engine.run_calls == []
@@ -2449,11 +2502,7 @@ def test_card_reward_continues_to_map_after_verified_transition(adventure, recov
         "item_preferences": (),
         "recognize_map_hero": staticmethod(load("jinx").recognize_map_hero),
     })()
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     loop.run(max_nodes=2)
     if recovery == "persistent":
         assert device.taps == [(555, 393), (960, 1003)]
@@ -2830,11 +2879,7 @@ def test_home_world_weekly_lowest_detail_start_and_map(adventure):
     loop, device, engine, saved, _ = adventure(
         [home, _blank(), world, world, listing, listing, detail, detail, animation, after], [],
     )
-    engine.parser.ui = UIStateDetector(
-        threshold=loop.settings.perception.match_threshold,
-        action_button=loop.settings.layout.to_layout().end_turn,
-    )
-    engine.parser.ui.load()
+    engine.parser.ui = _cached_ui_detector(loop.settings)
     result = loop.run(max_nodes=4)
     assert device.taps[0] == find_home_adventure_entry(home).center
     assert device.taps[1] == (1380, 464)

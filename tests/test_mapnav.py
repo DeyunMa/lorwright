@@ -1,5 +1,6 @@
 """mapnav 1080p 回归：最大视角，英雄节点 C3，下一关 C4。"""
 
+import functools
 import math
 import random
 
@@ -37,6 +38,18 @@ def _load(name: str) -> np.ndarray:
     return image
 
 
+@functools.lru_cache(maxsize=64)
+def _hero(name: str) -> HeroToken | None:
+    return recognize_hero(_load(name))
+
+
+@functools.lru_cache(maxsize=64)
+def _hero_rel(relative: str) -> HeroToken | None:
+    image = cv2.imread(str(FIXTURES.parent / relative))
+    assert image is not None, relative
+    return recognize_hero(image)
+
+
 @pytest.mark.parametrize("jpeg", [False, True])
 def test_zoomed_halo_origin_exposes_both_branch_routes(jpeg):
     image = _load("f1-zoomed-branch-map-20261117.png")
@@ -55,7 +68,7 @@ def test_zoomed_halo_origin_exposes_both_branch_routes(jpeg):
 @pytest.mark.parametrize("damage", ["origin", "upper_cut", "lower_cut", "upper_lock", "lower_lock"])
 def test_zoomed_halo_route_keeps_each_branch_independent(damage):
     image = _load("f1-zoomed-branch-map-20261117.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-zoomed-branch-map-20261117.png")
     assert hero is not None
     if damage == "origin":
         image[475:615, 890:1030] = 0
@@ -92,7 +105,7 @@ def test_zoomed_route_uses_visible_completed_node(jpeg):
 @pytest.mark.parametrize("damage", ["hero", "origin", "target", "cut", "lock"])
 def test_zoomed_route_requires_origin_line_and_unlocked_target(damage):
     image = _load("f1-after-gold-zoomed-map-20261117.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-after-gold-zoomed-map-20261117.png")
     assert hero is not None
     if damage == "hero":
         hero = None
@@ -125,7 +138,7 @@ def test_short_avatar_occlusion_authorizes_zoom_but_not_node(jpeg):
 @pytest.mark.parametrize("damage", ["hero", "origin", "target", "lock", "controls"])
 def test_occluded_route_zoom_requires_visible_map_origin_and_target(damage):
     image = _load("f1-after-gold-map-20261117.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-after-gold-map-20261117.png")
     if damage == "hero":
         hero = None
     elif damage == "origin":
@@ -142,7 +155,7 @@ def test_occluded_route_zoom_requires_visible_map_origin_and_target(damage):
 @pytest.mark.parametrize("name", ["1080p_jinx_map.png", "f1-gold-travel-panel-20261117.png"])
 def test_route_zoom_does_not_replace_navigation_or_panel_handling(name):
     image = _load(name)
-    assert occluded_route_zoom_button(image, recognize_hero(image)) is None
+    assert occluded_route_zoom_button(image, _hero(name)) is None
 
 
 @pytest.mark.parametrize("jpeg", [False, True])
@@ -185,7 +198,7 @@ def test_two_star_support_route_requires_visible_origin_and_target(name, damage)
         image[15:120, 605:710] = 0
         assert recognize_hero(image) is None
         return
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     if damage == "origin":
         image[130:175, 630:680] = 0
@@ -207,7 +220,7 @@ def test_two_star_support_route_requires_visible_origin_and_target(name, damage)
 @pytest.mark.parametrize("replacement", [0, 128])
 def test_unknown_business_marker_preserves_verified_diamond_route(name, bounds, target, replacement):
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     x1, y1, x2, y2 = bounds
     image[y1:y2, x1:x2] = replacement
@@ -269,7 +282,7 @@ def test_short_display_edge_uses_visible_rim_contact(offset):
 @pytest.mark.parametrize("damage", ["cut", "origin", "rim", "center", "lock", "completed"])
 def test_short_display_edge_requires_route_and_unfinished_target(damage):
     image = _load("f1-short-display-edge-20261117.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-short-display-edge-20261117.png")
     assert hero is not None
     if damage == "cut":
         image[266:282, 964:1007] = 0
@@ -301,7 +314,7 @@ def test_weekly_home_follows_lit_route_to_first_power_diamond():
 @pytest.mark.parametrize("damage", ["cut", "origin", "arrow", "lock", "completed", "dim", "edge"])
 def test_weekly_home_rejects_missing_route_or_state_evidence(damage):
     image = _load("f1-weekly-two-home-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-two-home-20261116.png")
     assert hero is not None
     if damage == "cut":
         image[220:250, 395:435] = 0
@@ -344,7 +357,7 @@ def test_completed_node_follows_cyan_route_to_visible_bottom_gold_target():
 @pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim", "origin"])
 def test_bottom_gold_target_rejects_missing_route_or_state_evidence(damage):
     image = _load("f1-weekly-after-hero-reward-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-hero-reward-20261116.png")
     assert hero is not None
     if damage == "cut":
         image[780:810, 900:990] = 0
@@ -384,7 +397,7 @@ def test_long_cyan_route_targets_real_diamond_instead_of_display_icon():
 @pytest.mark.parametrize("damage", ["cut", "obscured", "dim"])
 def test_long_diamond_route_rejects_missing_evidence(damage):
     image = _load("f1-weekly-panned-gold-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-panned-gold-20261116.png")
     assert hero is not None
     if damage == "cut":
         image[650:680, 900:990] = 0
@@ -407,7 +420,7 @@ def test_completed_power_diamond_follows_cyan_route_to_battle():
 @pytest.mark.parametrize("damage", ["origin", "cut", "lock", "completed", "obscured", "dim"])
 def test_power_diamond_route_rejects_missing_evidence(damage):
     image = _load("f1-weekly-after-power-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-power-20261116.png")
     assert hero is not None
     if damage == "origin":
         image[516:565, 930:991] = 0
@@ -435,12 +448,12 @@ def test_gold_icon_does_not_duplicate_its_complete_diamond_destination():
 
 def test_completed_weekly_round_node_follows_one_of_its_cyan_routes() -> None:
     image = _load("f1-weekly-after-second-reward-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-second-reward-20261116.png")
     assert hero is not None
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 2
     found = set()
-    for seed in range(6):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is not None
+    for node in nodes:
         target = min(((689, 151), (910, 233)),
                      key=lambda p: (node.x - p[0]) ** 2 + (node.y - p[1]) ** 2)
         assert (node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 < 15 ** 2
@@ -467,15 +480,14 @@ def test_completed_weekly_round_node_rejects_each_damaged_branch(target, damage)
     hero = recognize_hero(image)
     assert hero is not None
     other = (910, 233) if x == 689 else (689, 151)
-    for seed in range(3):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is not None
-        assert (node.x - other[0]) ** 2 + (node.y - other[1]) ** 2 < 15 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 1
+    assert (nodes[0].x - other[0]) ** 2 + (nodes[0].y - other[1]) ** 2 < 15 ** 2
 
 
 def test_completed_weekly_round_node_requires_its_completion_mark() -> None:
     image = _load("f1-weekly-after-second-reward-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-second-reward-20261116.png")
     image[515:565, 935:990] = 0
     assert next_node(image, hero=hero) is None
 
@@ -532,7 +544,7 @@ def test_gold_diamond_ability_node_is_not_next() -> None:
                          + [f"map-frame-{i}.png" for i in range(1, 5)])
 def test_completed_node_follows_lit_diamond(name: str) -> None:
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     node = next_node(image, hero=hero)
     assert node is not None
@@ -542,7 +554,7 @@ def test_completed_node_follows_lit_diamond(name: str) -> None:
 @pytest.mark.parametrize("damage", ("cut", "lock", "completed", "decoration", "obscured"))
 def test_lit_diamond_rejects_unsafe_states(damage: str) -> None:
     image = _load("map-frame-3.png")
-    hero = recognize_hero(image)
+    hero = _hero("map-frame-3.png")
     assert hero is not None
     if damage == "cut":
         cv2.line(image, (920, 607), (980, 607), (0, 0, 0), 12)
@@ -576,7 +588,7 @@ def test_weekly_completed_battle_follows_lit_support_node(name, offset) -> None:
 @pytest.mark.parametrize("damage", ["cut", "locked", "completed", "rim", "current"])
 def test_weekly_support_node_requires_complete_route_evidence(damage) -> None:
     image = _load("f1-weekly-after-card-reward-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-card-reward-20261116.png")
     assert hero is not None
     if damage == "cut":
         image[566:583, 960:1010] = 0
@@ -594,9 +606,10 @@ def test_weekly_support_node_requires_complete_route_evidence(damage) -> None:
 
 def test_weekly_support_fork_follows_either_verified_lit_battle() -> None:
     image = _load("f1-weekly-after-support-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-support-20261116.png")
     assert hero is not None
-    choices = {next_node(image, hero=hero, rng=random.Random(seed)).center for seed in range(8)}
+    nodes = reachable_nodes(image, hero=hero)
+    choices = {node.center for node in nodes}
     assert len(choices) == 2
     assert all(min((x - tx) ** 2 + (y - ty) ** 2 for tx, ty in ((825, 345), (1107, 337)))
                < 12 ** 2 for x, y in choices)
@@ -605,7 +618,7 @@ def test_weekly_support_fork_follows_either_verified_lit_battle() -> None:
 @pytest.mark.parametrize("damage", ["cut", "lock", "completed", "obscured", "dim", "current"])
 def test_weekly_support_fork_does_not_choose_damaged_left_branch(damage) -> None:
     image = _load("f1-weekly-after-support-20261116.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-weekly-after-support-20261116.png")
     assert hero is not None
     if damage == "cut":
         cv2.line(image, (855, 455), (895, 415), (0, 0, 0), 20)
@@ -620,12 +633,12 @@ def test_weekly_support_fork_does_not_choose_damaged_left_branch(damage) -> None
         image[280:410, 760:890] = (image[280:410, 760:890] * 0.4).astype(np.uint8)
     else:
         image[516:565, 930:991] = 0
-    for seed in range(3):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        if damage == "current":
-            assert node is None
-        else:
-            assert node is not None and (node.x - 1107) ** 2 + (node.y - 337) ** 2 < 12 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    if damage == "current":
+        assert nodes == []
+    else:
+        assert len(nodes) == 1
+        assert (nodes[0].x - 1107) ** 2 + (nodes[0].y - 337) ** 2 < 12 ** 2
 
 
 def test_blank_frame_has_no_next() -> None:
@@ -664,7 +677,7 @@ def test_jinx_portrait_finds_map_avatar_instead_of_fixed_hud() -> None:
 def test_current_unfinished_battle_can_be_reentered(name: str) -> None:
     image = _load(name)
     assert not panel_open(image)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     node = next_node(image, hero=hero)
     assert node is not None
@@ -679,7 +692,7 @@ def test_current_unfinished_battle_can_be_reentered(name: str) -> None:
 ])
 def test_other_current_nodes_are_not_unfinished_battles(name: str) -> None:
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     assert not _current_battle_node_visible(image, hero)
 
@@ -688,7 +701,7 @@ def test_other_current_nodes_are_not_unfinished_battles(name: str) -> None:
                                   "f1-reentry-cave-20261115.png"])
 def test_obscured_or_dimmed_current_battle_is_not_reentered(name: str) -> None:
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     obscured = image.copy()
     x, y = hero[0], hero[1] + 95
@@ -699,7 +712,7 @@ def test_obscured_or_dimmed_current_battle_is_not_reentered(name: str) -> None:
 
 def test_reentry_cave_completed_or_locked_node_is_not_reentered() -> None:
     image = _load("f1-reentry-cave-20261115.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-reentry-cave-20261115.png")
     assert hero is not None
     x, y = hero[0], hero[1] + 95
     completed = image.copy()
@@ -713,7 +726,7 @@ def test_reentry_cave_completed_or_locked_node_is_not_reentered() -> None:
 
 def test_jinx_second_map_next_node() -> None:
     image = _load("1080p_map.png")
-    nxt = next_node(image, hero=recognize_hero(image))
+    nxt = next_node(image, hero=_hero("1080p_map.png"))
     assert nxt is not None
     assert abs(nxt.x - 1252) <= 20
     assert abs(nxt.y - 322) <= 20
@@ -723,13 +736,13 @@ def test_map_panels_are_not_navigable() -> None:
     for name in ("1080p_panel.png", "1080p_node_panel.png", "1080p_gold_node_panel.png"):
         image = _load(name)
         assert panel_open(image), name
-        assert next_node(image, hero=recognize_hero(image)) is None
+        assert next_node(image, hero=_hero(name)) is None
 
 
 def test_jinx_map_next_node_uses_observed_hero_and_is_not_a_panel() -> None:
     image = _load("1080p_jinx_map.png")
     assert not panel_open(image)
-    nxt = next_node(image, hero=recognize_hero(image))
+    nxt = next_node(image, hero=_hero("1080p_jinx_map.png"))
     assert nxt is not None
     assert abs(nxt.x - 982) <= 20
     assert abs(nxt.y - 334) <= 20
@@ -767,14 +780,14 @@ def test_path_without_a_detected_node_is_not_clickable() -> None:
 
 def test_jinx_support_fork_selects_only_lit_neighboring_nodes() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
 
     targets = ((1141, 513), (1044, 841))
+    nodes = reachable_nodes(image, hero=hero)
+    assert len(nodes) == 2
     found = set()
-    for seed in (0, 1):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is not None
+    for node in nodes:
         matching = [i for i, (x, y) in enumerate(targets)
                     if abs(node.x - x) <= 20 and abs(node.y - y) <= 20]
         assert len(matching) == 1
@@ -784,7 +797,7 @@ def test_jinx_support_fork_selects_only_lit_neighboring_nodes() -> None:
 
 def test_jinx_support_fork_rejects_disconnected_paths() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     # 保留两端的节点环，将两条路线靠近英雄的一段变暗。
     image[445:515, 940:1120] = (image[445:515, 940:1120] * 0.35).astype(np.uint8)
@@ -798,7 +811,7 @@ def test_jinx_support_fork_rejects_disconnected_paths() -> None:
 )
 def test_jinx_support_fork_never_selects_a_cut_path(target, position) -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     anchor = (960, 411)
     dx, dy = target[0] - anchor[0], target[1] - anchor[1]
@@ -807,14 +820,13 @@ def test_jinx_support_fork_never_selects_a_cut_path(target, position) -> None:
     start = (int(x - dy / length * 30), int(y + dx / length * 30))
     end = (int(x + dy / length * 30), int(y - dx / length * 30))
     cv2.line(image, start, end, (0, 0, 0), 12)
-    for seed in (0, 1):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is None or (node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 > 40 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    assert all((node.x - target[0]) ** 2 + (node.y - target[1]) ** 2 > 40 ** 2 for node in nodes)
 
 
 def test_jinx_support_fork_rejects_completed_nodes() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     # 在两处候选中心加上绿色完成勾，不能把它们当作下一节点。
     for x, y in ((1141, 513), (1044, 841)):
@@ -828,7 +840,7 @@ def test_jinx_support_fork_rejects_completed_nodes() -> None:
 @pytest.mark.parametrize("half_size", (20, 28, 35))
 def test_jinx_support_fork_does_not_select_obscured_target(target, shade, half_size) -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     x, y = target
     # 即使完成勾被遮住，也不能把被遮住的目标当作可走节点。
@@ -836,27 +848,25 @@ def test_jinx_support_fork_does_not_select_obscured_target(target, shade, half_s
     cv2.line(image, (x - 4, y + 10), (x + 15, y - 12), (40, 220, 40), 8)
     cv2.rectangle(image, (x - half_size, y - half_size),
                   (x + half_size, y + half_size), (shade, shade, shade), -1)
-    for seed in (0, 1):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is None or (node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    assert all((node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2 for node in nodes)
 
 
 @pytest.mark.parametrize("target", ((1141, 513), (1044, 841)))
 @pytest.mark.parametrize("shade", (0, 30, 90, 150, 220))
 def test_jinx_support_fork_rejects_small_center_occlusion(target, shade) -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     x, y = target
     cv2.rectangle(image, (x - 10, y - 10), (x + 10, y + 10), (shade,) * 3, -1)
-    for seed in (0, 1):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is None or (node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    assert all((node.x - x) ** 2 + (node.y - y) ** 2 > 40 ** 2 for node in nodes)
 
 
 def test_jinx_support_fork_does_not_use_loose_fallback_for_completed_node() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     cv2.line(image, (1024, 841), (1039, 856), (40, 220, 40), 12)
     cv2.line(image, (1039, 856), (1069, 821), (40, 220, 40), 12)
@@ -868,19 +878,18 @@ def test_jinx_support_fork_does_not_use_loose_fallback_for_completed_node() -> N
 
 def test_jinx_support_fork_does_not_return_to_completed_node() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     # 已完成节点及其旧路径变亮，不能绕过分叉路线检查。
     cv2.line(image, hero, (737, 371), (255, 255, 255), 8)
-    for seed in (0, 1):
-        node = next_node(image, hero=hero, rng=random.Random(seed))
-        assert node is None or (node.x - 737) ** 2 + (node.y - 371) ** 2 > 40 ** 2
+    nodes = reachable_nodes(image, hero=hero)
+    assert all((node.x - 737) ** 2 + (node.y - 371) ** 2 > 40 ** 2 for node in nodes)
 
 
 @pytest.mark.parametrize("shade", (0, 30, 90, 150))
 def test_jinx_support_fork_stops_when_current_node_is_obscured(shade) -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     cv2.rectangle(image, (930, 380), (990, 430), (shade, shade, shade), -1)
     cv2.line(image, (965, 445), (965, 430), (255, 255, 255), 8)
@@ -889,7 +898,7 @@ def test_jinx_support_fork_stops_when_current_node_is_obscured(shade) -> None:
 
 def test_jinx_stops_when_current_round_node_is_obscured() -> None:
     image = _load("1080p_map.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_map.png")
     assert hero is not None
     cv2.rectangle(image, (hero[0] - 30, hero[1] + 65),
                   (hero[0] + 30, hero[1] + 125), (90, 90, 90), -1)
@@ -898,7 +907,7 @@ def test_jinx_stops_when_current_round_node_is_obscured() -> None:
 
 def test_completed_current_node_follows_verified_jpeg_route() -> None:
     image = _load("f1-healer-route-20261113.jpg")
-    hero = recognize_hero(image)
+    hero = _hero("f1-healer-route-20261113.jpg")
     assert hero is not None
     node = next_node(image, hero=hero)
     assert node is not None
@@ -919,7 +928,7 @@ def test_completed_current_node_follows_verified_jpeg_route() -> None:
 def test_completed_current_node_follows_real_lit_route(relative, target) -> None:
     image = cv2.imread(str(FIXTURES.parent / relative))
     assert image is not None
-    hero = recognize_hero(image)
+    hero = _hero_rel(relative)
     assert hero is not None
     node = next_node(image, hero=hero)
     assert node is not None
@@ -943,7 +952,7 @@ def test_completed_node_rejects_cut_paths_in_both_directions(
 ) -> None:
     image = cv2.imread(str(FIXTURES.parent / relative))
     assert image is not None
-    hero = recognize_hero(image)
+    hero = _hero_rel(relative)
     assert hero is not None
     dx, dy = target[0] - start[0], target[1] - start[1]
     distance = (dx * dx + dy * dy) ** 0.5
@@ -965,7 +974,7 @@ def test_completed_node_rejects_cut_paths_in_both_directions(
 def test_completed_node_does_not_revisit_a_completed_target(relative, target) -> None:
     image = cv2.imread(str(FIXTURES.parent / relative))
     assert image is not None
-    hero = recognize_hero(image)
+    hero = _hero_rel(relative)
     assert hero is not None
     x, y = target
     cv2.line(image, (x - 20, y), (x - 5, y + 15), (40, 220, 40), 11)
@@ -976,7 +985,7 @@ def test_completed_node_does_not_revisit_a_completed_target(relative, target) ->
 @pytest.mark.parametrize("position", (0.13, 0.25, 0.5, 0.75, 0.9))
 def test_round_current_node_does_not_follow_cut_path(position) -> None:
     image = _load("1080p_map.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_map.png")
     assert hero is not None
     start, target = (959, 534), (1252, 322)
     dx, dy = target[0] - start[0], target[1] - start[1]
@@ -991,7 +1000,7 @@ def test_round_current_node_does_not_follow_cut_path(position) -> None:
 @pytest.mark.parametrize("position", (0.13, 0.2, 0.4, 0.5, 0.6, 0.7))
 def test_completed_node_does_not_follow_a_cut_path(position) -> None:
     image = _load("f1-healer-route-20261113.jpg")
-    hero = recognize_hero(image)
+    hero = _hero("f1-healer-route-20261113.jpg")
     assert hero is not None
     # 包括靠近当前节点的断线，不能将另一端的亮环视作已连接。
     start, end = (963, 454), (1173, 521)
@@ -1003,7 +1012,7 @@ def test_completed_node_does_not_follow_a_cut_path(position) -> None:
 
 def test_completed_node_does_not_select_obscured_healer() -> None:
     image = _load("f1-healer-route-20261113.jpg")
-    hero = recognize_hero(image)
+    hero = _hero("f1-healer-route-20261113.jpg")
     assert hero is not None
     cv2.rectangle(image, (1140, 490), (1205, 555), (0, 0, 0), -1)
     assert next_node(image, hero=hero) is None
@@ -1015,7 +1024,7 @@ def test_completed_node_does_not_select_obscured_healer() -> None:
 @pytest.mark.parametrize("shade", (0, 80, 160))
 def test_shop_node_does_not_navigate_when_current_marker_is_obscured(name, shade) -> None:
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     cv2.rectangle(image, (hero[0] - 34, hero[1] + 55),
                   (hero[0] + 34, hero[1] + 117), (shade,) * 3, -1)
@@ -1028,7 +1037,7 @@ def test_shop_node_does_not_navigate_when_current_marker_is_obscured(name, shade
 ))
 def test_shop_node_does_not_select_obscured_target(name, target) -> None:
     image = _load(name)
-    hero = recognize_hero(image)
+    hero = _hero(name)
     assert hero is not None
     x, y = target
     cv2.rectangle(image, (x - 35, y - 35), (x + 35, y + 35), (0, 0, 0), -1)
@@ -1037,7 +1046,7 @@ def test_shop_node_does_not_select_obscured_target(name, target) -> None:
 
 def test_shop_node_rejects_dimmed_map() -> None:
     image = _load("f1-after-shop-20261114.png")
-    hero = recognize_hero(image)
+    hero = _hero("f1-after-shop-20261114.png")
     assert hero is not None
     assert next_node((image * 0.75).astype(np.uint8), hero=hero) is None
 
@@ -1045,7 +1054,7 @@ def test_shop_node_rejects_dimmed_map() -> None:
 @pytest.mark.parametrize("shade", (0, 80, 160))
 def test_completed_node_does_not_navigate_when_current_marker_is_obscured(shade) -> None:
     image = _load("f1-healer-route-20261113.jpg")
-    hero = recognize_hero(image)
+    hero = _hero("f1-healer-route-20261113.jpg")
     assert hero is not None
     cv2.rectangle(image, (hero[0] - 34, hero[1] + 55),
                   (hero[0] + 34, hero[1] + 117), (shade,) * 3, -1)
@@ -1054,7 +1063,7 @@ def test_completed_node_does_not_navigate_when_current_marker_is_obscured(shade)
 
 def test_jinx_support_fork_rejects_dimmed_map() -> None:
     image = _load("1080p_jinx_fork_after_support.png")
-    hero = recognize_hero(image)
+    hero = _hero("1080p_jinx_fork_after_support.png")
     assert hero is not None
     dimmed = (image * 0.5).astype(np.uint8)
     assert next_node(dimmed, hero=hero) is None
@@ -1312,3 +1321,13 @@ def test_full_boss_crest_requires_the_lit_route():
     hero = locate_map_hero(image)
     assert hero is not None
     assert reachable_nodes(image, hero=hero) == []
+
+
+def test_next_node_samples_all_reachable_branches_with_rng(monkeypatch) -> None:
+    branches = [MapNode(100, 200, 30), MapNode(300, 400, 30)]
+    monkeypatch.setattr("lorwright.core.perceive.mapnav.reachable_nodes", lambda *a, **kw: branches)
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    picked = {next_node(image, rng=random.Random(seed)) for seed in range(8)}
+    assert picked == set(branches)
+    monkeypatch.setattr("lorwright.core.perceive.mapnav.reachable_nodes", lambda *a, **kw: [])
+    assert next_node(image, rng=random.Random(0)) is None

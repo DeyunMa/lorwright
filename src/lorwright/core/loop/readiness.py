@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from lorwright.core.decide.generic import ATTACK_ROW_MAX_Y
+from lorwright.core.decide.generic import (
+    ATTACK_ROW_MAX_Y,
+    same_unit,
+    weakest_replace_index,
+)
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
 
 
@@ -30,6 +34,12 @@ class ActionReadiness:
             return True
         if self._previous is None or self._current is None:
             return False
+        # 替换提示下的友军 select_target：my_units 在紫色可选中辉光下
+        # 逐帧增减，按列表证据永远不稳。该动作只需要「所选目标跨两帧
+        # 是同一单位」，所以只比对目标身份，不要求整表稳定。
+        replace_ready = _replace_target_ready(action, self._previous, self._current)
+        if replace_ready is not None:
+            return replace_ready
         before = _evidence(action, self._previous)
         after = _evidence(action, self._current)
         return before is not None and after is not None and _stable(before, after)
@@ -50,6 +60,33 @@ def _stable(before: object, after: object) -> bool:
 
 def _index(value: object, length: int) -> bool:
     return type(value) is int and 0 <= value < length
+
+
+def _replace_target_ready(
+    action: Action, before: GameState, after: GameState,
+) -> bool | None:
+    """替换目标的就绪证据：只在跨帧身份一致的单位里取最弱者。
+
+    返回 None 表示不是替换场景（交给通用证据路径）；True 要求动作
+    索引解析到的单位与跨帧最弱稳定单位是同一个。
+    """
+    if (action.type is not ActionType.SELECT_TARGET
+            or action.raw.get("enemy") or action.raw.get("hand")
+            or action.raw.get("nexus")):
+        return None
+    if not (before.ui_state is UIState.TARGETING
+            and after.ui_state is UIState.TARGETING
+            and before.replace_prompt and after.replace_prompt
+            and before.targeted_spell is None and after.targeted_spell is None):
+        return None
+    matched = [i for i, unit in enumerate(after.my_units)
+               if any(same_unit(unit, seen) for seen in before.my_units)]
+    if not matched:
+        return False
+    index = action.raw.get("index", 0)
+    return (_index(index, len(after.my_units))
+            and same_unit(after.my_units[index],
+                          after.my_units[weakest_replace_index(after.my_units, matched)]))
 
 
 def _rect(rect: Rect | None) -> Rect | None:

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from lorwright.core.decide.base import Policy
-from lorwright.core.models import Action, ActionType, GameState, UIState
+from lorwright.core.models import Action, ActionType, GameState, Rect, UIState, Unit
 
 
 class HeroFirstPolicy(Policy):
@@ -137,31 +137,63 @@ class UnknownCardPolicy(Policy):
         return None
 
 
-class ReplacePromptPolicy(Policy):
-    """满场打出单位要求替换友军：选攻击+生命最低者（含并列取最左）。
+def _rect_close(a: Rect, b: Rect) -> bool:
+    return (abs(a.x - b.x) <= 12 and abs(a.y - b.y) <= 12
+            and abs(a.w - b.w) <= 12 and abs(a.h - b.h) <= 12)
+
+
+def same_unit(a: Unit, b: Unit) -> bool:
+    """同一单位跨帧身份：位置容差内且名字/攻击/生命一致。
+
+    不含 can_attack/keyword/stun 图标证据——紫色可选中辉光下这些
+    会随脉冲抖动，而替换只需要确认还是同一个单位。
+    """
+    return (a.name == b.name and a.attack == b.attack
+            and a.health == b.health and _rect_close(a.rect, b.rect))
+
+
+def weakest_replace_index(units: list[Unit], pool: list[int]) -> int:
+    """替换目标：攻击+生命最低者（含并列取最左）。
 
     不读单位身份；名字能被识别的是英雄（如升级后的吉茵珂丝），
     不参与替换。数值未读出的单位按最大处理，避免误换未知大件。
+    """
+    eligible = [i for i in pool if not units[i].name] or list(pool)
+
+    def value(index: int) -> int:
+        unit = units[index]
+        if unit.attack < 0 or unit.health < 0:
+            return 1 << 20
+        return unit.attack + unit.health
+
+    return min(eligible, key=lambda i: (value(i), i))
+
+
+class ReplacePromptPolicy(Policy):
+    """满场打出单位要求替换友军：选攻击+生命最低者（含并列取最左）。
+
+    紫色可选中辉光下 my_units 会随脉冲逐帧增减；只在连续两帧位置与
+    数值一致的单位里选目标，没有稳定单位时回退全表最弱——实际点击
+    仍由就绪门禁要求目标跨帧稳定后才放行。
     """
 
     name = "replace_prompt"
     version = "1.0.0"
 
+    def __init__(self) -> None:
+        self._previous_units: list[Unit] = []
+
     def decide(self, state: GameState) -> Action | None:
         if (state.ui_state is not UIState.TARGETING or not state.replace_prompt
                 or not state.my_units):
+            self._previous_units = []
             return None
-        eligible = [i for i, unit in enumerate(state.my_units) if not unit.name]
-        if not eligible:
-            eligible = list(range(len(state.my_units)))
-
-        def value(index: int) -> int:
-            unit = state.my_units[index]
-            if unit.attack < 0 or unit.health < 0:
-                return 1 << 20
-            return unit.attack + unit.health
-
-        index = min(eligible, key=lambda i: (value(i), i))
+        previous = self._previous_units
+        self._previous_units = list(state.my_units)
+        matched = [i for i, unit in enumerate(state.my_units)
+                   if any(same_unit(unit, seen) for seen in previous)]
+        index = weakest_replace_index(
+            state.my_units, matched or list(range(len(state.my_units))))
         return Action(type=ActionType.SELECT_TARGET, raw={"enemy": False, "index": index})
 
 

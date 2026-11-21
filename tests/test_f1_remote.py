@@ -66,7 +66,7 @@ def _wait(mod, monkeypatch, outputs):
         return item
 
     monkeypatch.setattr(mod, "run_ps", fake)
-    return mod.wait("f1", "R", 300, clock=lambda: next(clock))
+    return mod.wait("f1", "R", 300, clock=lambda: next(clock), sleeper=lambda _: None)
 
 
 def test_wait_returns_on_terminal_and_tolerates_ssh_errors(monkeypatch, capsys) -> None:

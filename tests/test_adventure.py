@@ -48,11 +48,14 @@ def _blank() -> np.ndarray:
 class FakeDevice:
     """按帧序返回截图，记录所有点击。"""
 
-    def __init__(self, frames: list[np.ndarray]) -> None:
+    def __init__(self, frames: list[np.ndarray], *, on_capture=None) -> None:
         self._frames = list(frames)
+        self._on_capture = on_capture
         self.taps: list[tuple[int, int]] = []
 
     def screencap(self):
+        if self._on_capture is not None:
+            self._on_capture()
         img = self._frames.pop(0) if self._frames else self._frames[-1] if self._frames else _blank()
         return Frame(image=img)
 
@@ -90,17 +93,26 @@ class FakeEngine:
 
 @pytest.fixture
 def adventure(monkeypatch):
-    """构造 AdventureLoop，sleep 打桩、save_snapshot 记录。"""
+    """构造 AdventureLoop，虚拟时钟推进、save_snapshot 记录。"""
     settings = load_settings()
 
     def make(frames, ui_script):
-        device = FakeDevice(frames)
+        clock = [100.0]
+
+        def advance_sleep(seconds: float) -> None:
+            clock[0] += max(0.0, float(seconds))
+
+        def advance_capture() -> None:
+            clock[0] += 0.1
+
+        device = FakeDevice(frames, on_capture=advance_capture)
         engine = FakeEngine(ui_script)
         loop = AdventureLoop(settings, engine, device, pack=load(settings.champion))
         # 直接调用私有节点处理器的用例从假设备已提供首帧的边界开始。
         loop._latest_frame = Frame(image=frames[0] if frames else _blank())
         coords = settings.adventure.to_coords()
-        monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", lambda _: None)
+        monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
+        monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", advance_sleep)
         saved = []
         monkeypatch.setattr(
             "lorwright.core.util.snapshot.save_snapshot",

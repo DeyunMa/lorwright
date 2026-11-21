@@ -10,7 +10,7 @@ def _frame_with_block(x=100, y=120, size=40):
     frame = np.zeros((300, 400, 3), np.uint8)
     cv2.rectangle(frame, (x, y), (x + size - 1, y + size - 1), (0, 255, 0), -1)
     # 加一点噪声，避免完全均匀
-    frame += np.random.randint(0, 10, frame.shape, dtype=np.uint8)
+    frame += np.random.default_rng(0).integers(0, 10, frame.shape, dtype=np.uint8)
     tpl = frame[y : y + size, x : x + size].copy()
     return frame, tpl
 

@@ -1,4 +1,3 @@
-import time
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -48,13 +47,14 @@ def test_existing_device_and_login(setup):
     assert all("schtasks" not in call.args[0] for call in run.call_args_list)
 
 
-def test_riot_login_selection_is_once_and_stops_at_form(setup):
+def test_riot_login_selection_is_once_and_stops_at_form(setup, monkeypatch):
     settings, device, detector, _ = setup
     settings.layout = SimpleNamespace(
         to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
     )
     settings.loop = SimpleNamespace(max_frame_age_s=2)
-    device.screencap.return_value.ts = time.monotonic()
+    monkeypatch.setattr(bootstrap.time, "monotonic", lambda: 100.0)
+    device.screencap.return_value.ts = 100.0
     detector.detect.side_effect = [LoginScreen.SPLASH, LoginScreen.FORM]
     result = bootstrap.prepare_f1(settings, device, open_riot_login=True)
     device.tap.assert_called_once_with(720, 835)
@@ -129,13 +129,13 @@ def _splash_login(setup, monkeypatch, screens):
         to_layout=lambda: SimpleNamespace(login_splash=SimpleNamespace(center=(720, 835)))
     )
     settings.loop = SimpleNamespace(max_frame_age_s=2)
-    device.screencap.return_value.ts = time.time()
+    clock = [10.0]
+    device.screencap.return_value.ts = clock[0]
     detector.detect.side_effect = screens
-    clock = [0.0]
 
     def sleep(seconds):
         clock[0] += max(seconds, 0.5)
-        device.screencap.return_value.ts = time.time()
+        device.screencap.return_value.ts = clock[0]
 
     monkeypatch.setattr(bootstrap.time, "monotonic", lambda: clock[0])
     monkeypatch.setattr(bootstrap.time, "sleep", sleep)

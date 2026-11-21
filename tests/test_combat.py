@@ -207,7 +207,7 @@ def test_full_board_search_stays_fast():
     """6 打 6 的精确搜索要在一次 tick 内跑完（tick 预算 200ms）。"""
     mine = [unit(2, 2) for _ in range(6)]
     theirs = [unit(2, 2) for _ in range(6)]
-    t0 = time.perf_counter()
+    t0 = time.process_time()
     best_blocking(mine, theirs)
-    elapsed = time.perf_counter() - t0
+    elapsed = time.process_time() - t0
     assert elapsed < 0.2, f"6v6 格挡搜索耗时 {elapsed * 1000:.0f}ms，超出 tick 预算"

@@ -589,6 +589,23 @@ def _navigation_candidates(image: np.ndarray) -> list[_NavigationNode]:
             if float((cv2.absdiff(actual, template) > 45).mean()) < 0.08:
                 result.append(_NavigationNode(MapNode(x + w // 2, y + h // 2, 38,
                                                        needs_reveal=True), "display"))
+        # 压到屏幕底边的金框无法完整比对（实拍 0.88），仍降档为候选；
+        # 屏幕边缘暗化放宽绝对残差，但销毁帧面证据的仍须拒绝；
+        # 是否可用完全交给路线连通核验，平移后按完整证据重判。
+        emitted = [candidate.node for candidate in result if candidate.shape == "display"]
+        for dx in np.argsort(scores[-1])[::-1]:
+            if scores[-1, dx] < 0.80:
+                break
+            x, y = int(dx) + 240, image.shape[0] - h
+            actual = image[y:y + h, x:x + w]
+            if float((cv2.absdiff(actual, template) > 45).mean()) >= 0.20:
+                continue
+            node = MapNode(x + w // 2, y + h // 2, 38, needs_reveal=True)
+            if any(abs(node.x - other.x) < 30 and abs(node.y - other.y) < 30
+                   for other in emitted):
+                continue
+            emitted.append(node)
+            result.append(_NavigationNode(node, "display"))
     # 展示框和下方菱形属于同一节点；两个可见连接端口共用边核验。
     diamonds = [candidate for candidate in result if candidate.shape == "diamond"]
     result = [candidate for candidate in result if candidate.shape != "display" or not any(

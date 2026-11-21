@@ -147,6 +147,24 @@ def test_bottom_map_target_is_revealed_once_before_click(adventure, monkeypatch,
         assert saved == ["map_pan_unverified"]
 
 
+def test_clipped_bottom_display_is_revealed_before_stop(adventure, monkeypatch):
+    # 金框压在屏幕底边、完整比对只有 0.88；亮线连通后才授权一次平移核验。
+    frame = _img("f1-bottom-display-clipped-20261121.png")
+    frames = [frame] * 8
+    loop, device, _, saved, _ = adventure(frames, [UIState.UNKNOWN])
+    loop.pack = load("jinx")
+    drags = []
+    localized = _record_map_localizations(monkeypatch)
+    monkeypatch.setattr(device, "drag", lambda *args: drags.append(args), raising=False)
+    monkeypatch.setattr(loop, "_handle_node_panel", lambda: True)
+    loop.run(max_nodes=1)
+    assert localized and set(localized) == {id(frame)}
+    assert len(drags) == 1
+    assert drags[0][3] < drags[0][1]
+    assert device.taps == []
+    assert saved == ["map_pan_unverified"]
+
+
 def test_adventure_never_clicks_an_expired_input_frame(adventure, monkeypatch):
     home = cv2.imread(str(FIXTURES.parent / "reward_timeout" / "f1-after-home.png"))
     loop, device, _, saved, _ = adventure([home], [UIState.UNKNOWN])

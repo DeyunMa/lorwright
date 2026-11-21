@@ -402,7 +402,10 @@ class AdventureLoop:
                              or (after_design is not None
                                  and result_screen(after_design[0]) == "missions"))
                     )
-                    if changed_result or self._recognized_after_home(after):
+                    # 战败结算的继续可能直达复活页；_handle_revive 负责后续点击。
+                    if (changed_result or self._recognized_after_home(after)
+                            or (after_design is not None
+                                and find_revive_button(after_design[0]) is not None)):
                         pending_image = after
                         report("verified", "continue_transition", progress=True, **self._details)
                         break

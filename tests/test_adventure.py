@@ -1802,6 +1802,27 @@ def test_continue_unknown_transition_stops_without_another_click(adventure):
     assert saved == ["continue_transition_unverified"]
 
 
+def test_continue_transition_accepts_revive_page_after_lost_battle(adventure, monkeypatch):
+    # 20261121T044638：战败结算继续直达「太慘了！你陣亡了」复活页，
+    # 转场只认 BATTLE_END/missions/主页后继，超时停止。
+    image = cv2.imread(str(FIXTURES.parent / "continue" / "vault_experience.png"))
+    revive = cv2.imread(str(FIXTURES.parent / "screens/f1-revive-20261115.png"))
+    assert image is not None and revive is not None
+    image = cv2.resize(image, (1920, 1080))
+    loop, device, engine, saved, _ = adventure(
+        [image, revive, _img("1080p_map.png")], [UIState.BATTLE_END],
+    )
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_find_next", lambda image, hero: None)
+    result = loop.run(max_nodes=3)
+    # 继续一次 + 复活按钮一次；复活后地图交回既有节点流程。
+    assert device.taps[-1] == (960, 912)
+    assert len(device.taps) == 2
+    assert result.reason == "map_no_next"
+    assert saved == ["map_no_next"]
+    assert engine.run_calls == []
+
+
 def test_continue_transition_obeys_stop(adventure, monkeypatch):
     from lorwright.core.runtime.session import StopRequested
 

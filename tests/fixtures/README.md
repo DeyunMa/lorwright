@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`card_rewards/f1-card-reward-elise-spells-20261121.png` 来自会话 `20261121T114027-9fc81e4b2873`（champion elise）的 `card_reward_unknown` 停止原始 PNG，完整 1920×1080，已查看无账号。左槽是**金框英雄**赫克林 6 费 5|6 带史诗道具黑色切割者：框角为未收录金色变体（原模板族最高 0.729<0.75），深色插画近黑像素 0.054>0.05，英雄卡无品质徽记。新增 `assets/adventure/card_reward_frame_corner_gold.png`（取该帧 `[232:250,354:374]`）；插画近黑阈放宽至 0.06（既有帧全部 ≈0）；未收录英雄卡的品质按已核验卡种记为 `champion`。
+
 `screens/f1-required-choice-spells-20261121.png` 来自会话 `20261121T113114-0cdc4769acbf`（champion elise）的 `unknown_target` 停止原始 PNG，完整 1920×1080，已查看无账号。闇影島泰爾石生成的**法术**强制三选一（闇影島印記 1／靈魂之旅 5／同命 4），动作按钮「選擇目標」、无「略過」，与 `f1-required-choice-20261121.png` 同布局但棋盘背景为棕色：收起控件原模板 0.890<0.90。新增 `assets/ui/optional_choice_collapse_bg2.png`（取该帧 `[260:326,208:274]`）作为背景变体；收起控件本身是常驻收牌按钮，已从可选界面的部分证据中移除。
 
 `screens/f1-weekly-list-panned-after-detail-20261121.png` 来自会话 `20261121T112029-967fc705b761` 的 `weekly_detail_close_unverified`（现名 `weekly_view_reset_unverified`）停止原始 PNG，完整 1920×1080，仅英雄名「伊莉絲」。详情页点返回后相机停在左侧：周常只露出上方 (373,266) 与右下 (601,679) 两个时钟，左下槽位出屏，无入口、非列表。新增 `partial_weekly_view` 识别此种部分视图并再次点击返回复位。

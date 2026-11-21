@@ -388,6 +388,34 @@ def test_weekly_champion_reward_still_requires_visible_card_data(region):
     assert recognize_card_rewards(image) is None
 
 
+def test_elise_gold_champion_reward_reads_candidates_and_picks_champion():
+    # 金框英雄卡：框角为金色变体，深色插画自带约 5% 近黑像素。
+    image = _image("f1-card-reward-elise-spells-20261121.png")
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [6, 3, 2]
+    assert [c.kind for c in candidates] == [
+        CardKind.CHAMPION, CardKind.SPELL, CardKind.SPELL]
+    assert [c.card.quality for c in candidates] == ["champion", "common", "common"]
+    pick = pick_card_reward(candidates)
+    assert pick is not None and pick.candidate is candidates[0]
+    assert card_reward_target(image, 0, "") is not None
+
+
+@pytest.mark.parametrize("region", [
+    (228, 255, 351, 384),   # 左槽金框角
+    (245, 295, 619, 674),   # 左槽英雄框
+    (385, 490, 429, 669),   # 左槽英雄标题
+])
+def test_gold_champion_reward_rejects_missing_independent_evidence(region):
+    image = _image("f1-card-reward-elise-spells-20261121.png")
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
 def test_weekly_reward_frame_on_bright_map_fog():
     image = _image("f1-weekly-third-reward-20261116.png")
     assert card_reward_selection(image) == -1

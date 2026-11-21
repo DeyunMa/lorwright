@@ -624,6 +624,7 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
         "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
         "card_reward_frame_corner_cloud", "card_reward_frame_corner_bonus",
         "card_reward_frame_corner_dark", "card_reward_frame_corner_tower",
+        "card_reward_frame_corner_gold",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01
@@ -724,7 +725,8 @@ def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
         title = gray[487:514, x + 120:x + 300]
         title_visible = int((title > 170).sum()) >= 120
     art = gray[337:450, x + 130:x + 270]
-    if title_visible and float((art < 8).mean()) < 0.05 and float(art.std()) > 10:
+    # 深色主题插画自身可含约 5% 近黑像素（f1 实拍 0.054）；遮挡卡面远超此量级。
+    if title_visible and float((art < 8).mean()) < 0.06 and float(art.std()) > 10:
         return kind
     return None
 
@@ -781,7 +783,10 @@ def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | Non
             return None
         result.append(CardRewardCandidate(
             card=RewardCandidate(name=card["name"] if card else "",
-                                 quality=card["quality"] if card else _card_badge_quality(image, x),
+                                 # 英雄卡无品质徽记；卡种已由英雄框核验，品质按卡种计。
+                                 quality=card["quality"] if card else (
+                                     "champion" if kind is CardKind.CHAMPION
+                                     else _card_badge_quality(image, x)),
                                  cost=cost),
             item_name=item["name"] if item else "",
             cost_certain=item["cost_certain"] if item else False,

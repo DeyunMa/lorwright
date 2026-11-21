@@ -404,6 +404,26 @@ def test_targeting_button_is_detected() -> None:
     assert detector.detect(frame) is UIState.TARGETING
 
 
+def test_targeting_spell_variant_options_detected():
+    """实机 20261121T140928 停帧：「希格斯 彈跳炸彈」变体二选一。
+
+    TARGETING 内两张悬浮法术卡，targeted_spell/action_prompt/
+    replace_prompt 全空导致 unknown_target；选项卡按固定槽位
+    费用徽章识别，不读卡名。
+    """
+    from lorwright.core.perceive.spell_options import spell_options
+
+    frame = _load("f1-spell-variant-options-20261121.png")
+    parser = _parser()
+    state = parser.parse(frame)
+    assert state.ui_state is UIState.TARGETING
+    assert state.targeted_spell is None
+    options = spell_options(frame)
+    assert len(options) == 2
+    assert options[0].center[0] < options[1].center[0]
+    assert state.spell_options == options
+
+
 def test_scholar_mana_rejects_partial_glyph_without_overwriting_last_reading():
     crop = _load("f1-scholar-nine-mana-10cards-20261118.png")
     image = np.zeros((1080, 1920, 3), np.uint8)

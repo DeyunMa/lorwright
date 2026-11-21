@@ -42,7 +42,20 @@ def observed(before, after=None):
 
 PLAY = Action(ActionType.PLAY_CARD, card_index=0)
 TARGET = Action(ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0})
+OPTION = Action(ActionType.SELECT_TARGET, raw={"option": 0})
 ATTACK = Action(ActionType.ATTACK, raw={"attackers": [0]})
+
+
+def test_spell_option_pick_requires_stable_option_rect():
+    """变体选项证据 = 选项卡 rect 两帧一致；识别不出则不就绪。"""
+    options = (Rect(645, 240, 280, 320), Rect(965, 240, 280, 320))
+    before = replace(state(), ui_state=UIState.TARGETING,
+                     targeted_spell=None, spell_options=options)
+    assert observed(before).ready(OPTION)
+    jittered = replace(before, spell_options=(
+        replace(options[0], x=options[0].x + 30), options[1]))
+    assert not observed(before, jittered).ready(OPTION)
+    assert not observed(before, replace(before, spell_options=())).ready(OPTION)
 BLOCK = Action(ActionType.BLOCK, raw={"pairs": [(0, 0)]})
 
 

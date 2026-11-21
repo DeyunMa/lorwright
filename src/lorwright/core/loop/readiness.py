@@ -325,11 +325,19 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         skip_prompt = (state.action_prompt == "action_skip"
                        and bool(raw.get("enemy"))
                        and not raw.get("hand") and not raw.get("nexus"))
-        if spell is None and not replace and not skip_prompt:
+        # 法术变体选项：选项卡 rect 跨帧稳定即身份证据，无需法术图标。
+        option = raw.get("option")
+        if spell is None and not replace and not skip_prompt and option is None:
             return None
         key = (spell if spell is not None else
                ("replace_prompt",) if replace else ("action_skip",))
-        if raw.get("nexus") and not raw.get("hand"):
+        if option is not None:
+            index = option
+            detail = (("spell_option", state.spell_options[index])
+                      if (_index(index, len(state.spell_options))
+                          and _rect(state.spell_options[index]) is not None)
+                      else None)
+        elif raw.get("nexus") and not raw.get("hand"):
             detail = (key, "nexus")  # 固定 layout 坐标由 translator 校验。
         else:
             items = (state.hand if raw.get("hand") else

@@ -95,6 +95,12 @@ class ActionTranslator:
             # 「選擇目標」阶段点一个单位完成选择。敌方/我方的选择由决策层给，
             # 因为同一个「選擇目標」按钮下面可能是「擊暈1個敵軍單位」（点敌方）
             # 也可能是「選擇1個單位或地標進行替換」（点我方），模板区分不了。
+            if action.raw.get("option") is not None:
+                index = int(action.raw["option"])
+                if index >= len(state.spell_options):
+                    return None
+                return ClickPlan(points=[state.spell_options[index].center],
+                                 wait_ms=self.tap_wait_ms)
             if action.raw.get("hand"):
                 index = int(action.raw.get("index", 0))
                 if index >= len(state.hand):

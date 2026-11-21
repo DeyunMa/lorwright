@@ -182,6 +182,9 @@ class GameState:
     #: TARGETING 状态下读到「選擇1個單位或地標進行替換」提示条；
     #: 满场打出单位后的替换选择，目标是友军而非敌方。
     replace_prompt: bool = False
+    #: TARGETING 内的法术变体选项（如「希格斯 彈跳炸彈」二选一）：
+    #: 每项是悬浮选项卡的整卡区域，点击中心即选该变体。
+    spell_options: tuple[Rect, ...] = ()
     #: 本帧确认阶段的按钮文字身份；无法识别时为 None，不沿用旧值。
     action_prompt: str | None = None
 

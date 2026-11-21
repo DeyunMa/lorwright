@@ -210,6 +210,10 @@ class TargetingPolicy(Policy):
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is not UIState.TARGETING:
             return None
+        # 法术变体选项（实机 20261121T140928「希格斯 彈跳炸彈」二选一）：
+        # 不读变体语义，固定选左侧——单体版本在任何敌数下都可结算。
+        if state.spell_options:
+            return Action(type=ActionType.SELECT_TARGET, raw={"option": 0})
         # 「跳過」= 可选目标提示：能认出敌方目标就选，否则按跳过放弃该效果。
         if state.action_prompt == "action_skip":
             if state.enemy_units:

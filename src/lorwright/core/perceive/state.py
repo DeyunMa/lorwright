@@ -70,6 +70,8 @@ class StateParser:
                 state.action_prompt = self.ui.action_prompt(image)
             from lorwright.core.perceive.replace_prompt import replace_unit_prompt
             state.replace_prompt = replace_unit_prompt(image)
+            from lorwright.core.perceive.spell_options import spell_options
+            state.spell_options = spell_options(image)
             if self.targeted_spell_recognizer is not None:
                 state.targeted_spell = self.targeted_spell_recognizer(image)
         if state.ui_state is UIState.MULLIGAN and self.mulligan_recognizer is not None:

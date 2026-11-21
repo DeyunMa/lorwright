@@ -137,6 +137,16 @@ def test_optional_skip_target_selects_enemy_or_skips():
                                enemy_units=[enemy])).type is ActionType.NO_OP
 
 
+def test_spell_variant_options_pick_left_card():
+    """实机 20261121T140928「希格斯 彈跳炸彈」二选一：固定选左。"""
+    policy = TargetingPolicy()
+    options = (Rect(645, 240, 280, 320), Rect(965, 240, 280, 320))
+    pick = policy.decide(state(ui_state=UIState.TARGETING,
+                               spell_options=options))
+    assert pick is not None and pick.type is ActionType.SELECT_TARGET
+    assert pick.raw == {"option": 0}
+
+
 def unit_at(x, y, attack, health):
     return Unit("", attack, health, Rect(x, y, 10, 10))
 

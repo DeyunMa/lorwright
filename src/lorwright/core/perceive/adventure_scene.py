@@ -588,6 +588,15 @@ def weekly_detail_stars(image: np.ndarray) -> float | None:
     return ratings[0] if len(ratings) == 1 else None
 
 
+def weekly_detail_back(image: np.ndarray) -> Rect | None:
+    """周常详情页左上返回键；页面身份仍由详情标签与难度徽章核验。"""
+    if (_visible_patch(image, "weekly_detail_label", (1385, 108, 1555, 150)) is None
+            or not any(_visible_patch(image, name, (1385, 295, 1505, 375)) is not None
+                       for name in ("weekly_detail_difficulty", "weekly_detail_difficulty_2"))):
+        return None
+    return _visible_patch(image, "world_back", (65, 45, 140, 125))
+
+
 def _weekly_replay_label(image: np.ndarray, button: Rect) -> bool:
     """以深色笔画的分布区分「重玩冒險」和同位置的「開始冒險」。"""
     x, y = button.center

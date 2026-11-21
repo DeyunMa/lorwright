@@ -49,6 +49,7 @@ from lorwright.core.perceive.adventure_scene import (
     selected_world_hero_matches,
     service_error_confirm,
     shop_leave_button,
+    weekly_detail_back,
     weekly_detail_stars,
     weekly_slot_targets,
 )
@@ -208,6 +209,7 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
+        weekly_detail_recovery_used = False
         replay_slot = self.weekly_replay_slot
         if replay_slot is not None:
             self._details["weekly_replay_slot"] = replay_slot
@@ -502,6 +504,29 @@ class AdventureLoop:
                 if detail_stars is not None:
                     self._scene("weekly_detail")
                     if selected_weekly_stars is None:
+                        # 会话从已打开的周常详情页恢复：先返回列表再正常选择。
+                        back = (None if weekly_detail_recovery_used
+                                else weekly_detail_back(design_image))
+                        if back is not None:
+                            weekly_detail_recovery_used = True
+                            self._tap(*scale.to_device(*back.center))
+
+                            def _closed(after) -> bool:
+                                after_design = self._reward_design(after)
+                                return after_design is not None and (
+                                    is_weekly_list(after_design[0])
+                                    or find_weekly_entry(after_design[0]) is not None)
+
+                            pending_image = self._await_transition(
+                                "weekly_detail_close_transition",
+                                _closed,
+                                initial_image=image,
+                                unverified_tag="weekly_detail_close_unverified",
+                                verified_reason="weekly_detail_closed",
+                            )
+                            if pending_image is None:
+                                return
+                            continue
                         self._snapshot(image, tag="weekly_detail_without_selection")
                         return
                     if replay_slot is not None:

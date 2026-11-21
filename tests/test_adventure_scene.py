@@ -18,6 +18,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_weekly_list,
     recognize_weekly_adventures,
     selected_world_hero_matches,
+    weekly_detail_back,
     weekly_detail_stars,
     weekly_slot_targets,
 )
@@ -220,6 +221,24 @@ def test_weekly_detail_replay_button_after_clock_slot_selection():
     assert weekly_detail_stars(image) == 2.0
     assert find_weekly_start(image, replay=True) is not None
     assert find_weekly_start(image) is None
+
+
+@pytest.mark.parametrize("name", [
+    "f1-weekly-detail-open-on-resume-20261121.png",
+    "weekly-detail-20261115.png",
+    "f1-weekly-detail-replay-from-clock-20261121.png",
+])
+def test_weekly_detail_back_finds_return_button(name):
+    back = weekly_detail_back(_image(f"screens/{name}"))
+    assert back is not None and back.center[0] < 150 and back.center[1] < 120
+
+
+@pytest.mark.parametrize("name", [
+    "weekly-list-20261115.png", "f1-weekly-list-zoomed-20261121.png",
+    "f1-weekly-list-incomplete-20261121.png", "world-weekly-20261115.png",
+])
+def test_weekly_detail_back_rejects_list_and_world_map(name):
+    assert weekly_detail_back(_image(f"screens/{name}")) is None
 
 
 @pytest.mark.parametrize("name", [

@@ -166,10 +166,12 @@ def _paired_stat_badges(
     digits = ((patch.min(axis=2) >= 170)
               | ((green >= 180) & (red <= 120) & (blue <= 120)))
     _, _, stats, _ = cv2.connectedComponentsWithStats(digits.astype(np.uint8))
+    # 边缘渗入的光晕细片 bbox 可高达 38px 但填充率极低（实测 0.08，真数字
+    # ≥0.3）；不设密度下限会把它并入相邻数字组、把成对搜索的中心带偏。
     boxes = [
         (int(x), int(y), int(w), int(h))
         for x, y, w, h, area in stats[1:]
-        if area >= 12 and 18 <= h <= 38 and w <= h * 1.6
+        if area >= 12 and area >= w * h * 0.12 and 18 <= h <= 38 and w <= h * 1.6
     ]
     # 多位数（如升级英雄的绿色「10」）会拆成多个连通域；把同一行内横向
     # 相邻的字形先合成一个数值，否则逐字形定中心会把徽章框错开读不出来。
@@ -202,8 +204,10 @@ def _paired_stat_badges(
         attack_hsv = cv2.cvtColor(attack_patch, cv2.COLOR_BGR2HSV)
         orange = _orange_mask(attack_hsv)
         hsv = cv2.cvtColor(health_patch, cv2.COLOR_BGR2HSV)
-        red_mask = (cv2.inRange(hsv, (0, 120, 100), (10, 255, 255))
-                    | cv2.inRange(hsv, (170, 120, 100), (180, 255, 255)))
+        # 「可攻击」光晕会冲淡生命框的红色饱和度（实测占比在 0.19~0.45 间
+        # 抖动），饱和度/亮度下限放宽后非牌区域仍接近 0，占比阈不变。
+        red_mask = (cv2.inRange(hsv, (0, 90, 80), (10, 255, 255))
+                    | cv2.inRange(hsv, (170, 90, 80), (180, 255, 255)))
         if highlighted:
             orange |= _highlight_mask(attack_hsv)
             red_mask |= _highlight_mask(hsv)

@@ -70,6 +70,7 @@ class UnitStatsReader:
 
     def _read_mask(self, mask: np.ndarray) -> int | None:
         count, _, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+        width = mask.shape[1]
         boxes = [
             (int(stats[i, 0]), int(stats[i, 1]), int(stats[i, 2]), int(stats[i, 3]))
             for i in range(1, count)
@@ -87,9 +88,14 @@ class UnitStatsReader:
         for x, y, w, h in boxes:
             hit = self.digits.classify(normalize_glyph(mask[y : y + h, x : x + w]))
             if hit is None:
+                # 「可攻击」蓝色光晕会从边缘渗进内框成为伪笔画；贴内框左右
+                # 边界且分类失败的组件视作渗入噪声跳过。能分类的保留计数，
+                # 中部字形分类失败仍整体弃权，不把残字读成别的数字。
+                if x == 0 or x + w == width:
+                    continue
                 return None
             out += str(hit[0])
-        return int(out)
+        return int(out) if out else None
 
 
 def _inner(image: np.ndarray, rect: Rect, margin: int) -> np.ndarray:

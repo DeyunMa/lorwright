@@ -416,3 +416,28 @@ def test_no_attack_token() -> None:
 
     img = cv2.imread(str(SCREENS / "1080p_no_attack_token.png"))
     assert not has_attack_token(img, ATTACK_TOKEN_REGION)
+
+
+@pytest.mark.parametrize("name,missed", [
+    ("f1-boss-board-flicker-20261121.png", 4),
+    ("f1-boss-board-flicker-live-20261121.png", 3),
+])
+def test_can_attack_glow_does_not_hide_boss_board_units(name, missed):
+    """Boss 战 5 个可攻击单位的蓝紫色光晕造成三种感知损伤：
+
+    1. 光晕从边缘渗进攻击框内框成为伪字形，旧代码整枚读数弃权；
+    2. 光晕冲淡升级金克丝生命框的红色饱和度，旧阈下占比 0.19 < 0.2；
+    3. 稀疏光片并入相邻字形组，把成对搜索的中心带偏。
+
+    旧代码在此停帧只认 4 个、在实拍帧只认 3 个，就绪证据无法稳定。
+    """
+    image = cv2.imread(str(SCREENS / name))
+    assert image is not None
+    units = to_units(find_unit_badges(image, MY_BOARD), image=image)
+    assert [(u.attack, u.health) for u in units] == [
+        (12, 9), (1, 1), (4, 3), (4, 4), (3, 2),
+    ]
+    xs = [u.rect.center[0] for u in units]
+    assert xs == sorted(xs)
+    # Unit.rect.center 是拖拽点（徽章中心 +MY_DRAG_OFFSET=(40,55)）
+    assert abs(xs[0] - 625) < 40 and abs(xs[-1] - 1318) < 40

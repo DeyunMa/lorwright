@@ -62,6 +62,18 @@ def test_play_unit_requires_visual_evidence_for_unknown_card_and_skips_bad_drag(
     assert policy.decide(replace(s, hand=[replace(s.hand[3], cost=-1)])) is None
 
 
+def test_play_unit_orders_unknown_units_lowest_cost_first():
+    """牌名未知但类型已确认的单位与已知名单位走同一费用优先排序。"""
+    policy = PlayUnitPolicy(load("jinx").lookup)
+    s = state(hand=[replace(card(0, "", 3), visible_playable_unit=True),
+                    replace(card(1, "", 1), visible_playable_unit=True),
+                    card(2, "佐恩小乞丐", 2)],
+              mana=3)
+    assert policy.decide(s) == Action(type=ActionType.PLAY_CARD, card_index=1,
+                                     raw={"unit_card": True})
+    assert policy.decide(replace(s, mana=0)) is None
+
+
 def test_expand_hand_only_when_collapsed():
     policy = ExpandHandPolicy()
     s = state(hand=[card(0, "佐恩小乞丐", 1)], hand_expanded=False)

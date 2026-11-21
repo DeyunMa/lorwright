@@ -280,39 +280,94 @@ def find_badges_expanded(
     return sorted(found, key=lambda b: b.center[0])
 
 
-def _visible_playable_unit(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
-    """宽间距展开牌：蓝色直线顶部提供单位轮廓及可用发光的联合证据。
+#: 展开卡面左下力量角标、右下血量角标相对徽章中心的估计位置。
+#: 卡面左缘约 cx-32、宽约 196px，角标贴在卡面下缘两角。
+_STAT_CHIP_OFFSETS = ((-12, 175), (136, 185))
+#: 角标外接半径：六边形约 36px，取样半径 20px。
+_STAT_CHIP_RADIUS = 20
+#: 邻牌覆盖模型：卡牌沿扇形倾斜，左缘自徽章处 (bx-32, by-55) 向下
+#: 每行左移约 0.31px，右缘同斜率、顶部约在徽章 +164px。角标中心
+#: 越过该边界才算属于本卡可见区域。
+_EDGE_SLOPE = 0.31
+_LEFT_EDGE_TOP = (-32, -55)
+_RIGHT_EDGE_TOP = 164
 
-    扇形密集时相邻牌的直边会覆盖法术，故拒绝窄间距和边缘裁切。
-    该判据不识别牌名或出牌效果。
-    """
-    x, y = badge.center
-    if (image.shape[:2] != (1080, 1920) or y < 75 or x < 0 or x + 220 > 1920
-            or any(0 < abs(x - other.center[0]) < 210 for other in badges)):
+
+def _left_edge_x(badge: Badge, y: int) -> float:
+    bx, by = badge.center
+    return bx + _LEFT_EDGE_TOP[0] - _EDGE_SLOPE * (y - (by + _LEFT_EDGE_TOP[1]))
+
+
+def _right_edge_x(badge: Badge, y: int) -> float:
+    bx, by = badge.center
+    return bx + _RIGHT_EDGE_TOP - _EDGE_SLOPE * (y - (by + _LEFT_EDGE_TOP[1]))
+
+
+def _stat_chip_present(image: np.ndarray, cx: int, cy: int) -> bool:
+    """角标区域：深色六边形底加内部亮色字素。任一角标无法独立验证即弃权。"""
+    r = _STAT_CHIP_RADIUS
+    x0, y0 = max(cx - r, 0), max(cy - r, 0)
+    x1, y1 = min(cx + r, image.shape[1]), min(cy + r, image.shape[0])
+    if x1 - x0 < r or y1 - y0 < r:
         return False
-    crop = image[y - 75:min(y + 45, image.shape[0]), x + 20:x + 220]
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    blue = cv2.inRange(hsv, (90, 100, 120), (125, 255, 255))
-    lines = cv2.HoughLinesP(blue[:80], 1, np.pi / 180, threshold=85,
-                            minLineLength=175, maxLineGap=5)
-    if lines is None:
+    patch = image[y0:y1, x0:x1]
+    gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+    # 六边形底为深色块（V<110）；内部数字为亮字素（V>200）或暖色
+    # （力量橙底 / 血量红底）。字素必须被深底包围，排除卡面插画里
+    # 孤立的亮点或边缘高光。
+    dark = (gray < 110)
+    if dark.mean() < 0.45:
         return False
-    for x1, y1, x2, y2 in lines.reshape(-1, 4):
-        if x1 > x2:
-            x1, y1, x2, y2 = x2, y2, x1, y1
-        if x1 <= 20 and x2 >= 180 and abs(y2 - y1) <= 0.3 * (x2 - x1):
-            # 蓝光下方还要有连续明亮的低饱和卡框，不能只认背景蓝线。
-            xs = np.arange(25, 175)
-            base = np.rint(y1 + (xs - x1) * (y2 - y1) / (x2 - x1)).astype(int)
-            if np.max(base) + 24 >= crop.shape[0]:
-                continue
-            frame = crop[base[:, None] + np.array([16, 24]), xs[:, None]]
-            neutral = (frame.max(axis=2) >= 140) & (
-                frame.max(axis=2).astype(int) - frame.min(axis=2).astype(int) < 85
-            )
-            if np.all(neutral.mean(axis=0) >= 0.65):
-                return True
+    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    ink = ((gray > 200) | ((hsv[:, :, 0] < 30) & (hsv[:, :, 1] > 100)
+           & (hsv[:, :, 2] > 140))).astype(np.uint8)
+    count, _, stats, cents = cv2.connectedComponentsWithStats(ink)
+    cy0, cx0 = patch.shape[0] / 2, patch.shape[1] / 2
+    for label in range(1, count):
+        area = stats[label, cv2.CC_STAT_AREA]
+        if not 8 <= area <= 110:
+            continue
+        lx, ly = cents[label]
+        if abs(lx - cx0) >= r * 0.6 or abs(ly - cy0) >= r * 0.6:
+            continue
+        gx, gy, gw, gh = stats[label, :4]
+        m = 4
+        ring = dark[max(gy - m, 0):gy + gh + m, max(gx - m, 0):gx + gw + m].copy()
+        ring[m:m + gh, m:m + gw] = True
+        if ring.size and ring.mean() >= 0.7:
+            return True
     return False
+
+
+def _visible_playable_unit(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
+    """展开卡面左下力量角标、右下血量角标共同提供单位类型的正向证据。
+
+    法术、地标、装备没有这一对数值角标；角标被邻牌覆盖或屏幕裁切时
+    类型未证实，一律弃权。该判据不识别牌名或出牌效果。
+    """
+    if image.shape[:2] != (1080, 1920):
+        return False
+    cx, cy = badge.center
+    for dx, dy in _STAT_CHIP_OFFSETS:
+        x = cx + dx
+        if not (_STAT_CHIP_RADIUS <= x < 1920 - _STAT_CHIP_RADIUS):
+            return False
+        # 卡牌倾斜使角标上下浮动约 ±20px，在锚点附近小范围搜索；
+        # 每个候选位置都要求越过邻牌覆盖边界并独立检出角标。
+        found = False
+        for y in (cy + dy - 20, cy + dy, cy + dy + 20):
+            if dx < 0 and any(other.center[0] < cx and _right_edge_x(other, y) > x
+                              for other in badges):
+                continue
+            if dx > 0 and any(other.center[0] > cx and _left_edge_x(other, y) < x
+                              for other in badges):
+                continue
+            if _stat_chip_present(image, x, y):
+                found = True
+                break
+        if not found:
+            return False
+    return True
 
 
 def _expanded_drag_point(

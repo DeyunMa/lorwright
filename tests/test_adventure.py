@@ -7,6 +7,7 @@ rest_first_option），第一次进商店/休息面板就会 AttributeError。
 """
 
 import hashlib
+import sys
 from collections import OrderedDict
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import cv2
 import numpy as np
 import pytest
 
+import lorwright.core.loop.adventure as adventure_loop_module
 from lorwright.core.champions import load
 from lorwright.core.config import load_settings
 from lorwright.core.device.base import Frame
@@ -29,47 +31,175 @@ from lorwright.core.perceive.adventure_scene import (
     is_portal_loading,
     service_error_confirm,
 )
-from lorwright.core.perceive.mapnav import empty_point, locate_map_hero, reachable_nodes
+from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.result_screen import adventure_settlement
 from lorwright.core.perceive.ui_state import UIStateDetector
 from tools.test_data import fixtures_root
 
 FIXTURES = fixtures_root() / "mapnav"
-_HERO_CACHE: OrderedDict[tuple, object] = OrderedDict()
-_NODES_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 _CACHE_LIMIT = 64
+_PERCEIVE_CACHE: OrderedDict[tuple, object] = OrderedDict()
+_PERCEIVE_CACHE_LIMIT = 8192
+_FRAME_DIGESTS: dict[int, tuple[np.ndarray, tuple]] | None = None
 
 
 def _image_digest(image: np.ndarray) -> tuple:
-    return (
+    active = _FRAME_DIGESTS
+    if active is not None:
+        entry = active.get(id(image))
+        if entry is not None and entry[0] is image:
+            return entry[1]
+    digest = (
         image.shape,
         image.dtype.str,
-        hashlib.blake2b(memoryview(np.ascontiguousarray(image)), digest_size=16).digest(),
+        hashlib.sha256(memoryview(np.ascontiguousarray(image))).digest(),
     )
+    if active is not None:
+        active[id(image)] = (image, digest)
+    return digest
+
+
+def _hero_key(hero):
+    return None if hero is None else tuple(hero)
+
+
+def _perceive_memoize(key: tuple, compute, *, copy_list: bool = False):
+    if key in _PERCEIVE_CACHE:
+        _PERCEIVE_CACHE.move_to_end(key)
+        cached = _PERCEIVE_CACHE[key]
+    else:
+        raw = compute()
+        cached = tuple(raw) if (copy_list and raw is not None) else raw
+        _PERCEIVE_CACHE[key] = cached
+        if len(_PERCEIVE_CACHE) > _PERCEIVE_CACHE_LIMIT:
+            _PERCEIVE_CACHE.popitem(last=False)
+    return list(cached) if (copy_list and cached is not None) else cached
+
+
+_PURE_SINGLE_IMAGE_FUNCS = (
+    "action_button",
+    "adventure_settlement",
+    "astrologer_buy_button",
+    "astrologer_gold",
+    "astrologer_leave_button",
+    "astrologer_map_gold",
+    "astrologer_selection",
+    "card_reward_confirm_button",
+    "card_reward_selection",
+    "completed_weekly_targets",
+    "empty_point",
+    "find_continue_button",
+    "find_home_adventure_entry",
+    "find_resume_adventure_button",
+    "find_revive_button",
+    "find_weekly_entry",
+    "gold_chest_collect_button",
+    "healer_heal_button",
+    "hero_item_choose_disabled",
+    "hero_item_choose_enabled",
+    "hero_item_hero_selection",
+    "hero_item_item_selection",
+    "is_battle_detail",
+    "is_card_reward_screen",
+    "is_completed_panel",
+    "is_healer_screen",
+    "is_hero_item_reward_screen",
+    "is_loading_screen",
+    "is_map",
+    "is_power_screen",
+    "is_power_vendor",
+    "is_support_screen",
+    "is_task_reward",
+    "is_weekly_list",
+    "item_chest_leave_button",
+    "locate_map_hero",
+    "panel_open",
+    "power_choose_enabled",
+    "power_selection",
+    "power_unselected",
+    "recognize_hero_item_cards",
+    "recognize_weekly_adventures",
+    "result_screen",
+    "reward_timeout_continue",
+    "service_error_confirm",
+    "shop_leave_button",
+    "support_confirm_button",
+    "support_selection",
+    "weekly_detail_stars",
+)
+
+_PURE_LIST_IMAGE_FUNCS = (
+    "astrologer_offers",
+    "recognize_card_rewards",
+    "recognize_hero_items",
+    "recognize_powers",
+    "recognize_support_choices",
+)
+
+
+def _build_adventure_perceive_wrappers() -> dict[str, object]:
+    wrappers: dict[str, object] = {}
+    for name in _PURE_SINGLE_IMAGE_FUNCS:
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image)), lambda: _orig(image)
+        )
+    for name in _PURE_LIST_IMAGE_FUNCS:
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image)), lambda: _orig(image), copy_list=True
+        )
+
+    orig_reachable = adventure_loop_module.reachable_nodes
+    wrappers["reachable_nodes"] = lambda image, *, hero=None, rng=None: _perceive_memoize(
+        ("reachable_nodes", _image_digest(image), _hero_key(hero)),
+        lambda: orig_reachable(image, hero=hero, rng=rng),
+        copy_list=True,
+    )
+    for name in (
+        "current_unfinished_node",
+        "occluded_route_zoom_button",
+        "_current_completed_node_visible",
+    ):
+        orig = getattr(adventure_loop_module, name)
+        wrappers[name] = lambda image, hero, _n=name, _orig=orig: _perceive_memoize(
+            (_n, _image_digest(image), _hero_key(hero)), lambda: _orig(image, hero)
+        )
+
+    orig_node_kind = adventure_loop_module.node_kind
+    wrappers["node_kind"] = lambda image, node: _perceive_memoize(
+        ("node_kind", _image_digest(image), node), lambda: orig_node_kind(image, node)
+    )
+
+    orig_weekly_start = adventure_loop_module.find_weekly_start
+    wrappers["find_weekly_start"] = lambda image, *, replay=False: _perceive_memoize(
+        ("find_weekly_start", _image_digest(image), bool(replay)),
+        lambda: orig_weekly_start(image, replay=replay),
+    )
+
+    orig_button_is = adventure_loop_module.button_is
+    wrappers["button_is"] = lambda image, button, name: _perceive_memoize(
+        ("button_is", _image_digest(image), button, name),
+        lambda: orig_button_is(image, button, name),
+    )
+
+    orig_card_target = adventure_loop_module.card_reward_target
+    wrappers["card_reward_target"] = lambda image, index, name: _perceive_memoize(
+        ("card_reward_target", _image_digest(image), index, name),
+        lambda: orig_card_target(image, index, name),
+    )
+    return wrappers
+
+
+_ADVENTURE_PERCEIVE_WRAPPERS = _build_adventure_perceive_wrappers()
 
 
 def _cached_locate_map_hero(image: np.ndarray):
-    key = _image_digest(image)
-    if key in _HERO_CACHE:
-        _HERO_CACHE.move_to_end(key)
-        return _HERO_CACHE[key]
-    result = locate_map_hero(image)
-    _HERO_CACHE[key] = result
-    if len(_HERO_CACHE) > _CACHE_LIMIT:
-        _HERO_CACHE.popitem(last=False)
-    return result
+    return _ADVENTURE_PERCEIVE_WRAPPERS["locate_map_hero"](image)
 
 
 def _cached_reachable_nodes(image: np.ndarray, *, hero=None, rng=None):
-    key = (_image_digest(image), tuple(hero) if hero is not None else None)
-    if key in _NODES_CACHE:
-        _NODES_CACHE.move_to_end(key)
-        return list(_NODES_CACHE[key])
-    nodes = tuple(reachable_nodes(image, hero=hero, rng=rng))
-    _NODES_CACHE[key] = nodes
-    if len(_NODES_CACHE) > _CACHE_LIMIT:
-        _NODES_CACHE.popitem(last=False)
-    return list(nodes)
+    return _ADVENTURE_PERCEIVE_WRAPPERS["reachable_nodes"](image, hero=hero, rng=rng)
 
 
 _UI_DETECT_CACHE: OrderedDict[tuple, UIState] = OrderedDict()
@@ -168,11 +298,13 @@ def adventure(monkeypatch):
 
     def make(frames, ui_script):
         clock = [100.0]
+        frame_digests: dict[int, tuple[np.ndarray, tuple]] = {}
 
         def advance_sleep(seconds: float) -> None:
             clock[0] += max(0.0, float(seconds))
 
         def advance_capture() -> None:
+            frame_digests.clear()
             clock[0] += 0.1
 
         device = FakeDevice(frames, on_capture=advance_capture)
@@ -181,10 +313,11 @@ def adventure(monkeypatch):
         # 直接调用私有节点处理器的用例从假设备已提供首帧的边界开始。
         loop._latest_frame = Frame(image=frames[0] if frames else _blank())
         coords = settings.adventure.to_coords()
+        monkeypatch.setattr(sys.modules[__name__], "_FRAME_DIGESTS", frame_digests)
         monkeypatch.setattr("lorwright.core.loop.adventure.time.monotonic", lambda: clock[0])
         monkeypatch.setattr("lorwright.core.loop.adventure.time.sleep", advance_sleep)
-        monkeypatch.setattr("lorwright.core.loop.adventure.locate_map_hero", _cached_locate_map_hero)
-        monkeypatch.setattr("lorwright.core.loop.adventure.reachable_nodes", _cached_reachable_nodes)
+        for attr, wrapper in _ADVENTURE_PERCEIVE_WRAPPERS.items():
+            monkeypatch.setattr(adventure_loop_module, attr, wrapper)
         saved = []
         monkeypatch.setattr(
             "lorwright.core.util.snapshot.save_snapshot",

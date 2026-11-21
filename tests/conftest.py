@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,11 @@ import pytest
 
 from lorwright.core.runtime import session as runtime_session
 from tools.test_data import fixtures_root
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        cv2.setNumThreads(2)
 
 
 @pytest.fixture(autouse=True)

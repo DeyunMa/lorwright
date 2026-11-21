@@ -30,6 +30,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_loading_screen,
     is_portal_loading,
     service_error_confirm,
+    weekly_slot_targets,
 )
 from lorwright.core.perceive.mapnav import empty_point, locate_map_hero
 from lorwright.core.perceive.result_screen import adventure_settlement
@@ -86,7 +87,6 @@ _PURE_SINGLE_IMAGE_FUNCS = (
     "astrologer_selection",
     "card_reward_confirm_button",
     "card_reward_selection",
-    "completed_weekly_targets",
     "empty_point",
     "find_continue_button",
     "find_home_adventure_entry",
@@ -126,6 +126,7 @@ _PURE_SINGLE_IMAGE_FUNCS = (
     "support_confirm_button",
     "support_selection",
     "weekly_detail_stars",
+    "weekly_slot_targets",
 )
 
 _PURE_LIST_IMAGE_FUNCS = (
@@ -3065,6 +3066,31 @@ def test_weekly_replay_requires_new_detail_and_matching_hero(
         assert saved == []
     else:
         assert saved == [reason]
+
+
+def test_weekly_replay_slot_on_incomplete_clock_starts_detail(adventure, monkeypatch):
+    listing = _weekly("f1-weekly-list-incomplete-20261121.png")
+    detail = _weekly("weekly-detail-20261115.png")
+    after = _weekly("weekly-after-start-20261115.png")
+    loop, device, _, saved, _ = adventure([listing, detail, after], [])
+    loop.weekly_replay_slot = 1
+    monkeypatch.setattr("lorwright.core.loop.adventure.selected_world_hero_matches",
+                        lambda image, pack: True)
+    assert loop.run(max_nodes=2).reason == "iteration_limit"
+    assert device.taps == [weekly_slot_targets(listing)[0].target.center, (1577, 981)]
+    assert saved == []
+
+
+def test_weekly_replay_slot_on_incomplete_clock_rejects_replay_detail(adventure, monkeypatch):
+    listing = _weekly("f1-weekly-list-incomplete-20261121.png")
+    detail = _weekly("weekly-detail-20261115.png")
+    loop, device, _, saved, _ = adventure([listing] + [detail] * 6, [])
+    loop.weekly_replay_slot = 1
+    monkeypatch.setattr("lorwright.core.loop.adventure.find_weekly_start",
+                        lambda image, *, replay: Rect(1398, 947, 358, 68) if replay else None)
+    loop.run(max_nodes=3)
+    assert len(device.taps) == 1
+    assert saved == ["weekly_selection_unverified"]
 
 
 @pytest.mark.parametrize(("name", "reason", "taps"), [

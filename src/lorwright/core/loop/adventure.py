@@ -33,7 +33,6 @@ from lorwright.core.models import Action, ActionType, GameState, UIState
 from lorwright.core.perceive.adventure_scene import (
     button_is,
     can_resume_adventure,
-    completed_weekly_targets,
     find_home_adventure_entry,
     find_resume_adventure_button,
     find_weekly_entry,
@@ -51,6 +50,7 @@ from lorwright.core.perceive.adventure_scene import (
     service_error_confirm,
     shop_leave_button,
     weekly_detail_stars,
+    weekly_slot_targets,
 )
 from lorwright.core.perceive.astrologer import (
     SLOTS as ASTROLOGER_SLOTS,
@@ -208,6 +208,7 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
+        selected_weekly_replay = False
         replay_slot = self.weekly_replay_slot
         if replay_slot is not None:
             self._details["weekly_replay_slot"] = replay_slot
@@ -445,10 +446,13 @@ class AdventureLoop:
                 target = None
                 expected_stars = None
                 if replay_slot is not None:
-                    completed = completed_weekly_targets(design_image)
-                    if completed is not None:
-                        target = completed[replay_slot - 1]
-                        report("decided", "weekly_replay_target", **self._details)
+                    slots = weekly_slot_targets(design_image)
+                    if slots is not None:
+                        slot = slots[replay_slot - 1]
+                        target = slot.target
+                        selected_weekly_replay = slot.completed
+                        report("decided", "weekly_replay_target",
+                               completed=slot.completed, **self._details)
                 else:
                     weekly = recognize_weekly_adventures(design_image)
                     if weekly is not None:
@@ -471,7 +475,7 @@ class AdventureLoop:
                         stars = weekly_detail_stars(after_design[0])
                         if (stars is not None
                                 and (replay_slot is not None or stars == expected_stars)
-                                and find_weekly_start(after_design[0], replay=replay_slot is not None)
+                                and find_weekly_start(after_design[0], replay=selected_weekly_replay)
                                 is not None):
                             selected_weekly_stars = stars
                             pending_image = after
@@ -494,7 +498,7 @@ class AdventureLoop:
                     if selected_weekly_stars is None:
                         self._snapshot(image, tag="weekly_detail_without_selection")
                         return
-                    start = find_weekly_start(design_image, replay=replay_slot is not None)
+                    start = find_weekly_start(design_image, replay=selected_weekly_replay)
                     if detail_stars != selected_weekly_stars or start is None:
                         self._snapshot(image, tag="weekly_selection_unverified")
                         return
@@ -512,6 +516,7 @@ class AdventureLoop:
                     if pending_image is None:
                         return
                     selected_weekly_stars = None
+                    selected_weekly_replay = False
                     replay_slot = None
                     continue
                 entry = find_home_adventure_entry(design_image)

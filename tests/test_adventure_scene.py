@@ -10,6 +10,7 @@ from lorwright.core.champions import load
 from lorwright.core.decide.adventure import pick_lowest_weekly
 from lorwright.core.perceive.adventure_scene import (
     can_resume_adventure,
+    completed_weekly_targets,
     find_resume_adventure_button,
     find_weekly_entry,
     find_weekly_start,
@@ -17,6 +18,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_weekly_list,
     recognize_weekly_adventures,
     weekly_detail_stars,
+    weekly_slot_targets,
 )
 from tools.test_data import fixtures_root
 
@@ -197,6 +199,26 @@ def test_weekly_two_remaining_candidates_and_two_star_detail():
     assert weekly_detail_stars(image) == 2
     assert find_weekly_start(image) is not None
     assert find_weekly_start(image, replay=True) is None
+
+
+def test_weekly_slot_targets_orders_incomplete_clock_list():
+    # f1 实机停帧：三个周常全部未完成，只显示时钟。
+    slots = weekly_slot_targets(_image("screens/f1-weekly-list-incomplete-20261121.png"))
+    assert slots is not None and len(slots) == 3
+    top, left, right = slots
+    assert not any(slot.completed for slot in slots)
+    assert top.target.y < min(left.target.y, right.target.y)
+    assert left.target.x < top.target.x < right.target.x
+
+
+def test_weekly_slot_targets_marks_completed_and_matches_legacy_targets():
+    image = _image("screens/weekly-one-remaining.png")
+    marker = image[637:717, 665:745].copy()
+    image[108:320, 850:1020] = 0
+    image[150:230, 895:975] = marker
+    slots = weekly_slot_targets(image)
+    assert slots is not None and all(slot.completed for slot in slots)
+    assert tuple(slot.target for slot in slots) == completed_weekly_targets(image)
 
 
 def test_weekly_list_remains_recognizable_after_all_three_are_completed():

@@ -363,6 +363,12 @@ class WeeklyAdventure:
     stars: float | None
 
 
+@dataclass(frozen=True)
+class WeeklySlot:
+    target: Rect
+    completed: bool
+
+
 def _visible_patch(image: np.ndarray, name: str, bounds: tuple[int, int, int, int],
                    threshold: float = 0.94, max_residual: float = 15) -> Rect | None:
     """模板定位后还检查亮度和像素残差，排除遮罩及部分遮挡。"""
@@ -466,16 +472,35 @@ def is_weekly_list(image: np.ndarray) -> bool:
     ) == 3
 
 
+def weekly_slot_targets(image: np.ndarray) -> tuple[WeeklySlot, WeeklySlot, WeeklySlot] | None:
+    """合并时钟与完成勾定位三关，按上方、左下、右下返回可点击目标。"""
+    markers = sorted(
+        [(marker, False) for marker in _weekly_markers(image, "weekly_clock")]
+        + [(marker, True) for marker in _weekly_markers(image, "weekly_completed")],
+        key=lambda item: (item[0].y, item[0].x),
+    )
+    if len(markers) != 3:
+        return None
+    top, *bottom = markers
+    left, right = sorted(bottom, key=lambda item: item[0].x)
+    if (top[0].y + top[0].h >= min(left[0].y, right[0].y)
+            or not left[0].x < top[0].x < right[0].x):
+        return None
+    top_slot, left_slot, right_slot = (
+        WeeklySlot(marker if completed else Rect(marker.x - 15, marker.y + 45, 60, 50),
+                   completed)
+        for marker, completed in (top, left, right)
+    )
+    return top_slot, left_slot, right_slot
+
+
 def completed_weekly_targets(image: np.ndarray) -> tuple[Rect, Rect, Rect] | None:
     """三关全完成时，按上方、左下、右下返回可点击的关卡标记。"""
-    completed = _weekly_markers(image, "weekly_completed")
-    if len(completed) != 3 or _weekly_markers(image, "weekly_clock"):
+    slots = weekly_slot_targets(image)
+    if slots is None or not all(slot.completed for slot in slots):
         return None
-    top, *bottom = completed
-    left, right = sorted(bottom, key=lambda hit: hit.x)
-    if top.y + top.h >= min(left.y, right.y) or not left.x < top.x < right.x:
-        return None
-    return top, left, right
+    top, left, right = slots
+    return top.target, left.target, right.target
 
 
 def recognize_weekly_adventures(image: np.ndarray) -> tuple[WeeklyAdventure, ...] | None:

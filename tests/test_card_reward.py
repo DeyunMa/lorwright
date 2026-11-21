@@ -229,6 +229,22 @@ def test_ten_cost_reward_reads_two_digit_cost():
     assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.SPELL, CardKind.UNIT]
 
 
+def test_duplicate_pick_reward_reads_silhouette_spell_kind():
+    # 会话 20261121T150717：复制牌奖励变体，右槽裂靈術剪影插画 7.8%
+    # 近黑像素超过旧 0.06 遮挡阈值，三槽整体弃权 -> card_reward_unknown。
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-duplicate-pick-reward-20261121.png")
+    assert is_card_reward_screen(image)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [1, 6, 3]
+    assert [c.kind for c in candidates] == [
+        CardKind.UNIT, CardKind.SPELL, CardKind.SPELL]
+    assert all(c.preview_cost_verified for c in candidates)
+
+
 def test_two_star_first_battle_reward_prefers_lower_cost_unit():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)

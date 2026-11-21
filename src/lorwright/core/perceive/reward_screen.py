@@ -791,8 +791,10 @@ def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
         title = gray[487:514, x + 120:x + 300]
         title_visible = int((title > 170).sum()) >= 120
     art = gray[337:450, x + 130:x + 270]
-    # 深色主题插画自身可含约 5% 近黑像素（f1 实拍 0.054）；遮挡卡面远超此量级。
-    if title_visible and float((art < 8).mean()) < 0.06 and float(art.std()) > 10:
+    # 深色主题插画自身可含约 5% 近黑像素（f1 实拍 0.054）；剪影类插画
+    # 更高（f1-duplicate-pick-reward 裂靈術 0.078）；真实遮挡卡面远超
+    # 此量级（>0.15），放宽到 0.10 仍留有余量。
+    if title_visible and float((art < 8).mean()) < 0.10 and float(art.std()) > 10:
         return kind
     return None
 

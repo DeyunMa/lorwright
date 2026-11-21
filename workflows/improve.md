@@ -8,8 +8,9 @@
 
 - **第四层运行期（只读记录者）**：`improve` 只读观察第四层运行与账本，记录暴露出的规格漏洞、工具缺陷、重复脚手架和架构债；不修改仓库文件、不打断第四层推进（仅在看守进程意外退出等 1 级阻塞时做最小外部兜底）。
 - **第四层结束或受阻后（收口优化回合）**：第四层释放工作区后，`improve` 接管 `main` 集中做一轮收口优化（修复记录项、跑回归、提交推送），让下一轮 `/goal` 站在更稳的底座上起跑。
+  收口由 `improve` 自主完成：修复记录项、测试、提交、推送 `origin/main`、`python3 tools/f1/sync.py --apply` 同步 f1，全程按 [dev-iteration.md](dev-iteration.md) 的分层验证和 `AGENTS.md` 的提交规则执行，收口前跑一次完整回归。外层 Agent 只负责协调（拉起会话、转达用户决定），不接管收口改动。需要实机画面才能判断的打法和识别问题不盲修，写进 `logs/improve/notes.md` 的「下一轮 goal 注意事项」，留给下一轮 goal。
 
-**启动第五层**：新开一个**干净的** Devin 会话做 `improve`，不要复用长上下文的旧会话：唤醒器每 30 分钟就让它完整跑一轮，长上下文会让每一轮都很贵。`improve` 第一轮先确认第四层 goal 所在的 pane（`herdr agent list`），再用 herdr 在自己下方开一个 pane 运行唤醒器 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
+**启动第五层**：新开一个**干净的**会话做 `improve`（工具和模型按本轮启动配置，例如 Devin 或 agy），不要复用长上下文的旧会话：唤醒器每 30 分钟就让它完整跑一轮，长上下文会让每一轮都很贵。`improve` 第一轮先在 `logs/improve/notes.md` 写一节启动记录（第四层 goal 的 pane、第五层工具和模型、审查基线 commit），再确认第四层 goal 所在的 pane（`herdr agent list`），再用 herdr 在自己下方开一个 pane 运行唤醒器 `tools/goal/notify.py`（不用 AI，测试在 `tests/test_goal_notify.py`）：
 
 ```bash
 P=$(herdr pane split --current --direction down --cwd "$PWD" --no-focus | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
@@ -35,7 +36,8 @@ herdr pane run "$P" "python3 tools/goal/notify.py <第四层 goal 的 pane> $HER
 - 收口接手时，先确认看守和唤醒器的进程都已退出（`ps -p "$(cat <锁文件>)"`），再用 `herdr pane close` 关掉它们留下的空 pane。只关进程已退出的 pane，不结束仍在运行的看守。
 - 收口改动在第四层释放工作区之后才合入 `main` 并推送。第四层运行期间若要预先开发，放在独立 worktree 的分支里，不从 worktree 推送 `origin/main`，否则第四层下一次 push 会被拒、`tools/f1/sync.py` 的目标比对也会失败。
 - **收口量化指标（元改进闭环）**：`improve` 每次收口结束前，从刚结束的第四层账本与 `git log` 提取一行记录追加到 `logs/improve/metrics.md`（git 忽略，永久保留），用于跨轮对比不同模型与第五层改动是否真的降低了摩擦：
-  - 字段：`日期 / 目标 / 主力模型`、`结果与耗时（验收/受阻）`、`实机会话数 / 代码修复 commit 数 / 环境重跑数`、`单卡点平均修复轮数`、`工具与环境阻塞占比`、`上轮收口项验证与本轮新增收口项`。
+  - 字段：`日期 / 目标`、`配置`、`结果与耗时（验收/受阻）`、`实机会话数 / 代码修复 commit 数 / 环境重跑数`、`单卡点平均修复轮数`、`工具与环境阻塞占比`、`上轮收口项验证与本轮新增收口项`。
+  - `配置` 用于审计每次 goal 的运行条件，写五项：第四层的工具和模型（如 `devin swe-2-max`）、第五层的工具和模型（如 `agy gemini-4-neon-medium`）、启动 commit、上下文压缩阈值（未设写「默认」）、验证分层规则（如「每次修复受影响文件+冒烟，push 后后台全量」或「每次修复全量」）。第四层的启动配置从账本顶部读，第五层的从 `notes.md` 启动记录读。运行中途换模型时写成「A→B」。
 
 ## 日志与截图保留上限
 

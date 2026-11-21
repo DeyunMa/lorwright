@@ -227,11 +227,18 @@ def _confirm_block_ready(before: GameState, after: GameState) -> bool:
     """
     enemies = after.enemy_attackers or after.enemy_units
     seen_enemies = before.enemy_attackers or before.enemy_units
-    if not enemies or any(not _same_spot(unit, seen_enemies) for unit in enemies):
+    # 空攻击者列表 = 本帧读不出（辉光下整单位掉落），不是「攻击者变了」；
+    # 仍在 BLOCKING 即未结算，跳过该通道，只验能验的（实机
+    # 20261121T155018 停止帧 enemy_units_visible=null）。
+    if any(not _same_spot(unit, seen_enemies) for unit in enemies):
         return False
     lane = _committed_blocks(after.my_units, enemies)
     if any(not _same_spot(after.my_units[blocker], before.my_units)
            for _, blocker in lane):
+        return False
+    # 两帧都没有任何可验证据（空板面）时不算就绪。
+    if not (enemies or seen_enemies or lane
+            or before.my_units or after.my_units):
         return False
     # 帧抖只会少读/多读，不会让同一单位换位置：前后帧都未匹配
     # 的单位若身份相同，说明是真实移动而非漏读，继续等待。

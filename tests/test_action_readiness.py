@@ -665,6 +665,14 @@ def test_blocking_confirm_ready_when_attacker_stats_flicker():
     assert observed(before, after).ready(Action(ActionType.CONFIRM))
 
 
+def test_blocking_confirm_ready_when_attackers_drop_out_entirely():
+    # 会话 20261121T155018 停止帧 enemy_units_visible=null：辉光下
+    # 攻击者整单位读不出 = 本帧不可验证而非指派变化，跳过该通道。
+    before = _blocking([_u(6, 3, 400)], [_u(10, 8, 520, 300)])
+    after = _blocking([_u(6, 3, 400)], [])
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
 def test_blocking_confirm_ready_when_committed_blocker_stats_flicker():
     # 行内格挡者同理：数值在辉光下抖动不改已锁定指派。
     before = _blocking([_u(4, 3, 500, 650), _u(1, 1, 700)], [_u(4, 1, 520, 300)])

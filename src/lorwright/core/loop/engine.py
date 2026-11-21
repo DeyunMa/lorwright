@@ -414,11 +414,16 @@ class Engine:
                         continue
 
                 # 缺失读数只限制依赖它的动作，不把旧法力交给策略当作可用资源。
+                # 同时注入跨帧单位身份视图：选择具体单位的策略只在
+                # 跨帧稳定的单位里规划；满场判断用两帧较大计数兜底。
                 decision_state = replace(
                     state,
                     mana=state.mana if state.has_fresh_readings("mana") else -1,
                     spell_mana=(state.spell_mana
                                 if state.has_fresh_readings("spell_mana") else None),
+                    my_units_stable=self._readiness.stable_my_units(),
+                    enemy_units_stable=self._readiness.stable_enemy_units(),
+                    my_units_floor=self._readiness.my_units_floor(len(state.my_units)),
                 )
 
                 report("decide")

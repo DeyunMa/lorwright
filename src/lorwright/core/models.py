@@ -154,6 +154,17 @@ class GameState:
     hand_empty_confirmed: bool = False
     my_units: list[Unit] = field(default_factory=list)
     enemy_units: list[Unit] = field(default_factory=list)
+    #: 跨帧身份验证视图（引擎在就绪观测后注入）：my_units 中在上
+    #: 一帧同位置同数值出现过的下标。单位列表在紫色可选中/屏障
+    #: 辉光下会随脉冲少读，按整表证据永不可用；选择具体单位的动作
+    #: 只在该集合内规划。None 表示没有跨帧信息（解析直出/测试），
+    #: 策略按不过滤处理；空集合表示观测过但没有单位跨帧稳定。
+    my_units_stable: frozenset[int] | None = None
+    #: 同 my_units_stable，作用于 enemy_attackers or enemy_units。
+    enemy_units_stable: frozenset[int] | None = None
+    #: 场面数量保守下界 = 最近两帧较大值：帧抖只会少读不会多读，
+    #: 用于满场判断；单位真死时只多保守一拍。
+    my_units_floor: int | None = None
     # 格挡阶段站在敌方攻击行里的单位（perceive 按区域过滤）
     enemy_attackers: list[Unit] = field(default_factory=list)
     nexus_hp: int = 20

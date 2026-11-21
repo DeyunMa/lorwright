@@ -6,7 +6,9 @@ from copy import deepcopy
 
 from lorwright.core.decide.generic import (
     ATTACK_ROW_MAX_Y,
+    _committed_blocks,
     same_unit,
+    same_unit_identity,
     weakest_replace_index,
 )
 from lorwright.core.models import Action, ActionType, CardInHand, GameState, Rect, UIState, Unit
@@ -29,17 +31,40 @@ class ActionReadiness:
     def reset(self) -> None:
         self._previous = self._current = None
 
+    def _stable_indices(self, units_of) -> frozenset[int]:
+        """_current 里在 _previous 同位置同数值出现过的单位下标。"""
+        if self._previous is None or self._current is None:
+            return frozenset()
+        before, after = units_of(self._previous), units_of(self._current)
+        return frozenset(
+            i for i, unit in enumerate(after)
+            if any(same_unit(unit, seen) for seen in before)
+        )
+
+    def stable_my_units(self) -> frozenset[int]:
+        return self._stable_indices(lambda state: state.my_units)
+
+    def stable_enemy_units(self) -> frozenset[int]:
+        return self._stable_indices(
+            lambda state: state.enemy_attackers or state.enemy_units)
+
+    def my_units_floor(self, current: int) -> int:
+        """场面数量下界：最近两帧较大值（帧抖只会少读不会多读）。"""
+        if self._previous is None:
+            return current
+        return max(current, len(self._previous.my_units))
+
     def ready(self, action: Action) -> bool:
         if action.type is ActionType.NO_OP:
             return True
         if self._previous is None or self._current is None:
             return False
-        # 替换提示下的友军 select_target：my_units 在紫色可选中辉光下
-        # 逐帧增减，按列表证据永远不稳。该动作只需要「所选目标跨两帧
-        # 是同一单位」，所以只比对目标身份，不要求整表稳定。
-        replace_ready = _replace_target_ready(action, self._previous, self._current)
-        if replace_ready is not None:
-            return replace_ready
+        # 选择具体单位的动作在紫色可选中/屏障辉光下整表证据永不
+        # 稳定（my_units 逐帧增减）；这些动作只需要「所选单位跨两帧
+        # 是同一个」，按目标身份比对，不要求整表稳定。
+        identity_ready = _identity_ready(action, self._previous, self._current)
+        if identity_ready is not None:
+            return identity_ready
         before = _evidence(action, self._previous)
         after = _evidence(action, self._current)
         return before is not None and after is not None and _stable(before, after)
@@ -62,31 +87,121 @@ def _index(value: object, length: int) -> bool:
     return type(value) is int and 0 <= value < length
 
 
-def _replace_target_ready(
+def _matched(unit: Unit, pool: list[Unit]) -> bool:
+    return any(same_unit(unit, seen) for seen in pool)
+
+
+def _identity_ready(
     action: Action, before: GameState, after: GameState,
 ) -> bool | None:
-    """替换目标的就绪证据：只在跨帧身份一致的单位里取最弱者。
+    """单位身份就绪证据：所选单位跨两帧同位置同数值即可，不看整表。
 
-    返回 None 表示不是替换场景（交给通用证据路径）；True 要求动作
-    索引解析到的单位与跨帧最弱稳定单位是同一个。
+    返回 None 表示不接管（交给通用整表证据路径）。
     """
-    if (action.type is not ActionType.SELECT_TARGET
-            or action.raw.get("enemy") or action.raw.get("hand")
+    kind = action.type
+    if kind is ActionType.SELECT_TARGET and not (
+            action.raw.get("enemy") or action.raw.get("hand")
             or action.raw.get("nexus")):
-        return None
+        return _friendly_target_ready(action, before, after)
+    if kind is ActionType.BLOCK:
+        return _block_ready(action, before, after)
+    if kind is ActionType.ATTACK:
+        return _attack_ready(action, before, after)
+    if (kind is ActionType.CONFIRM and before.ui_state is UIState.BLOCKING
+            and after.ui_state is UIState.BLOCKING):
+        return _confirm_block_ready(before, after)
+    return None
+
+
+def _friendly_target_ready(
+    action: Action, before: GameState, after: GameState,
+) -> bool | None:
+    """友军 select_target：所选单位跨帧同一 + 上下文证据稳定。"""
     if not (before.ui_state is UIState.TARGETING
-            and after.ui_state is UIState.TARGETING
-            and before.replace_prompt and after.replace_prompt
-            and before.targeted_spell is None and after.targeted_spell is None):
+            and after.ui_state is UIState.TARGETING):
         return None
-    matched = [i for i, unit in enumerate(after.my_units)
-               if any(same_unit(unit, seen) for seen in before.my_units)]
-    if not matched:
-        return False
     index = action.raw.get("index", 0)
-    return (_index(index, len(after.my_units))
-            and same_unit(after.my_units[index],
-                          after.my_units[weakest_replace_index(after.my_units, matched)]))
+    if not _index(index, len(after.my_units)):
+        return False
+    chosen = after.my_units[index]
+    # 替换提示：目标必须是跨帧最弱稳定单位（与策略同一规则）。
+    if (before.replace_prompt and after.replace_prompt
+            and before.targeted_spell is None and after.targeted_spell is None):
+        matched = [i for i, unit in enumerate(after.my_units)
+                   if _matched(unit, before.my_units)]
+        if not matched:
+            return False
+        return same_unit(chosen, after.my_units[
+            weakest_replace_index(after.my_units, matched)])
+    # 法术点友军：法术身份两帧稳定且所选单位跨帧同一。
+    spell_before, spell_after = _spell(before), _spell(after)
+    if spell_before is not None and spell_after is not None:
+        return (_stable(spell_before, spell_after)
+                and _matched(chosen, before.my_units))
+    return None
+
+
+def _block_ready(action: Action, before: GameState, after: GameState) -> bool:
+    """BLOCK：每个声明的格挡者与攻击者跨两帧都是同一单位。"""
+    if before.ui_state is not after.ui_state:
+        return False
+    pairs = action.raw.get("pairs")
+    enemies = after.enemy_attackers or after.enemy_units
+    seen_enemies = before.enemy_attackers or before.enemy_units
+    if not isinstance(pairs, (list, tuple)) or not pairs:
+        return False
+    for pair in pairs:
+        if (not isinstance(pair, (list, tuple)) or len(pair) != 2
+                or not _index(pair[0], len(after.my_units))
+                or not _index(pair[1], len(enemies))):
+            return False
+        if (not _matched(after.my_units[pair[0]], before.my_units)
+                or not _matched(enemies[pair[1]], seen_enemies)):
+            return False
+    return True
+
+
+def _attack_ready(action: Action, before: GameState, after: GameState) -> bool:
+    """ATTACK：每个声明的攻击者跨两帧同一单位且当前仍可攻击。"""
+    if before.ui_state is not after.ui_state:
+        return False
+    wanted = action.raw.get("attackers")
+    if wanted:
+        if not isinstance(wanted, (list, tuple)) or any(
+            not _index(i, len(after.my_units)) for i in wanted
+        ):
+            return False
+        units = [after.my_units[i] for i in wanted]
+    else:
+        units = [u for u in after.my_units if u.can_attack][:1]
+    if not units or any(not u.can_attack or u.stunned for u in units):
+        return False
+    return all(_matched(unit, before.my_units) for unit in units)
+
+
+def _confirm_block_ready(before: GameState, after: GameState) -> bool:
+    """BLOCKING 下的 CONFIRM：确认的是当前可见指派。
+
+    敌方攻击者必须全部跨帧同一；当前可见的行内（已锁定）格挡者
+    也必须跨帧同一——行内单位少读一帧不代表指派变了。后排单位
+    增减不影响确认语义，不参与证据。
+    """
+    enemies = after.enemy_attackers or after.enemy_units
+    seen_enemies = before.enemy_attackers or before.enemy_units
+    if not enemies or any(not _matched(unit, seen_enemies) for unit in enemies):
+        return False
+    lane = _committed_blocks(after.my_units, enemies)
+    if any(not _matched(after.my_units[blocker], before.my_units)
+           for _, blocker in lane):
+        return False
+    # 帧抖只会少读/多读，不会让同一单位换位置：前后帧都未匹配
+    # 的单位若身份相同，说明是真实移动而非漏读，继续等待。
+    before_rest = [u for u in before.my_units
+                   if not _matched(u, after.my_units)]
+    after_rest = [u for u in after.my_units
+                  if not _matched(u, before.my_units)]
+    return not any(same_unit_identity(b, a)
+                   for b in before_rest for a in after_rest)
 
 
 def _rect(rect: Rect | None) -> Rect | None:

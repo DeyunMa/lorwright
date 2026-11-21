@@ -506,3 +506,110 @@ def test_reusing_mutable_state_preserves_previous_observation():
     assert not gate.ready(PLAY)
     gate.observe(current)
     assert gate.ready(PLAY)
+
+
+def _u(attack, health, x, y=900, name="", can_attack=True):
+    return Unit(name, attack, health, Rect(x, y, 90, 100), can_attack=can_attack)
+
+
+def _blocking(my, attackers):
+    return GameState(ui_state=UIState.BLOCKING, my_units=list(my),
+                     enemy_attackers=list(attackers))
+
+
+# 会话 20261121T082646-f1ba8045411e：6 个友军带脉冲屏障/紫色辉光，
+# my_units 实机 3→5→6→5→4 抖动，blocking 决策在 block/confirm 间
+# 翻转、就绪两帧整表证据永不稳定而超时。
+
+def test_block_ready_when_chosen_blocker_and_attacker_are_stable():
+    attacker = _u(4, 1, 500, 300)
+    blocker = _u(2, 3, 400)
+    before = _blocking([_u(9, 9, 100), blocker], [attacker])
+    after = _blocking([blocker, _u(8, 8, 800)], [attacker])
+    action = Action(ActionType.BLOCK, raw={"pairs": [(0, 0)]})
+    assert observed(before, after).ready(action)
+
+
+def test_block_abstains_when_chosen_blocker_is_not_stable():
+    attacker = _u(4, 1, 500, 300)
+    before = _blocking([_u(2, 3, 400)], [attacker])
+    after = _blocking([_u(2, 3, 560)], [attacker])
+    action = Action(ActionType.BLOCK, raw={"pairs": [(0, 0)]})
+    assert not observed(before, after).ready(action)
+
+
+def test_block_abstains_when_attacker_is_not_stable():
+    blocker = _u(2, 3, 400)
+    before = _blocking([blocker], [_u(4, 1, 500, 300)])
+    after = _blocking([blocker], [_u(4, 1, 660, 300)])
+    action = Action(ActionType.BLOCK, raw={"pairs": [(0, 0)]})
+    assert not observed(before, after).ready(action)
+
+
+def test_blocking_confirm_ready_under_bench_flicker():
+    attacker = _u(4, 1, 520, 300)
+    lane = _u(4, 3, 500, 650)  # 行内已锁定指派
+    bench = [_u(1, 1, 700), _u(2, 2, 850)]
+    before = _blocking([lane, *bench, _u(3, 3, 1000)], [attacker])
+    after = _blocking([lane, *bench], [attacker])
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+def test_blocking_confirm_abstains_when_unit_moved():
+    attacker = _u(4, 1, 520, 300)
+    before = _blocking([_u(4, 3, 500, 650), _u(2, 3, 400)], [attacker])
+    # 后排单位同数值换位置：是真实移动而非漏读，继续等待。
+    after = _blocking([_u(4, 3, 500, 650), _u(2, 3, 560)], [attacker])
+    assert not observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+def test_blocking_confirm_abstains_when_attacker_unstable():
+    lane = _u(4, 3, 500, 650)
+    before = _blocking([lane, _u(1, 1, 700)], [_u(4, 1, 520, 300)])
+    after = _blocking([lane, _u(1, 1, 700)], [_u(4, 1, 680, 300)])
+    assert not observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+def test_blocking_policy_plans_only_over_stable_units():
+    stable_blocker = _u(2, 3, 400)
+    attacker = _u(4, 1, 500, 300)
+    state = GameState(
+        ui_state=UIState.BLOCKING,
+        my_units=[stable_blocker, _u(1, 1, 800)],
+        enemy_attackers=[attacker],
+        my_units_stable=frozenset({0}),
+        enemy_units_stable=frozenset({0}),
+    )
+    action = BlockingPolicy().decide(state)
+    assert action.type is ActionType.BLOCK
+    assert action.raw["pairs"] == [(0, 0)]
+
+
+def test_attack_ready_when_chosen_attacker_is_stable():
+    attacker = _u(3, 3, 400)
+    before = GameState(ui_state=UIState.MY_TURN_IDLE,
+                       my_units=[_u(9, 9, 100), attacker])
+    after = GameState(ui_state=UIState.MY_TURN_IDLE,
+                      my_units=[attacker, _u(8, 8, 800)])
+    action = Action(ActionType.ATTACK, raw={"attackers": [0]})
+    assert observed(before, after).ready(action)
+
+
+def test_attack_abstains_when_chosen_attacker_is_not_stable():
+    before = GameState(ui_state=UIState.MY_TURN_IDLE,
+                       my_units=[_u(3, 3, 400)])
+    after = GameState(ui_state=UIState.MY_TURN_IDLE,
+                      my_units=[_u(3, 3, 560)])
+    action = Action(ActionType.ATTACK, raw={"attackers": [0]})
+    assert not observed(before, after).ready(action)
+
+
+def test_attack_policy_skips_unstable_attackers():
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE, has_attack_token=True,
+        my_units=[_u(3, 3, 400), _u(2, 2, 600)],
+        my_units_stable=frozenset({1}),
+    )
+    action = AttackWhenTokenPolicy().decide(state)
+    assert action.type is ActionType.ATTACK
+    assert action.raw["attackers"] == (1,)

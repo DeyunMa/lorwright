@@ -29,7 +29,7 @@ class HeroFirstPolicy(Policy):
 
     def decide(self, state: GameState) -> Action | None:
         if (state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded
-                or len(state.my_units) >= 6):
+                or board_count(state) >= 6):
             return None
         for card in state.hand:
             if (card.name in self.champion_names and card.drag_point_valid
@@ -100,7 +100,7 @@ class PlayUnitPolicy(Policy):
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is not UIState.MY_TURN_IDLE or not state.hand_expanded:
             return None
-        if len(state.my_units) >= self.board_limit:
+        if board_count(state) >= self.board_limit:
             return None
         playable = []
         for card in state.hand:
@@ -137,19 +137,30 @@ class UnknownCardPolicy(Policy):
         return None
 
 
+def board_count(state: GameState) -> int:
+    """满场判断的单位数：帧抖只会少读，取两帧较大值兜底。"""
+    return state.my_units_floor if state.my_units_floor is not None else len(state.my_units)
+
+
 def _rect_close(a: Rect, b: Rect) -> bool:
     return (abs(a.x - b.x) <= 12 and abs(a.y - b.y) <= 12
             and abs(a.w - b.w) <= 12 and abs(a.h - b.h) <= 12)
 
 
+def same_unit_identity(a: Unit, b: Unit) -> bool:
+    """同一单位的身份证据（不含位置）：名字/攻击/生命一致。"""
+    return a.name == b.name and a.attack == b.attack and a.health == b.health
+
+
 def same_unit(a: Unit, b: Unit) -> bool:
-    """同一单位跨帧身份：位置容差内且名字/攻击/生命一致。
+    """同一单位跨帧：位置容差内且身份一致，矩形必须有效。
 
     不含 can_attack/keyword/stun 图标证据——紫色可选中辉光下这些
-    会随脉冲抖动，而替换只需要确认还是同一个单位。
+    会随脉冲抖动，而动作只需要确认还是同一个单位。
     """
-    return (a.name == b.name and a.attack == b.attack
-            and a.health == b.health and _rect_close(a.rect, b.rect))
+    return (same_unit_identity(a, b)
+            and a.rect.w > 0 and a.rect.h > 0 and b.rect.w > 0 and b.rect.h > 0
+            and _rect_close(a.rect, b.rect))
 
 
 def weakest_replace_index(units: list[Unit], pool: list[int]) -> int:
@@ -172,28 +183,21 @@ def weakest_replace_index(units: list[Unit], pool: list[int]) -> int:
 class ReplacePromptPolicy(Policy):
     """满场打出单位要求替换友军：选攻击+生命最低者（含并列取最左）。
 
-    紫色可选中辉光下 my_units 会随脉冲逐帧增减；只在连续两帧位置与
-    数值一致的单位里选目标，没有稳定单位时回退全表最弱——实际点击
-    仍由就绪门禁要求目标跨帧稳定后才放行。
+    紫色可选中辉光下 my_units 会随脉冲逐帧增减；只在引擎注入的
+    跨帧稳定单位集合（my_units_stable）里选目标，没有稳定单位时
+    弃权——实际点击仍由就绪门禁要求目标跨帧稳定后才放行。
     """
 
     name = "replace_prompt"
     version = "1.0.0"
 
-    def __init__(self) -> None:
-        self._previous_units: list[Unit] = []
-
     def decide(self, state: GameState) -> Action | None:
         if (state.ui_state is not UIState.TARGETING or not state.replace_prompt
                 or not state.my_units):
-            self._previous_units = []
             return None
-        previous = self._previous_units
-        self._previous_units = list(state.my_units)
-        matched = [i for i, unit in enumerate(state.my_units)
-                   if any(same_unit(unit, seen) for seen in previous)]
-        index = weakest_replace_index(
-            state.my_units, matched or list(range(len(state.my_units))))
+        stable = state.my_units_stable
+        pool = sorted(stable) if stable else list(range(len(state.my_units)))
+        index = weakest_replace_index(state.my_units, pool)
         return Action(type=ActionType.SELECT_TARGET, raw={"enemy": False, "index": index})
 
 
@@ -244,13 +248,31 @@ class BlockingPolicy(Policy):
         committed = _committed_blocks(state.my_units, attackers)
         committed_attackers = {a for a, _ in committed}
         committed_blockers = {b for _, b in committed}
-        free_attackers = [i for i in range(len(attackers))
-                          if i not in committed_attackers]
-        bench = [i for i in range(len(state.my_units))
-                 if i not in committed_blockers]
+        # 行内已锁定指派按本帧全表判定（它是对局状态，不是读数）；
+        # 新指派只在跨帧稳定单位里规划，紫色屏障辉光下计数抖动时
+        # 计划不再随帧翻转。
+        my_stable = state.my_units_stable
+        enemy_stable = state.enemy_units_stable
+        free_all = [i for i in range(len(attackers)) if i not in committed_attackers]
+        bench_all = [i for i in range(len(state.my_units))
+                     if i not in committed_blockers]
+        # 新指派只在跨帧稳定单位里规划，紫色屏障辉光下计数抖动时
+        # 计划不再随帧翻转；一个稳定单位都没有时退回全表，实际点击
+        # 仍由就绪门禁按单位身份放行。
+        free_attackers = ([i for i in free_all if enemy_stable is None or i in enemy_stable]
+                          or free_all)
+        bench = ([i for i in bench_all if my_stable is None or i in my_stable]
+                 or bench_all)
         sub = plan_blocks([state.my_units[i] for i in bench],
                           [attackers[i] for i in free_attackers])
         pairs = [(bench[b], free_attackers[a]) for b, a in sub]
+        covered = {a for _, a in pairs}
+        # 稳定格挡者覆盖了稳定攻击者后仍有未验证的攻击者未被覆盖：
+        # 不确认——等下一帧身份稳定再规划。
+        if (enemy_stable is not None and any(
+                i not in enemy_stable and i not in committed_attackers
+                and i not in covered for i in free_all)):
+            return Action(type=ActionType.NO_OP)
         if not pairs:
             return Action(type=ActionType.CONFIRM)
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})
@@ -476,11 +498,13 @@ class AttackWhenTokenPolicy(Policy):
             return Action(type=ActionType.CONFIRM)
         if not state.has_attack_token:
             return None
-        attackers = tuple(
-            i for i, unit in enumerate(state.my_units)
-            if unit.can_attack and not unit.stunned
-        )
-        if not attackers:
+        stable = state.my_units_stable
+        can = [i for i, unit in enumerate(state.my_units)
+               if unit.can_attack and not unit.stunned]
+        if not can:
             return None
+        # 优先跨帧稳定单位；没有稳定单位时退回全部可攻击单位，
+        # 就绪门禁仍会要求每个攻击者跨帧同一单位才放行。
+        attackers = tuple(i for i in can if stable is None or i in stable) or tuple(can)
         return Action(type=ActionType.ATTACK, raw={"attackers": attackers})
 

@@ -2,6 +2,7 @@
 
 from lorwright.core.decide.base import PlayExpectation
 from lorwright.core.decide.card import CardKind
+from lorwright.core.decide.generic import board_count
 from lorwright.core.decide.rewards import QUALITY_RANK, CardRewardCandidate, CardRewardPick
 from lorwright.core.models import Action, ActionType, GameState, UIState
 
@@ -142,11 +143,11 @@ class JinxOpeningPolicy:
         if self.step == 0:
             available = max(0, state.mana) + (state.spell_mana or 0)
             matches = [card for card in state.hand if card.name == "應急裝置"
-                       and card.drag_point_valid and len(state.my_units) < 6
+                       and card.drag_point_valid and board_count(state) < 6
                        and 0 <= card.cost <= 3 and card.cost <= available]
         else:
             matches = [card for card in state.hand if card.name == "吉茵珂絲"
-                       and card.drag_point_valid and len(state.my_units) < 6
+                       and card.drag_point_valid and board_count(state) < 6
                        and 0 <= card.cost <= max(0, state.mana)]
         if not matches or self._board_before is None:
             # 本帧找不到目标或费用不够：弃权。通用层可先把满价 Jinx

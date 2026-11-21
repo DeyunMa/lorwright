@@ -1233,7 +1233,8 @@ class AdventureLoop:
                      reason=reason)
         report("decided", "hero_item_choice", selection=index,
                selection_reason=reason, **self._details)
-        self._tap(*scale.to_device((615, 960, 1320)[index], 400))
+        # 实机证据：点卡面只高亮卡片，可选目标是下方道具盒。
+        self._tap(*scale.to_device((615, 960, 1300)[index], 750))
         after = image
         for after in self._transition_frames("hero_item_select_transition",
                                              wait_s=8, attempts=4):

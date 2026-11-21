@@ -1853,7 +1853,7 @@ def test_hero_item_triple_prefers_own_champion(adventure):
     image = _img("../screens/f1-hero-item-mixed-champions-20261121.png")
     loop, device, _, saved, _ = adventure([image], [])
     assert loop._handle_hero_item_reward(image) is None  # 选择后继未提供，停在核验
-    assert device.taps == [(1320, 400)]
+    assert device.taps == [(1300, 750)]
     assert saved == ["hero_item_selection_unverified"]
 
 
@@ -1864,7 +1864,16 @@ def test_hero_item_triple_jinx_falls_back_to_item_rule(adventure):
     loop.pack = load("jinx")
     loop._handle_hero_item_reward(image)
     assert len(device.taps) == 1
-    assert device.taps[0][0] in (615, 960, 1320) and device.taps[0][1] == 400
+    assert device.taps[0][0] in (615, 960, 1300) and device.taps[0][1] == 750
+    assert saved == ["hero_item_selection_unverified"]
+
+
+def test_hero_item_triple_card_highlighted_state_still_works(adventure):
+    # 会话重启于「卡片已高亮、道具未选」帧：仍只点道具盒一次。
+    image = _img("../screens/f1-hero-item-triple-card-highlighted-20261121.png")
+    loop, device, _, saved, _ = adventure([image], [])
+    assert loop._handle_hero_item_reward(image) is None
+    assert device.taps == [(1300, 750)]
     assert saved == ["hero_item_selection_unverified"]
 
 

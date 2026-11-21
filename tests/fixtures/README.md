@@ -19,6 +19,8 @@
 
 `screens/f1-hero-item-mixed-champions-20261121.png` 来自会话 `20261121T120805-2328dbfb57d6`（champion elise）的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。英雄道具奖励首次出现**三英雄候选**布局（赫克林 6+闇影圖騰、魔甘娜 6+藍BUFF、伊莉絲 2+吸血鬼權杖，均 rare，附金幣+200 与重抽按钮）：旧两槽 `hero_item_main_index`/`hero_selection` 均返回 None。新增 `hero_item_triple_layout`（副标题+重抽+三槽）与 `hero_item_champion_index`（ORB 匹配英雄包插画；elise 472 good 对 ≤31）；策略优先自身英雄槽，否则回退道具品质规则。新增 `assets/adventure/hero_item_reroll.png`。
 
+`screens/f1-hero-item-triple-card-highlighted-20261121.png` 来自会话 `20261121T122153-701e8a559342` 的 `hero_item_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号。三英雄候选页点**卡面**仅高亮卡片（伊莉絲框亮），可选目标是下方道具盒；选择改点道具盒中心 `(615,960,1300)[index],750`（与两槽 handler 同一行高）。此帧 `hero_item_triple_layout` 仍为 True、`hero_item_champion_index` 仍返回 2。
+
 `card_rewards/f1-card-reward-ten-cost-20261121.png` 来自会话 `20261121T120239-1b293819bf99`（champion elise）的 `card_reward_unknown` 停止原始 PNG，完整 1920×1080，已查看无账号。左槽框角为暗色背景变体（原模板族最高 0.723<0.75，新增 `card_reward_frame_corner_storm.png` 取该帧 `[232:250,354:374]`）；右槽费用为两位数 10，「1」字形与既有原型差异大（0.755<0.80，新增 `reward_digits/1-ten-cost-20261121.png`）。三槽均未收录卡名：驚滔駭浪 3 费法术、暗影之刃·忍 4 费史诗单位、鑿魂怪 10 费稀有单位；默认规则选史诗。
 
 `screens/f1-event-card-removal-20261121.png` 来自会话 `20261121T114716-261357f0cc68`（champion elise）的 `panel_transition_timeout` 停止原始 PNG，完整 1920×1080，已查看无账号。事件「獨身修女」选中「剔除1張卡牌」后右侧展开牌组剔除列表，左侧仍有「剔除1張卡牌」与「離開」选项行；当前策略一律选「離開」跳过剔除事件。新增 `assets/adventure/event_leave.png`（该帧 `[933:965,654:727]` 離開文字）识别事件选项行；商店/宝箱同款行仍由各自标题面板优先核验。

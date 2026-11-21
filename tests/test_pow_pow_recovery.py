@@ -47,9 +47,9 @@ def test_synthetic_target_recovery():
 def test_generic_action_requires_visible_spell_and_correct_state():
     layout = Layout(hand_region=Rect(1420, 855, 500, 225))
     state = GameState(ui_state=UIState.TARGETING)
-    assert JinxOpeningPolicy().decide(state).type is ActionType.NO_OP
+    assert JinxOpeningPolicy().decide(state) is None
     other = replace(state, targeted_spell=TargetedSpell("other", Rect(930, 508, 60, 60)))
-    assert JinxOpeningPolicy().decide(other).type is ActionType.NO_OP
+    assert JinxOpeningPolicy().decide(other) is None
     action = Action(ActionType.CANCEL, raw={"return_to_hand": True})
     translator = ActionTranslator(layout)
     assert translator.translate(action, state) is None

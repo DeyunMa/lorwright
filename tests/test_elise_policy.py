@@ -318,7 +318,7 @@ def test_unsent_candidate_does_not_attribute_targeting_to_card() -> None:
         hand=[hand(0, "小蜘蛛", 1)],
     )
     candidate = policy.decide(state)
-    assert policy.decide(replace(state, ui_state=UIState.TARGETING)).type is ActionType.NO_OP
+    assert policy.decide(replace(state, ui_state=UIState.TARGETING)) is None
     assert policy.decide(state) == candidate
 
 
@@ -367,8 +367,8 @@ def test_all_cards_unplayable_falls_through_to_end_turn() -> None:
     assert policy.decide(state).type is ActionType.END_TURN
 
 
-def test_targeting_state_cancels_instead_of_playing() -> None:
-    """「選擇目標」时拖手牌没反应，必须先取消，不能继续出牌。
+def test_targeting_state_abstains_instead_of_playing() -> None:
+    """「選擇目標」时拖手牌没反应，英雄层弃权交通用 targeting 层，不能继续出牌。
 
     实机场景：0 费冥血戰要求「擊殺1個友軍單位」，拖出去后进入选目标，
     旧逻辑当成 unknown → no_op，卡到引擎停。
@@ -379,9 +379,7 @@ def test_targeting_state_cancels_instead_of_playing() -> None:
         max_mana=6,
         hand=[CardInHand(index=0, name="", cost=0, rect=RECT, visible_playable_unit=True)],
     )
-    action = POLICY.decide(state)
-    assert action is not None
-    assert action.type is ActionType.NO_OP
+    assert POLICY.decide(state) is None
 
 
 def test_card_that_opens_targeting_is_marked_unplayable() -> None:

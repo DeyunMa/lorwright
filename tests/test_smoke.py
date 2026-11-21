@@ -28,7 +28,7 @@ def test_default_policy_yields_to_shared_interactions(ui_state: UIState) -> None
     )
     action = load().make_policy().decide(state)
     if ui_state in (UIState.BLOCKING, UIState.DISCARD, UIState.OPTIONAL_CHOICE,
-                        UIState.REQUIRED_CHOICE):
+                        UIState.REQUIRED_CHOICE, UIState.TARGETING):
         assert action is None
     else:
         assert action is not None

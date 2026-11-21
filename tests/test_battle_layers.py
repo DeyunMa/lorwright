@@ -229,8 +229,29 @@ def test_unknown_target_stops_router_with_readable_reason():
     router = Router(_battle_layers(load("jinx")))
     result = router.decide(GameState(ui_state=UIState.TARGETING))
     assert result.action.type is ActionType.NO_OP
-    assert result.candidates == ["optional_choice", "required_choice", "replace_prompt", "jinx_opening"]
+    assert result.layer == "targeting"
+    assert result.candidates == [
+        "optional_choice", "required_choice", "replace_prompt", "jinx_opening",
+        "expand_hand", "hero_first", "play_unit", "targeting",
+    ]
     assert "目标类型尚未明确" in result.reason
+
+
+@pytest.mark.parametrize("pack_name", ["elise", "jinx"])
+def test_targeting_prompts_route_to_generic_targeting_layer(pack_name):
+    """英雄包对所有 TARGETING 弃权；必需目标与可选「跳過」都归通用层。"""
+    router = Router(_battle_layers(load(pack_name)))
+    required = router.decide(GameState(ui_state=UIState.TARGETING))
+    assert required.layer == "targeting"
+    assert required.action.type is ActionType.NO_OP
+    optional = router.decide(GameState(
+        ui_state=UIState.TARGETING,
+        action_prompt="action_skip",
+        enemy_units=[Unit("", 5, 3, Rect(880, 180, 60, 60))],
+    ))
+    assert optional.layer == "targeting"
+    assert optional.action == Action(
+        ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0})
 
 
 @pytest.mark.parametrize("first_action", [None, Action(ActionType.NO_OP)])

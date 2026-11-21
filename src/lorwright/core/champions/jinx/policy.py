@@ -116,10 +116,9 @@ class JinxOpeningPolicy:
                 if state.enemy_units:
                     return Action(type=ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0})
                 return Action(type=ActionType.CANCEL, raw={"return_to_hand": True})
-            # 可选「跳過」目标提示交通用层处理。
-            if state.action_prompt == "action_skip":
-                return None
-            return Action(type=ActionType.NO_OP)
+            # 非 Pow-Pow 目标提示统一交通用 TargetingPolicy：
+            # 必需目标等核验，可选「跳過」按敌方目标或跳过处理。
+            return None
         if self.step >= 3:
             # 开局组合完成：弃权，交给通用层（英雄优先/攻击序列）接手。
             return None

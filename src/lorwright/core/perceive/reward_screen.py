@@ -624,7 +624,7 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
         "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
         "card_reward_frame_corner_cloud", "card_reward_frame_corner_bonus",
         "card_reward_frame_corner_dark", "card_reward_frame_corner_tower",
-        "card_reward_frame_corner_gold",
+        "card_reward_frame_corner_gold", "card_reward_frame_corner_storm",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01

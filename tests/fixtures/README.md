@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`card_rewards/f1-card-reward-ten-cost-20261121.png` 来自会话 `20261121T120239-1b293819bf99`（champion elise）的 `card_reward_unknown` 停止原始 PNG，完整 1920×1080，已查看无账号。左槽框角为暗色背景变体（原模板族最高 0.723<0.75，新增 `card_reward_frame_corner_storm.png` 取该帧 `[232:250,354:374]`）；右槽费用为两位数 10，「1」字形与既有原型差异大（0.755<0.80，新增 `reward_digits/1-ten-cost-20261121.png`）。三槽均未收录卡名：驚滔駭浪 3 费法术、暗影之刃·忍 4 费史诗单位、鑿魂怪 10 费稀有单位；默认规则选史诗。
+
 `screens/f1-event-card-removal-20261121.png` 来自会话 `20261121T114716-261357f0cc68`（champion elise）的 `panel_transition_timeout` 停止原始 PNG，完整 1920×1080，已查看无账号。事件「獨身修女」选中「剔除1張卡牌」后右侧展开牌组剔除列表，左侧仍有「剔除1張卡牌」与「離開」选项行；当前策略一律选「離開」跳过剔除事件。新增 `assets/adventure/event_leave.png`（该帧 `[933:965,654:727]` 離開文字）识别事件选项行；商店/宝箱同款行仍由各自标题面板优先核验。
 
 `card_rewards/f1-card-reward-elise-spells-20261121.png` 来自会话 `20261121T114027-9fc81e4b2873`（champion elise）的 `card_reward_unknown` 停止原始 PNG，完整 1920×1080，已查看无账号。左槽是**金框英雄**赫克林 6 费 5|6 带史诗道具黑色切割者：框角为未收录金色变体（原模板族最高 0.729<0.75），深色插画近黑像素 0.054>0.05，英雄卡无品质徽记。新增 `assets/adventure/card_reward_frame_corner_gold.png`（取该帧 `[232:250,354:374]`）；插画近黑阈放宽至 0.06（既有帧全部 ≈0）；未收录英雄卡的品质按已核验卡种记为 `champion`。

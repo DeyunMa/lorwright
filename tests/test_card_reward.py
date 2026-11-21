@@ -416,6 +416,33 @@ def test_gold_champion_reward_rejects_missing_independent_evidence(region):
     assert recognize_card_rewards(image) is None
 
 
+def test_ten_cost_reward_reads_two_digit_cost_and_picks_epic():
+    # 10 费两位费用：新增「1」原型；左槽框角为暗色风暴背景变体。
+    image = _image("f1-card-reward-ten-cost-20261121.png")
+    assert is_card_reward_screen(image)
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [3, 4, 10]
+    assert [c.kind for c in candidates] == [
+        CardKind.SPELL, CardKind.UNIT, CardKind.UNIT]
+    assert [c.card.quality for c in candidates] == ["rare", "epic", "rare"]
+    pick = pick_card_reward(candidates)
+    assert pick is not None and pick.candidate is candidates[1]
+    assert card_reward_target(image, 1, "") is not None
+
+
+@pytest.mark.parametrize("region", [
+    (228, 255, 351, 384),    # 左槽框角
+    (276, 309, 1258, 1294),  # 右槽两位费用
+])
+def test_ten_cost_reward_rejects_missing_independent_evidence(region):
+    image = _image("f1-card-reward-ten-cost-20261121.png")
+    y1, y2, x1, x2 = region
+    image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
 def test_weekly_reward_frame_on_bright_map_fog():
     image = _image("f1-weekly-third-reward-20261116.png")
     assert card_reward_selection(image) == -1

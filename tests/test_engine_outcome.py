@@ -1525,6 +1525,32 @@ def test_staged_spell_observes_delayed_result_with_original_budget(monkeypatch, 
     assert outcomes[-1]["status"] == ("succeeded" if settled else "timed_out")
 
 
+def test_expanded_play_gets_full_window_for_stack_confirmation(monkeypatch):
+    """会话 20261121T133925：傾巢而出 8s 窗口内确认提示刚到、父截止先到。
+
+    慢速法术的「拖拽 → 確認 → 结算动画」链超过 8s；父预算不能因提示
+    续期（既有不变式），所以在发送时统一给已展开出牌 20s 固定窗口。
+    """
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.router import Router as RealRouter
+
+    engine = Engine(load_settings(), RealRouter([]), None)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: 100.0)
+    spell = ready(hand_expanded=True,
+                  hand=[CardInHand(0, "傾巢而出", 6, Rect(0, 0, 8, 8))])
+    pending = engine._make_outcome(
+        Action(ActionType.PLAY_CARD, 0, raw={"stack_confirm": True}), spell, 8)
+    assert pending.deadline == 120.0
+    pending = engine._make_outcome(Action(ActionType.PLAY_CARD, 0), spell, 8)
+    assert pending.deadline == 108.0
+    collapsed = replace(spell, hand_expanded=False)
+    pending = engine._make_outcome(
+        Action(ActionType.PLAY_CARD, 0, raw={"stack_confirm": True}), collapsed, 8)
+    assert pending.deadline == 108.0
+    pending = engine._make_outcome(Action(ActionType.END_TURN), spell, 8)
+    assert pending.deadline == 108.0
+
+
 def test_staged_spell_confirmation_changes_do_not_renew_parent_budget(monkeypatch):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)

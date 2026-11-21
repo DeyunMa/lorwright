@@ -76,6 +76,21 @@ def test_plays_cheapest_when_only_one_playable():
     assert action.card_index == 1
 
 
+def test_spell_play_marks_stack_confirm_for_full_window():
+    """慢速法术进栈要点「確認」：raw 标记换 20s 动作预算（会话 20261121T133925）。"""
+    state = GameState(
+        ui_state=UIState.MY_TURN_IDLE,
+        mana=7,
+        hand_expanded=True,
+        hand=[hand(0, "傾巢而出", 6)],
+    )
+    action = POLICY.decide(state)
+    assert action is not None
+    assert action.type is ActionType.PLAY_CARD
+    assert action.raw.get("stack_confirm") is True
+    assert "unit_card" not in action.raw
+
+
 def test_elise_outranks_every_other_card():
     """伊莉絲是这套牌的核心：手里有她，就先出她。
 

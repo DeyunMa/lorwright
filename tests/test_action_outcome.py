@@ -343,6 +343,18 @@ def test_timeout_is_unverified_not_success():
     assert pending.observe(state(ui_state=UIState.ENEMY_TURN), 9).status is OutcomeStatus.TIMED_OUT
 
 
+def test_confirmation_required_keeps_fixed_parent_budget():
+    # 确认提示不续父预算；慢速法术的时间在发送时的 20s 窗口里（engine
+    # 对已展开出牌统一给 20s，见 test_expanded_play_gets_full_window）。
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20)
+    after = replace(before, ui_state=UIState.COMBAT_RESOLVING,
+                    action_prompt="action_confirm")
+    assert pending.observe(after, 18).status is OutcomeStatus.NEEDS_INPUT
+    assert pending.deadline == 20
+    assert pending.observe(after, 20).status is OutcomeStatus.TIMED_OUT
+
+
 def test_confirmation_can_observe_a_new_round_without_ui_enum_change():
     before = state(mana=0, readings={"mana": Reading(0, 0)})
     pending = ActionOutcome(Action(ActionType.END_TURN), before, 8)

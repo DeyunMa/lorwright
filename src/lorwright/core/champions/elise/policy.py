@@ -241,6 +241,9 @@ class SpiderAggroPolicy(Policy):
         if ranked:
             card, definition, _score = ranked[0]
             raw = {"unit_card": True} if (definition.is_unit or card.visible_playable_unit) else {}
+            if not raw and definition.kind is CardKind.SPELL:
+                # 慢速法术进栈后要再点「確認」，整条链需要完整动作预算。
+                raw["stack_confirm"] = True
             return Action(type=ActionType.PLAY_CARD, card_index=card.index, raw=raw)
 
         # P2 攻击声明：求解器说值得打才打

@@ -261,7 +261,7 @@ def test_real_parsed_opponent_board_reroutes_engine(
     (UIState.BATTLE_END, 30, "battle_end"),
     (UIState.UNKNOWN, 63, "battle_result_transition_unverified"),
     (UIState.BATTLE_END, 63, "battle_result_transition_unverified"),
-    (UIState.MY_TURN_IDLE, 12, "action_timeout"),
+    (UIState.MY_TURN_IDLE, 16, "action_timeout"),
 ])
 def test_known_result_transition_observes_without_replaying_or_renewing_action(
     monkeypatch, successor, elapsed, expected,
@@ -294,7 +294,8 @@ def test_known_result_transition_observes_without_replaying_or_renewing_action(
     assert not any(event["status"] == "succeeded" for event in outcomes)
     assert bool(snapshots) is (expected != "battle_end")
     if expected != "battle_end":
-        assert engine._pending.deadline == 8
+        # 选目标结算动画有界窗口（实机 ~8s，给 15s）；截止后不续期。
+        assert engine._pending.deadline == 15
 
 
 def test_jinx_summon_with_eight_collapsed_cards_advances_without_replaying(monkeypatch):
@@ -913,7 +914,7 @@ def test_stale_frame_interrupts_readiness_without_extending_deadline(monkeypatch
 @pytest.mark.parametrize("transition_time,stale,expected", [
     (2, False, "battle_end"),
     (2, True, "battle_end"),
-    (9, False, "action_timeout"),
+    (16, False, "action_timeout"),
 ])
 def test_real_readiness_and_result_phase_preserve_original_action_deadline(
     monkeypatch, transition_time, stale, expected,
@@ -947,7 +948,8 @@ def test_real_readiness_and_result_phase_preserve_original_action_deadline(
     assert device.taps == [(804, 404)]
     assert not any(e.get("status") == "succeeded" for e in events)
     if expected == "action_timeout":
-        assert engine._pending.deadline == 8
+        # 选目标结算动画有界窗口（实机 ~8s，给 15s）；结果阶段不续原截止。
+        assert engine._pending.deadline == 15
 
 
 @pytest.mark.parametrize("action_type", [ActionType.ATTACK, ActionType.END_TURN])
@@ -1548,6 +1550,25 @@ def test_expanded_play_gets_full_window_for_stack_confirmation(monkeypatch):
         Action(ActionType.PLAY_CARD, 0, raw={"stack_confirm": True}), collapsed, 8)
     assert pending.deadline == 108.0
     pending = engine._make_outcome(Action(ActionType.END_TURN), spell, 8)
+    assert pending.deadline == 108.0
+
+
+def test_select_target_gets_bounded_resolution_window(monkeypatch):
+    """会话 20261121T140622：蜘術士可选效果选目标后结算动画 ~8s，
+    targeting→idle 的转场帧与 8s 截止同刻到达，先查截止判超时。
+    选目标/取消共用选目标结算动画，窗口抬到 15s。"""
+    from lorwright.core.config import load_settings
+    from lorwright.core.decide.router import Router as RealRouter
+
+    engine = Engine(load_settings(), RealRouter([]), None)
+    monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: 100.0)
+    before = ready(ui_state=UIState.TARGETING)
+    pending = engine._make_outcome(
+        Action(ActionType.SELECT_TARGET, raw={"enemy": True, "index": 0}), before, 8)
+    assert pending.deadline == 115.0
+    pending = engine._make_outcome(Action(ActionType.CANCEL), before, 8)
+    assert pending.deadline == 115.0
+    pending = engine._make_outcome(Action(ActionType.NO_OP), before, 8)
     assert pending.deadline == 108.0
 
 

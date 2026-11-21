@@ -659,6 +659,11 @@ class Engine:
         unacknowledged_deadline: float | None = None,
     ) -> ActionOutcome:
         expectation = None
+        if action.type in (ActionType.SELECT_TARGET, ActionType.CANCEL):
+            # 选目标/取消后的结算动画实测约 8s 才落出 TARGETING（实机
+            # 20261121T140622 蜘術士可选效果），8s 窗口会在转场完成瞬间
+            # 误超时；给到 15s 仍是有界等待。
+            timeout = max(timeout, 15.0)
         if action.type is ActionType.PLAY_CARD and before.hand_expanded:
             card = next((card for card in before.hand if card.index == action.card_index), None)
             if card is not None and (card.visible_playable_unit

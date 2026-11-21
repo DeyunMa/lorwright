@@ -325,16 +325,69 @@ def test_idle_unit_crossing_attack_row_boundary_blocks_confirmation():
     assert not observed(before, after).ready(Action(ActionType.CONFIRM))
 
 
+def handoff_gate(before, after=None, kind=ActionType.END_TURN, decisions=None):
+    """交回优先权：两帧都要由决策选出同一交回动作。"""
+    gate = ActionReadiness()
+    first, second = decisions or (kind, kind)
+    gate.observe(before)
+    if first is not None:
+        gate.note_decision(Action(first))
+    gate.observe(after if after is not None else before)
+    if second is not None:
+        gate.note_decision(Action(second))
+    return gate
+
+
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
-@pytest.mark.parametrize("collection", ["hand", "my_units", "enemy_units", "enemy_attackers"])
-def test_handoff_waits_for_hand_and_board(kind, collection):
+def test_handoff_waits_for_hand(kind):
     before = state()
     before.hand.pop()  # 此例只检查已知手牌的移动。
-    before.enemy_attackers = list(before.enemy_units)
-    assert observed(before).ready(Action(kind))
+    assert handoff_gate(before, kind=kind).ready(Action(kind))
     after = deepcopy(before)
-    getattr(after, collection).clear()
-    assert not observed(before, after).ready(Action(kind))
+    after.hand.clear()
+    assert not handoff_gate(before, after, kind).ready(Action(kind))
+
+
+@pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
+@pytest.mark.parametrize("collection", ["my_units", "enemy_units", "enemy_attackers"])
+def test_handoff_ignores_flickering_board_lists(kind, collection):
+    """实机 20261121T085539：展开手牌遮挡+紫色屏障辉光下 my_units
+    逐帧 3→3→2→2→2 抖动（不同子集），整表位置证据永不稳定，
+    「略過」超时。交回优先权按固定按钮点击，不需要单位列表。"""
+    before = state()
+    before.hand.pop()
+    before.enemy_attackers = list(before.enemy_units)
+    before.my_units = [Unit("a", 2, 2, Rect(520, 900, 90, 100)),
+                       Unit("b", 1, 2, Rect(680, 900, 90, 100)),
+                       Unit("c", 2, 1, Rect(1330, 900, 90, 100))]
+    after = deepcopy(before)
+    if collection == "my_units":
+        del after.my_units[1]
+        after.my_units[0] = replace(after.my_units[0], rect=Rect(560, 900, 90, 100))
+    else:
+        getattr(after, collection).clear()
+    assert handoff_gate(before, after, kind).ready(Action(kind))
+
+
+@pytest.mark.parametrize("decisions", [
+    (ActionType.ATTACK, ActionType.END_TURN),
+    (ActionType.PLAY_CARD, ActionType.END_TURN),
+    (ActionType.NO_OP, ActionType.END_TURN),
+    (None, ActionType.END_TURN),
+])
+def test_handoff_requires_handoff_decided_on_both_frames(decisions):
+    """单位抖动让一帧的其他策略失去依据时，不能借这一帧交回优先权。"""
+    gate = handoff_gate(state(), decisions=decisions)
+    assert not gate.ready(Action(ActionType.END_TURN))
+
+
+def test_handoff_decision_is_not_carried_over_undecided_frames():
+    gate = handoff_gate(state())
+    assert gate.ready(Action(ActionType.END_TURN))
+    gate.observe(state())  # 本帧未决策（例如等待动作结果）
+    assert not gate.ready(Action(ActionType.END_TURN))
+    gate.note_decision(Action(ActionType.END_TURN))
+    assert gate.ready(Action(ActionType.END_TURN))
 
 
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
@@ -361,6 +414,7 @@ def test_real_handoff_frames_ignore_nonpositional_recognition_jitter(kind):
         parsed = engine.parser.parse(image)
         assert parsed.ui_state is UIState.MY_TURN_IDLE
         gate.observe(parsed)
+        gate.note_decision(Action(kind))
         states.append(parsed)
     assert len(states[0].hand) == len(states[1].hand) == 6
     assert [unit.health for unit in states[0].enemy_units] != [
@@ -406,12 +460,12 @@ def test_handoff_ignores_values_not_used_by_its_input(kind, change):
     else:
         after.enemy_units[0] = replace(after.enemy_units[0], attack=-1, health=-1,
                                        name="", keywords=frozenset({"Overwhelm"}))
-    assert observed(before, after).ready(Action(kind))
+    assert handoff_gate(before, after, kind).ready(Action(kind))
 
 
 @pytest.mark.parametrize("kind", [ActionType.END_TURN, ActionType.PASS])
 def test_stable_unknown_card_does_not_prevent_handoff(kind):
-    assert observed(state()).ready(Action(kind))
+    assert handoff_gate(state(), kind=kind).ready(Action(kind))
 
 
 @pytest.mark.parametrize("action", [PLAY, TARGET, ATTACK, BLOCK])
@@ -613,3 +667,53 @@ def test_attack_policy_skips_unstable_attackers():
     action = AttackWhenTokenPolicy().decide(state)
     assert action.type is ActionType.ATTACK
     assert action.raw["attackers"] == (1,)
+
+
+def test_enemy_target_ignores_glow_icon_jitter_on_chosen_unit():
+    """可选中紫色辉光下图标证据（可攻击/关键词/眩晕）逐帧抖动，
+    选敌只需所选单位跨帧同一（位置+名字/数值）。"""
+    before = state()
+    after = deepcopy(before)
+    after.enemy_units[0] = replace(after.enemy_units[0], can_attack=True,
+                                   keywords=frozenset({"Barrier"}), stunned=True)
+    after.my_units.append(Unit("flicker", 1, 1, Rect(900, 900, 90, 100)))
+    assert observed(before, after).ready(TARGET)
+    after.enemy_units[0] = replace(after.enemy_units[0], health=1)
+    assert not observed(before, after).ready(TARGET)
+
+
+def attack_declared():
+    s = state()
+    s.my_units = [Unit("lane", 2, 2, Rect(500, 600, 90, 100)),
+                  Unit("bench", 1, 2, Rect(700, 900, 90, 100)),
+                  Unit("bench2", 2, 1, Rect(900, 900, 90, 100))]
+    return s
+
+
+def test_attack_confirm_ignores_back_row_flicker():
+    before = attack_declared()
+    after = deepcopy(before)
+    del after.my_units[1]
+    after.my_units.append(Unit("hidden", 3, 3, Rect(1100, 900, 0, 0)))
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+def test_attack_confirm_tolerates_lane_unit_missing_one_frame():
+    before = attack_declared()
+    before.my_units.insert(1, Unit("lane2", 3, 1, Rect(700, 600, 90, 100)))
+    after = attack_declared()
+    assert observed(before, after).ready(Action(ActionType.CONFIRM))
+
+
+@pytest.mark.parametrize("change", ["new_lane_unit", "moved", "empty_lane"])
+def test_attack_confirm_waits_when_declared_lane_changes(change):
+    before = attack_declared()
+    after = deepcopy(before)
+    if change == "new_lane_unit":
+        after.my_units.append(Unit("late", 3, 1, Rect(900, 600, 90, 100)))
+    elif change == "moved":
+        # 后排单位真实走进攻击行：前一帧在后排、本帧在行内，同一身份。
+        after.my_units[1] = replace(after.my_units[1], rect=Rect(700, 600, 90, 100))
+    else:
+        after.my_units = after.my_units[1:]
+    assert not observed(before, after).ready(Action(ActionType.CONFIRM))

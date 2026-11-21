@@ -20,6 +20,9 @@ class ActionReadiness:
     def __init__(self) -> None:
         self._previous: GameState | None = None
         self._current: GameState | None = None
+        #: 每帧最终决策的动作类型；None 表示该帧未决策。
+        self._previous_decision: ActionType | None = None
+        self._current_decision: ActionType | None = None
 
     def observe(self, state: GameState | None) -> None:
         if state is None:
@@ -27,9 +30,16 @@ class ActionReadiness:
             return
         self._previous = self._current
         self._current = deepcopy(state)
+        self._previous_decision = self._current_decision
+        self._current_decision = None
+
+    def note_decision(self, action: Action) -> None:
+        """记录本帧（最近一次 observe）最终决策出的动作。"""
+        self._current_decision = action.type
 
     def reset(self) -> None:
         self._previous = self._current = None
+        self._previous_decision = self._current_decision = None
 
     def _stable_indices(self, units_of) -> frozenset[int]:
         """_current 里在 _previous 同位置同数值出现过的单位下标。"""
@@ -59,6 +69,14 @@ class ActionReadiness:
             return True
         if self._previous is None or self._current is None:
             return False
+        if action.type in _HANDOFF:
+            # 交回优先权是「各策略均无可执行动作」时的兜底，它的前提
+            # 是该结论本身跨两帧成立：单位列表抖动让某一帧的攻击/出牌
+            # 策略失去依据时，那一帧不能单独促成交回。决策稳定取代
+            # 原先「整表单位位置稳定」的代理证据。
+            if (self._previous_decision is not action.type
+                    or self._current_decision is not action.type):
+                return False
         # 选择具体单位的动作在紫色可选中/屏障辉光下整表证据永不
         # 稳定（my_units 逐帧增减）；这些动作只需要「所选单位跨两帧
         # 是同一个」，按目标身份比对，不要求整表稳定。
@@ -68,6 +86,9 @@ class ActionReadiness:
         before = _evidence(action, self._previous)
         after = _evidence(action, self._current)
         return before is not None and after is not None and _stable(before, after)
+
+
+_HANDOFF = (ActionType.END_TURN, ActionType.PASS)
 
 
 def _stable(before: object, after: object) -> bool:
@@ -110,6 +131,11 @@ def _identity_ready(
     if (kind is ActionType.CONFIRM and before.ui_state is UIState.BLOCKING
             and after.ui_state is UIState.BLOCKING):
         return _confirm_block_ready(before, after)
+    if (kind is ActionType.CONFIRM and before.ui_state is UIState.MY_TURN_IDLE
+            and after.ui_state is UIState.MY_TURN_IDLE
+            and not before.action_prompt and not after.action_prompt
+            and before.hand_expanded == after.hand_expanded):
+        return _confirm_attack_ready(before, after)
     return None
 
 
@@ -204,6 +230,25 @@ def _confirm_block_ready(before: GameState, after: GameState) -> bool:
                    for b in before_rest for a in after_rest)
 
 
+def _in_row(units: list[Unit]) -> list[Unit]:
+    return [u for u in units
+            if _rect(u.rect) is not None and u.rect.center[1] < ATTACK_ROW_MAX_Y]
+
+
+def _confirm_attack_ready(before: GameState, after: GameState) -> bool:
+    """MY_TURN_IDLE 下的 CONFIRM：确认的是当前已声明的攻击行。
+
+    只按位置核验：本帧攻击行内每个单位上一帧都在同一位置（数值在
+    辉光下可能读不出，不作证据）。后排单位（常被展开手牌遮挡、带
+    辉光抖动）不参与；上一帧行内单位本帧少读一帧也不改变已声明的
+    攻击，真实移动会在本帧出现未匹配的新位置而继续等待。
+    """
+    lane = _in_row(after.my_units)
+    seen = [u.rect for u in _in_row(before.my_units)]
+    return bool(lane) and all(
+        any(_stable(unit.rect, rect) for rect in seen) for unit in lane)
+
+
 def _rect(rect: Rect | None) -> Rect | None:
     return rect if rect is not None and rect.w > 0 and rect.h > 0 else None
 
@@ -223,6 +268,13 @@ def _unit(unit: Unit) -> tuple | None:
         return None
     return (unit.name, unit.attack, unit.health, unit.can_attack, unit.keywords,
             unit.stunned, unit.rect)
+
+
+def _unit_identity(unit: Unit) -> tuple | None:
+    """选中单位的身份证据：位置+名字/数值，不含辉光下抖动的图标。"""
+    if _rect(unit.rect) is None:
+        return None
+    return (unit.name, unit.attack, unit.health, unit.rect)
 
 
 def _spell(state: GameState) -> tuple | None:
@@ -273,7 +325,8 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
             index = raw.get("index", 0)
             if not _index(index, len(items)):
                 return None
-            selected = (_card(items[index]) if raw.get("hand") else _unit(items[index]))
+            selected = (_card(items[index]) if raw.get("hand")
+                        else _unit_identity(items[index]))
             detail = (key, selected) if selected is not None else None
     elif kind is ActionType.ATTACK:
         wanted = raw.get("attackers")
@@ -335,23 +388,19 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
             if not attackers or any(rect is None for rect in positions):
                 return None
             detail = (tuple(u.rect for u in state.my_units), tuple(u.rect for u in attackers))
-        elif state.ui_state is UIState.MY_TURN_IDLE:
-            if any(_rect(u.rect) is None for u in state.my_units):
-                return None
-            in_row = tuple(u.rect for u in state.my_units
-                           if u.rect.center[1] < ATTACK_ROW_MAX_Y)
-            detail = (in_row,) if in_row else None
         else:
+            # MY_TURN_IDLE 无提示的攻击确认由 _confirm_attack_ready 按身份核验。
             detail = None
-    elif kind in (ActionType.END_TURN, ActionType.PASS):
-        # 交回优先权不使用卡名、费用或单位数值；路由器逐帧重新判断可执行动作。
-        # 仍等待手牌与场面的位置/数量稳定，不在布局变化时点击固定按钮。
-        positions = tuple(tuple(_rect(item.rect) for item in collection) for collection in (
-            state.hand, state.my_units, state.enemy_units, state.enemy_attackers,
-        ))
-        if any(rect is None for collection in positions for rect in collection):
+    elif kind in _HANDOFF:
+        # 交回优先权点固定按钮，不使用卡名、费用或单位数值，也不使用
+        # 单位列表：展开手牌遮挡后排、紫色辉光让 my_units/enemy_units
+        # 逐帧增减，整表证据永不稳定（实机 20261121T085539）。「没有
+        # 其他可执行动作」由 ready() 要求两帧都决策为交回来保证；这里
+        # 只等手牌布局与攻击令牌稳定，不在抽牌/出牌动画中点按钮。
+        positions = tuple(_rect(card.rect) for card in state.hand)
+        if any(rect is None for rect in positions):
             return None
-        detail = (*positions, state.hand_empty_confirmed, state.has_attack_token)
+        detail = (positions, state.hand_empty_confirmed, state.has_attack_token)
     elif kind is ActionType.CONTINUE:
         detail = _rect(state.continue_button)
     elif kind is ActionType.CANCEL:

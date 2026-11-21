@@ -465,6 +465,8 @@ class Engine:
                 )
                 report("decided", **self._observation,
                        decision_ms=round((time.time() - decision_at) * 1000))
+                # 交回优先权要求连续两帧都决策为交回，就绪门禁据此判断。
+                self._readiness.note_decision(result.action)
                 missing = self._missing_action_evidence(result.action, state)
                 if manual_empty and result.action.type is not ActionType.ATTACK:
                     missing.append("manual_attack")

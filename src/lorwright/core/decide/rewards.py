@@ -103,10 +103,11 @@ def pick_card_reward(
     if hit:
         return CardRewardPick(hit[0], f"英雄偏好 {hit[1].names[0]}：{hit[1].note}")
 
-    if any(c.card.quality not in QUALITY_RANK for c in candidates):
-        return None
-    highest = max(QUALITY_RANK[c.card.quality] for c in candidates)
-    best = [c for c in candidates if QUALITY_RANK[c.card.quality] == highest]
+    # 徽记读不出的 quality="unknown" 按最低档参与排序，不弃权；
+    # 已核验品质（含"unranked"无品质）仍高于未知。
+    highest = max(QUALITY_RANK.get(c.card.quality, -1) for c in candidates)
+    best = [c for c in candidates
+            if QUALITY_RANK.get(c.card.quality, -1) == highest]
     # 只有最高品质并列时费用才影响选择。附带道具可能改变费用。
     if len(best) > 1 and any(
         c.card.cost is None

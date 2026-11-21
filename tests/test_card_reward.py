@@ -443,6 +443,19 @@ def test_ten_cost_reward_rejects_missing_independent_evidence(region):
     assert recognize_card_rewards(image) is None
 
 
+def test_tied_one_cost_reward_prefers_verified_quality():
+    # 两侧徽记读不出（quality=unknown）：不再弃权，选已核验的 common。
+    image = _image("f1-card-reward-tied-ones-20261121.png")
+    assert is_card_reward_screen(image)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [1, 1, 1]
+    assert [c.card.quality for c in candidates] == ["unknown", "common", "unknown"]
+    pick = pick_card_reward(candidates)
+    assert pick is not None and pick.candidate is candidates[1]
+    assert card_reward_target(image, 1, "") is not None
+
+
 def test_weekly_reward_frame_on_bright_map_fog():
     image = _image("f1-weekly-third-reward-20261116.png")
     assert card_reward_selection(image) == -1
@@ -544,7 +557,8 @@ def test_reward_quality_then_cost_and_unknowns():
     expensive = _candidate("稀有贵", "rare", 5)
     cheap = _candidate("稀有便宜", "rare", 2)
     assert pick_card_reward([low, expensive, cheap]).candidate == cheap
-    assert pick_card_reward([low, _candidate("未知", "unknown", 0)]) is None
+    # unknown 按最低档参与排序（低于 unranked），不弃权。
+    assert pick_card_reward([low, _candidate("未知", "unknown", 0)]).candidate == low
     assert pick_card_reward([cheap, _candidate("费用变动", "rare", 1, cost_certain=False)]) is None
     assert pick_card_reward([low, _candidate("无品质", "unranked", 0)]).candidate == low
 
@@ -602,8 +616,8 @@ def test_weekly_real_reward_page_and_unknown_candidates():
     assert all(c.item_name == "" and not c.cost_certain and c.preview_cost_verified
                for c in candidates)
     assert pick_jinx_card_reward(candidates).candidate is candidates[0]
-    # 通用品质优先规则仍不能把缺失徽记当成普通或无品质。
-    assert pick_card_reward(candidates) is None
+    # 通用规则中缺失徽记按最低档排序，已核验 rare 仍胜出。
+    assert pick_card_reward(candidates).candidate is candidates[0]
     assert all(card_reward_target(image, i, "") is not None for i in range(3))
 
 

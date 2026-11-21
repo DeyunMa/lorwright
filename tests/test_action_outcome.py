@@ -388,15 +388,30 @@ def test_play_drag_unacknowledged_reroutes_before_deadline():
     assert outcome.reason == "play_unacknowledged"
 
 
-def test_play_unacknowledged_requires_pixel_identical_state():
+def test_play_unacknowledged_ignores_idle_hand_collapse():
+    # LoR 手牌闲置数秒会自动收起；收起与出牌结果无关，仍判被吞重路由
+    # （实机 20261121T140029 与严格判等同病）。
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20,
+                            unacknowledged_deadline=10)
+    collapsed = replace(before, hand_expanded=False)
+    outcome = pending.observe(collapsed, 11)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "play_unacknowledged"
+
+
+def test_play_unacknowledged_requires_no_relevant_change():
     before = state()
     pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20,
                             unacknowledged_deadline=10)
     changed = replace(before, hand=before.hand[:1])
     # 手牌有变化时不是「没发生」，沿用原等待/核验路径。
     assert pending.observe(changed, 11).status is OutcomeStatus.WAITING
-    collapsed = replace(before, hand_expanded=False)
-    assert pending.observe(collapsed, 11).status is OutcomeStatus.WAITING
+    paid = replace(before, mana=2)
+    assert pending.observe(paid, 11).status is OutcomeStatus.WAITING
+    # 单位上场是出牌成功的证据，走原有核验而不是「未确认」。
+    landed = replace(before, hand=before.hand[:1], my_units=units(900))
+    assert pending.observe(landed, 11).status is OutcomeStatus.SUCCEEDED
 
 
 def test_play_unacknowledged_without_deadline_keeps_waiting():

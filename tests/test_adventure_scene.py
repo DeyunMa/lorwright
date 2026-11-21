@@ -211,6 +211,33 @@ def test_weekly_slot_targets_orders_incomplete_clock_list():
     assert left.target.x < top.target.x < right.target.x
 
 
+def test_weekly_slot_targets_recognizes_zoomed_dim_clock_variant():
+    # f1 实机停帧：相机拉近后顶部时钟为更暗渲染变体，原模板只有 0.852。
+    image = _image("screens/f1-weekly-list-zoomed-20261121.png")
+    assert is_weekly_list(image)
+    slots = weekly_slot_targets(image)
+    assert slots is not None and not any(slot.completed for slot in slots)
+    top, left, right = slots
+    assert top.target.y < min(left.target.y, right.target.y)
+    assert left.target.x < top.target.x < right.target.x
+    # 顶部关卡肖像在时钟正下方的菱形内。
+    assert 840 <= top.target.center[0] <= 930 and 290 <= top.target.center[1] <= 380
+
+
+@pytest.mark.parametrize(("name", "targets"), [
+    ("weekly-list-20261115.png",
+     ((915, 168, 60, 50), (691, 531, 60, 50), (1236, 508, 60, 50))),
+    ("f1-weekly-list-incomplete-20261121.png",
+     ((906, 168, 60, 50), (677, 534, 60, 50), (1227, 510, 60, 50))),
+])
+def test_weekly_slot_targets_unchanged_on_existing_lists(name, targets):
+    slots = weekly_slot_targets(_image(f"screens/{name}"))
+    assert slots is not None
+    assert [(slot.target.x, slot.target.y, slot.target.w, slot.target.h)
+            for slot in slots] == list(targets)
+    assert not any(slot.completed for slot in slots)
+
+
 def test_weekly_slot_targets_marks_completed_and_matches_legacy_targets():
     image = _image("screens/weekly-one-remaining.png")
     marker = image[637:717, 665:745].copy()

@@ -418,28 +418,46 @@ def find_weekly_entry(image: np.ndarray) -> Rect | None:
 
 
 def _weekly_markers(image: np.ndarray, name: str) -> list[Rect]:
-    template = _template("weekly_completed_check" if name == "weekly_completed" else name)
-    if template is None or not _world_controls(image):
+    primary = _template("weekly_completed_check" if name == "weekly_completed" else name)
+    if primary is None or not _world_controls(image):
         return []
+    # (模板, 亮像素 10 分位下限)。亮度和得分要求每个变体独立适用。
+    variants: list[tuple[np.ndarray, float]] = [(primary, 150)]
+    if name == "weekly_clock":
+        dim = _template("weekly_clock_dim")
+        if dim is not None:
+            # 相机拉近后顶部时钟是更暗的渲染变体（20261121T110207 停帧
+            # 0.852<0.88）；按该模板在原亮字形位置的暗度放宽下限。
+            variants.append((dim, float(np.percentile(dim[primary >= 170], 10)) - 12))
     if name == "weekly_completed":
         # 仅核验绿色勾字形，关卡肖像不是完成标记的一部分。
         gray = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                            (35, 80, 110), (90, 255, 255))
     else:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
-    h, w = template.shape
+    candidates = []
+    for template, floor in variants:
+        scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+        h, w = template.shape
+        for _ in range(5):
+            _, score, _, (x, y) = cv2.minMaxLoc(scores)
+            if score < 0.88:
+                break
+            bright = template >= 170
+            patch = gray[y:y + h, x:x + w]
+            if not bright.any() or np.percentile(patch[bright], 10) < floor:
+                return []
+            candidates.append((score, Rect(x, y, w, h)))
+            scores[max(0, y - h):y + h, max(0, x - w):x + w] = -1
+    # 同一徽记可被多个模板命中：主模板优先，变体只补充未命中的位置。
     hits = []
-    for _ in range(5):
-        _, score, _, (x, y) = cv2.minMaxLoc(scores)
-        if score < 0.88:
+    for _, rect in candidates:
+        if any(abs(rect.x - kept.x) < rect.w and abs(rect.y - kept.y) < rect.h
+               for kept in hits):
+            continue
+        hits.append(rect)
+        if len(hits) >= 5:
             break
-        bright = template >= 170
-        patch = gray[y:y + h, x:x + w]
-        if not bright.any() or np.percentile(patch[bright], 10) < 150:
-            return []
-        hits.append(Rect(x, y, w, h))
-        scores[max(0, y - h):y + h, max(0, x - w):x + w] = -1
     return sorted(hits, key=lambda hit: (hit.y, hit.x))
 
 

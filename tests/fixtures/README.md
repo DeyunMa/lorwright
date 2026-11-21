@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`screens/f1-required-choice-spells-20261121.png` 来自会话 `20261121T113114-0cdc4769acbf`（champion elise）的 `unknown_target` 停止原始 PNG，完整 1920×1080，已查看无账号。闇影島泰爾石生成的**法术**强制三选一（闇影島印記 1／靈魂之旅 5／同命 4），动作按钮「選擇目標」、无「略過」，与 `f1-required-choice-20261121.png` 同布局但棋盘背景为棕色：收起控件原模板 0.890<0.90。新增 `assets/ui/optional_choice_collapse_bg2.png`（取该帧 `[260:326,208:274]`）作为背景变体；收起控件本身是常驻收牌按钮，已从可选界面的部分证据中移除。
+
 `screens/f1-weekly-list-panned-after-detail-20261121.png` 来自会话 `20261121T112029-967fc705b761` 的 `weekly_detail_close_unverified`（现名 `weekly_view_reset_unverified`）停止原始 PNG，完整 1920×1080，仅英雄名「伊莉絲」。详情页点返回后相机停在左侧：周常只露出上方 (373,266) 与右下 (601,679) 两个时钟，左下槽位出屏，无入口、非列表。新增 `partial_weekly_view` 识别此种部分视图并再次点击返回复位。
 
 `screens/f1-weekly-detail-open-on-resume-20261121.png` 来自 `logs/f1-pulls/live-20261121-061529.png`（会话 `20261121T110807-e79597def5fb` 停在周常详情页后的实拍帧），完整 1920×1080，仅英雄名「伊莉絲」。会话在详情页打开时启动会命中 `weekly_detail_without_selection`：页面「暗影傳送門」 2★ 带「重玩冒險」，左侧列表可见、上方槽位高亮。新增 `world_back_button` 识别左上返回键，首次恢复时返回列表继续正常选择。

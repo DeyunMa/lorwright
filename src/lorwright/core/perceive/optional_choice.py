@@ -36,7 +36,10 @@ def _controls(image: np.ndarray) -> tuple[bool, bool, list[bool]] | None:
         return None
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     skip = _visible(gray, "skip", (1685, 505, 125, 80))
-    collapse = _visible(gray, "collapse", (195, 245, 95, 100))
+    # 收起控件本体固定，但模板含棋盘背景；bg2 覆盖棕色棋盘变体
+    # （20261121T113114 停帧 0.890<0.90）。
+    collapse = (_visible(gray, "collapse", (195, 245, 95, 100))
+                or _visible(gray, "collapse_bg2", (195, 245, 95, 100)))
     costs = [_visible(gray, "cost_edge", (x, 325, 70, 80), 0.85)
              for x in (490, 810, 1130)]
     return skip, collapse, costs
@@ -64,6 +67,7 @@ def optional_choice_state(image: np.ndarray) -> UIState | None:
     if skip and collapse and all(costs):
         return UIState.OPTIONAL_CHOICE
     # 两列已构成部分选择布局；单个费用框也可能出现在普通战斗中。
-    if skip or collapse or sum(costs) >= 2:
+    # 收起控件是普通战斗界面也常驻的收牌按钮，单独不算选择证据。
+    if skip or sum(costs) >= 2:
         return UIState.UNKNOWN
     return None

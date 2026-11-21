@@ -25,6 +25,13 @@ def _image():
     return image
 
 
+def _spells_image():
+    image = cv2.imread(
+        str(fixtures_root() / "screens/f1-required-choice-spells-20261121.png"))
+    assert image is not None
+    return image
+
+
 def _detector():
     layout = load_settings().layout.to_layout()
     detector = UIStateDetector(action_button=layout.end_turn)
@@ -65,6 +72,30 @@ def test_required_choice_does_not_reclassify_existing_frames(name, expected):
     image = cv2.imread(str(fixtures_root() / f"screens/{name}"))
     assert image is not None
     assert _detector().detect(image) is expected
+
+
+def test_spell_candidates_on_other_board_detect_required_choice():
+    # 同一强制三选一布局在棕色棋盘上：收起控件为背景变体。
+    image = _spells_image()
+    assert _detector().detect(image) is UIState.REQUIRED_CHOICE
+    assert _parse(image).ui_state is UIState.REQUIRED_CHOICE
+
+
+def test_spells_frame_masked_target_prompt_keeps_unknown():
+    image = _spells_image()
+    _mask_action_prompt(image)
+    assert _detector().detect(image) is UIState.UNKNOWN
+
+
+@pytest.mark.parametrize("area", [
+    (195, 245, 95, 100),  # 选择区收起控件
+    (810, 325, 70, 80),   # 中间费用框
+])
+def test_spells_frame_missing_control_does_not_yield_required(area):
+    image = _spells_image()
+    x, y, w, h = area
+    image[y:y + h, x:x + w] = 0
+    assert _detector().detect(image) is not UIState.REQUIRED_CHOICE
 
 
 def test_masked_target_prompt_keeps_unknown():

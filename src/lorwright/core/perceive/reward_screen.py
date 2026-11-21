@@ -602,7 +602,19 @@ def _card_cost(image: np.ndarray, x: int) -> int | None:
             or any(not 20 <= glyph.rect.h <= 30 for glyph in glyphs)):
         return None
     hit = _reward_digits().classify_sequence([glyph.image for glyph in glyphs])
-    return hit[0] if hit else None
+    if hit is not None:
+        return hit[0]
+    # 闪卡徽记带镀层色调，清晰字形可能只到 0.91；与弃牌费用同一
+    # 领先幅度判据（≥0.80 且领先第二名 ≥0.15）只接受不拒绝。
+    reader = _reward_digits()
+    value = ""
+    for glyph in glyphs:
+        ranked = reader.rank(glyph.image)
+        if (not ranked or not 0 <= ranked[0][0] <= 9 or ranked[0][1] < 0.80
+                or ranked[0][1] - (ranked[1][1] if len(ranked) > 1 else -1.0) < 0.15):
+            return None
+        value += str(ranked[0][0])
+    return int(value)
 
 
 def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
@@ -610,7 +622,7 @@ def _reward_frame_visible(image: np.ndarray, x: int) -> bool:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if max(_visible_match(gray, name, (x - 3, 228, x + 30, 255)) for name in (
         "card_reward_frame_corner", "card_reward_frame_corner_fog", "card_reward_frame_corner_home",
-        "card_reward_frame_corner_cloud",
+        "card_reward_frame_corner_cloud", "card_reward_frame_corner_bonus",
     )) < 0.75:
         return False
     return all(float((gray[300:780, x + offset:x + offset + 5] < 8).mean()) < 0.01

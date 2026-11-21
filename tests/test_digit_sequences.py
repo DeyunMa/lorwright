@@ -84,24 +84,29 @@ def test_reward_ten_reads_original_size_real_glyphs():
     assert _card_cost(image, 769) == 10
 
 
-@pytest.mark.parametrize("damage", ["remnant", "joined", "narrow_resample"])
+@pytest.mark.parametrize("damage", ["remnant", "joined"])
 def test_reward_ten_with_partial_or_low_score_digit_stays_unknown(damage):
     image = np.zeros((1080, 1920, 3), np.uint8)
     _put_ten(image, (861, 292), reward=True)
     if damage == "remnant":
         image[280:298, 845:856] = 0
-    elif damage == "joined":
-        image[292, 850:867] = 255
     else:
-        image[:] = 0
-        for filename, width, left in (
-            ("1-f1-20261117.png", 7, 851),
-            ("0-weekly-second-20261116.png", 12, 861),
-        ):
-            glyph = cv2.imread(str(ROOT / "assets/adventure/reward_digits" / filename),
-                               cv2.IMREAD_GRAYSCALE)
-            image[280:304, left:left + width] = cv2.resize(glyph, (width, 24))[:, :, None]
+        image[292, 850:867] = 255
     assert _card_cost(image, 769) is None
+
+
+def test_reward_cost_accepts_unambiguous_subthreshold_glyph_by_margin():
+    """重采样但仍清晰占优的字形（0.91 对第二名 0.42）按领先幅度读出，
+    与弃牌费用同一判据；镀层徽记的真帧见 test_card_reward。"""
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    for filename, width, left in (
+        ("1-f1-20261117.png", 7, 851),
+        ("0-weekly-second-20261116.png", 12, 861),
+    ):
+        glyph = cv2.imread(str(ROOT / "assets/adventure/reward_digits" / filename),
+                           cv2.IMREAD_GRAYSCALE)
+        image[280:304, left:left + width] = cv2.resize(glyph, (width, 24))[:, :, None]
+    assert _card_cost(image, 769) == 10
 
 
 def test_discard_ten_keeps_both_digits_in_public_candidates():

@@ -648,3 +648,38 @@ def test_weekly_synthetic_selection_is_unique_and_keeps_choice_identity():
     assert card_reward_selection(selected) is None
     assert card_reward_confirm_button(selected) is None
     assert not same_card_reward_choices(image, selected, 1)
+
+
+def _bonus_reward(name):
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image(name)
+    return image
+
+
+def test_bonus_reward_with_map_art_corner_recognizes_candidates():
+    """20261121T022550 停止帧（附赠 +14生命值）：槽0 外框角下是地图红岩，
+    旧四个角模板最高 0.478 < 0.75 致 selection None。"""
+    image = _bonus_reward("f1-bonus-hp-20261121.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert [c.card.cost for c in candidates] == [2, 6, 3]
+    assert [c.card.quality for c in candidates] == ["common", "epic", "common"]
+    assert all(c.kind is CardKind.UNIT for c in candidates)
+    assert pick_jinx_card_reward(candidates).candidate is candidates[0]
+    # 遮住槽0 外框角后所有角模板都不匹配，仍不能当作未选中。
+    masked = image.copy()
+    masked[228:255, 351:384] = 0
+    assert card_reward_selection(masked) is None
+
+
+def test_bonus_reward_foil_badge_cost_reads_by_margin():
+    """20261120T101930 停止帧（附赠 金幣+100）：槽3 镀层费用徽记的清晰「6」
+    只得 0.909 < 0.92；领先第二名 0.35，按领先幅度读出。"""
+    image = _bonus_reward("f1-bonus-gold-20261120.png")
+    assert card_reward_selection(image) == -1
+    candidates = recognize_card_rewards(image)
+    assert [c.card.cost for c in candidates] == [3, 5, 6]
+    assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.UNIT, CardKind.SPELL]
+    assert pick_jinx_card_reward(candidates).candidate is candidates[1]

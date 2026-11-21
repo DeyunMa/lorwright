@@ -17,6 +17,7 @@ from lorwright.core.perceive.adventure_scene import (
     is_map,
     is_weekly_list,
     recognize_weekly_adventures,
+    selected_world_hero_matches,
     weekly_detail_stars,
     weekly_slot_targets,
 )
@@ -144,7 +145,9 @@ def test_resume_adventure_elise_synthetic_local_artwork(damage):
         image[885:1020, 65:240] = 0
     assert find_resume_adventure_button(image) is not None
     assert can_resume_adventure(image, pack) is (damage == "none")
-    assert not can_resume_adventure(image, load("jinx"))
+    # 铭牌名字未被遮时写的是「吉茵珂絲」，名字模板即判 Jinx 匹配。
+    assert can_resume_adventure(image, load("jinx")) is (
+        damage not in ("nameplate", "partial-name"))
 
 
 def test_resume_adventure_does_not_recognize_home_or_map():
@@ -209,6 +212,36 @@ def test_weekly_slot_targets_orders_incomplete_clock_list():
     assert not any(slot.completed for slot in slots)
     assert top.target.y < min(left.target.y, right.target.y)
     assert left.target.x < top.target.x < right.target.x
+
+
+def test_weekly_detail_replay_button_after_clock_slot_selection():
+    # 时钟槽位进入的详情仍可显示「重玩冒險」（该槽本周已由其他英雄完成）。
+    image = _image("screens/f1-weekly-detail-replay-from-clock-20261121.png")
+    assert weekly_detail_stars(image) == 2.0
+    assert find_weekly_start(image, replay=True) is not None
+    assert find_weekly_start(image) is None
+
+
+@pytest.mark.parametrize("name", [
+    "f1-weekly-detail-replay-from-clock-20261121.png",
+    "f1-weekly-list-zoomed-20261121.png",
+    "f1-weekly-list-incomplete-20261121.png",
+])
+def test_nameplate_name_recognizes_elise_not_jinx(name):
+    image = _image(f"screens/{name}")
+    assert selected_world_hero_matches(image, load("elise"))
+    assert not selected_world_hero_matches(image, load("jinx"))
+
+
+@pytest.mark.parametrize("name", [
+    "weekly-detail-20261115.png", "weekly-two-detail-20261116.png",
+    "weekly-list-20261115.png", "weekly-one-remaining.png",
+    "weekly-two-remaining-20261116.png", "world-weekly-20261115.png",
+])
+def test_nameplate_name_rejects_elise_on_jinx_frames(name):
+    image = _image(f"screens/{name}")
+    assert not selected_world_hero_matches(image, load("elise"))
+    assert selected_world_hero_matches(image, load("jinx"))
 
 
 def test_weekly_slot_targets_recognizes_zoomed_dim_clock_variant():

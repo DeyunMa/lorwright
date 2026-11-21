@@ -249,13 +249,40 @@ def can_resume_adventure(image: np.ndarray, pack) -> bool:
     return find_resume_adventure_button(image) is not None and selected_world_hero_matches(image, pack)
 
 
+@cache
+def _nameplate_name_template(path: Path) -> np.ndarray | None:
+    if not path.is_file():
+        return None
+    return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+
+
+def _nameplate_name_matches(gray: np.ndarray, pack) -> bool:
+    """铭牌上的英雄名字模板匹配；实测同英雄 1.0、跨英雄 ≤0.62。"""
+    name_path = getattr(pack, "world_nameplate_name", None)
+    if name_path is None:
+        return False
+    template = _nameplate_name_template(name_path)
+    if template is None:
+        return False
+    region = gray[930:1015, 300:560]
+    h, w = template.shape
+    if region.shape[0] < h or region.shape[1] < w:
+        return False
+    return float(cv2.matchTemplate(
+        region, template, cv2.TM_CCOEFF_NORMED).max()) >= 0.9
+
+
 def selected_world_hero_matches(image: np.ndarray, pack) -> bool:
     """世界地图左下角的英雄铭牌和插画必须与英雄包匹配。"""
-    art = getattr(pack, "hero_item_art", None)
-    if art is None or image.shape != (1080, 1920, 3):
+    if image.shape != (1080, 1920, 3):
         return False
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if not _resume_nameplate_visible(gray):
+        return False
+    if _nameplate_name_matches(gray, pack):
+        return True
+    art = getattr(pack, "hero_item_art", None)
+    if art is None:
         return False
     reference = _resume_art_reference(art)
     if reference is None:

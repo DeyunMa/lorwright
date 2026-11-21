@@ -20,6 +20,7 @@ from lorwright.core.perceive.mulligan import MULLIGAN_REPLACE_POINTS
 
 _ASSETS = Path(__file__).parent / "assets"
 HERO_ITEM_ART = _ASSETS / "01PZ040.png"
+WORLD_NAMEPLATE_NAME = _ASSETS / "world_nameplate_name.png"
 _RATIO = 0.75
 _MIN_GOOD = 60
 _MIN_MARGIN = 20

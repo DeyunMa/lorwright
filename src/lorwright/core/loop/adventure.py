@@ -208,7 +208,6 @@ class AdventureLoop:
         last_continue_view = None
         pending_image = None
         selected_weekly_stars = None
-        selected_weekly_replay = False
         replay_slot = self.weekly_replay_slot
         if replay_slot is not None:
             self._details["weekly_replay_slot"] = replay_slot
@@ -450,7 +449,6 @@ class AdventureLoop:
                     if slots is not None:
                         slot = slots[replay_slot - 1]
                         target = slot.target
-                        selected_weekly_replay = slot.completed
                         report("decided", "weekly_replay_target",
                                completed=slot.completed, **self._details)
                 else:
@@ -473,14 +471,22 @@ class AdventureLoop:
                         if after_design is None:
                             continue
                         stars = weekly_detail_stars(after_design[0])
+                        if replay_slot is not None:
+                            # 列表徽记只定位槽位；已完成槽位也可能显示时钟，
+                            # 以详情页实际出现的按钮为准。
+                            start_replay = find_weekly_start(after_design[0], replay=True)
+                            start = start_replay or find_weekly_start(after_design[0])
+                        else:
+                            start_replay = None
+                            start = find_weekly_start(after_design[0])
                         if (stars is not None
                                 and (replay_slot is not None or stars == expected_stars)
-                                and find_weekly_start(after_design[0], replay=selected_weekly_replay)
-                                is not None):
+                                and start is not None):
                             selected_weekly_stars = stars
                             pending_image = after
                             report("verified", "weekly_selected", progress=True,
-                                   stars=stars, **self._details)
+                                   stars=stars, replay=start_replay is not None,
+                                   **self._details)
                             break
                     else:
                         self._snapshot(after, tag="weekly_selection_unverified")
@@ -498,7 +504,11 @@ class AdventureLoop:
                     if selected_weekly_stars is None:
                         self._snapshot(image, tag="weekly_detail_without_selection")
                         return
-                    start = find_weekly_start(design_image, replay=selected_weekly_replay)
+                    if replay_slot is not None:
+                        start = (find_weekly_start(design_image, replay=True)
+                                 or find_weekly_start(design_image))
+                    else:
+                        start = find_weekly_start(design_image)
                     if detail_stars != selected_weekly_stars or start is None:
                         self._snapshot(image, tag="weekly_selection_unverified")
                         return
@@ -516,7 +526,6 @@ class AdventureLoop:
                     if pending_image is None:
                         return
                     selected_weekly_stars = None
-                    selected_weekly_replay = False
                     replay_slot = None
                     continue
                 entry = find_home_adventure_entry(design_image)

@@ -1618,7 +1618,8 @@ def test_resume_adventure_does_not_merge_evidence_across_frames(adventure):
     image = cv2.imread(str(FIXTURES.parent / "screens/f1-adventure-resume-20261114.png"))
     assert image is not None
     button_only = image.copy()
-    button_only[885:1020, 65:240] = 0
+    # 抹掉整块铭牌：名字模板与插画都不可核验，只剩按钮证据。
+    button_only[835:1070, 45:500] = 0
     hero_only = image.copy()
     hero_only[965:1000, 1535:1560] = 0
     loop, device, _, saved, _ = adventure([button_only, hero_only], [UIState.UNKNOWN])
@@ -3068,26 +3069,41 @@ def test_weekly_replay_requires_new_detail_and_matching_hero(
         assert saved == [reason]
 
 
-def test_weekly_replay_slot_on_incomplete_clock_starts_detail(adventure, monkeypatch):
+def test_weekly_replay_slot_on_incomplete_clock_starts_detail(adventure):
     listing = _weekly("f1-weekly-list-incomplete-20261121.png")
     detail = _weekly("weekly-detail-20261115.png")
     after = _weekly("weekly-after-start-20261115.png")
     loop, device, _, saved, _ = adventure([listing, detail, after], [])
     loop.weekly_replay_slot = 1
-    monkeypatch.setattr("lorwright.core.loop.adventure.selected_world_hero_matches",
-                        lambda image, pack: True)
+    # 该详情帧铭牌为「吉茵珂絲」，用真实 Jinx 包让英雄核验走真模板。
+    loop.pack = load("jinx")
     assert loop.run(max_nodes=2).reason == "iteration_limit"
     assert device.taps == [weekly_slot_targets(listing)[0].target.center, (1577, 981)]
     assert saved == []
 
 
-def test_weekly_replay_slot_on_incomplete_clock_rejects_replay_detail(adventure, monkeypatch):
+def test_weekly_replay_slot_on_incomplete_clock_accepts_replay_detail(adventure):
+    # 时钟槽位的详情可能显示「重玩冒險」（槽位本周已由其他英雄完成），
+    # 以详情页按钮为准，照常核验英雄后开始；详情铭牌为「伊莉絲」，
+    # 默认 elise 包走真实名字模板核验。
+    listing = _weekly("f1-weekly-list-incomplete-20261121.png")
+    detail = _weekly("f1-weekly-detail-replay-from-clock-20261121.png")
+    after = _weekly("weekly-after-start-20261115.png")
+    loop, device, _, saved, _ = adventure([listing, detail, after], [])
+    loop.weekly_replay_slot = 1
+    assert loop.run(max_nodes=2).reason == "iteration_limit"
+    assert device.taps == [weekly_slot_targets(listing)[0].target.center, (1577, 981)]
+    assert saved == []
+
+
+def test_weekly_replay_slot_on_incomplete_clock_rejects_detail_without_button(
+        adventure, monkeypatch):
     listing = _weekly("f1-weekly-list-incomplete-20261121.png")
     detail = _weekly("weekly-detail-20261115.png")
     loop, device, _, saved, _ = adventure([listing] + [detail] * 6, [])
     loop.weekly_replay_slot = 1
     monkeypatch.setattr("lorwright.core.loop.adventure.find_weekly_start",
-                        lambda image, *, replay: Rect(1398, 947, 358, 68) if replay else None)
+                        lambda image, *, replay=False: None)
     loop.run(max_nodes=3)
     assert len(device.taps) == 1
     assert saved == ["weekly_selection_unverified"]

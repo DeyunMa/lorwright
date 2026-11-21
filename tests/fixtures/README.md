@@ -17,6 +17,8 @@
 | `screens/720p_*.png` | 1280×720 | 旧 720p 时代留档，**现已不使用**（设计尺寸已升 1080p） |
 | `cases/historical.json` | — | 屏幕案例的坐标标注（JSON，非图片） |
 
+`screens/f1-weekly-detail-replay-from-clock-20261121.png` 来自会话 `20261121T110807-e79597def5fb`（champion elise，`--weekly-replay-slot 1`）的 `weekly_selection_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号（仅英雄名「伊莉絲」）。点击列表时钟槽位（completed=False）后进入的周常详情「暗影傳送門」 2★ 却显示「重玩冒險」——该槽位本周已由其他英雄完成，列表对 Elise 仍显示时钟。新语义下徽记只定位槽位，详情页出现「重玩冒險」或「開始冒險」均接受。
+
 `screens/f1-weekly-list-zoomed-20261121.png` 来自会话 `20261121T110207-a3f37769f215`（champion elise，`--weekly-replay-slot 1`）的 `unknown_scene` 停止原始 PNG，完整 1920×1080，已查看无账号（仅英雄名「伊莉絲」）。周常列表静置后相机拉近：三个时钟仍为 30×32 像素但位置更分散（顶部 878,262），顶部时钟是更暗的渲染变体，模板得分 0.852<0.88、亮像素 10 分位 131<150，旧逻辑只识别 2 个标记、列表不成立。新增 `assets/adventure/weekly_clock_dim.png`（取该帧 `[262:294,878:908]`）作为第二模板，亮度下限按该模板暗度放宽至 ~119。
 
 `screens/f1-weekly-list-incomplete-20261121.png` 来自会话 `20261121T105431-2c5d59816530`（champion elise，`--weekly-replay-slot 1`）的 `weekly_replay_list_unverified` 停止原始 PNG，完整 1920×1080，已查看无账号（仅英雄名「伊莉絲」）。周常列表三关全部为未完成时钟（上方 2★、左下 2★、右下 1.5★），无完成勾；旧语义只认三关全完成列表，直接弃权停止。新语义下 `--weekly-replay-slot` 对时钟关点击肖像并要求详情为「開始冒險」。

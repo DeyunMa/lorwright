@@ -1611,6 +1611,23 @@ def test_item_chest_identity_does_not_match_other_nodes():
     assert item_chest_leave_button(_item_chest_panel()[:540, :960]) is None
 
 
+def test_spell_chest_panel_leaves_and_verifies_map(adventure):
+    """20261121T014806 停止帧：法術寶箱与道具宝箱同布局同策略（离开）。"""
+    from lorwright.core.perceive.adventure_scene import item_chest_leave_button
+
+    image = _img("f1-spell-chest-panel-20261121.png")
+    rect = item_chest_leave_button(image)
+    assert rect is not None and rect.center == (691, 949)
+    masked = image.copy()
+    masked[345:430, 545:805] = 0
+    assert item_chest_leave_button(masked) is None
+    stable = _img("1080p_jinx_map.png")
+    loop, device, _, saved, _ = adventure([image, stable], [])
+    assert loop._handle_node_panel(image)
+    assert device.taps == [rect.center]
+    assert saved == []
+
+
 def _remaining_shop():
     image = _blank()
     image[340:1060, 530:975] = _img("f1-shop-20261118.png")

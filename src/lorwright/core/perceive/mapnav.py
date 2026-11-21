@@ -480,20 +480,61 @@ def current_unfinished_node(
     """
     if hero is None or image.shape != (1080, 1920, 3) or panel_open(image):
         return None
-    current = _navigation_origin(image, hero[:2], _navigation_candidates(image))
+    candidates = _navigation_candidates(image)
+    current = _navigation_origin(image, hero[:2], candidates)
     if current is not None and current.shape == "diamond":
         # 能力或支援菱形被打断时保留白蓝发光外框；完成后外框不再发光。
         if (_current_diamond_glow_visible(image, current.node)
                 and _unlocked_unfinished_center(image, current.node)):
             return current.node
         return None
-    if current is None or current.shape != "round":
+    if current is None:
+        # 首领翼章等大型节点：头像直接压在节点中心上，而不是站在节点
+        # 上缘（圆节点中心在头像下方约 95px）。重置后回到未完成首领
+        # 时起点核验找不到脚下节点，改按与头像重叠的候选判定。
+        return _overlapping_unfinished_node(image, hero[:2], candidates)
+    if current.shape != "round":
         return None
     if (_current_completed_node_visible(image, hero[:2])
             or not _current_node_halo_visible(image, hero[:2])
             or not _unlocked_unfinished_center(image, current.node)):
         return None
     return current.node
+
+
+def _overlapping_unfinished_node(
+    image: np.ndarray, hero: tuple[int, int],
+    candidates: list[_NavigationNode],
+) -> MapNode | None:
+    """头像直接压住的金色翼章：中心距头像锚点 55px 以内。
+
+    圆节点重进通常要求头像位于节点上缘（中心在下方约 95px）；
+    首领翼章这类大节点头像直接压在中心上。头像区域内的 Hough
+    伪圆常见（肖像细节成圆），所以必须有翼章金框证据——重叠
+    检测圆 + 金色翼章 + 未锁定未完成中心（勾分阈值 0.65）三者
+    齐备才允许重进；否则弃权。
+    """
+    x, y = hero
+    if _current_completed_node_visible(image, hero):
+        return None
+    # 节点中心≈锚点时完成勾也画在锚点附近（实拍勾约 46×35，
+    # 框取 ±40）；偏移的伪圆中心各自勾检会漏掉它，须先按锚点拒。
+    if _checkmark_visible(
+            image, (x - 40, y - 40, x + 40, y + 40), min_score=0.65):
+        return None
+    nodes = [MapNode(x, y, 66)] + [
+        candidate.node for candidate in candidates
+        if candidate.shape == "round" and candidate.connection is None
+        and abs(candidate.node.x - x) <= 55 and abs(candidate.node.y - y) <= 55
+    ]
+    overlapped = [
+        (abs(node.x - x) + abs(node.y - y), node) for node in nodes
+        if _boss_crest_visible(image, node.x, node.y, max(node.radius, 45))
+        and _unlocked_unfinished_center(image, node, check_score=0.65)
+    ]
+    if not overlapped:
+        return None
+    return min(overlapped, key=lambda item: item[0])[1]
 
 
 def _current_diamond_glow_visible(image: np.ndarray, node: MapNode) -> bool:

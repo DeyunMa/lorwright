@@ -2,6 +2,7 @@
 
 import math
 import random
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -1241,6 +1242,29 @@ def test_interrupted_event_node_requires_halo_and_unlocked_center():
 def test_completed_current_node_is_not_reentry_target():
     image = _load("f1-weekly-after-second-reward-20261116.png")
     assert current_unfinished_node(image, locate_map_hero(image)) is None
+
+
+def test_hero_on_unfinished_boss_crest_is_reentry_target():
+    """20261121T092334：首领战被重置后回到未完成翼章，头像直接压在
+    节点中心上（圆节点常规几何是中心在头像下方约 95px），起点核验
+    找不到脚下节点；按与头像重叠的未完成节点重进。"""
+    image = _load("f1-hero-on-boss-crest-20261121.png")
+    hero = locate_map_hero(image)
+    assert reachable_nodes(image, hero=hero) == []
+    node = current_unfinished_node(image, hero)
+    assert node is not None
+    assert abs(node.x - 960) <= 10 and abs(node.y - 450) <= 10
+
+
+def test_hero_on_completed_boss_crest_is_not_reentered():
+    image = _load("f1-hero-on-boss-crest-20261121.png")
+    hero = locate_map_hero(image)
+    completed = image.copy()
+    check = cv2.imread(str(Path("assets/adventure/map_current_check.png")))
+    assert check is not None
+    h, w = check.shape[:2]
+    completed[447 - h // 2:447 - h // 2 + h, 958 - w // 2:958 - w // 2 + w] = check
+    assert current_unfinished_node(completed, hero) is None
 
 
 def _interrupted_power_map() -> np.ndarray:

@@ -3108,6 +3108,20 @@ def test_locked_routes_reenter_interrupted_power_diamond_once(adventure, monkeyp
     assert saved == []
 
 
+def test_hero_on_boss_crest_reenters_once_then_stops(adventure, monkeypatch):
+    """20261121T092334：重置后头像压在未完成首领翼章上且无可走后继，
+    重进一次脚下节点；其后路线仍无后继时停止而不重复点击。"""
+    crest = cv2.imread(str(FIXTURES / "f1-hero-on-boss-crest-20261121.png"))
+    assert crest is not None
+    loop, device, _, saved, _ = adventure([crest] * 15, [UIState.UNKNOWN] * 16)
+    loop.pack = load("jinx")
+    monkeypatch.setattr(loop, "_handle_node_panel", lambda: True)
+    loop.run(max_nodes=2)
+    assert len(device.taps) == 1
+    assert abs(device.taps[0][0] - 960) <= 10 and abs(device.taps[0][1] - 450) <= 10
+    assert saved == ["map_no_next"]
+
+
 def test_reentry_is_not_repeated_when_routes_stay_locked(adventure, monkeypatch):
     stopped = _interrupted_event_map()
     vendor = cv2.imread(str(FIXTURES.parent / "screens/f1-soloist-20261116.png"))

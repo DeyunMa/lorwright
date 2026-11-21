@@ -185,7 +185,7 @@ class ReplacePromptPolicy(Policy):
 
     紫色可选中辉光下 my_units 会随脉冲逐帧增减；只在引擎注入的
     跨帧稳定单位集合（my_units_stable）里选目标，没有稳定单位时
-    弃权——实际点击仍由就绪门禁要求目标跨帧稳定后才放行。
+    回退全表最弱——实际点击仍由就绪门禁要求目标跨帧稳定后才放行。
     """
 
     name = "replace_prompt"
@@ -248,9 +248,7 @@ class BlockingPolicy(Policy):
         committed = _committed_blocks(state.my_units, attackers)
         committed_attackers = {a for a, _ in committed}
         committed_blockers = {b for _, b in committed}
-        # 行内已锁定指派按本帧全表判定（它是对局状态，不是读数）；
-        # 新指派只在跨帧稳定单位里规划，紫色屏障辉光下计数抖动时
-        # 计划不再随帧翻转。
+        # 行内已锁定指派按本帧全表判定（它是对局状态，不是读数）。
         my_stable = state.my_units_stable
         enemy_stable = state.enemy_units_stable
         free_all = [i for i in range(len(attackers)) if i not in committed_attackers]

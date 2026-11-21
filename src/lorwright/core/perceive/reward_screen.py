@@ -584,7 +584,7 @@ def card_reward_target(image: np.ndarray, index: int, name: str) -> Rect | None:
             return None
         x = _CARD_SLOTS[index]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        if _card_kind(gray, x) is None or _card_cost(image, x) is None:
+        if _card_kind(gray, x, image) is None or _card_cost(image, x) is None:
             return None
         target = Rect(x + 191, 383, 20, 20)
         patch = gray[target.y:target.y + target.h, target.x:target.x + target.w]
@@ -764,7 +764,17 @@ def _champion_title_visible(gray: np.ndarray, x: int) -> bool:
     return False
 
 
-def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
+def _champion_gold_left_edge(image: np.ndarray, x: int) -> bool:
+    """英雄卡整圈金框在左缘可读；右上饰角被挂件六边形遮挡时兜底。
+
+    实机 20261121T153142 伊莉絲左缘金色占比 0.41、既有英雄 fixture
+    0.39；各 fixture 非英雄卡均 ≤0.15，阈值取 0.25。
+    """
+    hsv = cv2.cvtColor(image[300:560, x + 48:x + 62], cv2.COLOR_BGR2HSV)
+    return float(cv2.inRange(hsv, (15, 80, 100), (45, 255, 255)).mean() / 255) >= 0.25
+
+
+def _card_kind(gray: np.ndarray, x: int, image: np.ndarray | None = None) -> CardKind | None:
     """核验唯一的卡种标志、相应标题布局和插画可见性。"""
     kinds = (
         (CardKind.SPELL, (x + 50, 590, x + 85, 640),
@@ -775,9 +785,16 @@ def _card_kind(gray: np.ndarray, x: int) -> CardKind | None:
     )
     matches = [kind for kind, rect, names in kinds
                if any(_visible_match(gray, name, rect) >= 0.93 for name in names)]
-    if len(matches) != 1:
+    if len(matches) == 1:
+        kind = matches[0]
+    elif (not matches and image is not None
+          and _champion_gold_left_edge(image, x)
+          and _champion_title_visible(gray, x)):
+        # 复制牌奖励里英雄卡右缘叠挂道具六边形，饰角模板被遮
+        # （实机 20261121T153142 0.721）；左缘金框+居中英雄标题兜底。
+        kind = CardKind.CHAMPION
+    else:
         return None
-    kind = matches[0]
     if kind is CardKind.CHAMPION:
         title_visible = _champion_title_visible(gray, x)
     elif kind is CardKind.UNIT:
@@ -840,7 +857,7 @@ def recognize_card_rewards(image: np.ndarray) -> list[CardRewardCandidate] | Non
         cost = _card_cost(image, x)
         if cost is None:
             return None
-        kind = _card_kind(gray, x)
+        kind = _card_kind(gray, x, image)
         if card is not None:
             if _visible_match(gray, card["art"], (x + 55, 300, x + 325, 465)) < 0.93:
                 return None

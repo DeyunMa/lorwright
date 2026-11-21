@@ -245,6 +245,24 @@ def test_duplicate_pick_reward_reads_silhouette_spell_kind():
     assert all(c.preview_cost_verified for c in candidates)
 
 
+def test_duplicate_pick_champion_reads_occluded_corner_via_gold_edge():
+    # 会话 20261121T153142：左槽英雄卡右缘叠挂四个道具六边形，
+    # 英雄饰角模板被遮（0.721）；左缘整圈金框无遮挡兜底。
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-duplicate-champion-reward-20261121.png")
+    assert is_card_reward_screen(image)
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [2, 0, 4]
+    assert [c.kind for c in candidates] == [
+        CardKind.CHAMPION, CardKind.UNIT, CardKind.SPELL]
+    assert [c.card.quality for c in candidates] == ["champion", "common", "rare"]
+    # 通用规则品质优先：英雄品质最高，选择左槽（与实机决策一致）。
+    assert pick_card_reward(candidates).candidate is candidates[0]
+
+
 def test_two_star_first_battle_reward_prefers_lower_cost_unit():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)
@@ -411,7 +429,6 @@ def test_weekly_reward_with_champion_and_zero_cost_spell():
 @pytest.mark.parametrize("region", [
     (276, 309, 428, 464),    # 零费费用
     (276, 309, 843, 879),    # 英雄费用
-    (245, 295, 1034, 1089),  # 英雄金框
     (397, 430, 844, 1084),   # 英雄标题
     (337, 450, 899, 1039),   # 英雄插画
     (590, 640, 1234, 1269),  # 青绿色法术框
@@ -421,6 +438,23 @@ def test_weekly_champion_reward_still_requires_visible_card_data(region):
     image = _image("f1-weekly-second-reward-20261116.png")
     y1, y2, x1, x2 = region
     image[y1:y2, x1:x2] = 0
+    assert recognize_card_rewards(image) is None
+
+
+def test_champion_corner_alone_falls_back_to_gold_left_edge():
+    # 饰角被道具遮挡仍可凭左缘金框+居中标题判英雄（实机 20261121T153142）。
+    image = _image("f1-weekly-second-reward-20261116.png")
+    image[245:295, 1034:1089] = 0
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert candidates[1].kind is CardKind.CHAMPION
+
+
+def test_champion_corner_and_left_edge_together_lose_kind():
+    # 饰角与左缘金框同时不可见时英雄证据不足，仍需弃权。
+    image = _image("f1-weekly-second-reward-20261116.png")
+    image[245:295, 1034:1089] = 0
+    image[300:560, 817:831] = 0
     assert recognize_card_rewards(image) is None
 
 
@@ -442,7 +476,6 @@ def test_elise_gold_champion_reward_reads_candidates_and_picks_champion():
 
 @pytest.mark.parametrize("region", [
     (228, 255, 351, 384),   # 左槽金框角
-    (245, 295, 619, 674),   # 左槽英雄框
     (385, 490, 429, 669),   # 左槽英雄标题
 ])
 def test_gold_champion_reward_rejects_missing_independent_evidence(region):

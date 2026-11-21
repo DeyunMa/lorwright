@@ -220,6 +220,14 @@ class TargetingPolicy(Policy):
                 return Action(type=ActionType.SELECT_TARGET,
                               raw={"enemy": True, "index": 0})
             return Action(type=ActionType.END_TURN)
+        # 必选「選擇目標」提示（实机 20261121T142531 彈跳炸彈变体后的单体
+        # 目标阶段）：默认选首个跨帧稳定的敌方单位；友方目标提示由
+        # replace_prompt 证据分流到 ReplacePromptPolicy，不走到这里。
+        if state.action_prompt == "action_target" and state.enemy_units:
+            stable = state.enemy_units_stable
+            index = sorted(stable)[0] if stable else 0
+            return Action(type=ActionType.SELECT_TARGET,
+                          raw={"enemy": True, "index": index})
         return Action(type=ActionType.NO_OP)
 
 

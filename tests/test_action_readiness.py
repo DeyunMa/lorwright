@@ -216,6 +216,20 @@ def test_target_checks_only_chosen_side_and_slot():
     assert not observed(before, after).ready(TARGET)
 
 
+def test_target_prompt_pick_requires_stable_chosen_enemy():
+    """必选「選擇目標」提示：所选敌方单位跨帧同位同数值即就绪。"""
+    before = replace(state(), ui_state=UIState.TARGETING,
+                     targeted_spell=None, action_prompt="action_target")
+    assert observed(before).ready(TARGET)
+    moved = replace(before, enemy_units=[
+        replace(before.enemy_units[0], rect=Rect(420, 200, 90, 100)),
+        *before.enemy_units[1:]])
+    assert not observed(before, moved).ready(TARGET)
+    # 提示读不出时没有身份证据，不就绪。
+    no_prompt = replace(before, action_prompt=None)
+    assert not observed(no_prompt).ready(TARGET)
+
+
 def test_hand_target_and_nexus_raw_formats():
     gate = observed(state())
     assert gate.ready(Action(ActionType.SELECT_TARGET, raw={"hand": True, "index": 0}))

@@ -362,6 +362,24 @@ def test_select_target_reroutes_when_targeting_prompt_changes(change):
     assert outcome.reason == "targeting_context_changed"
 
 
+def test_option_pick_reroutes_when_variants_consumed():
+    # 会话 20261121T142531：变体点选后选项卡消失、提示进入单位选目标，
+    # ui 同为 TARGETING；选项集合变化即上下文变化，需重新路由。
+    options = (Rect(645, 240, 280, 320), Rect(965, 240, 280, 320))
+    before = state(ui_state=UIState.TARGETING,
+                   action_prompt="action_target", spell_options=options)
+    after = state(ui_state=UIState.TARGETING, action_prompt="action_target")
+    pending = ActionOutcome(Action(ActionType.SELECT_TARGET,
+                                   raw={"option": 0}), before, 15)
+    outcome = pending.observe(after, 1)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "targeting_context_changed"
+    closed = pending.observe(
+        state(ui_state=UIState.MY_TURN_IDLE), 2)
+    assert closed.status is OutcomeStatus.SUCCEEDED
+    assert closed.reason == "targeting_closed"
+
+
 @pytest.mark.parametrize("after_ui,after_prompt", [
     (UIState.TARGETING, None),
     (UIState.MY_TURN_IDLE, None),

@@ -131,10 +131,19 @@ def test_optional_skip_target_selects_enemy_or_skips():
     skip = policy.decide(state(ui_state=UIState.TARGETING,
                                action_prompt="action_skip"))
     assert skip is not None and skip.type is ActionType.END_TURN
-    # 必选目标提示保持弃权。
-    assert policy.decide(state(ui_state=UIState.TARGETING,
+    # 必选「選擇目標」提示默认选首个跨帧稳定敌方；无敌方可选时弃权。
+    pick = policy.decide(state(ui_state=UIState.TARGETING,
                                action_prompt="action_target",
-                               enemy_units=[enemy])).type is ActionType.NO_OP
+                               enemy_units=[enemy]))
+    assert pick is not None and pick.type is ActionType.SELECT_TARGET
+    assert pick.raw == {"enemy": True, "index": 0}
+    stable_pick = policy.decide(state(ui_state=UIState.TARGETING,
+                                      action_prompt="action_target",
+                                      enemy_units=[enemy, unit_at(0, 480, 1, 1)],
+                                      enemy_units_stable=frozenset({1})))
+    assert stable_pick is not None and stable_pick.raw == {"enemy": True, "index": 1}
+    assert policy.decide(state(ui_state=UIState.TARGETING,
+                               action_prompt="action_target")).type is ActionType.NO_OP
 
 
 def test_spell_variant_options_pick_left_card():

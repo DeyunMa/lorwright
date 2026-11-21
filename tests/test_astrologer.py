@@ -278,3 +278,14 @@ def test_reentered_soloist_purchase_reads_map_eight():
     obscured = frame.copy()
     obscured[1010:1034, 499:513] = 0
     assert astrologer_map_gold(obscured) != 680
+
+
+def test_four_digit_purchased_map_reads_leftmost_digit():
+    """四位余额的「1」顶到固定框左缘外 1px，仍应读出 1070 而非弃权。"""
+    frame = cv2.imread(str(fixtures_root() / "screens/f1-astrologer-4digit-balance-20261121.png"))
+    assert frame is not None
+    assert astrologer_map_gold(frame) == 1070
+    for left, right in [(474, 486), (490, 504), (506, 520), (522, 538)]:
+        obscured = frame.copy()
+        obscured[1010:1034, left:right] = 0
+        assert astrologer_map_gold(obscured) != 1070

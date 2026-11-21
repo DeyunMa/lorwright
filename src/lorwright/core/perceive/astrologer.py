@@ -52,9 +52,9 @@ def astrologer_map_gold(image: np.ndarray) -> int | None:
     """购买后直接回图时读取地图余额，仅覆盖已标定的原生布局。"""
     if image.shape[:2] != (1080, 1920) or not is_map(image) or panel_open(image):
         return None
-    rect = Rect(477, 1003, 65, 35)
+    rect = Rect(470, 1003, 75, 35)
     # 相邻数字可能完全位于固定框之外，不能把剩余尾数当成完整余额。
-    nearby = segment_glyphs(image, Rect(457, 1003, 105, 35), threshold=180)
+    nearby = segment_glyphs(image, Rect(450, 1003, 115, 35), threshold=180)
     if any(g.rect.x < rect.x or g.rect.x + g.rect.w > rect.x + rect.w for g in nearby):
         return None
     return _number(image, rect)

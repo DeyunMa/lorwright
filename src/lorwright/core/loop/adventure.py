@@ -137,6 +137,11 @@ class AdventureLoop:
     SERVICE_ERROR_LIMIT = 3
     LOADING_EXTENSION_S = 90
     SETTLEMENT_ANIMATION_S = 30
+    #: 同一任务插页最多点三次「繼續」：入场动画吞点击与相同布局连续插页
+    #: 都需要重试，仍须界防死循环。
+    TASK_REWARD_MAX_TAPS = 3
+    #: 结算链中任务插页总数上限；超过视为异常页面序列。
+    TASK_REWARD_MAX_PAGES = 5
     SETTLEMENT_STAGES = (
         "victory", "rewards", "silver_vault", "silver_vault_reward", "relic_chest", "relic_reward",
     )
@@ -746,14 +751,28 @@ class AdventureLoop:
             self._snapshot(image, tag="task_reward_continue_missing")
             return None
         self._tap(*button.center)
+        taps = 1
+        unchanged = 0
         after = image
-        for after in self._transition_frames("task_reward_transition"):
+        for after in self._transition_frames("task_reward_transition", wait_s=18):
             normalized = self._reward_design(after)
             if normalized is None:
                 continue
             if is_task_reward(normalized[0]):
-                # 新任务也可用同位置按钮；内容未变化时只观察，不重复点击。
                 if np.mean(cv2.absdiff(_continue_view(after), _continue_view(image))) < 15:
+                    # 页面与点击前一致：要么入场动画吞掉了点击（20261121T030259
+                    # 第二页按钮可见时入场动画未播完），要么又弹出了布局相同的
+                    # 下一页任务插页。按钮仍在原位置时按有界重试，盲目连点不算。
+                    unchanged += 1
+                    if unchanged >= 2 and taps < self.TASK_REWARD_MAX_TAPS:
+                        next_button = find_continue_button(after)
+                        if next_button is not None and all(
+                            abs(a - b) <= 12
+                            for a, b in zip(button.center, next_button.center, strict=True)
+                        ):
+                            self._tap(*next_button.center)
+                            taps += 1
+                            unchanged = 0
                     continue
             elif not (self._recognized_after_home(after)
                       or find_home_adventure_entry(normalized[0]) is not None
@@ -776,8 +795,13 @@ class AdventureLoop:
                              outcome="victory" if victory else "unverified", settlement_closed=False)
         stages = self.SETTLEMENT_STAGES
         seen = set()
+        task_pages = 0
         for _ in range(len(stages) + 6):
             if stage == "task_reward":
+                task_pages += 1
+                if task_pages > self.TASK_REWARD_MAX_PAGES:
+                    self._snapshot(image, tag="adventure_task_reward_limit")
+                    return
                 after = self._handle_task_reward(image)
             elif stage in stages and stage not in seen:
                 seen.add(stage)

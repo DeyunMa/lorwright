@@ -365,11 +365,13 @@ def test_optional_task_reward_clicks_once_then_resumes(adventure, awaiting_rewar
 
 @pytest.mark.parametrize("unchanged", [False, True])
 def test_task_reward_unknown_or_unchanged_successor_does_not_repeat(adventure, unchanged):
+    """unchanged：同一页面不变时最多重试到 TASK_REWARD_MAX_TAPS 次后放弃；
+    blank：读不出页面时完全不再点击。"""
     task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-completed-20261116.png"))
     assert task is not None
-    loop, device, _, saved, _ = adventure([task] + [task if unchanged else _blank()] * 6, [])
+    loop, device, _, saved, _ = adventure([task] + [task if unchanged else _blank()] * 8, [])
     loop.run(max_nodes=2)
-    assert len(device.taps) == 1
+    assert len(device.taps) == (AdventureLoop.TASK_REWARD_MAX_TAPS if unchanged else 1)
     assert saved == ["task_reward_transition_unverified"]
 
 
@@ -3092,3 +3094,29 @@ def test_healer_waits_for_toast_before_verifying_completion(adventure):
     assert loop._handle_healer(before) is True
     assert device.taps == [(1441, 1004)]
     assert saved == ["healer_completed"]
+
+
+def test_task_reward_retries_tap_when_page_stays_identical(adventure):
+    """20261121T030259：第二个任务插页点击正确落位但页面不变 —— 入场动画
+    吞点击或相同布局的连续插页不可区分，按既有证据做有界重试。"""
+    from lorwright.core.perceive.buttons import find_continue_button
+
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-reward-two-tiles-20261121.png"))
+    home = cv2.imread(str(FIXTURES.parent / "reward_timeout/f1-after-home.png"))
+    assert task is not None and home is not None
+    assert find_continue_button(task) is not None
+    # 点击后两帧仍是同一任务页 → 判定点未生效，重试一次后见到后继主页。
+    loop, device, _, saved, _ = adventure([task] * 2 + [home], [])
+    assert loop._handle_task_reward(task) is home
+    assert device.taps.count(device.taps[0]) == 2
+    assert saved == []
+
+
+def test_task_reward_retry_is_bounded(adventure):
+    """相同页面始终不变时每页至多 TASK_REWARD_MAX_TAPS 次点击。"""
+    task = cv2.imread(str(FIXTURES.parent / "continue/f1-task-reward-two-tiles-20261121.png"))
+    assert task is not None
+    loop, device, _, saved, _ = adventure([task] * 12, [])
+    loop._handle_task_reward(task)
+    assert len(device.taps) == AdventureLoop.TASK_REWARD_MAX_TAPS
+    assert saved == ["task_reward_transition_unverified"]

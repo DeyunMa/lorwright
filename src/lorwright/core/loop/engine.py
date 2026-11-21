@@ -578,6 +578,13 @@ class Engine:
                             # 画面停 21 秒）。正常转场约 4 秒离开 MULLIGAN，
                             # 6 秒画面不变且按钮仍可读就重路由重发一次。
                             unacknowledged = time.monotonic() + 6.0
+                        elif (result.action.type is ActionType.PLAY_CARD
+                              and timeout >= 20.0):
+                            # 出牌拖拽同样会被吞（实机 20261121T135644
+                            # 尖嘯蜘蛛 20s 像素级不变）。正常出牌几秒内就有
+                            # 可见变化；10s 完全无变化重路由重拖，重决策会
+                            # 按当前牌位重算起点。只有 20s 窗口有重试余地。
+                            unacknowledged = time.monotonic() + 10.0
                         self._pending = self._make_outcome(
                             result.action, state, timeout,
                             unacknowledged_deadline=unacknowledged)

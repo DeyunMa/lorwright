@@ -377,6 +377,35 @@ def test_select_target_context_unchanged_or_closed(after_ui, after_prompt):
         assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
 
 
+def test_play_drag_unacknowledged_reroutes_before_deadline():
+    # 会话 20261121T135644：尖嘯蜘蛛拖拽后画面 20s 像素级不变、卡仍在手。
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20,
+                            unacknowledged_deadline=10)
+    assert pending.observe(before, 9).status is OutcomeStatus.WAITING
+    outcome = pending.observe(before, 11)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "play_unacknowledged"
+
+
+def test_play_unacknowledged_requires_pixel_identical_state():
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20,
+                            unacknowledged_deadline=10)
+    changed = replace(before, hand=before.hand[:1])
+    # 手牌有变化时不是「没发生」，沿用原等待/核验路径。
+    assert pending.observe(changed, 11).status is OutcomeStatus.WAITING
+    collapsed = replace(before, hand_expanded=False)
+    assert pending.observe(collapsed, 11).status is OutcomeStatus.WAITING
+
+
+def test_play_unacknowledged_without_deadline_keeps_waiting():
+    before = state()
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=0), before, 20)
+    assert pending.observe(before, 11).status is OutcomeStatus.WAITING
+    assert pending.observe(before, 20).status is OutcomeStatus.TIMED_OUT
+
+
 def test_confirmation_required_keeps_fixed_parent_budget():
     # 确认提示不续父预算；慢速法术的时间在发送时的 20s 窗口里（engine
     # 对已展开出牌统一给 20s，见 test_expanded_play_gets_full_window）。

@@ -131,6 +131,20 @@ class ActionOutcome:
                                    "play_result_obscured_by_resource_refill")
                 elif self._unit_landed(before, after):
                     reason = "unit_landed_on_board"
+                elif (self._unacknowledged_deadline is not None
+                      and now >= self._unacknowledged_deadline
+                      and before.ui_state is after.ui_state is UIState.MY_TURN_IDLE
+                      and after.hand_expanded == before.hand_expanded
+                      and len(after.hand) == len(before.hand)
+                      and after.mana == before.mana
+                      and after.spell_mana == before.spell_mana
+                      and len(after.my_units) == len(before.my_units)
+                      and len(after.enemy_units) == len(before.enemy_units)):
+                    # 拖拽被游戏吞掉：宽限内画面像素级不变、卡仍在手，
+                    # 重路由让决策层按当前牌位重算起点再拖一次（实机
+                    # 20261121T135644 尖嘯蜘蛛 20s 无变化）。有任何可见
+                    # 变化（含手牌收起）都不重试；连续无进展由 watchdog 兜底。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT, "play_unacknowledged")
             elif kind is ActionType.DISCARD_CARD:
                 if (before.ui_state is UIState.DISCARD and after.ui_state in {
                     UIState.MY_TURN_IDLE, UIState.ENEMY_TURN, UIState.COMBAT_RESOLVING,

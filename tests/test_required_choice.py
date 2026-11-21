@@ -43,6 +43,19 @@ def test_optional_target_skip_reads_action_skip_and_parses_targeting():
     assert len(state.enemy_units) == 1
 
 
+def test_optional_skip_router_selects_enemy_without_pending_context():
+    # 会话在「跳過」提示上恢复：无待选目标上下文，通用层选唯一敌方单位。
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.champions import load
+    from lorwright.core.decide.router import Router
+
+    state = _parse(_skip_image())
+    result = Router(_battle_layers(load("elise"))).decide(state)
+    assert result.action.type is ActionType.SELECT_TARGET
+    assert result.action.raw == {"enemy": True, "index": 0}
+    assert result.layer == "targeting"
+
+
 def test_optional_target_skip_requires_readable_prompt():
     # 按钮文字涂黑后不得升级为目标提示（skip 控件单独不足为证）。
     image = _skip_image()

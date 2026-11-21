@@ -211,6 +211,9 @@ class SpiderAggroPolicy(Policy):
                 self._pending_play = None
                 self._pending_cost = None
                 self._pending_name = ""
+            # 可选「跳過」目标提示交通用层：能认出敌方目标就选，否则按跳过。
+            if state.action_prompt == "action_skip":
+                return None
             return Action(type=ActionType.NO_OP)
 
         if state.ui_state is not UIState.MY_TURN_IDLE:

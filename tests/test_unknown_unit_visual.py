@@ -1,10 +1,12 @@
 import cv2
 import numpy as np
 
+from lorwright.core.models import Rect
 from lorwright.core.perceive.hand import (
     Badge,
     _expanded_drag_point,
     _visible_playable_unit,
+    find_badges_expanded,
 )
 from tools.test_data import fixtures_root
 
@@ -73,13 +75,37 @@ def test_stat_chip_covered_by_neighbor_or_screen_abstains():
     assert not _visible_playable_unit(edge, low, [low])
 
 
-def test_narrow_fan_corners_covered_on_live_frame_abstains():
-    """实机窄间距扇形：全部数值角标被邻牌覆盖或屏幕裁切 → 全部弃权。"""
-    path = fixtures_root() / "screens/f1-narrow-hand-covered-chips-20261121.png"
-    image = cv2.imread(str(path))
-    assert image is not None, f"missing fixture {path}"
-    from lorwright.core.models import Rect
-    from lorwright.core.perceive.hand import find_badges_expanded
-    badges = find_badges_expanded(image, Rect(280, 680, 1640, 400))
+def _expanded_badges(image):
+    return find_badges_expanded(image, Rect(280, 680, 1640, 400))
+
+
+def test_narrow_fan_card_types_on_live_frame():
+    """窄间距实机扇形：砰砰法术被标记/拱形否决，其余方形框确认为单位。"""
+    image = cv2.imread(str(fixtures_root()
+                           / "screens/f1-narrow-hand-covered-chips-20261121.png"))
+    assert image is not None
+    badges = _expanded_badges(image)
     assert len(badges) == 7
+    got = [_visible_playable_unit(image, b, badges) for b in badges]
+    assert got == [True, True, False, True, True, True, True]
+
+
+def test_mana_token_fan_splits_spells_and_units():
+    """同一帧内 5 张砰砰法术全部否决，2 张方形框单位确认。"""
+    image = cv2.imread(str(fixtures_root()
+                           / "screens/f1-weekly-mana-token-20261116.png"))
+    assert image is not None
+    badges = _expanded_badges(image)
+    assert len(badges) == 7
+    got = [_visible_playable_unit(image, b, badges) for b in badges]
+    assert got == [False, False, False, False, False, True, True]
+
+
+def test_all_spell_fan_never_confirms_unit():
+    """全法术扇形（砰砰+火箭）：任何一张都不得确认单位。"""
+    image = cv2.imread(str(fixtures_root()
+                           / "jinx/battle-two-rockets-20261114.png"))
+    assert image is not None
+    badges = _expanded_badges(image)
+    assert len(badges) == 6
     assert not any(_visible_playable_unit(image, b, badges) for b in badges)

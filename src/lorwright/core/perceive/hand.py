@@ -303,6 +303,91 @@ def _right_edge_x(badge: Badge, y: int) -> float:
     return bx + _RIGHT_EDGE_TOP - _EDGE_SLOPE * (y - (by + _LEFT_EDGE_TOP[1]))
 
 
+#: 法术星形标记模板：费用徽章下方灰牌上的青色星火簇。两张分别
+#: 取自窄扇法术「砰砰」与伊莉丝 0 费法术实帧，布局/倾角不同。
+SPELL_MARKER_TEMPLATES = (
+    Path("assets/ui/spell_marker.png"),
+    Path("assets/ui/spell_marker_b.png"),
+    Path("assets/ui/spell_marker_c.png"),
+    Path("assets/ui/spell_marker_d.png"),
+)
+SPELL_MARKER_MIN_SCORE = 0.72
+#: 单位顶栏肩角模板：种族横幅左肩（深色横幅底+金色上缘），不含文字
+#: 以便跨种族复用；三张取自同一窄扇实帧的不同倾角卡。
+UNIT_TAB_TEMPLATES = (
+    Path("assets/ui/unit_tab_shoulder_a.png"),
+    Path("assets/ui/unit_tab_shoulder_b.png"),
+    Path("assets/ui/unit_tab_shoulder_c.png"),
+)
+UNIT_TAB_MIN_SCORE = 0.70
+#: 法术拱形卡框顶部为银灰色尖拱：顶中区域低饱和亮像素占比实测
+#: 法术 0.32~0.41、单位 ≤0.11。
+_ARCH_SILVER_MIN = 0.18
+
+
+@lru_cache(maxsize=8)
+def _gray_template(path: str) -> np.ndarray | None:
+    image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    return None if image is None else image
+
+
+def _spell_marker(image: np.ndarray, badge: Badge) -> bool:
+    """费用徽章下方的星形法术标记：有标记即非单位。"""
+    bx, by = badge.center
+    x0, y0 = max(bx - 62, 0), max(by + 25, 0)
+    x1, y1 = min(bx + 70, image.shape[1]), min(by + 160, image.shape[0])
+    window = cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+    for path in SPELL_MARKER_TEMPLATES:
+        tpl = _gray_template(str(path))
+        if tpl is None:
+            continue
+        h, w = tpl.shape
+        if window.shape[0] < h or window.shape[1] < w:
+            continue
+        if cv2.matchTemplate(window, tpl, cv2.TM_CCOEFF_NORMED).max() \
+                >= SPELL_MARKER_MIN_SCORE:
+            return True
+    return False
+
+
+def _arched_frame(image: np.ndarray, badge: Badge) -> bool:
+    """卡顶中部的银灰尖拱：法术/装备拱形框的负向证据。"""
+    bx, by = badge.center
+    zone = image[max(by - 50, 0):max(by - 15, 0), bx + 50:bx + 130]
+    if zone.size == 0:
+        return False
+    hsv = cv2.cvtColor(zone, cv2.COLOR_BGR2HSV)
+    silver = (hsv[:, :, 1] < 75) & (hsv[:, :, 2] > 150)
+    return float(silver.mean()) >= _ARCH_SILVER_MIN
+
+
+def _unit_tab(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
+    """卡顶中部的种族横幅肩角：方形单位框的正向证据。"""
+    bx, by = badge.center
+    y0, y1 = max(by - 40, 0), min(by + 30, image.shape[0])
+    x0, x1 = bx + 15, min(bx + 185, image.shape[1])
+    # 右邻卡左缘若压进横幅取样窗，窗口右截到其左缘，不混入邻卡。
+    for other in badges:
+        if other.center[0] > bx:
+            x1 = min(x1, int(_left_edge_x(other, (y0 + y1) // 2)))
+            break
+    window = cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+    # 近全黑的窗口是退化匹配源（相关在平坦区虚高），直接弃权。
+    if float((window > 40).mean()) < 0.30:
+        return False
+    for path in UNIT_TAB_TEMPLATES:
+        tpl = _gray_template(str(path))
+        if tpl is None:
+            continue
+        h, w = tpl.shape
+        if window.shape[0] < h or window.shape[1] < w:
+            continue
+        if cv2.matchTemplate(window, tpl, cv2.TM_CCOEFF_NORMED).max() \
+                >= UNIT_TAB_MIN_SCORE:
+            return True
+    return False
+
+
 def _stat_chip_present(image: np.ndarray, cx: int, cy: int) -> bool:
     """角标区域：深色六边形底加内部亮色字素。任一角标无法独立验证即弃权。"""
     r = _STAT_CHIP_RADIUS
@@ -340,13 +425,18 @@ def _stat_chip_present(image: np.ndarray, cx: int, cy: int) -> bool:
 
 
 def _visible_playable_unit(image: np.ndarray, badge: Badge, badges: list[Badge]) -> bool:
-    """展开卡面左下力量角标、右下血量角标共同提供单位类型的正向证据。
+    """单位类型的正向证据：数值角标对，或无负向证据时的方形框种族横幅。
 
-    法术、地标、装备没有这一对数值角标；角标被邻牌覆盖或屏幕裁切时
-    类型未证实，一律弃权。该判据不识别牌名或出牌效果。
+    力量/血量角标在窄扇里常被邻牌或屏幕裁切，故另认方形卡框顶部的
+    种族横幅肩角；法术的星形标记或拱形框命中即非单位；仍证据不足
+    （横幅被遮、类型未证实）一律弃权。不识别牌名或出牌效果。
     """
     if image.shape[:2] != (1080, 1920):
         return False
+    if _spell_marker(image, badge) or _arched_frame(image, badge):
+        return False
+    if _unit_tab(image, badge, badges):
+        return True
     cx, cy = badge.center
     for dx, dy in _STAT_CHIP_OFFSETS:
         x = cx + dx

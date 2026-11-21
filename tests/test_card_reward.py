@@ -209,6 +209,26 @@ def test_narrow_one_reward_rejects_missing_or_damaged_cost(damage):
     assert card_reward_target(image, 1, "") is None
 
 
+def ten_cost_reward():
+    import numpy as np
+
+    image = np.zeros((1080, 1920, 3), np.uint8)
+    image[18:1050, 330:1580] = _image("f1-ten-cost-reward-20261121.png")
+    return image
+
+
+def test_ten_cost_reward_reads_two_digit_cost():
+    # 会话 20261121T135009：哈洛威 10 费徽章的「1」对原型最高仅 0.757，
+    # 但领先第二名 0.379；绝对下限拒掉后整场 card_reward_unknown。
+    image = ten_cost_reward()
+    assert is_card_reward_screen(image)
+    assert [_card_cost(image, x) for x in (354, 769, 1184)] == [4, 10, 3]
+    candidates = recognize_card_rewards(image)
+    assert candidates is not None
+    assert [c.card.cost for c in candidates] == [4, 10, 3]
+    assert [c.kind for c in candidates] == [CardKind.SPELL, CardKind.SPELL, CardKind.UNIT]
+
+
 def test_two_star_first_battle_reward_prefers_lower_cost_unit():
     image = _image("f1-two-star-first-reward-20261116.png")
     assert is_card_reward_screen(image)

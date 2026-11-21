@@ -664,14 +664,20 @@ def _card_cost(image: np.ndarray, x: int) -> int | None:
     hit = _reward_digits().classify_sequence([glyph.image for glyph in glyphs])
     if hit is not None:
         return hit[0]
-    # 闪卡徽记带镀层色调，清晰字形可能只到 0.91；与弃牌费用同一
-    # 领先幅度判据（≥0.80 且领先第二名 ≥0.15）只接受不拒绝。
+    # 闪卡徽记带镀层色调，清晰字形可能只到 0.91；细笔画字形对既有
+    # 原型的绝对分上限更低（实机 10 费「1」仅 0.757）。判别依据是
+    # 领先幅度：分 ≥0.80 沿用 0.15 幅度；不足时要求更大领先（≥0.30）
+    # 且不低于 0.70，避免把噪声当成某一位。
     reader = _reward_digits()
     value = ""
     for glyph in glyphs:
         ranked = reader.rank(glyph.image)
-        if (not ranked or not 0 <= ranked[0][0] <= 9 or ranked[0][1] < 0.80
-                or ranked[0][1] - (ranked[1][1] if len(ranked) > 1 else -1.0) < 0.15):
+        if not ranked or not 0 <= ranked[0][0] <= 9:
+            return None
+        score = ranked[0][1]
+        margin = score - (ranked[1][1] if len(ranked) > 1 else -1.0)
+        if not ((score >= 0.80 and margin >= 0.15)
+                or (score >= 0.70 and margin >= 0.30)):
             return None
         value += str(ranked[0][0])
     return int(value)

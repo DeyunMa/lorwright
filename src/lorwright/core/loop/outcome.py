@@ -240,7 +240,9 @@ class ActionOutcome:
                                    "mulligan_confirm_unacknowledged")
                 if (kind is ActionType.CONFIRM
                         and before.ui_state is after.ui_state is UIState.COMBAT_RESOLVING
-                        and before.action_prompt == after.action_prompt == "action_confirm"
+                        and before.action_prompt is not None
+                        and before.action_prompt == after.action_prompt
+                        and before.action_prompt in {"action_confirm", "action_commit"}
                         and self._unacknowledged_deadline is not None
                         and now >= self._unacknowledged_deadline):
                     # 「確認」被吞：提示未变（实机 20261121T143042 攻击确认

@@ -580,10 +580,12 @@ class Engine:
                             unacknowledged = time.monotonic() + 6.0
                         elif (result.action.type is ActionType.CONFIRM
                               and state.ui_state is UIState.COMBAT_RESOLVING
-                              and state.action_prompt == "action_confirm"):
-                            # 攻击确认也会被吞（实机 20261121T143042 提示停
-                            # action_confirm 21 秒）。正常几秒就变 commit
-                            # 或转场；6s 不变重路由重发（幂等单按钮）。
+                              and state.action_prompt in {"action_confirm",
+                                                          "action_commit"}):
+                            # 攻击确认/結算点击也会被吞（实机 20261121T143042
+                            # action_confirm 停 21s；20261121T150328
+                            # action_commit 停 21s）。正常几秒就变提示或
+                            # 转场；6s 不变重路由重发（幂等单按钮）。
                             unacknowledged = time.monotonic() + 6.0
                         if (result.action.type is ActionType.BLOCK
                                 and state.ui_state is UIState.BLOCKING):

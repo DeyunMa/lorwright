@@ -193,15 +193,11 @@ def test_mulligan_confirm_without_retry_deadline_keeps_waiting():
     assert pending.observe(before, 20).status is OutcomeStatus.TIMED_OUT
 
 
-def test_unacknowledged_deadline_only_applies_to_mulligan_confirm():
+def test_unacknowledged_deadline_ignores_non_confirm_actions():
     before = state(ui_state=UIState.MULLIGAN, mulligan_selected=(False,) * 4)
     end_turn = ActionOutcome(Action(ActionType.END_TURN), before, 20,
                              unacknowledged_deadline=6)
     assert end_turn.observe(before, 7).status is OutcomeStatus.WAITING
-    resolving = state(ui_state=UIState.COMBAT_RESOLVING, action_prompt="action_commit")
-    confirm = ActionOutcome(Action(ActionType.CONFIRM), resolving, 20,
-                            unacknowledged_deadline=6)
-    assert confirm.observe(resolving, 7).status is OutcomeStatus.WAITING
 
 
 def test_mulligan_replace_waits_for_the_requested_selection_change():
@@ -441,6 +437,24 @@ def test_combat_confirm_unacknowledged_reroutes_before_deadline():
     outcome2 = pending2.observe(progressed, 7)
     assert outcome2.status is OutcomeStatus.NEEDS_INPUT
     assert outcome2.reason == "confirmation_prompt_changed"
+
+
+def test_combat_commit_unacknowledged_reroutes_before_deadline():
+    # 会话 20261121T150328：堆栈「結算」点击被吞，action_commit 停 21s。
+    before = state(ui_state=UIState.COMBAT_RESOLVING,
+                   action_prompt="action_commit")
+    after = state(ui_state=UIState.COMBAT_RESOLVING,
+                  action_prompt="action_commit")
+    pending = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                            unacknowledged_deadline=6)
+    outcome = pending.observe(after, 7)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "confirm_unacknowledged"
+    # 提示读不出时不判被吞（转场中帧），保持等待。
+    unread = replace(after, action_prompt=None)
+    pending2 = ActionOutcome(Action(ActionType.CONFIRM), before, 20,
+                             unacknowledged_deadline=6)
+    assert pending2.observe(unread, 7).status is OutcomeStatus.WAITING
 
 
 def test_block_drag_unacknowledged_reroutes_before_deadline():

@@ -343,6 +343,40 @@ def test_timeout_is_unverified_not_success():
     assert pending.observe(state(ui_state=UIState.ENEMY_TURN), 9).status is OutcomeStatus.TIMED_OUT
 
 
+@pytest.mark.parametrize("change", ["prompt_flag", "action_prompt", "both"])
+def test_select_target_reroutes_when_targeting_prompt_changes(change):
+    # 会话 20261121T134723：满场替换点选后立刻进入出牌可选效果的
+    # 新选目标，ui 同为 TARGETING；原选择已被消费，要重新路由。
+    before = state(ui_state=UIState.TARGETING, replace_prompt=True)
+    if change == "prompt_flag":
+        after = state(ui_state=UIState.TARGETING, replace_prompt=False)
+    elif change == "action_prompt":
+        after = state(ui_state=UIState.TARGETING, replace_prompt=True,
+                      action_prompt="action_skip")
+    else:
+        after = state(ui_state=UIState.TARGETING, replace_prompt=False,
+                      action_prompt="action_skip")
+    pending = ActionOutcome(Action(ActionType.SELECT_TARGET), before, 8)
+    outcome = pending.observe(after, 1)
+    assert outcome.status is OutcomeStatus.NEEDS_INPUT
+    assert outcome.reason == "targeting_context_changed"
+
+
+@pytest.mark.parametrize("after_ui,after_prompt", [
+    (UIState.TARGETING, None),
+    (UIState.MY_TURN_IDLE, None),
+])
+def test_select_target_context_unchanged_or_closed(after_ui, after_prompt):
+    before = state(ui_state=UIState.TARGETING, replace_prompt=True)
+    after = state(ui_state=after_ui, replace_prompt=True,
+                  action_prompt=after_prompt)
+    pending = ActionOutcome(Action(ActionType.SELECT_TARGET), before, 8)
+    if after_ui is UIState.TARGETING:
+        assert pending.observe(after, 1).status is OutcomeStatus.WAITING
+    else:
+        assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
+
+
 def test_confirmation_required_keeps_fixed_parent_budget():
     # 确认提示不续父预算；慢速法术的时间在发送时的 20s 窗口里（engine
     # 对已展开出牌统一给 20s，见 test_expanded_play_gets_full_window）。

@@ -175,6 +175,15 @@ class ActionOutcome:
             elif kind in (ActionType.SELECT_TARGET, ActionType.CANCEL):
                 if before.ui_state is UIState.TARGETING and after.ui_state is not UIState.TARGETING:
                     reason = "targeting_closed"
+                elif (kind is ActionType.SELECT_TARGET
+                      and before.ui_state is after.ui_state is UIState.TARGETING
+                      and (after.replace_prompt != before.replace_prompt
+                           or after.action_prompt != before.action_prompt)):
+                    # 同为 TARGETING 但提示身份变了：实机 20261121T134723
+                    # 满场替换点选后紧接出牌可选效果的选目标，原选择已被
+                    # 消费，需要重新路由处理新提示（不可只靠枚举变化判完成）。
+                    return Outcome(OutcomeStatus.NEEDS_INPUT,
+                                   "targeting_context_changed")
             elif kind is ActionType.CONTINUE:
                 if after.ui_state is not before.ui_state:
                     reason = "ui_transition"

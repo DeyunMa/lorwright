@@ -56,6 +56,28 @@ def test_optional_skip_router_selects_enemy_without_pending_context():
     assert result.layer == "targeting"
 
 
+def test_optional_skip_readiness_and_translate_to_enemy_target():
+    # 引擎全路径：两帧稳定画面 → 通用层 SELECT_TARGET → 就绪 → 点击计划落敌方单位。
+    from lorwright.cli.app import _battle_layers
+    from lorwright.core.act.translate import ActionTranslator
+    from lorwright.core.champions import load
+    from lorwright.core.decide.router import Router
+    from lorwright.core.loop.readiness import ActionReadiness
+
+    layout = load_settings().layout.to_layout()
+    state = _parse(_skip_image())
+    gate = ActionReadiness()
+    gate.observe(state)
+    gate.observe(state)
+    result = Router(_battle_layers(load("elise"))).decide(state)
+    assert result.action.type is ActionType.SELECT_TARGET
+    assert gate.ready(result.action)
+    plan = ActionTranslator(layout).translate(result.action, state)
+    assert plan is not None
+    center = state.enemy_units[0].rect.center
+    assert plan.points[0] == center
+
+
 def test_optional_target_skip_requires_readable_prompt():
     # 按钮文字涂黑后不得升级为目标提示（skip 控件单独不足为证）。
     image = _skip_image()

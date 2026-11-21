@@ -314,9 +314,14 @@ def _evidence(action: Action, state: GameState) -> tuple | None:
         # 替换提示选友军时没有待选法术图标；提示条本身就是身份证据。
         replace = (state.replace_prompt and not raw.get("enemy")
                    and not raw.get("hand") and not raw.get("nexus"))
-        if spell is None and not replace:
+        # 可选「跳過」提示：敌方单位跨帧稳定即为身份证据。
+        skip_prompt = (state.action_prompt == "action_skip"
+                       and bool(raw.get("enemy"))
+                       and not raw.get("hand") and not raw.get("nexus"))
+        if spell is None and not replace and not skip_prompt:
             return None
-        key = spell if spell is not None else ("replace_prompt",)
+        key = (spell if spell is not None else
+               ("replace_prompt",) if replace else ("action_skip",))
         if raw.get("nexus") and not raw.get("hand"):
             detail = (key, "nexus")  # 固定 layout 坐标由 translator 校验。
         else:

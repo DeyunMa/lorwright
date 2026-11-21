@@ -1485,15 +1485,15 @@ def test_rocket_confirmation_waits_through_animation_and_counts_once(monkeypatch
     assert snapshots == []
 
 
-@pytest.mark.parametrize("settled", [True, False])
-def test_staged_spell_observes_delayed_result_with_original_budget(monkeypatch, settled):
+def test_staged_spell_observes_delayed_result_with_original_budget(monkeypatch):
     card = CardInHand(0, "火箭", 1, Rect(300, 800, 50, 50))
     before = ready(hand=[card], hand_expanded=True)
     staged = replace(before, ui_state=UIState.COMBAT_RESOLVING)
+    # 卡已离手回到常规界面：堆栈经确认闭合即已结算，0 费法术
+    # 无需法力消耗或单位落地证据（实机 20261121T144407）。
     unverified = replace(before, hand=[])
-    paid = replace(unverified, mana=2, readings={"mana": Reading(2, 0)})
     engine, device, router, events, snapshots = engine_for(
-        monkeypatch, [before, staged, unverified, paid if settled else unverified],
+        monkeypatch, [before, staged, unverified],
         [Action(ActionType.PLAY_CARD, 0), Action(ActionType.CONFIRM), Action(ActionType.NO_OP)],
         timeout=20,
     )
@@ -1507,24 +1507,21 @@ def test_staged_spell_observes_delayed_result_with_original_budget(monkeypatch, 
     clock = [0.0]
     monkeypatch.setattr("lorwright.core.loop.engine.time.monotonic", lambda: clock[0])
     build = engine._build_state
-    times = iter([0.0, 18.0, 19.0, 19.5 if settled else 20.0])
+    times = iter([0.0, 18.0, 19.0])
 
     def next_state(image):
         clock[0] = next(times)
         return build(image)
 
     monkeypatch.setattr(engine, "_build_state", next_state)
-    result = engine.run(max_ticks=4)
+    result = engine.run(max_ticks=3)
     assert len(device.drags) == 1 and device.taps == [(20, 20)]
-    assert router.calls == (3 if settled else 2)
-    assert callbacks == ([ActionType.CONFIRM, ActionType.PLAY_CARD] if settled
-                         else [ActionType.CONFIRM])
-    assert snapshots == ([] if settled else [{"tag": "action_timeout"}])
-    if not settled:
-        assert result.reason == "action_timeout"
+    assert router.calls == 3
+    assert callbacks == [ActionType.CONFIRM, ActionType.PLAY_CARD]
+    assert snapshots == []
     outcomes = [e for e in events if e.get("event") == "action_outcome"]
-    assert any(e["action"] == "play_card" and e["status"] == "waiting" for e in outcomes)
-    assert outcomes[-1]["status"] == ("succeeded" if settled else "timed_out")
+    assert outcomes[-1]["status"] == "succeeded"
+    assert outcomes[-1]["reason"] == "stack_confirmation_resolved"
 
 
 def test_expanded_play_gets_full_window_for_stack_confirmation(monkeypatch):

@@ -395,6 +395,32 @@ def test_select_target_context_unchanged_or_closed(after_ui, after_prompt):
         assert pending.observe(after, 1).status is OutcomeStatus.SUCCEEDED
 
 
+def test_confirmed_stack_play_succeeds_on_resolution_return():
+    # 会话 20261121T144407：0 费傾巢而出经「確認」结算召唤三只
+    # 小蜘蛛——无法力消耗、召唤物与法术不同名，落地/支付判据失配；
+    # 堆栈经确认闭合回到常规界面即为已结算证据。
+    card = CardInHand(2, "傾巢而出", 0, Rect(400, 850, 80, 100))
+    before = state(hand_expanded=True, hand=[card],
+                   my_units=[], enemy_units=[])
+    pending = ActionOutcome(Action(ActionType.PLAY_CARD, card_index=2),
+                            before, 20)
+    staged = state(ui_state=UIState.COMBAT_RESOLVING,
+                   action_prompt="action_confirm")
+    assert pending.observe(staged, 1).reason == "confirmation_required"
+    pending.resume_after_confirmation()
+    resolved = state(ui_state=UIState.MY_TURN_IDLE,
+                     my_units=[Unit("小蜘蛛", 2, 1, Rect(400, 550, 80, 100)),
+                               Unit("小蜘蛛", 2, 1, Rect(520, 550, 80, 100)),
+                               Unit("小蜘蛛", 2, 1, Rect(640, 550, 80, 100))])
+    outcome = pending.observe(resolved, 3)
+    assert outcome.status is OutcomeStatus.SUCCEEDED
+    assert outcome.reason == "stack_confirmation_resolved"
+    # 敌方优先权阶段仍等待，不误判已结算。
+    assert pending.observe(
+        state(ui_state=UIState.COMBAT_RESOLVING), 4
+    ).status is OutcomeStatus.WAITING
+
+
 def test_combat_confirm_unacknowledged_reroutes_before_deadline():
     # 会话 20261121T143042：攻击确认点击被吞，action_confirm 停 21s。
     before = state(ui_state=UIState.COMBAT_RESOLVING,

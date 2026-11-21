@@ -103,6 +103,16 @@ class ActionOutcome:
                       and after.ui_state is UIState.COMBAT_RESOLVING):
                     # 慢速法术先进入堆栈，要点「確認」后才会真正结算。
                     return Outcome(OutcomeStatus.NEEDS_INPUT, "confirmation_required")
+                elif (self._confirmation_completed
+                      and after.ui_state in {UIState.MY_TURN_IDLE,
+                                             UIState.ENEMY_TURN,
+                                             UIState.BLOCKING}):
+                    # 实机 20261121T144407：0 费傾巢而出经「確認」结算召唤
+                    # 三只小蜘蛛——无法力消耗、召唤物与法术不同名，既有
+                    # 落地/支付判据全部失配；堆栈经确认闭合回到常规界面
+                    # 本身就是已结算证据。TARGETING/CHOICE 等需输入的
+                    # 状态在上面提前返回，不会走到这里。
+                    reason = "stack_confirmation_resolved"
                 elif self.play_expectation is not None:
                     if self.play_expectation.verify(after):
                         reason = self.play_expectation.reason

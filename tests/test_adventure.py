@@ -3572,3 +3572,96 @@ def test_task_reward_retry_is_bounded(adventure):
     loop._handle_task_reward(task)
     assert len(device.taps) == AdventureLoop.TASK_REWARD_MAX_TAPS
     assert saved == ["task_reward_transition_unverified"]
+
+
+_SERVICE_SCENE_ENTRIES = (
+    ("is_power_vendor", "_handle_astrologer", False),
+    ("gold_chest_collect_button", "_collect_gold_chest", False),
+    ("item_chest_leave_button", "_leave_item_chest", False),
+    ("shop_leave_button", "_handle_shop", False),
+    ("_is_healer", "_handle_healer", False),
+    ("_is_support", "_handle_support", False),
+    ("_is_hero_item_reward", "_handle_hero_item_reward", True),
+    ("_is_card_reward", "_handle_card_reward", True),
+    ("event_leave_option", "_leave_event", False),
+)
+
+
+def _stub_service_predicates(monkeypatch, loop, target, hits=()):
+    """服务场景表的全部谓词压成未命中；hits 只对 target 帧命中。"""
+    for name in ("is_power_vendor", "gold_chest_collect_button",
+                 "item_chest_leave_button", "shop_leave_button",
+                 "event_leave_option"):
+        hit = object() if name in hits else None
+        monkeypatch.setattr(
+            adventure_loop_module, name,
+            lambda image, _h=hit, _t=target: _h if image is _t else None)
+    for name in ("_is_healer", "_is_support",
+                 "_is_hero_item_reward", "_is_card_reward"):
+        monkeypatch.setattr(
+            loop, name,
+            lambda image, _h=(name in hits), _t=target: _h and image is _t)
+
+
+def _stub_service_handler(monkeypatch, loop, name, handled, returns_image):
+    sentinel = _blank()
+
+    def handle(image):
+        handled.append(image)
+        return sentinel if returns_image else True
+
+    monkeypatch.setattr(loop, name, handle)
+
+
+@pytest.mark.parametrize(
+    "predicate,handler,returns_image", _SERVICE_SCENE_ENTRIES,
+)
+def test_service_scene_dispatches_from_top_level_run(
+        adventure, monkeypatch, predicate, handler, returns_image):
+    target = _blank()
+    loop, _, _, saved, _ = adventure([target, target], [])
+    _stub_service_predicates(monkeypatch, loop, target, hits=(predicate,))
+    handled = []
+    _stub_service_handler(monkeypatch, loop, handler, handled, returns_image)
+    assert loop.run(max_nodes=1).reason == "iteration_limit"
+    assert handled == [target]
+    assert saved == []
+
+
+@pytest.mark.parametrize(
+    "predicate,handler,returns_image", _SERVICE_SCENE_ENTRIES,
+)
+def test_service_scene_dispatches_from_node_transition(
+        adventure, monkeypatch, predicate, handler, returns_image):
+    panel = _img("1080p_node_panel.png")
+    target = _blank()
+    loop, device, _, saved, _ = adventure([panel, target], [])
+    _stub_service_predicates(monkeypatch, loop, target, hits=(predicate,))
+    handled = []
+    _stub_service_handler(monkeypatch, loop, handler, handled, returns_image)
+    assert loop._handle_node_panel()
+    assert handled == [target]
+    assert device.taps == [(817, 485)]
+    assert saved == []
+
+
+@pytest.mark.parametrize("entry", ["top", "panel"])
+def test_service_scene_prefers_support_over_event(adventure, monkeypatch, entry):
+    """事件「離開」行模板也命中援军画面；两条入口都必须先走援军。"""
+    target = _blank()
+    frames = [target, target] if entry == "top" else [_img("1080p_node_panel.png"), target]
+    loop, _, _, _, _ = adventure(frames, [])
+    _stub_service_predicates(
+        monkeypatch, loop, target, hits=("_is_support", "event_leave_option"))
+    calls = []
+    monkeypatch.setattr(
+        loop, "_handle_support",
+        lambda image: calls.append("_handle_support") or True)
+    monkeypatch.setattr(
+        loop, "_leave_event",
+        lambda image: calls.append("_leave_event") or True)
+    if entry == "top":
+        loop.run(max_nodes=1)
+    else:
+        assert loop._handle_node_panel()
+    assert calls == ["_handle_support"]

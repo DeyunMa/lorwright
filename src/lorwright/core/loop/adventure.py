@@ -308,47 +308,12 @@ class AdventureLoop:
                     return
                 if pending_image is not None:
                     continue
-            if is_power_vendor(image):
-                self._scene("astrologer")
-                if not self._handle_astrologer(image):
+            routed = self._dispatch_service_scene(image)
+            if routed is not None:
+                ok, pending = routed
+                if not ok:
                     return
-                continue
-            if gold_chest_collect_button(image) is not None:
-                if not self._collect_gold_chest(image):
-                    return
-                continue
-            if item_chest_leave_button(image) is not None:
-                self._scene("item_chest")
-                if not self._leave_item_chest(image):
-                    return
-                continue
-            if shop_leave_button(image) is not None:
-                self._scene("shop")
-                if not self._handle_shop(image):
-                    return
-                continue
-            if self._is_healer(image):
-                self._scene("healer")
-                if not self._handle_healer(image):
-                    return
-                continue
-            if self._is_support(image):
-                self._scene("support")
-                if not self._handle_support(image):
-                    return
-                self._awaiting_battle_reward = False
-                continue
-            if self._is_hero_item_reward(image):
-                self._scene("hero_item_reward")
-                pending_image = self._handle_hero_item_reward(image)
-                if pending_image is None:
-                    return
-                self._awaiting_battle_reward = False
-                continue
-            if event_leave_option(image) is not None:
-                self._scene("event")
-                if not self._leave_event(image):
-                    return
+                pending_image = pending
                 self._awaiting_battle_reward = False
                 continue
             normalized = self._reward_design(image)
@@ -1583,28 +1548,52 @@ class AdventureLoop:
                 return False
         return False
 
-    def _handle_node_panel(self, image=None) -> bool:
-        """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
-        if image is None:
-            image = self._frame()
-        if is_power_vendor(image):
-            return self._handle_astrologer(image)
-        if gold_chest_collect_button(image) is not None:
-            return self._collect_gold_chest(image)
-        if item_chest_leave_button(image) is not None:
-            return self._leave_item_chest(image)
-        if shop_leave_button(image) is not None:
-            return self._handle_shop(image)
-        if self._is_healer(image):
-            return self._handle_healer(image)
-        if self._is_support(image):
-            return self._handle_support(image)
-        if event_leave_option(image) is not None:
-            return self._leave_event(image)
-        if self._is_hero_item_reward(image):
-            return self._handle_hero_item_reward(image) is not None
-        if self._is_card_reward(image):
-            return self._handle_card_reward(image) is not None
+    def _service_scene(self, image):
+        """按固定顺序识别服务场景，返回首个命中项 (scene_name, handler)。"""
+        checks = (
+            ("astrologer", is_power_vendor, self._handle_astrologer),
+            ("gold_chest",
+             lambda frame: gold_chest_collect_button(frame) is not None,
+             self._collect_gold_chest),
+            ("item_chest",
+             lambda frame: item_chest_leave_button(frame) is not None,
+             self._leave_item_chest),
+            ("shop",
+             lambda frame: shop_leave_button(frame) is not None,
+             self._handle_shop),
+            ("healer", self._is_healer, self._handle_healer),
+            ("support", self._is_support, self._handle_support),
+            ("hero_item_reward", self._is_hero_item_reward, self._handle_hero_item_reward),
+            ("card_reward", self._is_card_reward, self._handle_card_reward),
+            # event 排最后：其「離開」行模板也会命中金币宝箱和援军画面。
+            ("event",
+             lambda frame: event_leave_option(frame) is not None,
+             self._leave_event),
+        )
+        for name, matches, handler in checks:
+            if matches(image):
+                return name, handler
+        return None
+
+    def _dispatch_service_scene(self, image) -> tuple[bool, np.ndarray | None] | None:
+        """命中服务场景时记录场景并执行处理器；未命中返回 None。"""
+        routed = self._service_scene(image)
+        if routed is None:
+            return None
+        name, handler = routed
+        # _scene 对同名场景去重，处理器内部再记一次也不会重复上报。
+        self._scene(name)
+        result = handler(image)
+        if result is None or isinstance(result, np.ndarray):
+            # 返回后继帧的处理器（hero_item/card_reward）：None 表示失败。
+            return result is not None, result
+        return bool(result), None
+
+    def _route_node_frame(self, image) -> bool | None:
+        """节点面板首帧与转场帧共用的路由；未识别返回 None。"""
+        routed = self._dispatch_service_scene(image)
+        if routed is not None:
+            return routed[0]
         design = self._reward_design(image)
         if design is not None and (
             service_error_confirm(design[0]) is not None
@@ -1618,6 +1607,15 @@ class AdventureLoop:
             return True  # 有些节点直接进战斗
         if is_power_screen(image):
             return self._handle_power(image) is not None
+        return None
+
+    def _handle_node_panel(self, image=None) -> bool:
+        """节点面板：点金色「旅行」→「戰鬥」；找不到按钮就停下存快照。"""
+        if image is None:
+            image = self._frame()
+        routed = self._route_node_frame(image)
+        if routed is not None:
+            return routed
         if not is_map(image) and not is_battle_detail(image):
             logger.warning("adventure: 未识别节点面板，停止（保存快照）")
             self._snapshot(image, tag="panel_unknown")
@@ -1651,37 +1649,9 @@ class AdventureLoop:
             # 看到可识别的场景再交给对应处理，超时仍未知则停止。
             for image in self._transition_frames("node_transition", wait_s=24, attempts=11,
                                                  first_delay=4):
-                if is_power_vendor(image):
-                    return self._handle_astrologer(image)
-                if gold_chest_collect_button(image) is not None:
-                    return self._collect_gold_chest(image)
-                if item_chest_leave_button(image) is not None:
-                    return self._leave_item_chest(image)
-                if shop_leave_button(image) is not None:
-                    return self._handle_shop(image)
-                if self._is_healer(image):
-                    return self._handle_healer(image)
-                if self._is_support(image):
-                    return self._handle_support(image)
-                if event_leave_option(image) is not None:
-                    return self._leave_event(image)
-                if self._is_hero_item_reward(image):
-                    return self._handle_hero_item_reward(image) is not None
-                if self._is_card_reward(image):
-                    return self._handle_card_reward(image) is not None
-                design = self._reward_design(image)
-                if design is not None and (
-                    service_error_confirm(design[0]) is not None
-                    or reward_timeout_continue(design[0]) is not None
-                    or is_task_reward(design[0])
-                    or adventure_settlement(design[0]) is not None
-                ):
-                    return True
-                ui = self.engine.parser.ui.detect(design[0] if design is not None else image)
-                if ui in self.BATTLE_STATES or ui is UIState.BATTLE_END:
-                    return True
-                if is_power_screen(image):
-                    return self._handle_power(image) is not None
+                routed = self._route_node_frame(image)
+                if routed is not None:
+                    return routed
                 if is_battle_detail(image):
                     break
                 if is_map(image):

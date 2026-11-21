@@ -255,10 +255,12 @@ class BlockingPolicy(Policy):
 
     def __init__(self) -> None:
         self._declared = False
+        self._unstable_wait = 0
 
     def decide(self, state: GameState) -> Action | None:
         if state.ui_state is not UIState.BLOCKING:
             self._declared = False
+            self._unstable_wait = 0
             return None
         if self._declared:
             return Action(type=ActionType.CONFIRM)
@@ -284,11 +286,18 @@ class BlockingPolicy(Policy):
         pairs = [(bench[b], free_attackers[a]) for b, a in sub]
         covered = {a for _, a in pairs}
         # 稳定格挡者覆盖了稳定攻击者后仍有未验证的攻击者未被覆盖：
-        # 不确认——等下一帧身份稳定再规划。
+        # 不确认——等下一帧身份稳定再规划。等待有界：实机
+        # 20261121T144119 有攻击者在紫色屏障辉光下读数一直抖动，
+        # 永不稳定会死锁到 no_action；几拍后按已稳定集合执行，
+        # 漏挡一个总比整局卡死好。
         if (enemy_stable is not None and any(
                 i not in enemy_stable and i not in committed_attackers
                 and i not in covered for i in free_all)):
-            return Action(type=ActionType.NO_OP)
+            self._unstable_wait += 1
+            if self._unstable_wait <= 4:
+                return Action(type=ActionType.NO_OP)
+        else:
+            self._unstable_wait = 0
         if not pairs:
             return Action(type=ActionType.CONFIRM)
         return Action(type=ActionType.BLOCK, raw={"pairs": pairs})

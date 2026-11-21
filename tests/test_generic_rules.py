@@ -370,6 +370,30 @@ def test_blocking_replans_when_declaration_never_landed():
     assert policy.decide(s) == first
 
 
+def test_blocking_bounds_unstable_attacker_wait():
+    """实机 20261121T144119：屏障辉光下某攻击者读数永不稳→NO_OP
+    死锁到 no_action。等待有界后按已稳定集合执行。"""
+    policy = BlockingPolicy()
+    attackers = [unit_at(0, 350, 3, 1), unit_at(300, 350, 3, 3)]
+    s = state(
+        ui_state=UIState.BLOCKING,
+        my_units=[unit_at(0, 900, 2, 2), unit_at(300, 900, 2, 2)],
+        enemy_units=attackers,
+        enemy_attackers=attackers,
+        enemy_units_stable=frozenset({0}),  # 攻击者 1 永不稳定
+    )
+    for _ in range(4):
+        assert policy.decide(s).type is ActionType.NO_OP
+    # 超过等待上限：按稳定攻击者规划并声明。
+    action = policy.decide(s)
+    assert action.type is ActionType.BLOCK
+    assert action.raw["pairs"] == [(0, 0)]
+    # 离开格挡重置等待计数。
+    policy.decide(state())
+    for _ in range(4):
+        assert policy.decide(s).type is ActionType.NO_OP
+
+
 def test_blocking_starts_new_declaration_after_confirmed_round_through_router():
     policy = BlockingPolicy()
     router = Router([SpiderAggroPolicy(), policy])
